@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>CASA FONSO - Gestión de Turnos</title>
+
+  <!-- Fuente elegante: Merriweather -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;700;900&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    /* ========== RESET ========== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* ========== BASE ========== */
+    body {
+      font-family: 'Merriweather', serif;
+      background: #f9fefc;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #2fa77b;
+      color: #fff;
+      text-align: center;
+      padding: 2rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      font-size: 2.3rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    main {
+      width: 95%;
+      max-width: 1200px;
+      margin: 1rem auto;
+      flex: 1;
+      display: none;
+      animation: fadeIn 0.4s ease forwards; /* animación suave */
+      opacity: 0;
+    }
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #999;
+      padding: 1rem 0;
+    }
+
+    /* ========== LOGIN VIEW ========== */
+    #loginView {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 4rem;
+      animation: fadeIn 0.5s ease forwards;
+      opacity: 0;
+    }
+    #loginView h2 {
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+      color: #2fa77b;
+      font-weight: 700;
+    }
+    #loginForm {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      width: 300px;
+    }
+    #loginForm label {
+      font-weight: 700;
+      color: #2fa77b;
+    }
+    #loginForm input {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-size: 1rem;
+      font-family: 'Merriweather', serif;
+    }
+    #btnLogin {
+      background: #2fa77b;
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      border-radius: 6px;
+      padding: 0.8rem;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    #btnLogin:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ========== TOP BAR ========== */
+    #topBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    #topBar .fecha-actual {
+      color: #888;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+    .btnLogout {
+      background: #d33;
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 0.8rem;
+      cursor: pointer;
+    }
+    .btnLogout:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ========== MENÚ ========== */
+    #menu {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    #menu button {
+      background: #2fa77b;
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 0.8rem;
+      cursor: pointer;
+      font-family: 'Merriweather', serif;
+      transition: 0.3s background;
+    }
+    #menu button:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ========== CONTENEDOR DE VISTAS ========== */
+    .view {
+      display: none;
+      animation: fadeIn 0.4s ease forwards;
+      opacity: 0;
+    }
+
+    /* ========== LA VISTA DE TURNO ========== */
+    .controlsLine {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+      justify-content: space-between;
+    }
+    .controlsLine .grupo {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 1rem 0;
+    }
+    .section-title h2 {
+      font-weight: 700;
+      font-size: 1.4rem;
+      color: #2fa77b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+      animation: fadeIn 0.5s ease forwards;
+      opacity: 0;
+    }
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      min-width: 650px;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: #fff;
+      width: 100%;
+    }
+    thead {
+      background: #2fa77b;
+      color: #fff;
+    }
+    th, td {
+      padding: 0.8rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.3s;
+    }
+    th {
+      text-transform: uppercase;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.5px;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    td:hover {
+      filter: brightness(0.97);
+      cursor: pointer;
+    }
+
+    /* Distintas saturaciones de rojo */
+    .festivo, .domingo, .libre-normal {
+      color: #fff !important;
+      font-weight: bold;
+    }
+    .festivo {
+      background: #ff4d4d !important; /* rojo intenso */
+    }
+    .domingo {
+      background: #ff8080 !important; /* rojo medio */
+    }
+    .libre-normal {
+      background: #ffb3b3 !important; /* rojo suave */
+    }
+
+    .resaltado {
+      background: #ffebb0 !important;
+    }
+    .outsideMonth {
+      opacity: 0.2;
+    }
+    .dayNumber {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .empleadoNombre {
+      background: #ecf8f3;
+      font-weight: 700;
+      min-width: 140px;
+    }
+
+    /* ========== VISTA DE SOLICITUDES ========== */
+    #solicitudesView .solicForm {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 400px;
+      margin-bottom: 1rem;
+    }
+    #solicitudesView .solicForm input {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-family: 'Merriweather', serif;
+    }
+    #solicitudesList {
+      margin-top: 1rem;
+    }
+    .solicItem {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 0.8rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .solicItem span {
+      display: inline-block;
+      margin-right: 1rem;
+    }
+    .solicItem button {
+      background: #2fa77b;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.3rem 0.6rem;
+      margin-left: 0.3rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .solicItem button:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ========== ADMIN ONLY ========== */
+    .adminOnly {
+      color: #f00;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CASA FONSO - Gestión de Turnos</h1>
+  </header>
+
+  <!-- LOGIN VIEW -->
+  <div id="loginView">
+    <h2>Iniciar Sesión</h2>
+    <form id="loginForm">
+      <label for="username">Usuario:</label>
+      <input type="text" id="username" />
+
+      <label for="password">Contraseña:</label>
+      <input type="password" id="password" />
+
+      <button type="button" id="btnLogin">Entrar</button>
+    </form>
+  </div>
+
+  <!-- MAIN (donde están las vistas una vez logueado) -->
+  <main id="mainContent">
+    <!-- Barra superior con la fecha actual y logout -->
+    <div id="topBar">
+      <div class="fecha-actual" id="fechaActualTexto"></div>
+      <button class="btnLogout" onclick="logout()">Salir</button>
+    </div>
+
+    <!-- Menú -->
+    <div id="menu">
+      <button onclick="showView('turnosView')">Turnos</button>
+      <button onclick="showView('solicitudesView')">Solicitudes de Vacaciones</button>
+      <button onclick="showView('calendarioView')">Calendario Mensual</button>
+      <!-- Admin Only: un ejemplo de menú extra -->
+      <button onclick="showView('adminPanel')" id="btnAdminPanel" style="display:none;">Panel Admin</button>
+    </div>
+
+    <!-- VISTA 1: TURNOS -->
+    <div class="view" id="turnosView">
+      <div class="section-title">
+        <h2 id="tituloSemana">Semana</h2>
+      </div>
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Empleado</th>
+                <th>Lunes</th>
+                <th>Martes</th>
+                <th>Miércoles</th>
+                <th>Jueves</th>
+                <th>Viernes</th>
+                <th>Sábado</th>
+                <th>Domingo</th>
+              </tr>
+            </thead>
+            <tbody id="tablaPrincipal"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Controles para cambiar de semana / mes -->
+      <div class="week-nav">
+        <button onclick="semanaAnterior()">← -7d</button>
+        <button onclick="semanaSiguiente()">+7d →</button>
+      </div>
+    </div>
+
+    <!-- VISTA 2: SOLICITUDES DE VACACIONES -->
+    <div class="view" id="solicitudesView">
+      <h2>Solicitudes de Vacaciones</h2>
+      <div class="solicForm" id="solicForm">
+        <label>Inicio:</label>
+        <input type="date" id="solicDesde" />
+        <label>Fin:</label>
+        <input type="date" id="solicHasta" />
+
+        <button class="btn" onclick="enviarSolicitud()">Solicitar</button>
+      </div>
+
+      <!-- Lista de solicitudes -->
+      <div id="solicitudesList"></div>
+    </div>
+
+    <!-- VISTA 3: CALENDARIO MENSUAL -->
+    <div class="view" id="calendarioView">
+      <h2 id="tituloCalendario">Calendario Mensual</h2>
+      <div class="card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Lunes</th>
+                <th>Martes</th>
+                <th>Miércoles</th>
+                <th>Jueves</th>
+                <th>Viernes</th>
+                <th>Sábado</th>
+                <th>Domingo</th>
+              </tr>
+            </thead>
+            <tbody id="tablaEmpleadoMes"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Navegación del Mes (verMes) -->
+      <div class="week-nav">
+        <button onclick="mesAnterior()">&larr; Mes Anterior</button>
+        <button onclick="mesSiguiente()">Mes Siguiente &rarr;</button>
+      </div>
+    </div>
+
+    <!-- VISTA 4: PANEL ADMIN (solo admin) -->
+    <div class="view" id="adminPanel">
+      <h2>Panel de Administración</h2>
+      <p class="adminOnly">Solo el Admin puede ver esto.</p>
+      <p>Aquí podrías editar turnos, gestionar festivos, etc.</p>
+    </div>
+  </main>
+
+  <footer>
+    © 2025 CASA FONSO. Todos los derechos reservados.
+  </footer>
+
+  <script>
+    /************************************************************
+     * SIMULACIÓN DE USUARIOS Y ROLES
+     ************************************************************/
+    // USUARIOS de ejemplo:
+    // admin: pass => admin
+    // patricia: pass => 1234 (empleado)
+    // oscar: pass => 4321 (empleado)
+    // ...
+
+    const USERS = [
+      { username: "admin", password: "admin", role: "admin" },
+      { username: "melchor", password: "1234", role: "empleado" },
+      { username: "patricia", password: "1234", role: "empleado" },
+      { username: "oscar", password: "1234", role: "empleado" },
+      { username: "andres", password: "1234", role: "empleado" }
+    ];
+
+    // Almacén de SOLICITUDES (en la práctica usaría DB)
+    let SOLICITUDES = []; // { id, user, desde, hasta, estado }
+
+    // Festivos ejemplo
+    const festivosNacionales2025 = [
+      { year: 2025, month: 0,  day: 1 },
+      { year: 2025, month: 0,  day: 6 },
+      { year: 2025, month: 3,  day: 17 },
+      { year: 2025, month: 3,  day: 18 },
+      { year: 2025, month: 4,  day: 1 },
+      { year: 2025, month: 7,  day: 15 },
+      { year: 2025, month: 9,  day: 12 },
+      { year: 2025, month: 10, day: 1 },
+      { year: 2025, month: 11, day: 6 },
+      { year: 2025, month: 11, day: 25 }
+    ];
+    function esFestivo(date) {
+      return festivosNacionales2025.some(f => 
+        f.year=== date.getFullYear() &&
+        f.month=== date.getMonth() &&
+        f.day=== date.getDate()
+      );
+    }
+    function esDomingo(date){ 
+      return (date.getDay()===0);
+    }
+
+    // Turnos semanales (4 arrays)
+    const turnosSemanales = [
+      ["8h (9:00-18:30)", "8h (9:00-18:30)", "8h (9:00-18:30)", "8h (9:00-18:30)", "8h (9:00-18:30)", "4h (9:30-13:30)", "Libre"],
+      ["Libre", "9h (9:00-19:30)", "9h (9:00-19:30)", "9h (9:00-19:30)", "9h (9:00-19:30)", "4h (9:30-13:30)", "Libre"],
+      ["8h (10:00-19:30)", "8h (10:00-19:30)", "8h (10:00-19:30)", "8h (10:00-19:30)", "8h (10:00-19:30)", "Libre", "Libre"],
+      ["9h (9:00-19:30)", "9h (9:00-19:30)", "9h (9:00-19:30)", "9h (9:00-19:30)", "Libre", "Libre", "Libre"]
+    ];
+    const empleados= ["Melchor", "Patricia", "Oscar", "Andres"];
+
+    // ============== LOGIN ==============
+    let currentUser = null; // { username, role }
+
+    document.getElementById("btnLogin").addEventListener("click", doLogin);
+    function doLogin() {
+      const user = document.getElementById("username").value.trim().toLowerCase();
+      const pass = document.getElementById("password").value.trim();
+
+      const found = USERS.find(u => u.username===user && u.password===pass);
+      if(!found) {
+        alert("Credenciales inválidas");
+        return;
+      }
+      currentUser= found;
+      // Ocultar login, mostrar main
+      document.getElementById("loginView").style.display= "none";
+      const main= document.getElementById("mainContent");
+      main.style.display= "block";
+      showView("turnosView");
+
+      // Si es admin, mostrar panel admin
+      if(found.role==="admin"){
+        document.getElementById("btnAdminPanel").style.display= "inline-block";
+      } else {
+        document.getElementById("btnAdminPanel").style.display= "none";
+      }
+      // Guardar en localStorage si quisieras
+      // ...
+      onFechaEmpleadoChange();
+    }
+    function logout() {
+      currentUser= null;
+      document.getElementById("mainContent").style.display= "none";
+      document.getElementById("loginView").style.display= "flex";
+    }
+
+    // ========== Menu Views =============
+    function showView(viewId) {
+      const views= document.querySelectorAll(".view");
+      views.forEach(v=> v.style.display="none");
+      document.getElementById(viewId).style.display= "block";
+      if(viewId==="solicitudesView") renderSolicitudes();
+    }
+
+    // ========== Semanas logic =============
+    function getWeekNumberISO(date){
+      const temp= new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      temp.setUTCDate(temp.getUTCDate()+4 - (temp.getUTCDay()||7));
+      const yearStart= new Date(Date.UTC(temp.getUTCFullYear(),0,1));
+      return Math.ceil((((temp-yearStart)/86400000)+1)/7);
+    }
+    function getMonday(date){
+      const copy= new Date(date);
+      let day= copy.getDay()||7;
+      if(day!==1) copy.setDate(copy.getDate()-(day-1));
+      return copy;
+    }
+
+    // ========== Calendario Semanal =============
+    function cargarTurnosSemana() {
+      const fechaStr= document.getElementById("fechaElegida").value;
+      if(!fechaStr) return;
+      const fecha= new Date(fechaStr);
+      if(isNaN(fecha)) return;
+
+      const monday= getMonday(fecha);
+      const endSunday= new Date(monday);
+      endSunday.setDate(endSunday.getDate()+6);
+
+      document.getElementById("tituloSemana").textContent= `Semana del ${formateaFechaCorta(monday)} al ${formateaFechaCorta(endSunday)}`;
+
+      const tbody= document.getElementById("tablaPrincipal");
+      tbody.innerHTML= "";
+
+      const isoWeek= getWeekNumberISO(fecha);
+
+      empleados.forEach((emp, indexEmp)=>{
+        const rowId= `row-${emp}`;
+        const pattern= turnosSemanales[(indexEmp+ isoWeek)% turnosSemanales.length];
+
+        let rowHtml= `<tr id="${rowId}"><td class="empleadoNombre">${emp}</td>`;
+        for(let i=0;i<7;i++){
+          const dayDate= new Date(monday);
+          dayDate.setDate(monday.getDate()+i);
+          let turno= pattern[i];
+          if(esFestivo(dayDate)|| esDomingo(dayDate)){
+            turno="Libre";
+          }
+          let claseTd="";
+          if(turno==="Libre"){
+            if(esFestivo(dayDate)){
+              claseTd="festivo";
+            } else if(esDomingo(dayDate)){
+              claseTd="domingo";
+            } else {
+              claseTd="libre-normal";
+            }
+          }
+          rowHtml+= `<td class="${claseTd}">${turno}</td>`;
+        }
+        rowHtml+="</tr>";
+        tbody.innerHTML+= rowHtml;
+      });
+      resaltarEmpleadoSemana();
+    }
+    function resaltarEmpleadoSemana() {
+      const emp= document.getElementById("empleadoSelect").value;
+      empleados.forEach(e=>{
+        const row= document.getElementById(`row-${e}`);
+        if(row) row.classList.remove("resaltado");
+      });
+      if(emp){
+        const rowSel= document.getElementById(`row-${emp}`);
+        if(rowSel) rowSel.classList.add("resaltado");
+      }
+    }
+    function semanaAnterior(){
+      const fechaStr= document.getElementById("fechaElegida").value;
+      if(!fechaStr)return;
+      const d=new Date(fechaStr);
+      d.setDate(d.getDate()-7);
+      setFecha(d);
+      onFechaEmpleadoChange();
+    }
+    function semanaSiguiente(){
+      const fechaStr= document.getElementById("fechaElegida").value;
+      if(!fechaStr)return;
+      const d=new Date(fechaStr);
+      d.setDate(d.getDate()+7);
+      setFecha(d);
+      onFechaEmpleadoChange();
+    }
+
+    // ========== Calendario Mensual =============
+    function mostrarCalendarioMes(){
+      const fechaStr= document.getElementById("fechaElegida").value;
+      const empleado= document.getElementById("empleadoSelect").value;
+      const titulo= document.getElementById("tituloCalendario");
+      const tbody= document.getElementById("tablaEmpleadoMes");
+      tbody.innerHTML= "";
+
+      if(!fechaStr|| !empleado){
+        titulo.textContent="Calendario del mes (elige un empleado)";
+        return;
+      }
+      const fecha= new Date(fechaStr);
+      if(isNaN(fecha))return;
+
+      const year= fecha.getFullYear();
+      const month= fecha.getMonth();
+      titulo.textContent= `Calendario del mes de ${getMonthName(month)} ${year} para: ${empleado}`;
+
+      const firstDay= new Date(year, month, 1);
+      let dayOfWeek= firstDay.getDay()||7;
+      const firstMonday= new Date(firstDay);
+      firstMonday.setDate(firstMonday.getDate()- (dayOfWeek-1));
+
+      const idxEmp= empleados.indexOf(empleado);
+
+      for(let i=0; i<42; i++){
+        const current= new Date(firstMonday);
+        current.setDate(firstMonday.getDate()+ i);
+
+        const isoWeek= getWeekNumberISO(current);
+        const pattern= turnosSemanales[(idxEmp+ isoWeek)% turnosSemanales.length];
+        let dayIndex= current.getDay()-1;
+        if(dayIndex<0) dayIndex=6;
+        let turno= pattern[dayIndex];
+
+        if(esFestivo(current)|| esDomingo(current)){
+          turno="Libre";
+        }
+        let classes=[];
+        if(current.getMonth()!== month){
+          classes.push("outsideMonth");
+        }
+        if(turno==="Libre"){
+          if(esFestivo(current)){
+            classes.push("festivo");
+          }else if(esDomingo(current)){
+            classes.push("domingo");
+          }else{
+            classes.push("libre-normal");
+          }
+        }
+        const pos=i;
+        const row=Math.floor(pos/7);
+        const col= pos%7;
+        let rowEl= document.querySelector(`#tablaEmpleadoMes tr:nth-child(${row+1})`);
+        if(!rowEl){
+          rowEl= document.createElement("tr");
+          tbody.appendChild(rowEl);
+        }
+        let td= document.createElement("td");
+        td.className= classes.join(" ");
+        td.innerHTML= `<span class="dayNumber">${current.getDate()}</span>${turno}`;
+        rowEl.appendChild(td);
+      }
+    }
+
+    function mesAnterior(){
+      const fechaStr= document.getElementById("fechaElegida").value;
+      if(!fechaStr)return;
+      const d=new Date(fechaStr);
+      d.setDate(1);
+      d.setMonth(d.getMonth()-1);
+      setFecha(d);
+      onFechaEmpleadoChange();
+    }
+    function mesSiguiente(){
+      const fechaStr= document.getElementById("fechaElegida").value;
+      if(!fechaStr)return;
+      const d=new Date(fechaStr);
+      d.setDate(1);
+      d.setMonth(d.getMonth()+1);
+      setFecha(d);
+      onFechaEmpleadoChange();
+    }
+
+    // ========== Botón "Ver mes" => set fecha al 1 del mes selec
+    function irAlMes(){
+      const selMes= +document.getElementById("selectMes").value;
+      const selAnio= +document.getElementById("selectAnio").value;
+      if(!selAnio|| selMes<0|| selMes>11)return;
+      const d= new Date(selAnio, selMes,1);
+      setFecha(d);
+      onFechaEmpleadoChange();
+    }
+
+    // ========== Solicitudes Vacaciones =============
+    let SOLICITUDES= []; // {id, user, desde, hasta, estado: 'pendiente'|'aprobado'|'rechazado'}
+
+    function enviarSolicitud(){
+      if(!currentUser || currentUser.role!=="empleado"){
+        alert("Solo un empleado puede solicitar vacaciones.");
+        return;
+      }
+      const desde= document.getElementById("solicDesde").value;
+      const hasta= document.getElementById("solicHasta").value;
+      if(!desde|| !hasta){
+        alert("Completa las fechas.");
+        return;
+      }
+      // ID auto
+      const id= "SOL"+(Date.now());
+      SOLICITUDES.push({
+        id, user: currentUser.username,
+        desde, hasta, estado: "pendiente"
+      });
+      alert("Solicitud enviada. Espera la aprobación del admin.");
+      document.getElementById("solicDesde").value="";
+      document.getElementById("solicHasta").value="";
+      renderSolicitudes();
+    }
+
+    function renderSolicitudes(){
+      const cont= document.getElementById("solicitudesList");
+      cont.innerHTML="";
+      // Filtrar si es admin => ve todas, si es empleado => solo las suyas
+      let items= SOLICITUDES;
+      if(currentUser && currentUser.role==="empleado"){
+        items= items.filter(s=> s.user=== currentUser.username);
+      }
+      // Mostrar
+      items.forEach(s=>{
+        const div= document.createElement("div");
+        div.className= "solicItem";
+        div.innerHTML= `<span>${s.user.toUpperCase()} pide vacaciones del ${s.desde} al ${s.hasta} [${s.estado}]</span>`;
+        if(currentUser && currentUser.role==="admin" && s.estado==="pendiente"){
+          div.innerHTML+= `
+            <button onclick="aprobarSolicitud('${s.id}')">Aprobar</button>
+            <button onclick="rechazarSolicitud('${s.id}')">Rechazar</button>
+          `;
+        }
+        cont.appendChild(div);
+      });
+    }
+    function aprobarSolicitud(id){
+      const sol= SOLICITUDES.find(x=> x.id=== id);
+      if(sol){
+        sol.estado="aprobado";
+        alert(`Solicitud de ${sol.user} aprobada.`);
+        renderSolicitudes();
+      }
+    }
+    function rechazarSolicitud(id){
+      const sol= SOLICITUDES.find(x=> x.id=== id);
+      if(sol){
+        sol.estado="rechazado";
+        alert(`Solicitud de ${sol.user} rechazada.`);
+        renderSolicitudes();
+      }
+    }
+
+    // ========== NAV / UTILS ==========
+
+    function showView(viewId){
+      const vs= document.querySelectorAll(".view");
+      vs.forEach(v=> v.style.display= "none");
+      document.getElementById(viewId).style.display= "block";
+      if(viewId==="solicitudesView"){
+        renderSolicitudes();
+      } 
+      if(viewId==="calendarioView"){
+        // ya se pintó al cambiar la fecha
+      }
+    }
+    function onFechaEmpleadoChange(){
+      const fechaStr= document.getElementById("fechaElegida").value;
+      const emp= document.getElementById("empleadoSelect").value;
+      if(!fechaStr) return;
+      localStorage.setItem("fechaElegida", fechaStr);
+      localStorage.setItem("empleadoSeleccionado", emp);
+
+      cargarTurnosSemana();
+      mostrarCalendarioMes();
+    }
+    function ponerHoy(){
+      const hoy=new Date();
+      setFecha(hoy);
+      onFechaEmpleadoChange();
+    }
+    function setFecha(d){
+      const yyyy= d.getFullYear();
+      let mm= d.getMonth()+1;
+      let dd= d.getDate();
+      if(mm<10) mm= "0"+ mm;
+      if(dd<10) dd= "0"+ dd;
+      document.getElementById("fechaElegida").value=`${yyyy}-${mm}-${dd}`;
+    }
+
+    function logout(){
+      currentUser= null;
+      document.getElementById("mainContent").style.display= "none";
+      document.getElementById("loginView").style.display= "flex";
+    }
+
+    function getMonthName(m){
+      const names=[
+        "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+        "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+      ];
+      return names[m];
+    }
+    function formateaFechaCorta(d){
+      let dd= d.getDate();
+      let mm= d.getMonth()+1;
+      const yyyy= d.getFullYear();
+      if(dd<10) dd=`0${dd}`;
+      if(mm<10) mm=`0${mm}`;
+      return `${dd}/${mm}/${yyyy}`;
+    }
+    function actualizarFechaActual(){
+      const now= new Date();
+      const hoyTexto= now.toLocaleString('es-ES',{
+        weekday:'long',
+        day:'numeric',
+        month:'long',
+        year:'numeric'
+      });
+      document.getElementById("fechaActualTexto").textContent=`Hoy es ${hoyTexto}`;
+      setTimeout(actualizarFechaActual,60000);
+    }
+  </script>
+</body>
+</html>
