@@ -1,0 +1,35 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+sqlalchemy==2.0.36
+alembic==1.14.0
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-multipart==0.0.20
+aiofiles==24.1.0
+
+# PDF & OCR
+pdfplumber==0.11.4
+pytesseract==0.3.13
+opencv-python-headless==4.10.0.84
+Pillow==11.1.0
+pdf2image==1.17.0
+
+# AI
+anthropic==0.40.0
+
+# Excel
+openpyxl==3.1.5
+
+# PDF Labels
+reportlab==4.2.5
+
+# Barcodes & QR
+python-barcode==0.15.1
+qrcode[pil]==8.0
+
+# HTTP requests (for product search)
+httpx==0.28.1
+beautifulsoup4==4.12.3
+
+# Utils
+python-dateutil==2.9.0.post0

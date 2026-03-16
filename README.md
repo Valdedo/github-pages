@@ -1,75 +1,207 @@
-<header>
+# 📦 Procesador de Albaranes
 
-<!--
-  <<< Author notes: Course header >>>
-  Include a 1280×640 image, course title in sentence case, and a concise description in emphasis.
-  In your repository settings: enable template repository, add your 1280×640 social image, auto delete head branches.
-  Add your open source license, GitHub uses MIT license.
--->
-
-# GitHub Pages
-
-_Create a site or blog from your GitHub repositories with GitHub Pages._
-
-</header>
-
-<!--
-  <<< Author notes: Course start >>>
-  Include start button, a note about Actions minutes,
-  and tell the learner why they should take the course.
--->
-
-## Welcome
-
-With GitHub Pages, you can host project blogs, documentation, resumes, portfolios, or any other static content you'd like. Your GitHub repository can easily become its own website. In this course, we'll show you how to set up your own site or blog using GitHub Pages.
-
-- **Who is this for**: Beginners, students, project maintainers, small businesses.
-- **What you'll learn**: How to build a GitHub Pages site.
-- **What you'll build**: We'll build a simple GitHub Pages site with a blog. We'll use [Jekyll](https://jekyllrb.com), a static site generator.
-- **Prerequisites**: If you need to learn about branches, commits, and pull requests, take [Introduction to GitHub](https://github.com/skills/introduction-to-github) first.
-- **How long**: This course takes less than one hour to complete.
-
-In this course, you will:
-
-1. Enable GitHub Pages
-2. Configure your site
-3. Customize your home page
-4. Create a blog post
-5. Merge your pull request
-
-### How to start this course
-
-<!-- For start course, run in JavaScript:
-'https://github.com/new?' + new URLSearchParams({
-  template_owner: 'skills',
-  template_name: 'github-pages',
-  owner: '@me',
-  name: 'skills-github-pages',
-  description: 'My clone repository',
-  visibility: 'public',
-}).toString()
--->
-
-[![start-course](https://user-images.githubusercontent.com/1221423/235727646-4a590299-ffe5-480d-8cd5-8194ea184546.svg)](https://github.com/new?template_owner=skills&template_name=github-pages&owner=%40me&name=skills-github-pages&description=My+clone+repository&visibility=public)
-
-1. Right-click **Start course** and open the link in a new tab.
-2. In the new tab, most of the prompts will automatically fill in for you.
-   - For owner, choose your personal account or an organization to host the repository.
-   - We recommend creating a public repository, as private repositories will [use Actions minutes](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions).
-   - Scroll down and click the **Create repository** button at the bottom of the form.
-3. After your new repository is created, wait about 20 seconds, then refresh the page. Follow the step-by-step instructions in the new repository's README.
-
-<footer>
-
-<!--
-  <<< Author notes: Footer >>>
-  Add a link to get support, GitHub status page, code of conduct, license link.
--->
+Aplicación web para procesar albaranes de ferretería y materiales de construcción mediante IA (OCR + Claude API). Extrae artículos automáticamente, calcula precios de venta y genera Excel y etiquetas PDF con códigos de barras y QR.
 
 ---
 
-Get help: [Post in our discussion board](https://github.com/orgs/skills/discussions/categories/github-pages) &bull; [Review the GitHub status page](https://www.githubstatus.com/)
+## ✨ Funcionalidades
 
-&copy; 2023 GitHub &bull; [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md) &bull; [MIT License](https://gh.io/mit)
+| Función | Descripción |
+|---------|-------------|
+| 📄 **Subida de albaranes** | PDF digital o foto (JPG/PNG), hasta 20 MB |
+| 🤖 **Extracción con IA** | Claude API detecta artículos, precios, descuentos y códigos |
+| 📊 **Tabla editable** | Edita cualquier campo directamente en pantalla |
+| 💰 **Cálculo de PVP** | Margen variable por tramos de coste, configurable |
+| 📊 **Exportar Excel** | Hoja con todos los artículos y columnas de datos |
+| 🏷️ **Etiquetas PDF** | Etiquetas 10×5 cm con precio, código de barras y QR |
+| 🔍 **Info técnica** | Búsqueda automática de especificaciones en internet |
 
-</footer>
+---
+
+## 🚀 Instalación rápida (Docker)
+
+### Requisitos
+- Docker y Docker Compose instalados
+- Clave API de Anthropic (Claude) — [Obtener aquí](https://console.anthropic.com/)
+
+### Pasos
+
+```bash
+# 1. Clonar el repositorio
+git clone <url-del-repo>
+cd albaran-processor
+
+# 2. Configurar variables de entorno
+cp .env.example .env
+# Edita .env y pon tu ANTHROPIC_API_KEY
+
+# 3. Crear directorio de datos
+mkdir -p data/uploads data/exports
+
+# 4. Construir y arrancar
+docker compose up --build
+
+# La aplicación estará disponible en:
+# Frontend: http://localhost:3000
+# API:      http://localhost:8000
+# Docs API: http://localhost:8000/docs
+```
+
+---
+
+## 🛠️ Instalación para desarrollo
+
+### Backend (Python)
+
+```bash
+cd backend
+
+# Crear entorno virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Instalar Tesseract OCR (para imágenes escaneadas)
+# Ubuntu/Debian:
+sudo apt-get install tesseract-ocr tesseract-ocr-spa
+
+# Configurar variables
+cp ../.env.example .env
+# Editar .env con tu ANTHROPIC_API_KEY
+
+# Arrancar el servidor
+DATABASE_URL=sqlite:///./data.db UPLOAD_DIR=./uploads EXPORT_DIR=./exports uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend (Node.js)
+
+```bash
+cd frontend
+npm install
+npm run dev
+# → Disponible en http://localhost:3000
+```
+
+---
+
+## 📁 Estructura del proyecto
+
+```
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI app
+│   │   ├── config.py            # Configuración
+│   │   ├── database.py          # SQLAlchemy + SQLite
+│   │   ├── models/              # Modelos de base de datos
+│   │   ├── schemas/             # Esquemas Pydantic
+│   │   ├── api/                 # Endpoints API REST
+│   │   └── services/            # Lógica de negocio
+│   ├── tests/                   # Tests (pytest)
+│   ├── sample_docs/             # Albaranes de ejemplo
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx              # Router principal
+│   │   ├── api/client.ts        # Cliente API (axios)
+│   │   ├── pages/               # Páginas de la app
+│   │   └── components/          # Componentes UI
+│   ├── package.json
+│   └── Dockerfile
+├── docker-compose.yml
+├── .env.example
+└── README.md
+```
+
+---
+
+## 🗺️ Cómo usar la aplicación
+
+### 1. Subir un albarán
+- Ve a la página de inicio (`http://localhost:3000`)
+- Arrastra un PDF o foto al área de subida, o haz clic para seleccionar
+- La IA procesará el documento automáticamente (5–15 segundos)
+
+### 2. Revisar y editar artículos
+- La tabla mostrará todos los artículos detectados
+- **Haz clic en cualquier celda** para editarla
+- Los precios (PVP) se recalculan automáticamente al cambiar cualquier dato
+- 🟢 Verde = margen automático por tramos
+- 🔵 Azul = margen manual (haz clic en ↺ para restablecer)
+
+### 3. Configurar márgenes
+- Haz clic en **"Configuración de márgenes y precios"** para desplegar el panel
+- Edita los tramos de margen según tus necesidades
+- Elige entre redondeo estándar (ej: 20,57 €) o psicológico (ej: 20,99 €)
+- Haz clic en **"Guardar y recalcular"** para aplicar a todos los artículos
+
+### 4. Exportar
+
+| Botón | Función |
+|-------|---------|
+| 🔄 **Reprocesar extracción** | Vuelve a analizar el documento con IA |
+| 📊 **Exportar Excel** | Descarga .xlsx con todos los artículos |
+| 🏷️ **Generar etiquetas PDF** | Descarga PDF con etiquetas 10×5 cm |
+
+---
+
+## ⚙️ Configuración (.env)
+
+| Variable | Descripción | Por defecto |
+|----------|-------------|-------------|
+| `ANTHROPIC_API_KEY` | **Obligatorio** — clave Claude | — |
+| `CLAUDE_MODEL` | Modelo Claude | `claude-3-5-haiku-latest` |
+| `DATABASE_URL` | Base de datos | `sqlite:////data/app.db` |
+| `BASE_URL` | URL app para QR codes | `http://localhost:3000` |
+| `MAX_UPLOAD_SIZE_MB` | Tamaño máximo upload | `20` |
+
+---
+
+## 🧪 Tests
+
+```bash
+cd backend
+pip install pytest pytest-asyncio
+pytest tests/ -v
+```
+
+---
+
+## 📄 Generar albaranes de prueba
+
+```bash
+cd backend
+python -m sample_docs.generate_all
+# Genera 3 PDFs de ejemplo en backend/sample_docs/
+```
+
+---
+
+## 🔌 API
+
+Documentación interactiva: `http://localhost:8000/docs`
+
+Endpoints principales:
+- `POST /api/documents/upload` — subir albarán
+- `GET /api/documents/{id}` — ver artículos
+- `PUT /api/articles/{id}` — editar artículo
+- `GET /api/export/excel/{id}` — descargar Excel
+- `GET /api/export/labels/{id}` — descargar etiquetas PDF
+- `GET /api/settings` — configuración de márgenes
+
+---
+
+## 🏗️ Stack tecnológico
+
+| Capa | Tecnología |
+|------|-----------|
+| Frontend | React 18 + TypeScript + Vite + TanStack Table |
+| Backend | Python 3.11 + FastAPI + SQLAlchemy |
+| IA | Anthropic Claude API (claude-3-5-haiku) |
+| OCR | pdfplumber + pytesseract + OpenCV |
+| Excel | openpyxl |
+| PDF etiquetas | reportlab |
+| Códigos de barras | python-barcode + qrcode |
+| Base de datos | SQLite |
