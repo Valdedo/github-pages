@@ -16,6 +16,7 @@ class AppSettingsBase(BaseModel):
     label_columns: Optional[int] = None
     label_rows_per_page: Optional[int] = None
     base_url: Optional[str] = None
+    company_name: Optional[str] = None
 
 
 class AppSettingsUpdate(AppSettingsBase):
@@ -30,6 +31,7 @@ class AppSettingsResponse(BaseModel):
     label_columns: int
     label_rows_per_page: int
     base_url: str
+    company_name: str
     updated_at: datetime.datetime
 
     class Config:

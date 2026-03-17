@@ -99,14 +99,18 @@ def generate_labels_pdf(
     base_url: str = "http://localhost:3000",
     cols: int = 2,
     rows_per_page: int = 5,
+    copies: int = 1,
+    company_name: str = "",
 ) -> bytes:
     """Generate PDF with labels for all articles.
 
     Args:
         articles: List of Article ORM objects
-        base_url: Base URL for QR codes (e.g. http://localhost:3000)
+        base_url: Base URL for QR codes
         cols: Number of label columns per page
         rows_per_page: Number of label rows per page
+        copies: Number of copies per article label
+        company_name: Company name printed on each label
 
     Returns:
         PDF as bytes
@@ -134,18 +138,23 @@ def generate_labels_pdf(
 
     labels_per_page = cols * rows_per_page
 
-    for page_start in range(0, len(articles), labels_per_page):
-        page_articles = articles[page_start: page_start + labels_per_page]
+    # Expand list respecting copies
+    expanded = []
+    for article in articles:
+        for _ in range(max(1, copies)):
+            expanded.append(article)
+
+    for page_start in range(0, len(expanded), labels_per_page):
+        page_articles = expanded[page_start: page_start + labels_per_page]
 
         for idx, article in enumerate(page_articles):
             col = idx % cols
             row = idx // cols
 
-            # Calculate label top-left corner (PDF coords from bottom-left)
             x = margin + col * (label_w + col_gap)
             y = page_h - margin - (row + 1) * label_h - row * row_gap
 
-            _draw_label(c, article, x, y, label_w, label_h, base_url)
+            _draw_label(c, article, x, y, label_w, label_h, base_url, company_name)
 
         c.showPage()
 
@@ -176,7 +185,7 @@ def _wrap_words(text: str, font_name: str, font_size: float, max_width: float) -
     return lines
 
 
-def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: str):
+def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: str, company_name: str = ""):
     """Draw a single label on the canvas at position (x, y)."""
     from reportlab.lib import colors
     from reportlab.lib.utils import ImageReader
@@ -284,3 +293,9 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
         c.setFont("Helvetica", 8)
         c.setFillColor(colors.black)
         c.drawString(x + pad, y + 5, barcode_code)
+
+    # Company name — bottom right corner
+    if company_name:
+        c.setFont("Helvetica", 6)
+        c.setFillColor(colors.HexColor("#A0AFBE"))
+        c.drawRightString(x + w - pad, y + 3, company_name)

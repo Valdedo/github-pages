@@ -6,7 +6,9 @@ import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
 import { ArticleTable } from '../components/ArticleTable';
 import { ExportPanel } from '../components/ExportPanel';
-import type { Document, Article, AppSettings, Supplier } from '../types';
+import { TotalsPanel } from '../components/TotalsPanel';
+import { useToast } from '../components/Toast';
+import type { Document, Article, AppSettings, Supplier } from '../types/index';
 
 export function DocumentPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +21,9 @@ export function DocumentPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  const { showToast, ToastContainer } = useToast();
 
   const loadDocument = useCallback(async () => {
     try {
@@ -26,8 +31,7 @@ export function DocumentPage() {
       setDocument(data);
       setArticles(data.articles || []);
       return data.status;
-    } catch (e) {
-      console.error('Error loading document', e);
+    } catch {
       return 'error';
     }
   }, [docId]);
@@ -54,6 +58,7 @@ export function DocumentPage() {
         if (status !== 'processing' && status !== 'uploaded') {
           clearInterval(timer);
           setPolling(false);
+          showToast('Extracción completada', 'success');
         }
       }, 2000);
       return () => clearInterval(timer);
@@ -61,11 +66,7 @@ export function DocumentPage() {
   }, [document?.status]);
 
   if (loading) {
-    return (
-      <div className="empty-state" style={{ paddingTop: '80px' }}>
-        <div className="empty-state-text">Cargando...</div>
-      </div>
-    );
+    return <div className="empty-state" style={{ paddingTop: '80px' }}><div className="empty-state-text">Cargando…</div></div>;
   }
 
   if (!document) {
@@ -73,72 +74,71 @@ export function DocumentPage() {
       <div className="empty-state" style={{ paddingTop: '80px' }}>
         <div className="empty-state-icon">❌</div>
         <div className="empty-state-text">Documento no encontrado.</div>
-        <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/')}>
-          ← Volver al inicio
-        </button>
+        <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/')}>← Volver al inicio</button>
       </div>
     );
   }
 
   return (
     <div className="page-wide">
+      <ToastContainer />
+
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-          ← Inicio
-        </button>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Inicio</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: '16px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {document.original_filename}
           </h2>
         </div>
         {polling && (
-          <span style={{ color: 'var(--warning)', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
-            Extrayendo artículos...
+          <span style={{ color: 'var(--warning)', fontSize: '13px', fontWeight: 600 }}>
+            ⏳ Extrayendo artículos…
           </span>
         )}
       </div>
 
-      {/* Main layout */}
+      {/* Main 2-column layout */}
       <div style={{ display: 'grid', gridTemplateColumns: '370px 1fr', gap: '18px', alignItems: 'start' }}>
-        {/* Left: preview */}
+        {/* Left: sticky preview */}
         <div style={{ position: 'sticky', top: '74px', height: 'calc(100vh - 110px)' }}>
           <DocumentPreview document={document} />
         </div>
 
-        {/* Right: panels */}
+        {/* Right: stacked panels */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <MetadataPanel
             document={document}
             suppliers={suppliers}
             onUpdated={doc => setDocument(doc)}
+            onToast={showToast}
           />
 
           {settings && (
             <MarginSettings
               settings={settings}
               documentId={docId}
-              onUpdated={s => {
-                setSettings(s);
-                loadDocument();
-              }}
+              onUpdated={s => { setSettings(s); loadDocument(); }}
+              onToast={showToast}
             />
           )}
 
           <ExportPanel
             documentId={docId}
             suppliers={suppliers}
-            onReprocessed={() => {
-              setArticles([]);
-              loadDocument();
-            }}
+            selectedArticleIds={selectedIds}
+            onReprocessed={() => { setArticles([]); loadDocument(); }}
+            onToast={showToast}
           />
+
+          <TotalsPanel articles={articles} />
 
           <ArticleTable
             documentId={docId}
             articles={articles}
             onArticlesChanged={setArticles}
+            onSelectedIdsChange={setSelectedIds}
+            onToast={showToast}
           />
         </div>
       </div>

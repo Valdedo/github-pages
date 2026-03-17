@@ -49,26 +49,33 @@ export const recalculateArticles = (documentId: number) =>
 
 // Export
 export const getExcelUrl = (documentId: number) => `${BASE}/api/export/excel/${documentId}`;
-export const getLabelsUrl = (documentId: number, articleIds?: number[]) => {
-  let url = `${BASE}/api/export/labels/${documentId}`;
-  if (articleIds && articleIds.length > 0) {
-    url += `?ids=${articleIds.join(',')}`;
-  }
-  return url;
+export const getLabelsUrl = (documentId: number, articleIds?: number[], copies = 1) => {
+  const params = new URLSearchParams();
+  if (articleIds && articleIds.length > 0) params.set('ids', articleIds.join(','));
+  if (copies > 1) params.set('copies', String(copies));
+  const qs = params.toString();
+  return `${BASE}/api/export/labels/${documentId}${qs ? '?' + qs : ''}`;
 };
 
 export const downloadExcel = (documentId: number) => {
   window.open(getExcelUrl(documentId), '_blank');
 };
 
-export const downloadLabels = (documentId: number, articleIds?: number[]) => {
-  window.open(getLabelsUrl(documentId, articleIds), '_blank');
+export const downloadLabels = (documentId: number, articleIds?: number[], copies = 1) => {
+  window.open(getLabelsUrl(documentId, articleIds, copies), '_blank');
 };
 
 export const getPdfReportUrl = (documentId: number) => `${BASE}/api/export/pdf/${documentId}`;
 export const downloadPdfReport = (documentId: number) => {
   window.open(getPdfReportUrl(documentId), '_blank');
 };
+
+export const downloadWooCommerceCSV = (documentId: number) => {
+  window.open(`${BASE}/api/export/woocommerce/${documentId}`, '_blank');
+};
+
+export const cloneDocument = (id: number) =>
+  api.post<{ id: number; original_filename: string }>(`/api/documents/${id}/clone`);
 
 // Settings
 export const getSettings = () => api.get<AppSettings>('/api/settings');

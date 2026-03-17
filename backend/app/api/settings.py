@@ -42,6 +42,7 @@ def settings_to_response(s: AppSettings) -> AppSettingsResponse:
         label_columns=s.label_columns,
         label_rows_per_page=s.label_rows_per_page,
         base_url=s.base_url,
+        company_name=s.company_name or "",
         updated_at=s.updated_at,
     )
 
@@ -72,6 +73,8 @@ def update_settings(update: AppSettingsUpdate, db: Session = Depends(get_db)):
         s.label_rows_per_page = max(1, min(10, update.label_rows_per_page))
     if update.base_url is not None:
         s.base_url = update.base_url.rstrip("/")
+    if update.company_name is not None:
+        s.company_name = update.company_name.strip()
 
     db.commit()
     db.refresh(s)

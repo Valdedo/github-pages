@@ -35,3 +35,22 @@ def get_db():
 def create_tables():
     from app.models import document, article, supplier, product_info, app_settings  # noqa
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
+
+
+def _run_migrations():
+    """Apply incremental SQLite column additions for existing databases."""
+    migrations = [
+        ("app_settings", "company_name", "TEXT DEFAULT ''"),
+    ]
+    with engine.connect() as conn:
+        for table, column, col_def in migrations:
+            try:
+                conn.execute(
+                    __import__("sqlalchemy").text(
+                        f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"
+                    )
+                )
+                conn.commit()
+            except Exception:
+                pass  # column already exists

@@ -25,6 +25,7 @@ class AppSettings(Base):
     label_columns: Mapped[int] = mapped_column(Integer, default=2)
     label_rows_per_page: Mapped[int] = mapped_column(Integer, default=5)
     base_url: Mapped[str] = mapped_column(String(512), default="http://localhost:3000")
+    company_name: Mapped[str] = mapped_column(String(256), default="")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

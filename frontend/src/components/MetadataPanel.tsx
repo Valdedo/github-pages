@@ -6,6 +6,7 @@ interface Props {
   document: Document;
   suppliers: Supplier[];
   onUpdated: (doc: Document) => void;
+  onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
@@ -15,7 +16,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
   error:      { label: '✕ Error',       cls: 'badge badge-danger' },
 };
 
-export function MetadataPanel({ document, suppliers, onUpdated }: Props) {
+export function MetadataPanel({ document, suppliers, onUpdated, onToast }: Props) {
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({
     supplier_name: document.supplier_name || '',
@@ -35,6 +36,7 @@ export function MetadataPanel({ document, suppliers, onUpdated }: Props) {
     });
     onUpdated(data);
     setEditing(false);
+    onToast?.('Datos del albarán guardados', 'success');
   };
 
   const st = statusConfig[document.status] || { label: document.status, cls: 'badge badge-grey' };

@@ -94,6 +94,7 @@ def export_labels(
     request: Request,
     document_id: int,
     ids: Optional[str] = Query(None, description="Comma-separated article IDs"),
+    copies: int = Query(1, ge=1, le=20, description="Copies per label"),
     db: Session = Depends(get_db),
 ):
     """Export article labels to PDF.
@@ -135,6 +136,8 @@ def export_labels(
         base_url=base_url,
         cols=settings.label_columns,
         rows_per_page=settings.label_rows_per_page,
+        copies=copies,
+        company_name=settings.company_name or "",
     )
 
     safe_name = doc.original_filename.rsplit(".", 1)[0]
@@ -143,5 +146,61 @@ def export_labels(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/woocommerce/{document_id}")
+def export_woocommerce_csv(document_id: int, db: Session = Depends(get_db)):
+    """Export articles as WooCommerce-compatible CSV for product import."""
+    import csv
+    import io as _io
+
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    articles = (
+        db.query(Article)
+        .filter(Article.document_id == document_id)
+        .order_by(Article.line_number)
+        .all()
+    )
+    if not articles:
+        raise HTTPException(404, "No articles found for this document")
+
+    buf = _io.StringIO()
+    writer = csv.writer(buf)
+
+    writer.writerow([
+        "ID", "Type", "SKU", "Name", "Published", "Featured",
+        "Visibility in catalogue", "Short description", "Description",
+        "Tax status", "Tax class", "In stock?", "Stock",
+        "Regular price", "Sale price", "Categories", "Tags",
+        "Weight (kg)", "Images",
+    ])
+
+    for art in articles:
+        iva = int(art.iva_pct or 21)
+        tax_class = "" if iva == 21 else ("reduced-rate" if iva == 10 else "zero-rate")
+        writer.writerow([
+            "",
+            "simple",
+            art.codigo_principal or "",
+            art.descripcion or "",
+            1, 0, "visible", "", "",
+            "taxable", tax_class,
+            1, int(art.cantidad or 0),
+            f"{art.pvp_con_iva:.2f}", "",
+            "", "", "", "",
+        ])
+
+    csv_bytes = buf.getvalue().encode("utf-8-sig")  # BOM for Excel compatibility
+    safe_name = doc.original_filename.rsplit(".", 1)[0]
+    filename = f"woocommerce_{safe_name}_{doc.id}.csv"
+
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

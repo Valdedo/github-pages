@@ -69,6 +69,7 @@ export interface AppSettings {
   label_columns: number;
   label_rows_per_page: number;
   base_url: string;
+  company_name: string;
   updated_at: string;
 }
 
