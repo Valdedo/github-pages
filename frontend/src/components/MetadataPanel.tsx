@@ -8,6 +8,13 @@ interface Props {
   onUpdated: (doc: Document) => void;
 }
 
+const statusConfig: Record<string, { label: string; cls: string }> = {
+  uploaded:   { label: 'Subido',        cls: 'badge badge-grey' },
+  processing: { label: '⏳ Procesando', cls: 'badge badge-warning' },
+  completed:  { label: '✓ Completado',  cls: 'badge badge-success' },
+  error:      { label: '✕ Error',       cls: 'badge badge-danger' },
+};
+
 export function MetadataPanel({ document, suppliers, onUpdated }: Props) {
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({
@@ -30,104 +37,94 @@ export function MetadataPanel({ document, suppliers, onUpdated }: Props) {
     setEditing(false);
   };
 
-  const statusColor = {
-    uploaded: '#888',
-    processing: '#e67e22',
-    completed: '#27ae60',
-    error: '#e74c3c',
-  }[document.status] || '#888';
-
-  const statusLabel = {
-    uploaded: 'Subido',
-    processing: '⏳ Procesando...',
-    completed: '✅ Completado',
-    error: '❌ Error',
-  }[document.status] || document.status;
+  const st = statusConfig[document.status] || { label: document.status, cls: 'badge badge-grey' };
 
   return (
-    <div style={{
-      background: '#fff',
-      border: '1px solid #ddd',
-      borderRadius: '8px',
-      padding: '16px',
-      marginBottom: '12px',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '15px', color: '#1F4E79' }}>ℹ️ Datos del albarán</h3>
+    <div className="card">
+      <div className="card-header" style={{ justifyContent: 'space-between' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span>ℹ️</span> Datos del albarán
+        </span>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{
-            background: statusColor,
-            color: '#fff',
-            padding: '3px 10px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: 600,
-          }}>
-            {statusLabel}
-          </span>
+          <span className={st.cls}>{st.label}</span>
           <button
+            className={`btn btn-sm ${editing ? 'btn-ghost' : 'btn-primary'}`}
             onClick={() => setEditing(!editing)}
-            style={{ ...btnStyle, background: editing ? '#888' : '#1F4E79' }}
           >
             {editing ? 'Cancelar' : '✏️ Editar'}
           </button>
         </div>
       </div>
 
-      {document.error_message && (
-        <div style={{
-          background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: '6px',
-          padding: '8px 12px', marginBottom: '12px', color: '#cc0000', fontSize: '13px',
-        }}>
-          Error: {document.error_message}
-        </div>
-      )}
+      <div className="card-body">
+        {document.error_message && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            marginBottom: '14px',
+            color: 'var(--danger)',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}>
+            Error: {document.error_message}
+          </div>
+        )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-        <Field label="Proveedor" editing={editing}
-          value={values.supplier_name}
-          onChange={v => setValues(p => ({ ...p, supplier_name: v }))}
-          display={document.supplier_name || '—'}
-        />
-        <Field label="Nº Albarán" editing={editing}
-          value={values.doc_number}
-          onChange={v => setValues(p => ({ ...p, doc_number: v }))}
-          display={document.doc_number || '—'}
-        />
-        <Field label="Fecha" editing={editing}
-          value={values.doc_date}
-          onChange={v => setValues(p => ({ ...p, doc_date: v }))}
-          display={document.doc_date || '—'}
-          type="date"
-        />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+          <Field label="Proveedor" editing={editing}
+            value={values.supplier_name}
+            onChange={v => setValues(p => ({ ...p, supplier_name: v }))}
+            display={document.supplier_name || '—'}
+          />
+          <Field label="Nº Albarán" editing={editing}
+            value={values.doc_number}
+            onChange={v => setValues(p => ({ ...p, doc_number: v }))}
+            display={document.doc_number || '—'}
+          />
+          <Field label="Fecha" editing={editing}
+            value={values.doc_date}
+            onChange={v => setValues(p => ({ ...p, doc_date: v }))}
+            display={document.doc_date || '—'}
+            type="date"
+          />
+        </div>
+
+        {editing && (
+          <div style={{ marginTop: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="btn btn-success btn-sm" onClick={handleSave}>
+              💾 Guardar cambios
+            </button>
+            {suppliers.length > 0 && (
+              <select
+                value={values.supplier_id}
+                onChange={e => {
+                  const s = suppliers.find(x => String(x.id) === e.target.value);
+                  setValues(p => ({
+                    ...p,
+                    supplier_id: e.target.value,
+                    supplier_name: s?.name || p.supplier_name,
+                  }));
+                }}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: '1.5px solid var(--grey-300)',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  background: '#fff',
+                }}
+              >
+                <option value="">Seleccionar proveedor...</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
-
-      {editing && (
-        <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-          <button onClick={handleSave} style={{ ...btnStyle, background: '#27ae60' }}>
-            💾 Guardar cambios
-          </button>
-          {suppliers.length > 0 && (
-            <select
-              value={values.supplier_id}
-              onChange={e => {
-                const s = suppliers.find(x => String(x.id) === e.target.value);
-                setValues(p => ({
-                  ...p,
-                  supplier_id: e.target.value,
-                  supplier_name: s?.name || p.supplier_name,
-                }));
-              }}
-              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '13px' }}
-            >
-              <option value="">Seleccionar proveedor...</option>
-              {suppliers.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -142,30 +139,27 @@ function Field({ label, editing, value, onChange, display, type = 'text' }: {
 }) {
   return (
     <div>
-      <div style={{ fontSize: '11px', color: '#888', marginBottom: '3px', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: '11px', color: 'var(--grey-500)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>
+        {label}
+      </div>
       {editing ? (
         <input
           type={type}
           value={String(value)}
           onChange={e => onChange(e.target.value)}
           style={{
-            width: '100%', padding: '5px 8px', border: '1px solid #1F4E79',
-            borderRadius: '5px', fontSize: '13px',
+            width: '100%',
+            padding: '6px 10px',
+            border: '1.5px solid var(--primary)',
+            borderRadius: '7px',
+            fontSize: '13px',
+            fontFamily: 'inherit',
+            outline: 'none',
           }}
         />
       ) : (
-        <div style={{ fontSize: '14px', fontWeight: 500 }}>{display}</div>
+        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--grey-900)' }}>{display}</div>
       )}
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: '5px 12px',
-  border: 'none',
-  borderRadius: '6px',
-  color: '#fff',
-  cursor: 'pointer',
-  fontSize: '13px',
-  fontWeight: 500,
-};

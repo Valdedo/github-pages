@@ -4,7 +4,7 @@ Export endpoints: Excel and PDF labels.
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -91,6 +91,7 @@ def export_pdf_report(document_id: int, db: Session = Depends(get_db)):
 
 @router.get("/labels/{document_id}")
 def export_labels(
+    request: Request,
     document_id: int,
     ids: Optional[str] = Query(None, description="Comma-separated article IDs"),
     db: Session = Depends(get_db),
@@ -121,9 +122,17 @@ def export_labels(
 
     settings = get_settings(db)
 
+    # Auto-detect base URL from request Host header so QR codes work on
+    # mobile devices in the local network (not just localhost).
+    base_url = settings.base_url
+    if "localhost" in base_url or "127.0.0.1" in base_url:
+        host = request.headers.get("host", "")
+        if host:
+            base_url = f"http://{host}"
+
     pdf_bytes = generate_labels_pdf(
         articles=articles,
-        base_url=settings.base_url,
+        base_url=base_url,
         cols=settings.label_columns,
         rows_per_page=settings.label_rows_per_page,
     )

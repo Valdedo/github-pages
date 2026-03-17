@@ -166,23 +166,23 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     c.rect(x, y, w, h)
 
     # Internal padding
-    pad = 4  # points
+    pad = 5  # points
 
-    # === Description (top section, 30% height) ===
-    desc_h = h * 0.28
-    c.setFont("Helvetica-Bold", 7)
+    # === Description (top section, 36% height) ===
+    desc_h = h * 0.36
+    c.setFont("Helvetica-Bold", 9)
     c.setFillColor(colors.black)
 
     desc = article.descripcion or "Sin descripción"
-    # Draw up to 2 lines
-    max_line_chars = 55
+    # Draw up to 2 lines of ~45 chars each at font size 9
+    max_line_chars = 45
     if len(desc) > max_line_chars:
         line1 = desc[:max_line_chars]
         line2 = truncate_text(desc[max_line_chars:], max_line_chars)
-        c.drawString(x + pad, y + h - pad - 8, line1)
-        c.drawString(x + pad, y + h - pad - 16, line2)
+        c.drawString(x + pad, y + h - pad - 10, line1)
+        c.drawString(x + pad, y + h - pad - 22, line2)
     else:
-        c.drawString(x + pad, y + h - pad - 8, desc)
+        c.drawString(x + pad, y + h - pad - 10, desc)
 
     # Separator line
     c.setStrokeColor(colors.lightgrey)
@@ -191,7 +191,7 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
 
     # === PVP (middle-left, large font) ===
     pvp_section_top = y + h - desc_h
-    pvp_h = h * 0.42
+    pvp_h = h * 0.34
 
     pvp = article.pvp_con_iva
     pvp_str = f"{pvp:.2f} €"
@@ -231,10 +231,10 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     # Separator line
     c.setStrokeColor(colors.lightgrey)
     c.setLineWidth(0.3)
-    c.line(x + pad, y + h * 0.30, x + w - pad, y + h * 0.30)
+    c.line(x + pad, y + h * 0.26, x + w - pad, y + h * 0.26)
 
     # === Bottom section: code + barcode ===
-    bottom_top = y + h * 0.30
+    bottom_top = y + h * 0.26
 
     # Code text
     code = article.codigo_principal or "N/A"

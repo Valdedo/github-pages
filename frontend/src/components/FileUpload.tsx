@@ -43,31 +43,29 @@ export function FileUpload({ onUploaded }: Props) {
   });
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div>
       <div
         {...getRootProps()}
-        style={{
-          border: `2px dashed ${isDragActive ? '#1F4E79' : '#aaa'}`,
-          borderRadius: '12px',
-          padding: '48px 24px',
-          textAlign: 'center',
-          cursor: uploading ? 'not-allowed' : 'pointer',
-          background: isDragActive ? '#e8f0fe' : '#fafafa',
-          transition: 'all 0.2s',
-        }}
+        className={`upload-zone${isDragActive ? ' active' : ''}${uploading ? ' uploading' : ''}`}
       >
         <input {...getInputProps()} />
-        <div style={{ fontSize: '48px', marginBottom: '12px' }}>📄</div>
+        <div style={{ fontSize: '40px', marginBottom: '14px', lineHeight: 1 }}>
+          {uploading ? '⏳' : isDragActive ? '📂' : '📄'}
+        </div>
         {uploading ? (
-          <p style={{ color: '#1F4E79', fontSize: '16px' }}>Subiendo y procesando... ⏳</p>
+          <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '15px' }}>
+            Subiendo y procesando...
+          </p>
         ) : isDragActive ? (
-          <p style={{ color: '#1F4E79', fontSize: '16px' }}>Suelta el archivo aquí</p>
+          <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '15px' }}>
+            Suelta el archivo aquí
+          </p>
         ) : (
           <>
-            <p style={{ color: '#555', fontSize: '16px', margin: '0 0 8px' }}>
-              <strong>Arrastra un albarán</strong> o haz clic para seleccionar
+            <p style={{ fontWeight: 600, fontSize: '15px', color: 'var(--grey-700)', marginBottom: '6px' }}>
+              Arrastra un albarán o haz clic para seleccionar
             </p>
-            <p style={{ color: '#888', fontSize: '13px', margin: 0 }}>
+            <p style={{ color: 'var(--grey-500)', fontSize: '13px' }}>
               PDF, JPG o PNG — máximo 20 MB
             </p>
           </>
@@ -77,11 +75,12 @@ export function FileUpload({ onUploaded }: Props) {
         <div style={{
           marginTop: '12px',
           padding: '10px 16px',
-          background: '#fff0f0',
-          border: '1px solid #ffcccc',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
           borderRadius: '8px',
-          color: '#cc0000',
-          fontSize: '14px',
+          color: 'var(--danger)',
+          fontSize: '13px',
+          fontWeight: 500,
         }}>
           ⚠️ {error}
         </div>

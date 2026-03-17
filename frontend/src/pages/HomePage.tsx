@@ -23,7 +23,6 @@ export function HomePage() {
 
   useEffect(() => {
     loadDocuments();
-    // Poll for status updates while any doc is processing
     const timer = setInterval(() => {
       const hasProcessing = documents.some(d => d.status === 'processing' || d.status === 'uploaded');
       if (hasProcessing) loadDocuments();
@@ -41,67 +40,55 @@ export function HomePage() {
     setDocuments(prev => prev.filter(d => d.id !== id));
   };
 
+  const completed = documents.filter(d => d.status === 'completed').length;
+  const processing = documents.filter(d => d.status === 'processing' || d.status === 'uploaded').length;
+
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-        <h1 style={{ margin: '0 0 8px', color: '#1F4E79', fontSize: '28px' }}>
-          📦 Procesador de Albaranes
+    <div className="page">
+      {/* Hero */}
+      <div style={{ textAlign: 'center', marginBottom: '32px', padding: '8px 0' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+          Procesador de Albaranes
         </h1>
-        <p style={{ color: '#666', margin: 0, fontSize: '15px' }}>
+        <p style={{ color: 'var(--grey-500)', fontSize: '14px', maxWidth: '480px', margin: '0 auto' }}>
           Sube un albarán en PDF o foto y la IA extraerá todos los artículos automáticamente
         </p>
       </div>
 
-      {/* Upload zone */}
-      <div style={{
-        background: '#fff',
-        border: '1px solid #ddd',
-        borderRadius: '12px',
-        marginBottom: '24px',
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: '12px 20px', background: '#1F4E79', color: '#fff', fontWeight: 600 }}>
-          ⬆️ Subir nuevo albarán
+      {/* Stats row */}
+      {documents.length > 0 && (
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', justifyContent: 'center' }}>
+          <StatChip label="Total" value={documents.length} color="var(--primary)" />
+          <StatChip label="Completados" value={completed} color="var(--success)" />
+          {processing > 0 && <StatChip label="Procesando" value={processing} color="var(--warning)" />}
         </div>
-        <FileUpload onUploaded={handleUploaded} />
+      )}
+
+      {/* Upload zone */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="card-header">
+          <span>⬆️</span> Subir nuevo albarán
+        </div>
+        <div className="card-body" style={{ padding: '20px' }}>
+          <FileUpload onUploaded={handleUploaded} />
+        </div>
       </div>
 
       {/* Document list */}
-      <div style={{
-        background: '#fff',
-        border: '1px solid #ddd',
-        borderRadius: '12px',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          padding: '12px 20px',
-          background: '#f0f4f8',
-          fontWeight: 600,
-          color: '#1F4E79',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <span>📁 Albaranes procesados</span>
-          <button
-            onClick={loadDocuments}
-            style={{
-              padding: '4px 12px',
-              background: '#1F4E79',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-            }}
-          >
-            🔄 Actualizar
+      <div className="card">
+        <div className="card-header" style={{ justifyContent: 'space-between' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>📁</span> Albaranes procesados
+          </span>
+          <button className="btn btn-ghost btn-sm" onClick={loadDocuments}>
+            ↻ Actualizar
           </button>
         </div>
-        <div style={{ padding: '16px' }}>
+        <div className="card-body">
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#888', padding: '24px' }}>Cargando...</div>
+            <div className="empty-state">
+              <div className="empty-state-text">Cargando...</div>
+            </div>
           ) : (
             <DocumentList
               documents={documents}
@@ -111,6 +98,23 @@ export function HomePage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatChip({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div style={{
+      background: '#fff',
+      border: '1px solid var(--grey-200)',
+      borderRadius: '10px',
+      padding: '10px 20px',
+      textAlign: 'center',
+      boxShadow: 'var(--card-shadow)',
+      minWidth: '90px',
+    }}>
+      <div style={{ fontSize: '22px', fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: '11px', color: 'var(--grey-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
     </div>
   );
 }

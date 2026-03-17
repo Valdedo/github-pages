@@ -45,7 +45,6 @@ export function DocumentPage() {
     init();
   }, [docId]);
 
-  // Poll while processing
   useEffect(() => {
     if (!document) return;
     if (document.status === 'processing' || document.status === 'uploaded') {
@@ -63,18 +62,18 @@ export function DocumentPage() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>
-        Cargando...
+      <div className="empty-state" style={{ paddingTop: '80px' }}>
+        <div className="empty-state-text">Cargando...</div>
       </div>
     );
   }
 
   if (!document) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px', color: '#e74c3c' }}>
-        Documento no encontrado.
-        <br />
-        <button onClick={() => navigate('/')} style={{ marginTop: '12px', ...backBtn }}>
+      <div className="empty-state" style={{ paddingTop: '80px' }}>
+        <div className="empty-state-icon">❌</div>
+        <div className="empty-state-text">Documento no encontrado.</div>
+        <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/')}>
           ← Volver al inicio
         </button>
       </div>
@@ -82,31 +81,34 @@ export function DocumentPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
-      {/* Top nav */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-        <button onClick={() => navigate('/')} style={backBtn}>
+    <div className="page-wide">
+      {/* Top bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
           ← Inicio
         </button>
-        <h2 style={{ margin: 0, color: '#1F4E79', fontSize: '18px', flex: 1 }}>
-          📄 {document.original_filename}
-        </h2>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: '16px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {document.original_filename}
+          </h2>
+        </div>
         {polling && (
-          <span style={{ color: '#e67e22', fontSize: '13px', fontWeight: 600 }}>
-            ⏳ Extrayendo artículos...
+          <span style={{ color: 'var(--warning)', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+            Extrayendo artículos...
           </span>
         )}
       </div>
 
-      {/* Main layout: preview on left, content on right */}
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '16px', alignItems: 'start' }}>
-        {/* Left: document preview */}
-        <div style={{ position: 'sticky', top: '16px', height: 'calc(100vh - 100px)' }}>
+      {/* Main layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '370px 1fr', gap: '18px', alignItems: 'start' }}>
+        {/* Left: preview */}
+        <div style={{ position: 'sticky', top: '74px', height: 'calc(100vh - 110px)' }}>
           <DocumentPreview document={document} />
         </div>
 
-        {/* Right: metadata + settings + table + export */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {/* Right: panels */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <MetadataPanel
             document={document}
             suppliers={suppliers}
@@ -119,7 +121,7 @@ export function DocumentPage() {
               documentId={docId}
               onUpdated={s => {
                 setSettings(s);
-                loadDocument(); // reload articles with new pricing
+                loadDocument();
               }}
             />
           )}
@@ -143,14 +145,3 @@ export function DocumentPage() {
     </div>
   );
 }
-
-const backBtn: React.CSSProperties = {
-  padding: '6px 14px',
-  background: '#1F4E79',
-  color: '#fff',
-  border: 'none',
-  borderRadius: '7px',
-  cursor: 'pointer',
-  fontSize: '13px',
-  fontWeight: 500,
-};

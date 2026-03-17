@@ -1,0 +1,238 @@
+/* ── Reset & base ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:       #1F4E79;
+  --primary-mid:   #2E75B6;
+  --primary-light: #D6E4F0;
+  --primary-pale:  #EBF3FB;
+  --accent:        #2980b9;
+  --success:       #27ae60;
+  --warning:       #e67e22;
+  --danger:        #e74c3c;
+  --grey-100:      #f5f7fa;
+  --grey-200:      #eef0f4;
+  --grey-300:      #d8dce4;
+  --grey-500:      #8892a0;
+  --grey-700:      #4a5568;
+  --grey-900:      #1a202c;
+  --card-shadow:   0 1px 3px rgba(0,0,0,0.07), 0 4px 14px rgba(0,0,0,0.05);
+  --card-radius:   12px;
+  --font:          system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--grey-100);
+  color: var(--grey-900);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--grey-300); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--grey-500); }
+
+/* ── Cards ──────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--grey-200);
+}
+
+.card-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--grey-200);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--grey-100);
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+}
+
+.card-body {
+  padding: 16px 18px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary   { background: var(--primary);   color: #fff; }
+.btn-accent    { background: var(--accent);     color: #fff; }
+.btn-success   { background: var(--success);    color: #fff; }
+.btn-warning   { background: var(--warning);    color: #fff; }
+.btn-danger    { background: var(--danger);     color: #fff; }
+.btn-ghost {
+  background: transparent;
+  color: var(--primary);
+  border: 1.5px solid var(--primary-light);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--primary-pale);
+  filter: none;
+}
+.btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
+
+/* ── Badges ─────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.badge-success  { background: #d4edda; color: #1a6b35; }
+.badge-warning  { background: #fff3cd; color: #856404; }
+.badge-danger   { background: #f8d7da; color: #842029; }
+.badge-grey     { background: var(--grey-200); color: var(--grey-700); }
+
+/* ── Inputs ─────────────────────────────────────────────────── */
+input, select, textarea {
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+/* ── Navbar ─────────────────────────────────────────────────── */
+.navbar {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-mid) 100%);
+  color: #fff;
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 12px rgba(31,78,121,0.25);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.navbar-brand-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.navbar-subtitle {
+  margin-left: auto;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  font-weight: 400;
+}
+
+/* ── Page layout ─────────────────────────────────────────────── */
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px;
+}
+
+.page-wide {
+  max-width: 1650px;
+  margin: 0 auto;
+  padding: 20px 20px;
+}
+
+/* ── Document list item ──────────────────────────────────────── */
+.doc-item {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--grey-200);
+  border-left: 4px solid var(--primary-light);
+  transition: border-left-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.doc-item:hover {
+  border-left-color: var(--primary);
+  box-shadow: 0 4px 18px rgba(31,78,121,0.12);
+}
+
+/* ── Upload zone ─────────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--grey-300);
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--grey-100);
+  transition: border-color 0.2s, background 0.2s;
+}
+.upload-zone:hover, .upload-zone.active {
+  border-color: var(--primary);
+  background: var(--primary-pale);
+}
+.upload-zone.uploading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ── Section divider ─────────────────────────────────────────── */
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--grey-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--grey-500);
+}
+.empty-state-icon { font-size: 40px; margin-bottom: 10px; }
+.empty-state-text { font-size: 14px; }

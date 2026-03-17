@@ -23,79 +23,63 @@ export function ExportPanel({ documentId, suppliers, onReprocessed }: Props) {
   };
 
   return (
-    <div style={{
-      background: '#fff',
-      border: '1px solid #ddd',
-      borderRadius: '8px',
-      padding: '16px',
-      marginBottom: '12px',
-    }}>
-      <h3 style={{ margin: '0 0 12px', fontSize: '15px', color: '#1F4E79' }}>📤 Acciones</h3>
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="card">
+      <div className="card-header">
+        <span>📤</span> Acciones y exportación
+      </div>
+      <div className="card-body">
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
 
-        {/* Reprocess */}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          {suppliers.length > 0 && (
-            <select
-              value={supplierId}
-              onChange={e => setSupplierId(e.target.value)}
-              style={{
-                padding: '7px 10px', border: '1px solid #ccc',
-                borderRadius: '6px', fontSize: '13px',
-              }}
+          {/* Reprocess */}
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            {suppliers.length > 0 && (
+              <select
+                value={supplierId}
+                onChange={e => setSupplierId(e.target.value)}
+                style={{
+                  padding: '7px 10px',
+                  border: '1.5px solid var(--grey-300)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  background: '#fff',
+                  color: 'var(--grey-700)',
+                  outline: 'none',
+                }}
+              >
+                <option value="">Auto-detectar proveedor</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+            <button
+              className="btn btn-warning"
+              onClick={handleReprocess}
+              disabled={reprocessing}
             >
-              <option value="">Auto-detectar proveedor</option>
-              {suppliers.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          )}
-          <button
-            onClick={handleReprocess}
-            disabled={reprocessing}
-            style={{ ...btn, background: '#e67e22' }}
-          >
-            {reprocessing ? '⏳ Procesando...' : '🔄 Reprocesar extracción'}
+              {reprocessing ? '⏳ Procesando...' : '🔄 Reprocesar extracción'}
+            </button>
+          </div>
+
+          <div style={{ width: '1px', height: '32px', background: 'var(--grey-200)' }} />
+
+          {/* Excel */}
+          <button className="btn btn-success" onClick={() => downloadExcel(documentId)}>
+            📊 Exportar Excel
+          </button>
+
+          {/* PDF report */}
+          <button className="btn btn-danger" onClick={() => downloadPdfReport(documentId)}>
+            🖨️ PDF imprimible
+          </button>
+
+          {/* Labels */}
+          <button className="btn btn-primary" onClick={() => downloadLabels(documentId)}>
+            🏷️ Generar etiquetas
           </button>
         </div>
-
-        <div style={{ width: '1px', height: '36px', background: '#ddd' }} />
-
-        {/* Excel export */}
-        <button
-          onClick={() => downloadExcel(documentId)}
-          style={{ ...btn, background: '#27ae60' }}
-        >
-          📊 Exportar Excel
-        </button>
-
-        {/* Printable PDF report */}
-        <button
-          onClick={() => downloadPdfReport(documentId)}
-          style={{ ...btn, background: '#c0392b' }}
-        >
-          🖨️ Exportar PDF imprimible
-        </button>
-
-        {/* Labels export */}
-        <button
-          onClick={() => downloadLabels(documentId)}
-          style={{ ...btn, background: '#1F4E79' }}
-        >
-          🏷️ Generar etiquetas PDF
-        </button>
       </div>
     </div>
   );
 }
-
-const btn: React.CSSProperties = {
-  padding: '8px 16px',
-  border: 'none',
-  borderRadius: '7px',
-  color: '#fff',
-  cursor: 'pointer',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-};
