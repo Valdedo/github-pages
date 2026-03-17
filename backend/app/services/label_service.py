@@ -154,121 +154,133 @@ def generate_labels_pdf(
     return buf.read()
 
 
+def _wrap_words(text: str, font_name: str, font_size: float, max_width: float) -> list:
+    """Word-wrap text to fit max_width using real glyph metrics."""
+    from reportlab.pdfbase import pdfmetrics
+    words = text.split()
+    lines: list = []
+    current = ""
+    for word in words:
+        candidate = (current + " " + word).strip()
+        if pdfmetrics.stringWidth(candidate, font_name, font_size) <= max_width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            # If a single word is already too wide, just add it (truncated)
+            if pdfmetrics.stringWidth(word, font_name, font_size) > max_width:
+                word = truncate_text(word, int(max_width / (font_size * 0.55)))
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
 def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: str):
     """Draw a single label on the canvas at position (x, y)."""
     from reportlab.lib import colors
     from reportlab.lib.utils import ImageReader
 
-    pad = 5  # internal padding in points
+    pad = 5  # internal padding (points)
 
-    # ── Layout proportions ────────────────────────────────────────────
-    # Top: description  (46%)
-    # Middle: PVP + QR  (30%)
-    # Bottom: barcode   (24%)
-    desc_h   = h * 0.46
-    mid_h    = h * 0.30
-    bot_h    = h * 0.24
+    # ── Layout proportions ─────────────────────────────────────────────
+    # Top (description):  46% of height → ~65 pt
+    # Middle (PVP + QR):  30%           → ~43 pt
+    # Bottom (ref+barcode):24%          → ~34 pt
+    desc_h = h * 0.46
+    bot_h  = h * 0.24
 
-    mid_top = y + h - desc_h          # top of middle section
-    bot_top = y + bot_h               # top of bottom section
+    mid_top = y + h - desc_h   # divider description / middle  (~y+76)
+    bot_top = y + bot_h        # divider middle / bottom        (~y+34)
 
-    # ── Outer border ─────────────────────────────────────────────────
+    # ── Outer border ──────────────────────────────────────────────────
     c.setStrokeColor(colors.HexColor("#BFCFE0"))
     c.setLineWidth(0.6)
     c.rect(x, y, w, h)
 
-    # ── Description area: light blue background ───────────────────────
+    # ── Description background ────────────────────────────────────────
     c.setFillColor(colors.HexColor("#EBF3FB"))
     c.rect(x, mid_top, w, desc_h, fill=1, stroke=0)
 
-    # Thin left accent bar
+    # Left accent bar
     c.setFillColor(colors.HexColor("#1F4E79"))
-    c.rect(x, mid_top, 3, desc_h, fill=1, stroke=0)
+    c.rect(x, mid_top, 4, desc_h, fill=1, stroke=0)
 
-    # Description text (14pt Bold) — up to 2 lines of ~33 chars
-    desc = article.descripcion or "Sin descripción"
-    max_ch = 33
-    c.setFont("Helvetica-Bold", 14)
+    # Description text — word-wrapped, max 2 lines, 14pt Bold
+    FONT     = "Helvetica-Bold"
+    FSIZE    = 14
+    LEADING  = 17
+    text_x   = x + pad + 5           # after accent bar + small gap
+    text_w   = w - pad - 5 - pad     # usable width (remove accent bar + both paddings)
+
+    desc  = article.descripcion or "Sin descripción"
+    lines = _wrap_words(desc, FONT, FSIZE, text_w)[:2]
+
+    c.setFont(FONT, FSIZE)
     c.setFillColor(colors.HexColor("#0D2A47"))
+    top_baseline = y + h - pad - FSIZE
+    for i, line in enumerate(lines):
+        c.drawString(text_x, top_baseline - i * LEADING, line)
 
-    line_h = 17  # line spacing in points
-    if len(desc) > max_ch:
-        line1 = desc[:max_ch]
-        line2 = truncate_text(desc[max_ch:], max_ch)
-        c.drawString(x + pad + 4, y + h - pad - 14, line1)
-        c.drawString(x + pad + 4, y + h - pad - 14 - line_h, line2)
-    else:
-        # Vertically centre single line in the description band
-        c.drawString(x + pad + 4, y + h - pad - 14, desc)
-
-    # ── Divider line ──────────────────────────────────────────────────
+    # Divider after description
     c.setStrokeColor(colors.HexColor("#BDD5EA"))
     c.setLineWidth(0.4)
     c.line(x, mid_top, x + w, mid_top)
 
     # ── Middle: PVP (left) + QR (right) ──────────────────────────────
-    # PVP label (above price)
     c.setFont("Helvetica", 6)
     c.setFillColor(colors.HexColor("#7F95A8"))
     c.drawString(x + pad, mid_top - 8, "PVP CON IVA")
 
-    # Price value
     pvp = article.pvp_con_iva
     c.setFont("Helvetica-Bold", 18)
     c.setFillColor(colors.HexColor("#1F4E79"))
-    c.drawString(x + pad, mid_top - 24, f"{pvp:.2f} €")
+    c.drawString(x + pad, mid_top - 24, f"{pvp:.2f} \u20ac")
 
-    # Sin IVA line
     c.setFont("Helvetica", 6)
     c.setFillColor(colors.HexColor("#7F95A8"))
     pvp_sin = article.pvp_sin_iva
-    c.drawString(x + pad, mid_top - 33, f"Sin IVA: {pvp_sin:.2f} €  |  IVA: {article.iva_pct:.0f}%")
+    c.drawString(x + pad, mid_top - 33, f"Sin IVA: {pvp_sin:.2f} \u20ac  |  IVA: {article.iva_pct:.0f}%")
 
-    # QR code — bigger (58pt) so it's easier to scan on mobile
-    qr_size = 58
+    # QR code
+    qr_size = 54
     product_info_id = getattr(article, "product_info_id", None) or article.id
-    qr_url = f"{base_url}/producto/{product_info_id}"
-
+    qr_url  = f"{base_url}/producto/{product_info_id}"
     qr_bytes = generate_qr_image(qr_url)
     if qr_bytes:
         qr_reader = ImageReader(io.BytesIO(qr_bytes))
-        c.drawImage(
-            qr_reader,
-            x + w - qr_size - pad,
-            mid_top - qr_size - 1,
-            width=qr_size,
-            height=qr_size,
-            preserveAspectRatio=True,
-        )
+        c.drawImage(qr_reader,
+                    x + w - qr_size - pad,
+                    mid_top - qr_size - 1,
+                    width=qr_size, height=qr_size,
+                    preserveAspectRatio=True)
 
-    # ── Divider line ──────────────────────────────────────────────────
+    # Divider before bottom
     c.setStrokeColor(colors.HexColor("#D8E4EE"))
     c.setLineWidth(0.4)
     c.line(x, bot_top, x + w, bot_top)
 
-    # ── Bottom: reference + barcode ───────────────────────────────────
+    # ── Bottom: ref text (top) then barcode below ─────────────────────
+    # Draw layout bottom-up so nothing overlaps:
+    #   y+2  ... y+21  → barcode  (height 19 pt)
+    #   y+24 baseline  → "Ref: …" text
+    # bot_top is at y+34, so ref text is 10pt below divider line → fine
     code = article.codigo_principal or "N/A"
     c.setFont("Helvetica", 7)
     c.setFillColor(colors.HexColor("#4A5568"))
-    c.drawString(x + pad, bot_top - 8, f"Ref: {code}")
+    c.drawString(x + pad, y + 24, f"Ref: {code}")
 
     is_ean = bool(article.ean and len(article.ean) == 13 and article.ean.isdigit())
     barcode_code = article.ean if is_ean else (article.codigo_principal or "N/A")
-
     bc_bytes = generate_barcode_image(barcode_code, is_ean=is_ean)
     if bc_bytes:
         bc_reader = ImageReader(io.BytesIO(bc_bytes))
-        bc_w = w * 0.68
-        bc_h = bot_h * 0.72
-        c.drawImage(
-            bc_reader,
-            x + pad,
-            y + 2,
-            width=bc_w,
-            height=bc_h,
-            preserveAspectRatio=True,
-        )
+        bc_w = w * 0.70
+        bc_h = 19  # fixed height — safely below ref text baseline
+        c.drawImage(bc_reader, x + pad, y + 2,
+                    width=bc_w, height=bc_h,
+                    preserveAspectRatio=True)
     else:
         c.setFont("Helvetica", 8)
         c.setFillColor(colors.black)
-        c.drawString(x + pad, y + pad + 3, barcode_code)
+        c.drawString(x + pad, y + 5, barcode_code)
