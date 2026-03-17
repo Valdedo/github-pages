@@ -199,7 +199,7 @@ def get_document_file(doc_id: int, db: Session = Depends(get_db)):
     return FileResponse(
         str(file_path),
         media_type=media_type,
-        filename=doc.original_filename,
+        headers={"Content-Disposition": "inline"},
     )
 
 
