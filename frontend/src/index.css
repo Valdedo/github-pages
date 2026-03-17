@@ -236,3 +236,92 @@ input, select, textarea {
 }
 .empty-state-icon { font-size: 40px; margin-bottom: 10px; }
 .empty-state-text { font-size: 14px; }
+
+/* ── Document page grid ──────────────────────────────────────── */
+.doc-grid {
+  display: grid;
+  grid-template-columns: 370px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.doc-grid-preview {
+  position: sticky;
+  top: 74px;
+  height: calc(100vh - 110px);
+}
+
+/* ── Camera capture button ───────────────────────────────────── */
+.btn-camera {
+  background: var(--primary-pale);
+  color: var(--primary);
+  border: 1.5px solid var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-camera:active { background: var(--primary-light); }
+
+/* Only show camera button on touch devices */
+.camera-capture-btn { display: none; }
+
+/* ── Mobile responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Page layout */
+  .page {
+    padding: 16px 12px;
+  }
+  .page-wide {
+    padding: 14px 10px;
+  }
+
+  /* Navbar */
+  .navbar {
+    padding: 0 14px;
+    height: 50px;
+  }
+  .navbar-brand { font-size: 14px; gap: 8px; }
+  .navbar-brand-icon { width: 28px; height: 28px; font-size: 16px; }
+  .navbar-subtitle { display: none; }
+
+  /* Cards */
+  .card-body { padding: 12px 14px; }
+  .card-header { padding: 10px 14px; }
+
+  /* Buttons */
+  .btn { padding: 10px 14px; min-height: 40px; }
+  .btn-sm { padding: 8px 12px; min-height: 34px; }
+
+  /* Upload zone */
+  .upload-zone { padding: 24px 14px; }
+
+  /* Show camera button on mobile */
+  .camera-capture-btn { display: block; }
+
+  /* Doc list items */
+  .doc-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  /* Document page: stack preview below panels */
+  .doc-grid {
+    grid-template-columns: 1fr;
+  }
+  .doc-grid-preview {
+    position: static;
+    height: 280px;
+    order: -1;
+  }
+}

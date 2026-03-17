@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { uploadDocument } from '../api/client';
 import type { Document } from '../types';
@@ -16,13 +16,12 @@ const ACCEPTED = {
 export function FileUpload({ onUploaded }: Props) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    const file = acceptedFiles[0];
+  const processFile = useCallback(async (file: File) => {
+    if (!file) return;
     setUploading(true);
     setError(null);
-
     try {
       const { data } = await uploadDocument(file);
       onUploaded(data);
@@ -34,6 +33,11 @@ export function FileUpload({ onUploaded }: Props) {
     }
   }, [onUploaded]);
 
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    processFile(acceptedFiles[0]);
+  }, [processFile]);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED,
@@ -42,8 +46,35 @@ export function FileUpload({ onUploaded }: Props) {
     disabled: uploading,
   });
 
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = '';
+  };
+
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* Camera button — only visible on mobile via CSS */}
+      <div className="camera-capture-btn">
+        <button
+          className="btn-camera"
+          disabled={uploading}
+          onClick={() => cameraInputRef.current?.click()}
+          type="button"
+        >
+          📷 Fotografiar albarán
+        </button>
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={handleCameraCapture}
+        />
+      </div>
+
+      {/* Drop zone — works for all devices */}
       <div
         {...getRootProps()}
         className={`upload-zone${isDragActive ? ' active' : ''}${uploading ? ' uploading' : ''}`}
@@ -63,7 +94,7 @@ export function FileUpload({ onUploaded }: Props) {
         ) : (
           <>
             <p style={{ fontWeight: 600, fontSize: '15px', color: 'var(--grey-700)', marginBottom: '6px' }}>
-              Arrastra un albarán o haz clic para seleccionar
+              Arrastra un albarán o toca para seleccionar
             </p>
             <p style={{ color: 'var(--grey-500)', fontSize: '13px' }}>
               PDF, JPG o PNG — máximo 20 MB
@@ -71,9 +102,9 @@ export function FileUpload({ onUploaded }: Props) {
           </>
         )}
       </div>
+
       {error && (
         <div style={{
-          marginTop: '12px',
           padding: '10px 16px',
           background: '#fef2f2',
           border: '1px solid #fecaca',

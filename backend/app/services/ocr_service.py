@@ -11,12 +11,52 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def preprocess_image(img_array: np.ndarray) -> np.ndarray:
-    """Apply preprocessing to improve OCR accuracy.
+def _fix_exif_orientation(pil_image):
+    """Apply EXIF orientation correction (critical for mobile camera photos)."""
+    try:
+        from PIL import ImageOps
+        return ImageOps.exif_transpose(pil_image)
+    except Exception:
+        return pil_image
 
-    Steps: convert to grayscale → deskew → binarize → denoise
+
+def _scale_for_ocr(img_array: np.ndarray) -> np.ndarray:
+    """Scale image to an optimal size range for OCR.
+
+    Upscale if too small (<1500px), downscale if too large (>3500px).
+    Very large mobile photos slow OCR without improving accuracy.
+    Very small images miss fine detail.
     """
     import cv2
+
+    h, w = img_array.shape[:2]
+    max_dim = max(h, w)
+
+    if max_dim > 3500:
+        scale = 3500 / max_dim
+        new_w, new_h = int(w * scale), int(h * scale)
+        return cv2.resize(img_array, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    elif max_dim < 1500:
+        scale = 1500 / max_dim
+        new_w, new_h = int(w * scale), int(h * scale)
+        return cv2.resize(img_array, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+    return img_array
+
+
+def preprocess_image(img_array: np.ndarray, is_photo: bool = False) -> np.ndarray:
+    """Apply preprocessing to improve OCR accuracy.
+
+    Steps: scale → convert to grayscale → deskew → binarize → denoise
+
+    Args:
+        img_array: Input image as numpy array
+        is_photo: True for mobile/camera photos (uses adaptive threshold),
+                  False for scanned docs (uses Otsu's threshold)
+    """
+    import cv2
+
+    # Scale to optimal size range
+    img_array = _scale_for_ocr(img_array)
 
     # Convert to grayscale if needed
     if len(img_array.shape) == 3:
@@ -27,8 +67,14 @@ def preprocess_image(img_array: np.ndarray) -> np.ndarray:
     # Deskew
     gray = deskew(gray)
 
-    # Binarize (Otsu's threshold)
-    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    if is_photo:
+        # Adaptive threshold handles uneven lighting in mobile photos
+        binary = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10
+        )
+    else:
+        # Otsu's threshold works well for uniform scanned documents
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Denoise
     denoised = cv2.fastNlMeansDenoising(binary, h=10)
@@ -73,6 +119,8 @@ def deskew(img: np.ndarray) -> np.ndarray:
 def extract_text_from_image_file(file_path: str, lang: str = "spa+eng") -> str:
     """Run OCR on an image file (JPG, PNG).
 
+    Loads via PIL first to apply EXIF orientation correction (mobile photos).
+
     Args:
         file_path: Path to the image file
         lang: Tesseract language string
@@ -84,18 +132,18 @@ def extract_text_from_image_file(file_path: str, lang: str = "spa+eng") -> str:
         import pytesseract
         from PIL import Image
 
-        # Load image
-        img = cv2.imread(file_path)
-        if img is None:
-            # Try with PIL (some formats cv2 doesn't handle)
-            pil_img = Image.open(file_path).convert("RGB")
-            img = np.array(pil_img)
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        # Always load via PIL first to handle EXIF orientation (mobile cameras)
+        pil_img = Image.open(file_path)
+        pil_img = _fix_exif_orientation(pil_img)
+        pil_img = pil_img.convert("RGB")
+        img = np.array(pil_img)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-        processed = preprocess_image(img)
+        # is_photo=True uses adaptive threshold (better for camera images)
+        processed = preprocess_image(img, is_photo=True)
 
-        # OCR config: PSM 6 = assume single uniform block of text
-        config = f"--oem 3 --psm 6 -l {lang}"
+        # PSM 3 = fully automatic page segmentation (better for document photos)
+        config = f"--oem 3 --psm 3 -l {lang}"
         text = pytesseract.image_to_string(processed, config=config)
         return text
 

@@ -98,10 +98,10 @@ export function DocumentPage() {
         )}
       </div>
 
-      {/* Main 2-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '370px 1fr', gap: '18px', alignItems: 'start' }}>
+      {/* Main 2-column layout — stacks to 1 column on mobile via .doc-grid media query */}
+      <div className="doc-grid">
         {/* Left: sticky preview */}
-        <div style={{ position: 'sticky', top: '74px', height: 'calc(100vh - 110px)' }}>
+        <div className="doc-grid-preview">
           <DocumentPreview document={document} />
         </div>
 
