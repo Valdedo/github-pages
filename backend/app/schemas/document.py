@@ -1,6 +1,7 @@
 import datetime
 from typing import Optional, List
 from pydantic import BaseModel
+from app.schemas.article import ArticleResponse
 
 
 class DocumentBase(BaseModel):
@@ -34,8 +35,7 @@ class DocumentResponse(DocumentBase):
 
 
 class DocumentWithArticles(DocumentResponse):
-    from app.schemas.article import ArticleResponse
-    articles: List["ArticleResponse"] = []
+    articles: List[ArticleResponse] = []
 
     class Config:
         from_attributes = True
