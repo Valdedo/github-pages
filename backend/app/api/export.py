@@ -58,6 +58,37 @@ def export_excel(document_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/pdf/{document_id}")
+def export_pdf_report(document_id: int, db: Session = Depends(get_db)):
+    """Export document articles to a printable A4 PDF report."""
+    from app.services.pdf_report_service import generate_pdf_report
+
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    articles = (
+        db.query(Article)
+        .filter(Article.document_id == document_id)
+        .order_by(Article.line_number)
+        .all()
+    )
+
+    if not articles:
+        raise HTTPException(404, "No articles found for this document")
+
+    pdf_bytes = generate_pdf_report(doc, articles)
+
+    safe_name = doc.original_filename.rsplit(".", 1)[0]
+    filename = f"albaran_{safe_name}_{doc.id}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/labels/{document_id}")
 def export_labels(
     document_id: int,

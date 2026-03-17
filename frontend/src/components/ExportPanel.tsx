@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { reprocessDocument, downloadExcel, downloadLabels } from '../api/client';
+import { reprocessDocument, downloadExcel, downloadLabels, downloadPdfReport } from '../api/client';
 import type { Supplier } from '../types';
 
 interface Props {
@@ -67,6 +67,14 @@ export function ExportPanel({ documentId, suppliers, onReprocessed }: Props) {
           style={{ ...btn, background: '#27ae60' }}
         >
           📊 Exportar Excel
+        </button>
+
+        {/* Printable PDF report */}
+        <button
+          onClick={() => downloadPdfReport(documentId)}
+          style={{ ...btn, background: '#c0392b' }}
+        >
+          🖨️ Exportar PDF imprimible
         </button>
 
         {/* Labels export */}

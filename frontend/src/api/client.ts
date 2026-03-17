@@ -65,6 +65,11 @@ export const downloadLabels = (documentId: number, articleIds?: number[]) => {
   window.open(getLabelsUrl(documentId, articleIds), '_blank');
 };
 
+export const getPdfReportUrl = (documentId: number) => `${BASE}/api/export/pdf/${documentId}`;
+export const downloadPdfReport = (documentId: number) => {
+  window.open(getPdfReportUrl(documentId), '_blank');
+};
+
 // Settings
 export const getSettings = () => api.get<AppSettings>('/api/settings');
 export const updateSettings = (data: Partial<AppSettings>) => api.put<AppSettings>('/api/settings', data);
