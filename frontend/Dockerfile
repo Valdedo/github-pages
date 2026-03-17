@@ -23,6 +23,7 @@ RUN echo 'server { \
   listen 80; \
   root /usr/share/nginx/html; \
   index index.html; \
+  client_max_body_size 25m; \
   location / { \
     try_files $uri $uri/ /index.html; \
   } \
@@ -30,6 +31,9 @@ RUN echo 'server { \
     proxy_pass http://backend:8000; \
     proxy_set_header Host $host; \
     proxy_set_header X-Real-IP $remote_addr; \
+    proxy_read_timeout 120s; \
+    proxy_send_timeout 120s; \
+    client_max_body_size 25m; \
   } \
 }' > /etc/nginx/conf.d/default.conf
 
