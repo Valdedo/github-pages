@@ -64,7 +64,7 @@ export interface MarginTier {
 export interface AppSettings {
   id: number;
   margin_tiers: MarginTier[];
-  rounding_mode: 'standard' | 'psychological';
+  rounding_mode: 'standard' | 'psychological' | 'ceil_5cents';
   rounding_decimals: number;
   label_columns: number;
   label_rows_per_page: number;
