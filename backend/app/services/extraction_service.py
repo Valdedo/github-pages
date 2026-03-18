@@ -17,12 +17,15 @@ Tu tarea es extraer la información estructurada de un albarán o factura en for
 
 REGLAS IMPORTANTES:
 1. Los números en formato español usan coma como separador decimal (1.234,56 = 1234.56). Conviértelos a float estándar.
-2. Los descuentos pueden venir como "30+10+5" o en columnas separadas. Extráelos individualmente.
-3. Si hay un precio neto ya calculado, úsalo como coste_neto; si no, déjalo nulo (se calculará).
-4. Los códigos pueden aparecer como REF, COD, ART, EAN, código proveedor, código fabricante.
+2. Los descuentos pueden venir como "30+10+5" o en columnas separadas. Extráelos individualmente. Ignora sufijos como "(i)" o "(n)" en los porcentajes de descuento.
+3. Si hay un precio neto ya calculado (columna PRECIO o COSTE NETO), úsalo como coste_neto_unitario; si no, déjalo nulo (se calculará).
+4. Los códigos pueden aparecer como REF, COD, ART, EAN, código proveedor, código fabricante. Las líneas "Cod. Barra: XXXX" contienen el EAN del artículo anterior.
 5. El IVA en España es generalmente 21%, 10%, 4% o 0% (exento). Si el albarán indica expresamente 0%, exento, o no menciona IVA para un artículo específico, usa 0.0. El recargo de equivalencia es 5.2%, 1.4% o 0.5%. NUNCA asumas 21% si el documento indica otro valor o 0%.
-6. Si no encuentras un campo, ponlo como null.
-7. Devuelve ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin bloques de código.
+6. En facturas con columnas TARIFA/PRECIO: TARIFA = precio_unitario_bruto (precio de lista), PRECIO = coste_neto_unitario (precio neto ya aplicado descuento).
+7. Ignora filas que no sean artículos: cabeceras de tabla, referencias a pedidos/albaranes internos (PEDIDO:, ALBARÁN:), totales, subtotales, portes, IVA, etc.
+8. Extrae TODOS los artículos del documento, incluyendo los de páginas múltiples. No te detengas antes de procesar todas las líneas.
+9. Si no encuentras un campo, ponlo como null.
+10. Devuelve ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin bloques de código.
 
 FORMATO DE RESPUESTA:
 {
@@ -70,7 +73,7 @@ def build_extraction_prompt(raw_data: dict, supplier_template: Optional[dict] = 
 
     if raw_data.get("full_text"):
         parts.append("\n=== TEXTO COMPLETO ===")
-        parts.append(raw_data["full_text"][:8000])  # limit to avoid token overflow
+        parts.append(raw_data["full_text"][:16000])  # limit to avoid token overflow
 
     return "\n".join(parts)
 
@@ -152,7 +155,7 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
 
         message = client.messages.create(
             model=settings.claude_model,
-            max_tokens=4096,
+            max_tokens=8192,
             system=EXTRACTION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
         )
