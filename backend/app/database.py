@@ -48,14 +48,30 @@ def _run_migrations():
         ("app_settings", "label_rows_per_page",  "INTEGER DEFAULT 5"),
         ("app_settings", "base_url",             "TEXT DEFAULT 'http://localhost:3000'"),
     ]
+    sa = __import__("sqlalchemy")
     with engine.connect() as conn:
         for table, column, col_def in migrations:
             try:
-                conn.execute(
-                    __import__("sqlalchemy").text(
-                        f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"
-                    )
-                )
+                conn.execute(sa.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
                 conn.commit()
             except Exception:
                 pass  # column already exists
+
+        # Fix existing rows that still have NULL after ALTER TABLE ADD COLUMN
+        # (SQLite only sets DEFAULT for new rows, not existing ones)
+        null_fixes = [
+            ("app_settings", "rounding_mode",       "'standard'"),
+            ("app_settings", "rounding_decimals",   "2"),
+            ("app_settings", "label_columns",       "2"),
+            ("app_settings", "label_rows_per_page", "5"),
+            ("app_settings", "company_name",        "''"),
+            ("app_settings", "base_url",            "'http://localhost:3000'"),
+        ]
+        for table, column, default_val in null_fixes:
+            try:
+                conn.execute(sa.text(
+                    f"UPDATE {table} SET {column} = {default_val} WHERE {column} IS NULL"
+                ))
+                conn.commit()
+            except Exception:
+                pass
