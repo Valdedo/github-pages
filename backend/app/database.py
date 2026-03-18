@@ -41,7 +41,12 @@ def create_tables():
 def _run_migrations():
     """Apply incremental SQLite column additions for existing databases."""
     migrations = [
-        ("app_settings", "company_name", "TEXT DEFAULT ''"),
+        ("app_settings", "company_name",        "TEXT DEFAULT ''"),
+        ("app_settings", "rounding_mode",        "TEXT DEFAULT 'standard'"),
+        ("app_settings", "rounding_decimals",    "INTEGER DEFAULT 2"),
+        ("app_settings", "label_columns",        "INTEGER DEFAULT 2"),
+        ("app_settings", "label_rows_per_page",  "INTEGER DEFAULT 5"),
+        ("app_settings", "base_url",             "TEXT DEFAULT 'http://localhost:3000'"),
     ]
     with engine.connect() as conn:
         for table, column, col_def in migrations:
