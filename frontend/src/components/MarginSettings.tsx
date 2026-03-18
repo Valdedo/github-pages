@@ -12,7 +12,7 @@ interface Props {
 export function MarginSettings({ settings, documentId, onUpdated, onToast }: Props) {
   const [open, setOpen] = useState(false);
   const [tiers, setTiers] = useState<MarginTier[]>(settings.margin_tiers);
-  const [roundingMode, setRoundingMode] = useState(settings.rounding_mode);
+  const [roundingMode, setRoundingMode] = useState<'standard' | 'psychological' | 'ceil_5cents'>(settings.rounding_mode as 'standard' | 'psychological' | 'ceil_5cents');
   const [decimals, setDecimals] = useState(settings.rounding_decimals);
   const [companyName, setCompanyName] = useState(settings.company_name || '');
   const [saving, setSaving] = useState(false);
