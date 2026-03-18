@@ -18,6 +18,15 @@ export const uploadDocument = (file: File, supplierId?: number) => {
   });
 };
 
+export const uploadMultiImages = (files: File[], supplierId?: number) => {
+  const form = new FormData();
+  files.forEach(f => form.append('files', f));
+  if (supplierId) form.append('supplier_id', String(supplierId));
+  return api.post<Document>('/api/documents/upload-multi', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 export const listDocuments = () => api.get<DocumentListItem[]>('/api/documents');
 
 export const getDocument = (id: number) => api.get<Document>(`/api/documents/${id}`);

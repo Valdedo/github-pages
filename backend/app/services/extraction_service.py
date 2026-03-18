@@ -177,6 +177,53 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
         return {"documento": {}, "articulos": []}
 
 
+async def extract_multi_images(
+    file_paths: list,
+    supplier_id: Optional[int] = None,
+    suppliers: list = None,
+    lang: str = "spa+eng",
+) -> dict:
+    """Extract from multiple image files combined as a single multi-page document."""
+    from app.services import ocr_service
+
+    all_text_parts = []
+    all_tables = []
+
+    for i, path in enumerate(file_paths):
+        raw = ocr_service.extract(path, lang)
+        if raw.get("full_text"):
+            all_text_parts.append(f"=== PÁGINA {i + 1} ===\n{raw['full_text']}")
+        if raw.get("tables"):
+            all_tables.extend(raw["tables"])
+
+    combined_raw = {
+        "full_text": "\n\n".join(all_text_parts),
+        "tables": all_tables,
+    }
+
+    # Detect supplier
+    supplier_detected = None
+    supplier_template = None
+    if suppliers:
+        supplier_detected = detect_supplier(combined_raw.get("full_text", ""), suppliers)
+        if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
+            supplier_template = json.loads(supplier_detected["template_config"])
+        elif supplier_detected:
+            supplier_template = supplier_detected.get("template_config", {})
+
+    claude_result = await extract_with_claude(combined_raw, supplier_template)
+    raw_articles = claude_result.get("articulos", [])
+    normalized_articles = normalize_extracted_articles(raw_articles)
+
+    return {
+        "documento": claude_result.get("documento", {}),
+        "articulos": normalized_articles,
+        "supplier_detected": supplier_detected,
+        "raw_text": combined_raw.get("full_text", ""),
+        "raw_tables": combined_raw.get("tables", []),
+    }
+
+
 async def extract_document(
     file_path: str,
     doc_type: str,

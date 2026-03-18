@@ -86,6 +86,52 @@ async def upload_document(
     return doc
 
 
+@router.post("/upload-multi", response_model=DocumentResponse)
+async def upload_multi_images(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...),
+    supplier_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Upload multiple image files as a single multi-page document."""
+    IMAGE_EXTS = {"jpg", "jpeg", "png"}
+    if len(files) < 2:
+        raise HTTPException(400, "Para un único archivo usa el endpoint /upload")
+    if len(files) > 10:
+        raise HTTPException(400, "Máximo 10 páginas por documento")
+
+    saved_paths = []
+    first_filename = files[0].filename
+    for file in files:
+        suffix = Path(file.filename).suffix.lower().lstrip(".")
+        if suffix not in IMAGE_EXTS:
+            raise HTTPException(400, f"Solo imágenes (JPG/PNG) en subida múltiple. Archivo: {file.filename}")
+        content = await file.read()
+        if len(content) > settings.max_upload_size_bytes:
+            raise HTTPException(413, f"Archivo demasiado grande: {file.filename}")
+        stored_name = f"{uuid.uuid4().hex}.{suffix}"
+        file_path = Path(settings.upload_dir) / stored_name
+        with open(file_path, "wb") as f:
+            f.write(content)
+        saved_paths.append(str(file_path))
+
+    display_name = f"{len(files)} páginas - {first_filename}"
+    doc = Document(
+        filename=Path(saved_paths[0]).name,
+        original_filename=display_name,
+        file_path=saved_paths[0],
+        doc_type="image",
+        status="uploaded",
+        supplier_id=supplier_id,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    background_tasks.add_task(_process_multi_document, doc.id, saved_paths, supplier_id)
+    return doc
+
+
 @router.get("", response_model=List[DocumentListItem])
 def list_documents(
     skip: int = 0,
@@ -272,6 +318,143 @@ def get_document_file(doc_id: int, db: Session = Depends(get_db)):
         media_type=media_type,
         headers={"Content-Disposition": "inline"},
     )
+
+
+async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Optional[int] = None):
+    """Background task: extract multiple image pages as a single document."""
+    from app.database import SessionLocal
+    from app.services.extraction_service import extract_multi_images
+    from app.services.margin_service import compute_article_pricing
+
+    db = SessionLocal()
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc:
+            return
+
+        doc.status = "processing"
+        db.commit()
+
+        suppliers = db.query(Supplier).all()
+        suppliers_data = [
+            {
+                "id": s.id,
+                "name": s.name,
+                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else s.detection_keywords,
+                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else s.template_config,
+            }
+            for s in suppliers
+        ]
+
+        app_settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
+        if not app_settings:
+            app_settings = AppSettings(id=1)
+            db.add(app_settings)
+            db.commit()
+
+        tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
+
+        result = await extract_multi_images(
+            file_paths=file_paths,
+            supplier_id=supplier_id,
+            suppliers=suppliers_data,
+        )
+
+        documento = result.get("documento", {})
+        doc.supplier_name = documento.get("proveedor") or doc.supplier_name
+        doc.doc_number = documento.get("num_albaran")
+        doc.pronto_pago_pct = documento.get("pronto_pago_pct")
+        doc.raw_extraction = json.dumps(result.get("raw_text", "")[:5000])
+
+        if result.get("supplier_detected") and not supplier_id:
+            supplier_det = result["supplier_detected"]
+            doc.supplier_id = supplier_det.get("id")
+            if not doc.supplier_name:
+                doc.supplier_name = supplier_det.get("name")
+
+        fecha_str = documento.get("fecha")
+        if fecha_str:
+            try:
+                from datetime import date
+                doc.doc_date = date.fromisoformat(fecha_str)
+            except Exception:
+                pass
+
+        for art_data in result.get("articulos", []):
+            pricing = compute_article_pricing(
+                precio_bruto=art_data.get("precio_unitario_bruto", 0),
+                cantidad=art_data.get("cantidad", 1),
+                descuento_1=art_data.get("descuento_1"),
+                descuento_2=art_data.get("descuento_2"),
+                descuento_3=art_data.get("descuento_3"),
+                descuento_4=art_data.get("descuento_4"),
+                iva_pct=art_data.get("iva_pct", 21.0),
+                margen_pct_override=None,
+                tiers=tiers,
+                rounding_mode=app_settings.rounding_mode,
+                decimals=app_settings.rounding_decimals,
+            )
+
+            if art_data.get("coste_neto_unitario") and not any([
+                art_data.get("descuento_1"), art_data.get("descuento_2"),
+                art_data.get("descuento_3"), art_data.get("descuento_4")
+            ]):
+                pricing["coste_neto_unitario"] = art_data["coste_neto_unitario"]
+                pricing["coste_neto_total"] = art_data["coste_neto_unitario"] * art_data.get("cantidad", 1)
+                from app.services.margin_service import calculate_pricing, get_margin_for_cost
+                pricing["margen_pct"] = get_margin_for_cost(pricing["coste_neto_unitario"], tiers)
+                pvp = calculate_pricing(
+                    pricing["coste_neto_unitario"],
+                    pricing["margen_pct"],
+                    art_data.get("iva_pct", 21.0),
+                    app_settings.rounding_mode,
+                    app_settings.rounding_decimals,
+                )
+                pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
+                pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
+
+            otros = art_data.get("otros_codigos", {})
+            article = Article(
+                document_id=doc_id,
+                line_number=art_data.get("line_number", 0),
+                descripcion=art_data.get("descripcion", ""),
+                cantidad=art_data.get("cantidad", 1),
+                precio_unitario_bruto=art_data.get("precio_unitario_bruto", 0),
+                descuento_1=art_data.get("descuento_1"),
+                descuento_2=art_data.get("descuento_2"),
+                descuento_3=art_data.get("descuento_3"),
+                descuento_4=art_data.get("descuento_4"),
+                coste_neto_unitario=pricing["coste_neto_unitario"],
+                coste_neto_total=pricing["coste_neto_total"],
+                iva_pct=art_data.get("iva_pct", 21.0),
+                recargo_pct=art_data.get("recargo_pct"),
+                margen_pct=pricing["margen_pct"],
+                margen_override=pricing["margen_override"],
+                pvp_sin_iva=pricing["pvp_sin_iva"],
+                pvp_con_iva=pricing["pvp_con_iva"],
+                codigo_proveedor=art_data.get("codigo_proveedor"),
+                codigo_fabricante=art_data.get("codigo_fabricante"),
+                ean=art_data.get("ean"),
+                codigo_principal=art_data.get("codigo_principal"),
+                otros_codigos=json.dumps(otros) if otros else None,
+            )
+            db.add(article)
+
+        doc.status = "completed"
+        db.commit()
+
+    except Exception as e:
+        logger.error(f"Error processing multi-document {doc_id}: {e}", exc_info=True)
+        try:
+            doc = db.query(Document).filter(Document.id == doc_id).first()
+            if doc:
+                doc.status = "error"
+                doc.error_message = str(e)[:500]
+                db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
