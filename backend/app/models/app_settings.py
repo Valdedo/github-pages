@@ -20,7 +20,7 @@ class AppSettings(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     margin_tiers: Mapped[str] = mapped_column(Text, default=DEFAULT_MARGIN_TIERS)
-    rounding_mode: Mapped[str] = mapped_column(String(30), default="standard")
+    rounding_mode: Mapped[str] = mapped_column(String(30), default="ceil_5cents")
     rounding_decimals: Mapped[int] = mapped_column(Integer, default=2)
     label_columns: Mapped[int] = mapped_column(Integer, default=2)
     label_rows_per_page: Mapped[int] = mapped_column(Integer, default=5)

@@ -42,7 +42,7 @@ def _run_migrations():
     """Apply incremental SQLite column additions for existing databases."""
     migrations = [
         ("app_settings", "company_name",        "TEXT DEFAULT ''"),
-        ("app_settings", "rounding_mode",        "TEXT DEFAULT 'standard'"),
+        ("app_settings", "rounding_mode",        "TEXT DEFAULT 'ceil_5cents'"),
         ("app_settings", "rounding_decimals",    "INTEGER DEFAULT 2"),
         ("app_settings", "label_columns",        "INTEGER DEFAULT 2"),
         ("app_settings", "label_rows_per_page",  "INTEGER DEFAULT 5"),
@@ -60,7 +60,7 @@ def _run_migrations():
         # Fix existing rows that still have NULL after ALTER TABLE ADD COLUMN
         # (SQLite only sets DEFAULT for new rows, not existing ones)
         null_fixes = [
-            ("app_settings", "rounding_mode",       "'standard'"),
+            ("app_settings", "rounding_mode",       "'ceil_5cents'"),
             ("app_settings", "rounding_decimals",   "2"),
             ("app_settings", "label_columns",       "2"),
             ("app_settings", "label_rows_per_page", "5"),

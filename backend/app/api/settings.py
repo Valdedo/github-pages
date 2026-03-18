@@ -62,8 +62,8 @@ def update_settings(update: AppSettingsUpdate, db: Session = Depends(get_db)):
     if update.margin_tiers is not None:
         s.margin_tiers = json.dumps([t.model_dump() for t in update.margin_tiers])
     if update.rounding_mode is not None:
-        if update.rounding_mode not in ("standard", "psychological"):
-            raise HTTPException(400, "rounding_mode must be 'standard' or 'psychological'")
+        if update.rounding_mode not in ("standard", "psychological", "ceil_5cents"):
+            raise HTTPException(400, "rounding_mode must be 'standard', 'psychological' or 'ceil_5cents'")
         s.rounding_mode = update.rounding_mode
     if update.rounding_decimals is not None:
         s.rounding_decimals = max(0, min(4, update.rounding_decimals))
