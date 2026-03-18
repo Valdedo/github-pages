@@ -180,6 +180,51 @@ def generate_labels_pdf(
     return buf.read()
 
 
+def _draw_logo_shape(c, lx: float, ly: float, lw: float, lh: float, watermark: bool = False):
+    """Draw the company chevron/roof logo (two-tone peak shape).
+
+    Args:
+        lx, ly : bottom-left corner of the bounding box (PDF coords, y upward)
+        lw, lh : width and height of the bounding box
+        watermark: if True draw as a light-gray background watermark
+    """
+    from reportlab.lib import colors
+
+    if watermark:
+        fill_left = fill_right = colors.HexColor("#DEDEDE")
+    else:
+        fill_left  = colors.HexColor("#6DB56A")   # light green
+        fill_right = colors.HexColor("#2D6A4F")   # dark green
+
+    peak_x = lx + lw * 0.50
+    peak_y = ly + lh
+    notch_y = ly + lh * 0.38         # inner V-notch height
+
+    c.saveState()
+
+    # Left arm
+    p = c.beginPath()
+    p.moveTo(lx,             ly)      # outer bottom-left
+    p.lineTo(peak_x,         peak_y)  # peak
+    p.lineTo(peak_x,         notch_y) # inner notch
+    p.lineTo(lx + lw * 0.28, ly)      # inner bottom-left
+    p.close()
+    c.setFillColor(fill_left)
+    c.drawPath(p, fill=1, stroke=0)
+
+    # Right arm
+    p = c.beginPath()
+    p.moveTo(peak_x,         peak_y)  # peak
+    p.lineTo(lx + lw,        ly)      # outer bottom-right
+    p.lineTo(lx + lw * 0.72, ly)      # inner bottom-right
+    p.lineTo(peak_x,         notch_y) # inner notch
+    p.close()
+    c.setFillColor(fill_right)
+    c.drawPath(p, fill=1, stroke=0)
+
+    c.restoreState()
+
+
 def _wrap_words(text: str, font_name: str, font_size: float, max_width: float) -> list:
     """Word-wrap text to fit max_width using real glyph metrics."""
     from reportlab.pdfbase import pdfmetrics
@@ -203,124 +248,127 @@ def _wrap_words(text: str, font_name: str, font_size: float, max_width: float) -
 
 
 def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: str, company_name: str = ""):
-    """Draw a single label on the canvas at position (x, y)."""
+    """Draw a single label on the canvas at position (x, y).
+
+    Layout (inspired by reference design):
+      ┌────────────────────────────────────────────────────────────┐
+      │  [LOGO]   NOMBRE DEL PRODUCTO EN NEGRITA               │
+      │           (segunda línea si es largo)   [watermark bg]    │
+      ├────────────────────────────────────────────────────────────│
+      │  98,40 €              [QR]         [  CÓDIGO DE BARRAS ]  │
+      │  REF: 82325778                     [  CÓDIGO DE BARRAS ]  │
+      │  calzetynus                        [  CÓDIGO DE BARRAS ]  │
+      └────────────────────────────────────────────────────────────┘
+    """
     from reportlab.lib import colors
     from reportlab.lib.utils import ImageReader
 
-    pad = 5  # internal padding (points)
+    pad = 6   # internal padding in points
 
-    # ── Layout proportions ─────────────────────────────────────────────
-    # Top (description):  46% of height → ~65 pt
-    # Middle (PVP + QR):  30%           → ~43 pt
-    # Bottom (ref+barcode):24%          → ~34 pt
-    desc_h = h * 0.46
-    bot_h  = h * 0.24
+    # ── White background ──────────────────────────────────────────
+    c.setFillColor(colors.white)
+    c.rect(x, y, w, h, fill=1, stroke=0)
 
-    mid_top = y + h - desc_h   # divider description / middle  (~y+76)
-    bot_top = y + bot_h        # divider middle / bottom        (~y+34)
+    # ── Watermark logo (large, centered, very light gray) ─────────
+    wm_h = h * 0.84
+    wm_w = wm_h * 1.15
+    wm_x = x + w * 0.50 - wm_w * 0.50
+    wm_y = y + (h - wm_h) * 0.50
+    _draw_logo_shape(c, wm_x, wm_y, wm_w, wm_h, watermark=True)
 
-    # ── Outer border ──────────────────────────────────────────────────
-    c.setStrokeColor(colors.HexColor("#BFCFE0"))
-    c.setLineWidth(0.6)
-    c.rect(x, y, w, h)
+    # ── Outer border ──────────────────────────────────────────────
+    c.setStrokeColor(colors.HexColor("#888888"))
+    c.setLineWidth(0.8)
+    c.rect(x, y, w, h, fill=0, stroke=1)
 
-    # ── Description background ────────────────────────────────────────
-    c.setFillColor(colors.HexColor("#EBF3FB"))
-    c.rect(x, mid_top, w, desc_h, fill=1, stroke=0)
+    # ── Horizontal divider (46 % from bottom) ────────────────────
+    divider_y = y + h * 0.46
+    c.setStrokeColor(colors.HexColor("#BBBBBB"))
+    c.setLineWidth(0.5)
+    c.line(x, divider_y, x + w, divider_y)
 
-    # Left accent bar
-    c.setFillColor(colors.HexColor("#1F4E79"))
-    c.rect(x, mid_top, 4, desc_h, fill=1, stroke=0)
+    # ═══════════════ TOP SECTION ═════════════════════════════════
+    top_h = (y + h) - divider_y        # height of the top section
 
-    # Description text — word-wrapped, max 2 lines, 14pt Bold
-    FONT     = "Helvetica-Bold"
-    FSIZE    = 14
-    LEADING  = 17
-    text_x   = x + pad + 5           # after accent bar + small gap
-    text_w   = w - pad - 5 - pad     # usable width (remove accent bar + both paddings)
+    # Logo – vertically centred inside top section
+    logo_h = top_h * 0.74
+    logo_w = logo_h * 1.15
+    logo_x = x + pad
+    logo_y = divider_y + (top_h - logo_h) / 2
+    _draw_logo_shape(c, logo_x, logo_y, logo_w, logo_h)
 
-    desc  = article.descripcion or "Sin descripción"
-    lines = _wrap_words(desc, FONT, FSIZE, text_w)[:2]
+    # Product description – uppercase bold, right of logo
+    desc_x  = logo_x + logo_w + pad * 1.5
+    desc_w  = w - (desc_x - x) - pad
+    desc    = (article.descripcion or "Sin descripción").upper()
+    FONT    = "Helvetica-Bold"
+    FSIZE   = 13
+    LEAD    = 15
 
+    lines = _wrap_words(desc, FONT, FSIZE, desc_w)[:2]
     c.setFont(FONT, FSIZE)
-    c.setFillColor(colors.HexColor("#0D2A47"))
+    c.setFillColor(colors.HexColor("#111111"))
     top_baseline = y + h - pad - FSIZE
     for i, line in enumerate(lines):
-        c.drawString(text_x, top_baseline - i * LEADING, line)
+        c.drawString(desc_x, top_baseline - i * LEAD, line)
 
-    # Divider after description
-    c.setStrokeColor(colors.HexColor("#BDD5EA"))
-    c.setLineWidth(0.4)
-    c.line(x, mid_top, x + w, mid_top)
+    # ═══════════════ BOTTOM SECTION ══════════════════════════════
+    bot_h = divider_y - y   # ≈ 65 pt
 
-    # ── Middle: PVP (left) + QR (right) ──────────────────────────────
-    c.setFont("Helvetica", 6)
-    c.setFillColor(colors.HexColor("#7F95A8"))
-    c.drawString(x + pad, mid_top - 8, "PVP CON IVA")
+    # Price (large, prominent)
+    pvp     = article.pvp_con_iva
+    pvp_str = f"{pvp:.2f}".replace(".", ",") + " \u20ac"
+    FSIZE_PVP = 20
+    price_y   = divider_y - FSIZE_PVP - pad
+    c.setFont("Helvetica-Bold", FSIZE_PVP)
+    c.setFillColor(colors.black)
+    c.drawString(x + pad, price_y, pvp_str)
 
-    pvp = article.pvp_con_iva
-    c.setFont("Helvetica-Bold", 18)
-    c.setFillColor(colors.HexColor("#1F4E79"))
-    c.drawString(x + pad, mid_top - 24, f"{pvp:.2f} \u20ac")
+    # Reference
+    code      = article.codigo_principal or "N/A"
+    FSIZE_REF = 11
+    ref_y     = price_y - FSIZE_REF - 4
+    c.setFont("Helvetica-Bold", FSIZE_REF)
+    c.setFillColor(colors.HexColor("#111111"))
+    c.drawString(x + pad, ref_y, f"REF: {code}")
 
-    c.setFont("Helvetica", 6)
-    c.setFillColor(colors.HexColor("#7F95A8"))
-    pvp_sin = article.pvp_sin_iva
-    c.drawString(x + pad, mid_top - 33, f"Sin IVA: {pvp_sin:.2f} \u20ac  |  IVA: {article.iva_pct:.0f}%")
-
-    # QR code
-    qr_size = 54
-    product_info_id = getattr(article, "product_info_id", None) or article.id
-    qr_url  = f"{base_url}/producto/{product_info_id}"
-    qr_bytes = generate_qr_image(qr_url)
-    if qr_bytes:
-        qr_reader = ImageReader(io.BytesIO(qr_bytes))
-        c.drawImage(qr_reader,
-                    x + w - qr_size - pad,
-                    mid_top - qr_size - 1,
-                    width=qr_size, height=qr_size,
-                    preserveAspectRatio=True)
-
-    # Divider before bottom
-    c.setStrokeColor(colors.HexColor("#D8E4EE"))
-    c.setLineWidth(0.4)
-    c.line(x, bot_top, x + w, bot_top)
-
-    # ── Bottom: ref text (top) then barcode below ─────────────────────
-    # Draw layout bottom-up so nothing overlaps:
-    #   y+2  ... y+21  → barcode  (height 19 pt)
-    #   y+24 baseline  → "Ref: …" text
-    # bot_top is at y+34, so ref text is 10pt below divider line → fine
-    code = article.codigo_principal or "N/A"
-    c.setFont("Helvetica", 7)
-    c.setFillColor(colors.HexColor("#4A5568"))
-    c.drawString(x + pad, y + 24, f"Ref: {code}")
-
-    is_ean = bool(article.ean and len(article.ean) == 13 and article.ean.isdigit())
-    barcode_code = article.ean if is_ean else (article.codigo_principal or "N/A")
-    bc_bytes = generate_barcode_image(barcode_code, is_ean=is_ean)
-    if bc_bytes:
-        bc_reader = ImageReader(io.BytesIO(bc_bytes))
-        bc_w = w * 0.70
-        bc_h = 19  # fixed height — safely below ref text baseline
-        c.drawImage(bc_reader, x + pad, y + 2,
-                    width=bc_w, height=bc_h,
-                    preserveAspectRatio=True)
-    else:
-        c.setFont("Helvetica", 8)
-        c.setFillColor(colors.black)
-        c.drawString(x + pad, y + 5, barcode_code)
-
-    # Company name — bottom right corner
-    if company_name:
-        c.setFont("Helvetica", 6)
-        c.setFillColor(colors.HexColor("#A0AFBE"))
-        c.drawRightString(x + w - pad, y + 3, company_name)
-
-    # Encoded cost (CALZETYNUS cipher) — bottom left, very discreet
+    # CALZETYNUS cost code – more visible (medium gray, readable)
     coste = getattr(article, "coste_neto_unitario", None)
     if coste is not None and coste > 0:
-        encoded = encode_calzetynus(coste)
-        c.setFont("Helvetica", 5.5)
-        c.setFillColor(colors.HexColor("#C8D8E8"))
-        c.drawString(x + pad, y + 3, encoded)
+        encoded  = encode_calzetynus(coste)
+        calz_y   = ref_y - 7 - 3
+        c.setFont("Helvetica", 7)
+        c.setFillColor(colors.HexColor("#777777"))
+        c.drawString(x + pad, calz_y, encoded)
+
+    # ── Barcode – right side of bottom section ────────────────────
+    bc_area_w = w * 0.44
+    bc_x      = x + w - bc_area_w - pad * 0.5
+    bc_h_draw = bot_h - pad
+
+    is_ean       = bool(article.ean and len(article.ean) == 13 and article.ean.isdigit())
+    barcode_code = article.ean if is_ean else (article.codigo_principal or "N/A")
+    bc_bytes     = generate_barcode_image(barcode_code, is_ean=is_ean)
+
+    if bc_bytes:
+        bc_reader = ImageReader(io.BytesIO(bc_bytes))
+        c.drawImage(bc_reader, bc_x, y + pad * 0.5,
+                    width=bc_area_w, height=bc_h_draw,
+                    preserveAspectRatio=True)
+    else:
+        c.setFont("Helvetica", 9)
+        c.setFillColor(colors.black)
+        c.drawString(bc_x, y + pad, barcode_code)
+
+    # ── QR code – left of barcode ─────────────────────────────────
+    qr_size = bot_h - pad * 2.5
+    product_info_id = getattr(article, "product_info_id", None) or article.id
+    qr_url   = f"{base_url}/producto/{product_info_id}"
+    qr_bytes = generate_qr_image(qr_url)
+    qr_x     = bc_x - qr_size - pad
+
+    if qr_bytes:
+        qr_reader = ImageReader(io.BytesIO(qr_bytes))
+        c.drawImage(qr_reader, qr_x, y + (bot_h - qr_size) / 2,
+                    width=qr_size, height=qr_size,
+                    preserveAspectRatio=True)
