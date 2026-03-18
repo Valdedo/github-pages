@@ -20,7 +20,7 @@ REGLAS IMPORTANTES:
 2. Los descuentos pueden venir como "30+10+5" o en columnas separadas. Extráelos individualmente.
 3. Si hay un precio neto ya calculado, úsalo como coste_neto; si no, déjalo nulo (se calculará).
 4. Los códigos pueden aparecer como REF, COD, ART, EAN, código proveedor, código fabricante.
-5. El IVA en España es generalmente 21%, 10% o 4%. El recargo de equivalencia es 5.2%, 1.4% o 0.5%.
+5. El IVA en España es generalmente 21%, 10%, 4% o 0% (exento). Si el albarán indica expresamente 0%, exento, o no menciona IVA para un artículo específico, usa 0.0. El recargo de equivalencia es 5.2%, 1.4% o 0.5%. NUNCA asumas 21% si el documento indica otro valor o 0%.
 6. Si no encuentras un campo, ponlo como null.
 7. Devuelve ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin bloques de código.
 
@@ -114,7 +114,7 @@ def normalize_extracted_articles(raw_articles: list) -> list:
             "descuento_3": to_float(art.get("descuento_3")),
             "descuento_4": to_float(art.get("descuento_4")),
             "coste_neto_unitario": to_float(art.get("coste_neto_unitario")),
-            "iva_pct": to_float(art.get("iva_pct")) or 21.0,
+            "iva_pct": (lambda v: v if v is not None else 21.0)(to_float(art.get("iva_pct"))),
             "recargo_pct": to_float(art.get("recargo_pct")),
             "codigo_proveedor": art.get("codigo_proveedor") or None,
             "codigo_fabricante": art.get("codigo_fabricante") or None,

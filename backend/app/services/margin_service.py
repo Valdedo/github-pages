@@ -67,7 +67,7 @@ def apply_rounding(
 
     Args:
         value: The raw price
-        rounding_mode: "standard" or "psychological"
+        rounding_mode: "standard", "psychological" or "ceil_5cents"
         decimals: Number of decimal places (for standard mode)
     Returns:
         Rounded price
@@ -76,6 +76,9 @@ def apply_rounding(
         # Round to nearest integer - 0.01 (e.g. 4.99, 9.99, 14.99)
         floored = math.floor(value)
         return floored + 0.99 if floored >= 1 else max(0.01, round(value, 2))
+    if rounding_mode == "ceil_5cents":
+        # Round UP to the nearest 0.05 (e.g. 1.52 → 1.55, 1.56 → 1.60)
+        return math.ceil(value * 20) / 20
     return round(value, decimals)
 
 

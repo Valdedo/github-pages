@@ -94,6 +94,23 @@ def truncate_text(text: str, max_chars: int = 50) -> str:
     return text[:max_chars - 3] + "..."
 
 
+# CALZETYNUS cipher: C=1, A=2, L=3, Z=4, E=5, T=6, Y=7, N=8, U=9, S=0
+_CALZETYNUS = {
+    '1': 'C', '2': 'A', '3': 'L', '4': 'Z', '5': 'E',
+    '6': 'T', '7': 'Y', '8': 'N', '9': 'U', '0': 'S',
+}
+
+
+def encode_calzetynus(cost: float) -> str:
+    """Encode a price using the CALZETYNUS internal cipher.
+
+    Example: 12.50 → 'CA.ES'
+    The decimal point is preserved as-is.
+    """
+    formatted = f"{cost:.2f}"
+    return "".join(_CALZETYNUS.get(c, c) for c in formatted)
+
+
 def generate_labels_pdf(
     articles: list,
     base_url: str = "http://localhost:3000",
@@ -299,3 +316,11 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
         c.setFont("Helvetica", 6)
         c.setFillColor(colors.HexColor("#A0AFBE"))
         c.drawRightString(x + w - pad, y + 3, company_name)
+
+    # Encoded cost (CALZETYNUS cipher) — bottom left, very discreet
+    coste = getattr(article, "coste_neto_unitario", None)
+    if coste is not None and coste > 0:
+        encoded = encode_calzetynus(coste)
+        c.setFont("Helvetica", 5.5)
+        c.setFillColor(colors.HexColor("#C8D8E8"))
+        c.drawString(x + pad, y + 3, encoded)

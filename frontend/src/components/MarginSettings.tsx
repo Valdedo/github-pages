@@ -86,9 +86,10 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
           <div style={{ marginBottom: '18px', display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
               <label style={labelSt}>Modo de redondeo</label>
-              <select value={roundingMode} onChange={e => setRoundingMode(e.target.value as 'standard' | 'psychological')} style={selectSt}>
+              <select value={roundingMode} onChange={e => setRoundingMode(e.target.value as 'standard' | 'psychological' | 'ceil_5cents')} style={selectSt}>
                 <option value="standard">Estándar (2 decimales)</option>
                 <option value="psychological">Psicológico (x.99)</option>
+                <option value="ceil_5cents">Al alza al 0,05 más próximo</option>
               </select>
             </div>
             {roundingMode === 'standard' && (
