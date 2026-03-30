@@ -18,8 +18,12 @@ FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# nginx config for SPA routing (all paths → index.html)
-RUN echo 'server { \
+# Backend URL configurable at runtime (default: Docker Compose service name)
+ENV BACKEND_URL=http://backend:8000
+
+# nginx config template — BACKEND_URL is injected at container start via envsubst
+RUN mkdir -p /etc/nginx/templates && \
+    echo 'server { \
   listen 80; \
   root /usr/share/nginx/html; \
   index index.html; \
@@ -28,13 +32,13 @@ RUN echo 'server { \
     try_files $uri $uri/ /index.html; \
   } \
   location /api { \
-    proxy_pass http://backend:8000; \
+    proxy_pass ${BACKEND_URL}; \
     proxy_set_header Host $host; \
     proxy_set_header X-Real-IP $remote_addr; \
     proxy_read_timeout 120s; \
     proxy_send_timeout 120s; \
     client_max_body_size 25m; \
   } \
-}' > /etc/nginx/conf.d/default.conf
+}' > /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
