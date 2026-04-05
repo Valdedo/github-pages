@@ -299,7 +299,7 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     _draw_logo_badge(c, logo_x, logo_y, logo_sz, logo_sz, company_name=company_name)
 
     # Product description – uppercase bold, right of logo
-    desc_x  = logo_x + logo_w + pad * 1.5
+    desc_x  = logo_x + logo_sz + pad * 1.5
     desc_w  = w - (desc_x - x) - pad
     desc    = (article.descripcion or "Sin descripción").upper()
     FONT    = "Helvetica-Bold"
