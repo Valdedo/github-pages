@@ -180,47 +180,50 @@ def generate_labels_pdf(
     return buf.read()
 
 
-def _draw_logo_shape(c, lx: float, ly: float, lw: float, lh: float, watermark: bool = False):
-    """Draw the company chevron/roof logo (two-tone peak shape).
+def _draw_logo_badge(c, lx: float, ly: float, lw: float, lh: float,
+                     company_name: str = "", watermark: bool = False):
+    """Draw a professional company badge (rounded rectangle with initials).
 
     Args:
-        lx, ly : bottom-left corner of the bounding box (PDF coords, y upward)
-        lw, lh : width and height of the bounding box
-        watermark: if True draw as a light-gray background watermark
+        lx, ly      : bottom-left corner of the bounding box (PDF coords, y upward)
+        lw, lh      : width and height of the bounding box
+        company_name: used to derive initials (up to 2 chars)
+        watermark   : if True draw as a very light background watermark
     """
     from reportlab.lib import colors
 
-    if watermark:
-        fill_left = fill_right = colors.HexColor("#DEDEDE")
-    else:
-        fill_left  = colors.HexColor("#6DB56A")   # light green
-        fill_right = colors.HexColor("#2D6A4F")   # dark green
+    r = min(lw, lh) * 0.22  # corner radius
 
-    peak_x = lx + lw * 0.50
-    peak_y = ly + lh
-    notch_y = ly + lh * 0.38         # inner V-notch height
+    if watermark:
+        bg_color   = colors.HexColor("#ECECEC")
+        text_color = colors.HexColor("#CCCCCC")
+    else:
+        bg_color   = colors.HexColor("#1A5276")  # deep navy blue
+        text_color = colors.white
+
+    # Derive initials: first letter of first two words
+    words = [w for w in company_name.upper().split() if w]
+    if len(words) >= 2:
+        initials = words[0][0] + words[1][0]
+    elif len(words) == 1:
+        initials = words[0][:2]
+    else:
+        initials = "CO"
 
     c.saveState()
 
-    # Left arm
-    p = c.beginPath()
-    p.moveTo(lx,             ly)      # outer bottom-left
-    p.lineTo(peak_x,         peak_y)  # peak
-    p.lineTo(peak_x,         notch_y) # inner notch
-    p.lineTo(lx + lw * 0.28, ly)      # inner bottom-left
-    p.close()
-    c.setFillColor(fill_left)
-    c.drawPath(p, fill=1, stroke=0)
+    # Rounded rectangle background
+    c.setFillColor(bg_color)
+    c.roundRect(lx, ly, lw, lh, r, fill=1, stroke=0)
 
-    # Right arm
-    p = c.beginPath()
-    p.moveTo(peak_x,         peak_y)  # peak
-    p.lineTo(lx + lw,        ly)      # outer bottom-right
-    p.lineTo(lx + lw * 0.72, ly)      # inner bottom-right
-    p.lineTo(peak_x,         notch_y) # inner notch
-    p.close()
-    c.setFillColor(fill_right)
-    c.drawPath(p, fill=1, stroke=0)
+    # Initials text centred in the badge
+    font_size = lh * 0.52
+    c.setFont("Helvetica-Bold", font_size)
+    c.setFillColor(text_color)
+    from reportlab.pdfbase import pdfmetrics
+    text_w = pdfmetrics.stringWidth(initials, "Helvetica-Bold", font_size)
+    c.drawString(lx + (lw - text_w) / 2, ly + (lh - font_size) / 2 + font_size * 0.12,
+                 initials)
 
     c.restoreState()
 
@@ -269,12 +272,11 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     c.setFillColor(colors.white)
     c.rect(x, y, w, h, fill=1, stroke=0)
 
-    # ── Watermark logo (large, centered, very light gray) ─────────
-    wm_h = h * 0.84
-    wm_w = wm_h * 1.15
-    wm_x = x + w * 0.50 - wm_w * 0.50
-    wm_y = y + (h - wm_h) * 0.50
-    _draw_logo_shape(c, wm_x, wm_y, wm_w, wm_h, watermark=True)
+    # ── Watermark badge (large, centered, very light gray) ───────
+    wm_sz = h * 0.72
+    wm_x  = x + w * 0.50 - wm_sz * 0.50
+    wm_y  = y + (h - wm_sz) * 0.50
+    _draw_logo_badge(c, wm_x, wm_y, wm_sz, wm_sz, company_name=company_name, watermark=True)
 
     # ── Outer border ──────────────────────────────────────────────
     c.setStrokeColor(colors.HexColor("#888888"))
@@ -290,12 +292,11 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     # ═══════════════ TOP SECTION ═════════════════════════════════
     top_h = (y + h) - divider_y        # height of the top section
 
-    # Logo – vertically centred inside top section
-    logo_h = top_h * 0.74
-    logo_w = logo_h * 1.15
-    logo_x = x + pad
-    logo_y = divider_y + (top_h - logo_h) / 2
-    _draw_logo_shape(c, logo_x, logo_y, logo_w, logo_h)
+    # Logo badge – square, vertically centred inside top section
+    logo_sz = top_h * 0.74
+    logo_x  = x + pad
+    logo_y  = divider_y + (top_h - logo_sz) / 2
+    _draw_logo_badge(c, logo_x, logo_y, logo_sz, logo_sz, company_name=company_name)
 
     # Product description – uppercase bold, right of logo
     desc_x  = logo_x + logo_w + pad * 1.5
@@ -360,11 +361,11 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
         c.setFillColor(colors.black)
         c.drawString(bc_x, y + pad, barcode_code)
 
-    # ── QR code – left of barcode ─────────────────────────────────
+    # ── QR code – encodes EAN or product reference ────────────────
     qr_size = bot_h - pad * 2.5
-    product_info_id = getattr(article, "product_info_id", None) or article.id
-    qr_url   = f"{base_url}/producto/{product_info_id}"
-    qr_bytes = generate_qr_image(qr_url)
+    # QR encodes EAN if available, otherwise the principal code (REF)
+    qr_data  = article.ean if (article.ean and len(article.ean) >= 8) else (article.codigo_principal or "N/A")
+    qr_bytes = generate_qr_image(qr_data)
     qr_x     = bc_x - qr_size - pad
 
     if qr_bytes:
