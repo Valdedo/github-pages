@@ -23,6 +23,15 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
     logger.info("Starting Albarán Processor API...")
+
+    # Ensure data directories exist (important when volume is freshly mounted)
+    from app.config import settings as app_settings
+    Path(app_settings.upload_dir).mkdir(parents=True, exist_ok=True)
+    Path(app_settings.export_dir).mkdir(parents=True, exist_ok=True)
+    logger.info(f"Upload dir: {app_settings.upload_dir}")
+    logger.info(f"Export dir: {app_settings.export_dir}")
+    logger.info(f"Database URL: {app_settings.database_url}")
+
     create_tables()
     logger.info("Database tables created/verified.")
     yield
@@ -55,4 +64,15 @@ app.include_router(product_info.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "Albarán Processor API"}
+    from app.config import settings as app_settings
+    import os
+    upload_ok = os.path.isdir(app_settings.upload_dir)
+    export_ok = os.path.isdir(app_settings.export_dir)
+    data_writable = os.access("/data", os.W_OK) if os.path.exists("/data") else False
+    return {
+        "status": "ok",
+        "service": "Albarán Processor API",
+        "upload_dir_exists": upload_ok,
+        "export_dir_exists": export_ok,
+        "data_writable": data_writable,
+    }
