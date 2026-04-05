@@ -361,11 +361,11 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
         c.setFillColor(colors.black)
         c.drawString(bc_x, y + pad, barcode_code)
 
-    # ── QR code – encodes EAN or product reference ────────────────
+    # ── QR code – links to product sheet page ────────────────────
     qr_size = bot_h - pad * 2.5
-    # QR encodes EAN if available, otherwise the principal code (REF)
-    qr_data  = article.ean if (article.ean and len(article.ean) >= 8) else (article.codigo_principal or "N/A")
-    qr_bytes = generate_qr_image(qr_data)
+    code    = article.ean if (article.ean and len(article.ean) >= 8) else (article.codigo_principal or "N/A")
+    qr_url  = f"{base_url}/api/products/ficha/{code}"
+    qr_bytes = generate_qr_image(qr_url)
     qr_x     = bc_x - qr_size - pad
 
     if qr_bytes:
