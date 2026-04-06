@@ -201,7 +201,7 @@ def product_sheet(code: str, db: Session = Depends(get_db)):
     * {{ box-sizing:border-box; margin:0; padding:0; }}
     body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background:#f4f6f9; color:#222; }}
-    .header {{ background:#1A5276; color:white; padding:18px 20px; }}
+    .header {{ background:#1B5E20; color:white; padding:18px 20px; }}
     .header .brand {{ font-size:13px; opacity:.8; margin-bottom:4px; }}
     .header h1 {{ font-size:20px; line-height:1.3; }}
     .card {{ background:white; margin:16px; border-radius:10px;
@@ -212,7 +212,7 @@ def product_sheet(code: str, db: Session = Depends(get_db)):
     table.t td {{ padding:8px 4px; border-bottom:1px solid #eee; font-size:14px; }}
     table.t td:first-child {{ color:#666; width:45%; }}
     table.t td:last-child {{ font-weight:500; }}
-    h3 {{ font-size:14px; color:#555; text-transform:uppercase;
+    h3 {{ font-size:14px; color:#1B5E20; text-transform:uppercase;
           letter-spacing:.5px; margin-bottom:8px; }}
     .footer {{ text-align:center; font-size:11px; color:#aaa; padding:20px; }}
   </style>
