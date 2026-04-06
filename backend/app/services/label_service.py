@@ -208,7 +208,7 @@ def _draw_logo_badge(c, lx: float, ly: float, lw: float, lh: float,
     elif len(words) == 1:
         initials = words[0][:2]
     else:
-        initials = "CO"
+        initials = "CF"  # default for Casa Fonso
 
     c.saveState()
 
@@ -293,56 +293,37 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     top_h = (y + h) - divider_y        # height of the top section
 
     # Logo badge – square, vertically centred inside top section
-    logo_sz = top_h * 0.74
+    logo_sz = top_h * 0.70
     logo_x  = x + pad
     logo_y  = divider_y + (top_h - logo_sz) / 2
     _draw_logo_badge(c, logo_x, logo_y, logo_sz, logo_sz, company_name=company_name)
 
-    # Product description – uppercase bold, right of logo
-    desc_x  = logo_x + logo_sz + pad * 1.5
-    desc_w  = w - (desc_x - x) - pad
-    desc    = (article.descripcion or "Sin descripción").upper()
-    FONT    = "Helvetica-Bold"
-    FSIZE   = 13
-    LEAD    = 15
+    # Product description – right of logo, fits in remaining width
+    desc_x = logo_x + logo_sz + pad
+    desc_w = w - (desc_x - x) - pad
+    desc   = (article.descripcion or "Sin descripción").upper()
+    FONT   = "Helvetica-Bold"
 
-    lines = _wrap_words(desc, FONT, FSIZE, desc_w)[:2]
+    # Auto-fit font: start at 11pt, reduce until text fits in 3 lines
+    for FSIZE in (11, 9, 8):
+        LEAD  = FSIZE + 2
+        lines = _wrap_words(desc, FONT, FSIZE, desc_w)
+        if len(lines) <= 3:
+            break
+    lines = lines[:3]
+
     c.setFont(FONT, FSIZE)
     c.setFillColor(colors.HexColor("#111111"))
-    top_baseline = y + h - pad - FSIZE
+    # Vertically centre text block in top section
+    block_h      = len(lines) * LEAD
+    top_baseline = divider_y + top_h - (top_h - block_h) / 2 - LEAD * 0.25
     for i, line in enumerate(lines):
         c.drawString(desc_x, top_baseline - i * LEAD, line)
 
     # ═══════════════ BOTTOM SECTION ══════════════════════════════
-    bot_h = divider_y - y   # ≈ 65 pt
+    bot_h = divider_y - y
 
-    # Price (large, prominent)
-    pvp     = article.pvp_con_iva
-    pvp_str = f"{pvp:.2f}".replace(".", ",") + " \u20ac"
-    FSIZE_PVP = 20
-    price_y   = divider_y - FSIZE_PVP - pad
-    c.setFont("Helvetica-Bold", FSIZE_PVP)
-    c.setFillColor(colors.black)
-    c.drawString(x + pad, price_y, pvp_str)
-
-    # Reference
-    code      = article.codigo_principal or "N/A"
-    FSIZE_REF = 11
-    ref_y     = price_y - FSIZE_REF - 4
-    c.setFont("Helvetica-Bold", FSIZE_REF)
-    c.setFillColor(colors.HexColor("#111111"))
-    c.drawString(x + pad, ref_y, f"REF: {code}")
-
-    # CALZETYNUS cost code – more visible (medium gray, readable)
-    coste = getattr(article, "coste_neto_unitario", None)
-    if coste is not None and coste > 0:
-        encoded  = encode_calzetynus(coste)
-        calz_y   = ref_y - 7 - 3
-        c.setFont("Helvetica", 7)
-        c.setFillColor(colors.HexColor("#777777"))
-        c.drawString(x + pad, calz_y, encoded)
-
-    # ── Barcode – right side of bottom section ────────────────────
+    # ── Barcode – right side (44 % of label width) ───────────────
     bc_area_w = w * 0.44
     bc_x      = x + w - bc_area_w - pad * 0.5
     bc_h_draw = bot_h - pad
@@ -361,15 +342,55 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
         c.setFillColor(colors.black)
         c.drawString(bc_x, y + pad, barcode_code)
 
-    # ── QR code – links to product sheet page ────────────────────
+    # ── QR code – left of barcode ─────────────────────────────────
     qr_size = bot_h - pad * 2.5
-    code    = article.ean if (article.ean and len(article.ean) >= 8) else (article.codigo_principal or "N/A")
-    qr_url  = f"{base_url}/api/products/ficha/{code}"
+    qr_code = article.ean if (article.ean and len(article.ean) >= 8) else (article.codigo_principal or "N/A")
+    qr_url  = f"{base_url}/api/products/ficha/{qr_code}"
     qr_bytes = generate_qr_image(qr_url)
-    qr_x     = bc_x - qr_size - pad
+    qr_x    = bc_x - qr_size - pad
 
     if qr_bytes:
         qr_reader = ImageReader(io.BytesIO(qr_bytes))
         c.drawImage(qr_reader, qr_x, y + (bot_h - qr_size) / 2,
                     width=qr_size, height=qr_size,
                     preserveAspectRatio=True)
+
+    # ── Left text zone: price / ref / calzetynus (stays left of QR) ──
+    left_max_x = qr_x - pad  # text must not exceed this x
+
+    # Price
+    pvp     = article.pvp_con_iva or 0.0
+    pvp_str = f"{pvp:.2f}".replace(".", ",") + " \u20ac"
+    left_w  = left_max_x - (x + pad)
+
+    # Auto-fit price font so it never overflows into QR zone
+    for FSIZE_PVP in (20, 17, 14):
+        from reportlab.pdfbase import pdfmetrics
+        if pdfmetrics.stringWidth(pvp_str, "Helvetica-Bold", FSIZE_PVP) <= left_w:
+            break
+
+    price_y = divider_y - FSIZE_PVP - pad
+    c.setFont("Helvetica-Bold", FSIZE_PVP)
+    c.setFillColor(colors.black)
+    c.drawString(x + pad, price_y, pvp_str)
+
+    # Reference – truncated to fit left zone
+    ref_code  = article.codigo_principal or "N/A"
+    FSIZE_REF = 9
+    ref_str   = f"REF: {ref_code}"
+    from reportlab.pdfbase import pdfmetrics as pm2
+    while pm2.stringWidth(ref_str, "Helvetica-Bold", FSIZE_REF) > left_w and len(ref_str) > 8:
+        ref_str = ref_str[:-1]
+    ref_y = price_y - FSIZE_REF - 3
+    c.setFont("Helvetica-Bold", FSIZE_REF)
+    c.setFillColor(colors.HexColor("#111111"))
+    c.drawString(x + pad, ref_y, ref_str)
+
+    # CALZETYNUS cost cipher
+    coste = getattr(article, "coste_neto_unitario", None)
+    if coste is not None and coste > 0:
+        encoded = encode_calzetynus(coste)
+        calz_y  = ref_y - 7 - 2
+        c.setFont("Helvetica", 7)
+        c.setFillColor(colors.HexColor("#888888"))
+        c.drawString(x + pad, calz_y, encoded)
