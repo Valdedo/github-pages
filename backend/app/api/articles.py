@@ -118,6 +118,24 @@ def update_article(
 
     update_data = update.model_dump(exclude_unset=True)
 
+    # Validate numeric fields
+    if "cantidad" in update_data and update_data["cantidad"] is not None:
+        if update_data["cantidad"] <= 0:
+            raise HTTPException(400, "La cantidad debe ser mayor que 0")
+    if "precio_unitario_bruto" in update_data and update_data["precio_unitario_bruto"] is not None:
+        if update_data["precio_unitario_bruto"] < 0:
+            raise HTTPException(400, "El precio no puede ser negativo")
+    for dto_field in ["descuento_1", "descuento_2", "descuento_3", "descuento_4"]:
+        if dto_field in update_data and update_data[dto_field] is not None:
+            if not (0 <= update_data[dto_field] <= 100):
+                raise HTTPException(400, f"El descuento debe estar entre 0 y 100")
+    if "iva_pct" in update_data and update_data["iva_pct"] is not None:
+        if update_data["iva_pct"] not in (0, 4, 5, 10, 21):
+            raise HTTPException(400, "IVA debe ser 0, 4, 5, 10 o 21")
+    if "margen_pct" in update_data and update_data["margen_pct"] is not None:
+        if not (0 <= update_data["margen_pct"] <= 500):
+            raise HTTPException(400, "El margen debe estar entre 0% y 500%")
+
     # If margen_pct is explicitly set, mark as override
     if "margen_pct" in update_data and update_data["margen_pct"] is not None:
         update_data["margen_override"] = True
@@ -150,6 +168,42 @@ def delete_article(article_id: int, db: Session = Depends(get_db)):
     db.delete(article)
     db.commit()
     return {"ok": True}
+
+
+@router.delete("/bulk")
+def bulk_delete_articles(
+    ids: List[int],
+    db: Session = Depends(get_db),
+):
+    """Delete multiple articles at once."""
+    if not ids:
+        raise HTTPException(400, "No se proporcionaron IDs")
+    if len(ids) > 200:
+        raise HTTPException(400, "Máximo 200 artículos a la vez")
+    deleted = db.query(Article).filter(Article.id.in_(ids)).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True, "deleted": deleted}
+
+
+@router.put("/bulk-margin")
+def bulk_update_margin(
+    ids: List[int],
+    margen_pct: float,
+    db: Session = Depends(get_db),
+):
+    """Set the same margin % on multiple articles."""
+    if not ids:
+        raise HTTPException(400, "No se proporcionaron IDs")
+    if not (0 <= margen_pct <= 500):
+        raise HTTPException(400, "El margen debe estar entre 0% y 500%")
+    settings = get_settings(db)
+    articles = db.query(Article).filter(Article.id.in_(ids)).all()
+    for art in articles:
+        art.margen_pct = margen_pct
+        art.margen_override = True
+        recalc_article(art, settings)
+    db.commit()
+    return {"ok": True, "updated": len(articles)}
 
 
 @router.post("/recalculate")

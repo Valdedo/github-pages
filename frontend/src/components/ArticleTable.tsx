@@ -1,12 +1,24 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { updateArticle, deleteArticle, createArticle } from '../api/client';
+import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUpdateMargin } from '../api/client';
 import type { Article } from '../types/index';
+
+// Validate numeric fields before sending to API
+function validateField(field: string, value: number | null): string | null {
+  if (value === null) return null;
+  if (field === 'cantidad' && value <= 0) return 'La cantidad debe ser mayor que 0';
+  if (field === 'precio_unitario_bruto' && value < 0) return 'El precio no puede ser negativo';
+  if (['descuento_1','descuento_2','descuento_3','descuento_4'].includes(field) && (value < 0 || value > 100))
+    return 'El descuento debe estar entre 0 y 100';
+  if (field === 'iva_pct' && ![0,4,5,10,21].includes(value)) return 'IVA debe ser 0, 4, 5, 10 o 21';
+  if (field === 'margen_pct' && (value < 0 || value > 500)) return 'Margen entre 0% y 500%';
+  return null;
+}
 
 interface Props {
   documentId: number;
@@ -74,12 +86,33 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [addingRow, setAddingRow] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
+  const [searchDebounced, setSearchDebounced] = useState('');
+  const [bulkMarginModal, setBulkMarginModal] = useState(false);
+  const [bulkMarginValue, setBulkMarginValue] = useState('');
+  const [bulkWorking, setBulkWorking] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = search.trim()
+  // Debounced search — wait 250ms after user stops typing
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setSearchDebounced(search), 250);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search]);
+
+  // Warn before closing if a save is in progress
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (saving) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [saving]);
+
+  const filtered = searchDebounced.trim()
     ? articles.filter(a =>
-        (a.descripcion || '').toLowerCase().includes(search.toLowerCase()) ||
-        (a.codigo_principal || '').toLowerCase().includes(search.toLowerCase()) ||
-        (a.ean || '').includes(search)
+        (a.descripcion || '').toLowerCase().includes(searchDebounced.toLowerCase()) ||
+        (a.codigo_principal || '').toLowerCase().includes(searchDebounced.toLowerCase()) ||
+        (a.ean || '').includes(searchDebounced)
       )
     : articles;
 
@@ -105,14 +138,16 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   };
 
   const handleUpdate = useCallback(async (id: number, field: string, rawValue: string) => {
+    const numericFields = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
+    let value: string | number | null = rawValue;
+    if (numericFields.includes(field)) {
+      const n = parseFloat(rawValue.replace(',', '.'));
+      value = isNaN(n) ? null : n;
+      const err = validateField(field, value as number | null);
+      if (err) { onToast?.(err, 'error'); return; }
+    }
     setSaving(id);
     try {
-      const numericFields = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
-      let value: string | number | null = rawValue;
-      if (numericFields.includes(field)) {
-        const n = parseFloat(rawValue.replace(',', '.'));
-        value = isNaN(n) ? null : n;
-      }
       if (field === 'margen_pct' && value !== null) {
         const { data } = await updateArticle(id, { margen_pct: value as number, margen_override: true });
         onArticlesChanged(articles.map(a => a.id === id ? data : a));
@@ -122,12 +157,51 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       const { data } = await updateArticle(id, { [field]: value });
       onArticlesChanged(articles.map(a => a.id === id ? data : a));
       onToast?.('Guardado');
-    } catch {
-      onToast?.('Error al guardar', 'error');
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || 'Error al guardar';
+      onToast?.(msg, 'error');
     } finally {
       setSaving(null);
     }
   }, [articles, onArticlesChanged]);
+
+  const handleBulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (!confirm(`¿Eliminar ${ids.length} artículo${ids.length > 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+    setBulkWorking(true);
+    try {
+      await bulkDeleteArticles(ids);
+      setSelectedIds(new Set());
+      onArticlesChanged(articles.filter(a => !ids.includes(a.id)));
+      onToast?.(`${ids.length} artículo${ids.length > 1 ? 's' : ''} eliminado${ids.length > 1 ? 's' : ''}`, 'info');
+    } catch {
+      onToast?.('Error al eliminar', 'error');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const handleBulkMargin = async () => {
+    const pct = parseFloat(bulkMarginValue.replace(',', '.'));
+    if (isNaN(pct) || pct < 0 || pct > 500) { onToast?.('Margen inválido (0-500%)', 'error'); return; }
+    const ids = [...selectedIds];
+    setBulkWorking(true);
+    try {
+      await bulkUpdateMargin(ids, pct);
+      // Refresh affected articles from server response (simplified: reload all)
+      const updated = articles.map(a =>
+        ids.includes(a.id) ? { ...a, margen_pct: pct, margen_override: true } : a
+      );
+      onArticlesChanged(updated);
+      setBulkMarginModal(false);
+      setBulkMarginValue('');
+      onToast?.(`Margen ${pct}% aplicado a ${ids.length} artículo${ids.length > 1 ? 's' : ''}`, 'success');
+    } catch {
+      onToast?.('Error al actualizar márgenes', 'error');
+    } finally {
+      setBulkWorking(false);
+    }
+  };
 
   const handleResetMargin = async (article: Article) => {
     setSaving(article.id);
@@ -320,6 +394,65 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
           </button>
         </div>
       </div>
+
+      {/* Bulk action bar — only visible when articles are selected */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap',
+          padding: '8px 16px', background: '#fff8e1',
+          borderBottom: '1px solid #ffe082',
+        }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#b45309' }}>
+            {selectedIds.size} seleccionado{selectedIds.size > 1 ? 's' : ''}:
+          </span>
+          <button className="btn btn-accent btn-sm" onClick={() => setBulkMarginModal(true)} disabled={bulkWorking}>
+            % Cambiar margen
+          </button>
+          <button className="btn btn-danger btn-sm" onClick={handleBulkDelete} disabled={bulkWorking}>
+            {bulkWorking ? '…' : '✕ Eliminar seleccionados'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedIds(new Set())}>
+            Cancelar selección
+          </button>
+        </div>
+      )}
+
+      {/* Bulk margin modal */}
+      {bulkMarginModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '28px', width: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '16px', color: 'var(--primary)' }}>
+              Cambiar margen a {selectedIds.size} artículo{selectedIds.size > 1 ? 's' : ''}
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--grey-500)', margin: '0 0 16px' }}>
+              Introduce el margen en % a aplicar. Se marcará como margen manual.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                type="number" min="0" max="500" step="1"
+                placeholder="ej: 35"
+                value={bulkMarginValue}
+                onChange={e => setBulkMarginValue(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleBulkMargin(); if (e.key === 'Escape') setBulkMarginModal(false); }}
+                autoFocus
+                style={{ flex: 1, padding: '8px 12px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' }}
+              />
+              <span style={{ fontSize: '16px', color: 'var(--grey-500)' }}>%</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setBulkMarginModal(false); setBulkMarginValue(''); }}>
+                Cancelar
+              </button>
+              <button className="btn btn-success" onClick={handleBulkMargin} disabled={bulkWorking}>
+                {bulkWorking ? 'Aplicando…' : 'Aplicar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px' }}>

@@ -102,18 +102,24 @@ async def upload_multi_images(
 
     saved_paths = []
     first_filename = files[0].filename
-    for file in files:
-        suffix = Path(file.filename).suffix.lower().lstrip(".")
-        if suffix not in IMAGE_EXTS:
-            raise HTTPException(400, f"Solo imágenes (JPG/PNG) en subida múltiple. Archivo: {file.filename}")
-        content = await file.read()
-        if len(content) > settings.max_upload_size_bytes:
-            raise HTTPException(413, f"Archivo demasiado grande: {file.filename}")
-        stored_name = f"{uuid.uuid4().hex}.{suffix}"
-        file_path = Path(settings.upload_dir) / stored_name
-        with open(file_path, "wb") as f:
-            f.write(content)
-        saved_paths.append(str(file_path))
+    try:
+        for file in files:
+            suffix = Path(file.filename).suffix.lower().lstrip(".")
+            if suffix not in IMAGE_EXTS:
+                raise HTTPException(400, f"Solo imágenes (JPG/PNG) en subida múltiple. Archivo: {file.filename}")
+            content = await file.read()
+            if len(content) > settings.max_upload_size_bytes:
+                raise HTTPException(413, f"Archivo demasiado grande: {file.filename}")
+            stored_name = f"{uuid.uuid4().hex}.{suffix}"
+            file_path = Path(settings.upload_dir) / stored_name
+            with open(file_path, "wb") as f:
+                f.write(content)
+            saved_paths.append(str(file_path))
+    except HTTPException:
+        # Clean up any files already saved before the error
+        for p in saved_paths:
+            Path(p).unlink(missing_ok=True)
+        raise
 
     display_name = f"{len(files)} páginas - {first_filename}"
     doc = Document(
@@ -213,6 +219,10 @@ async def reprocess_document(
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "Document not found")
+
+    # Prevent double-processing
+    if doc.status == "processing":
+        raise HTTPException(409, "El documento ya está siendo procesado. Espera a que termine.")
 
     # Delete existing articles
     db.query(Article).filter(Article.document_id == doc_id).delete()
@@ -375,8 +385,12 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
         fecha_str = documento.get("fecha")
         if fecha_str:
             try:
-                from datetime import date
-                doc.doc_date = date.fromisoformat(fecha_str)
+                from datetime import date, datetime
+                # Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS" formats
+                if "T" in str(fecha_str) or " " in str(fecha_str):
+                    doc.doc_date = datetime.fromisoformat(str(fecha_str).split(".")[0]).date()
+                else:
+                    doc.doc_date = date.fromisoformat(str(fecha_str)[:10])
             except Exception:
                 pass
 
@@ -519,8 +533,12 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
         fecha_str = documento.get("fecha")
         if fecha_str:
             try:
-                from datetime import date
-                doc.doc_date = date.fromisoformat(fecha_str)
+                from datetime import date, datetime
+                # Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS" formats
+                if "T" in str(fecha_str) or " " in str(fecha_str):
+                    doc.doc_date = datetime.fromisoformat(str(fecha_str).split(".")[0]).date()
+                else:
+                    doc.doc_date = date.fromisoformat(str(fecha_str)[:10])
             except Exception:
                 pass
 

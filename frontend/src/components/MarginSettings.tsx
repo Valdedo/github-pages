@@ -18,6 +18,16 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    // Warn if there's an open document with articles that will be recalculated
+    if (documentId) {
+      const ok = confirm(
+        '⚠️ Al guardar se recalcularán los precios de todos los artículos de este albarán.\n\n' +
+        'Los artículos con margen manual (punto naranja) se mantendrán igual.\n' +
+        'Los artículos con margen automático cambiarán según los nuevos tramos.\n\n' +
+        '¿Continuar?'
+      );
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       const { data } = await updateSettings({

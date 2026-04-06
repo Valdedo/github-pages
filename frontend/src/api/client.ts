@@ -56,6 +56,12 @@ export const deleteArticle = (id: number) => api.delete(`/api/articles/${id}`);
 export const recalculateArticles = (documentId: number) =>
   api.post(`/api/articles/recalculate?document_id=${documentId}`);
 
+export const bulkDeleteArticles = (ids: number[]) =>
+  api.delete('/api/articles/bulk', { data: ids });
+
+export const bulkUpdateMargin = (ids: number[], margen_pct: number) =>
+  api.put(`/api/articles/bulk-margin?margen_pct=${margen_pct}`, ids);
+
 // Export
 export const getExcelUrl = (documentId: number) => `${BASE}/api/export/excel/${documentId}`;
 export const getLabelsUrl = (documentId: number, articleIds?: number[], copies = 1) => {
