@@ -55,62 +55,65 @@ export function HomePage() {
     }
   };
 
-  const completed = documents.filter(d => d.status === 'completed').length;
+  const completed  = documents.filter(d => d.status === 'completed').length;
   const processing = documents.filter(d => d.status === 'processing' || d.status === 'uploaded').length;
 
   return (
     <div className="page">
       {ConfirmDialog}
       <ToastContainer />
+
       {/* Hero */}
-      <div style={{ textAlign: 'center', marginBottom: '32px', padding: '8px 0' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
-          Procesador de Albaranes
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{
+          fontSize: '22px',
+          fontWeight: 800,
+          color: 'var(--text-1)',
+          letterSpacing: '-0.03em',
+          marginBottom: '6px',
+        }}>
+          Procesador de albaranes
         </h1>
-        <p style={{ color: 'var(--grey-500)', fontSize: '14px', maxWidth: '480px', margin: '0 auto' }}>
-          Sube un albarán en PDF o foto y la IA extraerá todos los artículos automáticamente
+        <p style={{ color: 'var(--text-3)', fontSize: '14px' }}>
+          Sube un albarán en PDF o foto — la IA extrae los artículos automáticamente.
         </p>
       </div>
 
       {/* Stats row */}
       {documents.length > 0 && (
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', justifyContent: 'center' }}>
-          <StatChip label="Total" value={documents.length} color="var(--primary)" />
-          <StatChip label="Completados" value={completed} color="var(--success)" />
-          {processing > 0 && <StatChip label="Procesando" value={processing} color="var(--warning)" />}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+          <StatChip label="Total" value={documents.length} />
+          <StatChip label="Completados" value={completed} positive />
+          {processing > 0 && <StatChip label="Procesando" value={processing} warning />}
         </div>
       )}
 
-      {/* Upload zone */}
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <div className="card-header">
-          <span>⬆️</span> Subir nuevo albarán
-        </div>
-        <div className="card-body" style={{ padding: '20px' }}>
+      {/* Upload */}
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <div className="card-header">Subir nuevo albarán</div>
+        <div className="card-body">
           <FileUpload onUploaded={handleUploaded} />
         </div>
       </div>
 
-      {/* Document list */}
+      {/* List */}
       <div className="card">
         <div className="card-header" style={{ justifyContent: 'space-between' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>📁</span> Albaranes procesados
-          </span>
+          <span>Albaranes procesados</span>
           <button className="btn btn-ghost btn-sm" onClick={loadDocuments}>
-            ↻ Actualizar
+            Actualizar
           </button>
         </div>
         <div className="card-body">
           {loading ? (
-            <div className="empty-state">
-              <div className="empty-state-text">Cargando...</div>
+            <div className="empty-state" style={{ padding: '32px' }}>
+              <div className="empty-state-text" style={{ color: 'var(--text-3)' }}>Cargando…</div>
             </div>
           ) : documents.length === 0 ? (
-            <div className="empty-state">
+            <div className="empty-state" style={{ padding: '40px 24px' }}>
               <div className="empty-state-icon">📭</div>
-              <div className="empty-state-text">No hay albaranes todavía.</div>
-              <p style={{ fontSize: '13px', color: 'var(--grey-500)', marginTop: '6px' }}>
+              <div className="empty-state-text">Aún no hay albaranes.</div>
+              <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '4px' }}>
                 Sube tu primer albarán arriba para empezar.
               </p>
             </div>
@@ -127,19 +130,28 @@ export function HomePage() {
   );
 }
 
-function StatChip({ label, value, color }: { label: string; value: number; color: string }) {
+function StatChip({ label, value, positive, warning }: {
+  label: string; value: number; positive?: boolean; warning?: boolean;
+}) {
+  const color = positive ? 'var(--brand)' : warning ? 'var(--warning)' : 'var(--text-2)';
+  const bg    = positive ? 'var(--brand-pale)' : warning ? '#fffbeb' : 'var(--surface)';
+  const border = positive ? 'var(--brand-light)' : warning ? '#fde68a' : 'var(--border)';
+
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid var(--grey-200)',
-      borderRadius: '10px',
-      padding: '10px 20px',
+      background: bg,
+      border: `1px solid ${border}`,
+      borderRadius: 'var(--r-lg)',
+      padding: '8px 16px',
       textAlign: 'center',
-      boxShadow: 'var(--card-shadow)',
-      minWidth: '90px',
+      minWidth: '80px',
     }}>
-      <div style={{ fontSize: '22px', fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: '11px', color: 'var(--grey-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+      <div style={{ fontSize: '20px', fontWeight: 800, color, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1px' }}>
+        {label}
+      </div>
     </div>
   );
 }

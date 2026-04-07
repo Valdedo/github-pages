@@ -543,9 +543,17 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
               <tr key={hg.id}>
                 {hg.headers.map(header => (
                   <th key={header.id} style={{
-                    padding: '8px 6px', background: 'var(--primary)', color: '#fff',
-                    textAlign: 'left', whiteSpace: 'nowrap', fontWeight: 600,
-                    fontSize: '12px', minWidth: header.column.getSize(),
+                    padding: '9px 8px',
+                    background: 'var(--surface-2)',
+                    color: 'var(--text-2)',
+                    textAlign: 'left',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600,
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    minWidth: header.column.getSize(),
+                    borderBottom: '1px solid var(--border)',
                   }}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
@@ -565,7 +573,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                 const isSelected = selectedIds.has(row.original.id);
                 return (
                   <tr key={row.id} style={{
-                    background: isSelected ? 'var(--primary-pale)' : (i % 2 === 0 ? '#f9fbff' : '#fff'),
+                    background: isSelected ? 'var(--brand-pale)' : (i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)'),
                     transition: 'background 0.1s',
                   }}>
                     {row.getVisibleCells().map(cell => (

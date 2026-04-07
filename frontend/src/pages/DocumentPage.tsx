@@ -95,23 +95,60 @@ export function DocumentPage() {
       <ToastContainer />
 
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Inicio</button>
-        <button className="btn btn-ghost btn-sm" onClick={() => prevId && navigate(`/documento/${prevId}`)} disabled={!prevId} title="Albarán anterior">‹</button>
-        <button className="btn btn-ghost btn-sm" onClick={() => nextId && navigate(`/documento/${nextId}`)} disabled={!nextId} title="Albarán siguiente">›</button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {/* Prev / Next navigation */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => prevId && navigate(`/documento/${prevId}`)}
+            disabled={!prevId}
+            title="Albarán anterior"
+            style={{ padding: '4px 10px', fontSize: '16px', lineHeight: 1 }}
+          >
+            ‹
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => nextId && navigate(`/documento/${nextId}`)}
+            disabled={!nextId}
+            title="Albarán siguiente"
+            style={{ padding: '4px 10px', fontSize: '16px', lineHeight: 1 }}
+          >
+            ›
+          </button>
+        </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: '16px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <h2 style={{
+            margin: 0,
+            color: 'var(--text-1)',
+            fontSize: '15px',
+            fontWeight: 700,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            letterSpacing: '-0.02em',
+          }}>
             {document.original_filename}
           </h2>
           {docIds.length > 0 && currentIdx >= 0 && (
-            <span style={{ fontSize: '11px', color: 'var(--grey-500)' }}>
-              {currentIdx + 1} / {docIds.length}
+            <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 500 }}>
+              {currentIdx + 1} de {docIds.length}
             </span>
           )}
         </div>
+
         {polling && (
-          <span style={{ color: 'var(--warning)', fontSize: '13px', fontWeight: 600 }}>
-            ⏳ Extrayendo artículos…
+          <span style={{
+            color: 'var(--warning)',
+            fontSize: '12px',
+            fontWeight: 600,
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '99px',
+            padding: '3px 10px',
+          }}>
+            Extrayendo artículos…
           </span>
         )}
       </div>
