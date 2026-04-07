@@ -6,6 +6,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
+# Cache bust — increment to force rebuild
+ARG CACHEBUST=2
 COPY . .
 
 # Build with API URL - empty means same origin (nginx proxies /api to backend)
