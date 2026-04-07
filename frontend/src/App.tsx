@@ -4,8 +4,8 @@ import { DocumentPage } from './pages/DocumentPage';
 import { ProductInfoPage } from './pages/ProductInfoPage';
 
 function Navbar() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
   const isHome = location.pathname === '/';
 
   return (
@@ -17,28 +17,49 @@ function Navbar() {
           · Albaranes
         </span>
       </a>
-
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
         {!isHome && (
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => navigate('/')}
-          >
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
             ← Inicio
           </button>
         )}
-        <span style={{
-          fontSize: '11px',
-          color: 'var(--text-3)',
-          background: 'var(--surface-2)',
-          border: '1px solid var(--border)',
-          borderRadius: '99px',
-          padding: '2px 10px',
-          fontWeight: 500,
-        }}>
-          v1.0
-        </span>
       </div>
+    </nav>
+  );
+}
+
+function BottomNav() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  return (
+    <nav className="bottom-nav">
+      <button
+        className={`bottom-nav-item${location.pathname === '/' ? ' active' : ''}`}
+        onClick={() => navigate('/')}
+      >
+        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"/>
+          <path d="M9 21V12h6v9"/>
+        </svg>
+        Inicio
+      </button>
+
+      <button
+        className="bottom-nav-item"
+        onClick={() => {
+          navigate('/');
+          setTimeout(() => {
+            document.getElementById('upload-trigger')?.click();
+          }, 100);
+        }}
+      >
+        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <path d="M12 8v8M8 12h8"/>
+        </svg>
+        Subir
+      </button>
     </nav>
   );
 }
@@ -54,6 +75,7 @@ export default function App() {
           <Route path="/producto/:id" element={<ProductInfoPage />} />
         </Routes>
       </main>
+      <BottomNav />
     </BrowserRouter>
   );
 }
