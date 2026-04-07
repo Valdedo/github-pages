@@ -5,7 +5,7 @@ import {
   flexRender,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUpdateMargin } from '../api/client';
+import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUpdateMargin, listArticles } from '../api/client';
 import { useConfirm } from './ConfirmModal';
 import type { Article } from '../types/index';
 
@@ -197,11 +197,9 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     setBulkWorking(true);
     try {
       await bulkUpdateMargin(ids, pct);
-      // Refresh affected articles from server response (simplified: reload all)
-      const updated = articles.map(a =>
-        ids.includes(a.id) ? { ...a, margen_pct: pct, margen_override: true } : a
-      );
-      onArticlesChanged(updated);
+      // Reload all articles so pvp_sin_iva / pvp_con_iva reflect recalculated values
+      const { data: refreshed } = await listArticles(documentId);
+      onArticlesChanged(refreshed);
       setBulkMarginModal(false);
       setBulkMarginValue('');
       onToast?.(`Margen ${pct}% aplicado a ${ids.length} artículo${ids.length > 1 ? 's' : ''}`, 'success');
