@@ -52,10 +52,10 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
       <div className="card-header">
         <span>📤</span> Acciones y exportación
       </div>
-      <div className="card-body">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+      <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-          {/* Reprocess */}
+        {/* Row 1: Reprocess + Clone */}
+        <div className="export-group">
           {suppliers.length > 0 && (
             <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
               style={{ padding: '7px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: '#fff' }}>
@@ -64,64 +64,52 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
             </select>
           )}
           <button className="btn btn-warning" onClick={handleReprocess} disabled={reprocessing}>
-            {reprocessing ? '⏳ Procesando…' : '🔄 Reprocesar'}
+            {reprocessing ? '⏳ Procesando…' : '🔄 Reprocesar extracción'}
           </button>
-
-          <Divider />
-
-          {/* Clone */}
+          <div className="export-divider" />
           <button className="btn btn-ghost" onClick={handleClone} disabled={cloning}>
             {cloning ? '⏳ Clonando…' : '📋 Clonar albarán'}
           </button>
+        </div>
 
-          <Divider />
-
-          {/* Excel */}
+        {/* Row 2: Downloads */}
+        <div className="export-group">
           <button className="btn btn-success" onClick={() => { downloadExcel(documentId); onToast?.('Descargando Excel…', 'info'); }}>
             📊 Excel
           </button>
-
-          {/* PDF report */}
-          <button className="btn btn-danger" onClick={() => { downloadPdfReport(documentId); onToast?.('Descargando PDF…', 'info'); }}>
-            🖨️ PDF
+          <button className="btn btn-danger" onClick={() => { downloadPdfReport(documentId); onToast?.('Descargando informe PDF…', 'info'); }}>
+            🖨️ Informe PDF
           </button>
-
-          {/* WooCommerce */}
-          <button className="btn btn-ghost" onClick={() => { downloadWooCommerceCSV(documentId); onToast?.('Descargando CSV WooCommerce…', 'info'); }}
-            title="Exportar como CSV para importar en WooCommerce o PrestaShop">
+          <button className="btn btn-ghost" onClick={() => { downloadWooCommerceCSV(documentId); onToast?.('Descargando CSV…', 'info'); }}
+            title="Exportar para WooCommerce / PrestaShop">
             🛒 WooCommerce CSV
           </button>
-
-          <Divider />
-
-          {/* Labels — copies + all / selected */}
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', padding: '5px 8px', background: '#fff' }}>
-              <label style={{ fontSize: '12px', color: 'var(--grey-500)', fontWeight: 600 }}>Copias:</label>
-              <input
-                type="number" min={1} max={20} value={copies}
-                onChange={e => setCopies(Math.max(1, Math.min(20, Number(e.target.value))))}
-                style={{ width: '44px', border: 'none', fontSize: '13px', fontFamily: 'inherit', textAlign: 'center', outline: 'none' }}
-              />
-            </div>
-            <button className="btn btn-primary"
-              onClick={() => { downloadLabels(documentId, undefined, copies); onToast?.('Generando etiquetas…', 'info'); }}>
-              🏷️ Todas las etiquetas
-            </button>
-            {hasSelection && (
-              <button className="btn btn-primary"
-                onClick={() => { downloadLabels(documentId, selectedArticleIds, copies); onToast?.(`Generando ${selectedArticleIds.length} etiquetas…`, 'info'); }}>
-                🏷️ Seleccionadas ({selectedArticleIds.length})
-              </button>
-            )}
-          </div>
-
         </div>
+
+        {/* Row 3: Labels */}
+        <div className="export-group">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', padding: '5px 8px', background: '#fff', flexShrink: 0 }}>
+            <label style={{ fontSize: '12px', color: 'var(--grey-500)', fontWeight: 600 }}>Copias:</label>
+            <input
+              type="number" min={1} max={20} value={copies}
+              onChange={e => setCopies(Math.max(1, Math.min(20, Number(e.target.value))))}
+              style={{ width: '44px', border: 'none', fontSize: '13px', fontFamily: 'inherit', textAlign: 'center', outline: 'none' }}
+            />
+          </div>
+          <button className="btn btn-primary"
+            onClick={() => { downloadLabels(documentId, undefined, copies); onToast?.('Generando etiquetas…', 'info'); }}>
+            🏷️ Todas las etiquetas
+          </button>
+          {hasSelection && (
+            <button className="btn btn-primary"
+              onClick={() => { downloadLabels(documentId, selectedArticleIds, copies); onToast?.(`Generando ${selectedArticleIds.length} etiquetas…`, 'info'); }}>
+              🏷️ Etiquetas seleccionadas ({selectedArticleIds.length})
+            </button>
+          )}
+        </div>
+
       </div>
     </div>
   );
 }
 
-function Divider() {
-  return <div style={{ width: '1px', height: '30px', background: 'var(--grey-200)', flexShrink: 0 }} />;
-}

@@ -30,8 +30,11 @@ export function FileUpload({ onUploaded }: Props) {
       const { data } = await uploadDocument(file);
       onUploaded(data);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al subir el archivo';
-      setError(msg);
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      if (status === 413) setError('El archivo es demasiado grande para el servidor. Máximo 20 MB.');
+      else if (status === 409) setError(detail || 'Ya hay una extracción en curso para este documento.');
+      else setError(detail || 'Error al subir el archivo. Comprueba tu conexión e inténtalo de nuevo.');
     } finally {
       setUploading(false);
       setUploadStatus(null);
@@ -46,8 +49,8 @@ export function FileUpload({ onUploaded }: Props) {
       const { data } = await uploadMultiImages(files);
       onUploaded(data);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Error al subir las imágenes';
-      setError(msg);
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Error al subir las imágenes. Comprueba tu conexión e inténtalo de nuevo.');
     } finally {
       setUploading(false);
       setUploadStatus(null);
@@ -64,8 +67,22 @@ export function FileUpload({ onUploaded }: Props) {
     }
   }, [processFile, processMultipleImages]);
 
+  const onDropRejected = useCallback((rejections: Array<{ file: File; errors: Array<{ code: string }> }>) => {
+    const codes = rejections.flatMap(r => r.errors.map(e => e.code));
+    if (codes.includes('file-too-large')) {
+      setError('El archivo es demasiado grande. El tamaño máximo es 20 MB.');
+    } else if (codes.includes('file-invalid-type')) {
+      setError('Tipo de archivo no admitido. Solo se aceptan PDF, JPG o PNG.');
+    } else if (codes.includes('too-many-files')) {
+      setError('Demasiados archivos. Puedes seleccionar un máximo de 10 imágenes a la vez.');
+    } else {
+      setError('No se pudo procesar el archivo seleccionado.');
+    }
+  }, []);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: ACCEPTED,
     maxFiles: 10,
     maxSize: 20 * 1024 * 1024,

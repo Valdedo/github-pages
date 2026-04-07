@@ -20,7 +20,7 @@ export function TotalsPanel({ articles }: Props) {
         <span>📊</span> Resumen del albarán
       </div>
       <div className="card-body" style={{ padding: '12px 18px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+        <div className="totals-grid">
           <Stat label="Artículos"     value={String(articles.length)}      unit="" color="var(--primary)" />
           <Stat label="Unidades"      value={totalUnits.toFixed(0)}         unit="" color="var(--primary)" />
           <Stat label="Coste total"   value={totalCost.toFixed(2)}          unit="€" color="var(--grey-700)" />

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers } from '../api/client';
+import { getDocument, getSettings, listSuppliers, listDocuments } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
@@ -22,6 +22,7 @@ export function DocumentPage() {
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [docIds, setDocIds] = useState<number[]>([]);
 
   const { showToast, ToastContainer } = useToast();
 
@@ -43,6 +44,7 @@ export function DocumentPage() {
         loadDocument(),
         getSettings().then(r => setSettings(r.data)),
         listSuppliers().then(r => setSuppliers(r.data)),
+        listDocuments().then(r => setDocIds(r.data.map((d: { id: number }) => d.id).reverse())),
       ]);
       setLoading(false);
     };
@@ -66,7 +68,12 @@ export function DocumentPage() {
   }, [document?.status]);
 
   if (loading) {
-    return <div className="empty-state" style={{ paddingTop: '80px' }}><div className="empty-state-text">Cargando…</div></div>;
+    return (
+      <div className="empty-state" style={{ paddingTop: '80px' }}>
+        <div style={{ fontSize: '36px', marginBottom: '12px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</div>
+        <div className="empty-state-text">Cargando albarán…</div>
+      </div>
+    );
   }
 
   if (!document) {
@@ -79,17 +86,28 @@ export function DocumentPage() {
     );
   }
 
+  const currentIdx = docIds.indexOf(docId);
+  const prevId = currentIdx > 0 ? docIds[currentIdx - 1] : null;
+  const nextId = currentIdx >= 0 && currentIdx < docIds.length - 1 ? docIds[currentIdx + 1] : null;
+
   return (
     <div className="page-wide">
       <ToastContainer />
 
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', flexWrap: 'wrap' }}>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Inicio</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => prevId && navigate(`/documento/${prevId}`)} disabled={!prevId} title="Albarán anterior">‹</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => nextId && navigate(`/documento/${nextId}`)} disabled={!nextId} title="Albarán siguiente">›</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: '16px', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {document.original_filename}
           </h2>
+          {docIds.length > 0 && currentIdx >= 0 && (
+            <span style={{ fontSize: '11px', color: 'var(--grey-500)' }}>
+              {currentIdx + 1} / {docIds.length}
+            </span>
+          )}
         </div>
         {polling && (
           <span style={{ color: 'var(--warning)', fontSize: '13px', fontWeight: 600 }}>

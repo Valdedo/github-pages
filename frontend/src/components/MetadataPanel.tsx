@@ -74,7 +74,7 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast }: Props
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+        <div className="metadata-grid">
           <Field label="Proveedor" editing={editing}
             value={values.supplier_name}
             onChange={v => setValues(p => ({ ...p, supplier_name: v }))}

@@ -6,6 +6,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUpdateMargin } from '../api/client';
+import { useConfirm } from './ConfirmModal';
 import type { Article } from '../types/index';
 
 // Validate numeric fields before sending to API
@@ -90,7 +91,9 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [bulkMarginModal, setBulkMarginModal] = useState(false);
   const [bulkMarginValue, setBulkMarginValue] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [undoQueue, setUndoQueue] = useState<{ id: number; article: Article; timer: ReturnType<typeof setTimeout> } | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { confirm, ConfirmDialog } = useConfirm();
 
   // Debounced search — wait 250ms after user stops typing
   useEffect(() => {
@@ -167,7 +170,13 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
 
   const handleBulkDelete = async () => {
     const ids = [...selectedIds];
-    if (!confirm(`¿Eliminar ${ids.length} artículo${ids.length > 1 ? 's' : ''}? Esta acción no se puede deshacer.`)) return;
+    const ok = await confirm({
+      title: `Eliminar ${ids.length} artículo${ids.length > 1 ? 's' : ''}`,
+      message: 'Esta acción no se puede deshacer. ¿Continuar?',
+      confirmLabel: 'Eliminar todos',
+      danger: true,
+    });
+    if (!ok) return;
     setBulkWorking(true);
     try {
       await bulkDeleteArticles(ids);
@@ -215,16 +224,36 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este artículo?')) return;
-    setDeleting(id);
-    try {
-      await deleteArticle(id);
-      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-      onArticlesChanged(articles.filter(a => a.id !== id));
-      onToast?.('Artículo eliminado', 'info');
-    } finally {
-      setDeleting(null);
-    }
+    const ok = await confirm({
+      title: 'Eliminar artículo',
+      message: '¿Eliminar este artículo? Puedes deshacer durante 5 segundos.',
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+
+    const article = articles.find(a => a.id === id)!;
+    // Optimistic remove
+    onArticlesChanged(articles.filter(a => a.id !== id));
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+
+    // Cancel previous undo if pending
+    if (undoQueue) { clearTimeout(undoQueue.timer); await deleteArticle(undoQueue.id); }
+
+    const timer = setTimeout(async () => {
+      try { await deleteArticle(id); } catch { /* already deleted */ }
+      setUndoQueue(null);
+    }, 5000);
+    setUndoQueue({ id, article, timer });
+    onToast?.('Artículo eliminado — Deshacer', 'info');
+  };
+
+  const handleUndo = () => {
+    if (!undoQueue) return;
+    clearTimeout(undoQueue.timer);
+    onArticlesChanged([...articles, undoQueue.article].sort((a, b) => a.line_number - b.line_number));
+    setUndoQueue(null);
+    onToast?.('Eliminación deshecha', 'success');
   };
 
   const handleAddRow = async () => {
@@ -362,7 +391,61 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
 
   const table = useReactTable({ data: filtered, columns, getCoreRowModel: getCoreRowModel() });
 
+  // Mobile card view for small screens
+  const MobileCards = () => (
+    <div className="article-cards">
+      {filtered.length === 0 ? (
+        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--grey-500)' }}>
+          {searchDebounced ? 'No hay artículos que coincidan.' : 'Sin artículos. Reprocesa o añade manualmente.'}
+        </div>
+      ) : filtered.map(a => (
+        <div key={a.id} className={`article-card${selectedIds.has(a.id) ? ' selected' : ''}`}
+          onClick={() => toggleSelect(a.id)}>
+          <div className="article-card-header">
+            <input type="checkbox" checked={selectedIds.has(a.id)}
+              onChange={() => toggleSelect(a.id)}
+              onClick={e => e.stopPropagation()}
+              style={{ accentColor: 'var(--primary)' }}
+            />
+            <span className="article-card-desc">{a.descripcion || '—'}</span>
+            <span style={{
+              background: 'var(--primary)', color: '#fff',
+              padding: '3px 10px', borderRadius: '20px', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap',
+            }}>{a.pvp_con_iva != null ? `${a.pvp_con_iva.toFixed(2)} €` : '—'}</span>
+          </div>
+          <div className="article-card-meta">
+            <span title="Cantidad">📦 {a.cantidad ?? '—'}</span>
+            <span title="Coste neto">💰 {a.coste_neto_unitario != null ? `${a.coste_neto_unitario.toFixed(2)} €` : '—'}</span>
+            <span title="Margen" style={{ color: a.margen_override ? 'var(--accent)' : 'var(--success)', fontWeight: 600 }}>
+              {a.margen_override ? '●' : '◉'} {a.margen_pct != null ? `${a.margen_pct.toFixed(1)}%` : '—'}
+            </span>
+            {a.codigo_principal && <span title="Referencia">REF: {a.codigo_principal}</span>}
+            {a.ean && <span title="EAN">EAN: {a.ean}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
+    <>
+      {ConfirmDialog}
+      {/* Undo banner */}
+      {undoQueue && (
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+          background: '#1e293b', color: '#fff', padding: '12px 20px',
+          borderRadius: '10px', display: 'flex', gap: '14px', alignItems: 'center',
+          zIndex: 1500, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', fontSize: '14px',
+          animation: 'slideUp 0.2s ease',
+        }}>
+          <span>Artículo eliminado</span>
+          <button onClick={handleUndo}
+            style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '13px' }}>
+            Deshacer
+          </button>
+        </div>
+      )}
     <div className="card">
       <div className="card-header" style={{ justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -454,7 +537,8 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
         </div>
       )}
 
-      <div style={{ overflowX: 'auto' }}>
+      {/* Desktop table */}
+      <div className="article-table-desktop" style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px' }}>
           <thead>
             {table.getHeaderGroups().map(hg => (
@@ -499,11 +583,18 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
         </table>
       </div>
 
-      <div style={{ padding: '8px 16px', fontSize: '11px', color: 'var(--grey-500)', background: 'var(--grey-100)', borderTop: '1px solid var(--grey-200)', display: 'flex', gap: '16px' }}>
+      {/* Mobile cards */}
+      <div className="article-table-mobile">
+        <MobileCards />
+      </div>
+
+      <div style={{ padding: '8px 16px', fontSize: '11px', color: 'var(--grey-500)', background: 'var(--grey-100)', borderTop: '1px solid var(--grey-200)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
         <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', marginRight: '4px' }} />Margen automático</span>
         <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', marginRight: '4px' }} />Margen manual (↺ para restablecer)</span>
-        <span>Clic en celda para editar · Enter para confirmar · Esc para cancelar</span>
+        <span className="article-table-desktop">Clic en celda para editar · Enter para confirmar · Esc para cancelar</span>
+        <span className="article-table-mobile" style={{ display: 'none' }}>Toca una tarjeta para seleccionar</span>
       </div>
     </div>
+    </>
   );
 }

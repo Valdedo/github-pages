@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUpload } from '../components/FileUpload';
 import { DocumentList } from '../components/DocumentList';
+import { useConfirm } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
 import { listDocuments, deleteDocument } from '../api/client';
 import type { Document, DocumentListItem } from '../types';
 
@@ -9,6 +11,8 @@ export function HomePage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { confirm, ConfirmDialog } = useConfirm();
+  const { showToast, ToastContainer } = useToast();
 
   const loadDocuments = async () => {
     try {
@@ -35,9 +39,20 @@ export function HomePage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este albarán y sus artículos?')) return;
-    await deleteDocument(id);
-    setDocuments(prev => prev.filter(d => d.id !== id));
+    const ok = await confirm({
+      title: 'Eliminar albarán',
+      message: '¿Eliminar este albarán y todos sus artículos? Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteDocument(id);
+      setDocuments(prev => prev.filter(d => d.id !== id));
+      showToast('Albarán eliminado', 'info');
+    } catch {
+      showToast('Error al eliminar el albarán', 'error');
+    }
   };
 
   const completed = documents.filter(d => d.status === 'completed').length;
@@ -45,6 +60,8 @@ export function HomePage() {
 
   return (
     <div className="page">
+      {ConfirmDialog}
+      <ToastContainer />
       {/* Hero */}
       <div style={{ textAlign: 'center', marginBottom: '32px', padding: '8px 0' }}>
         <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
@@ -88,6 +105,14 @@ export function HomePage() {
           {loading ? (
             <div className="empty-state">
               <div className="empty-state-text">Cargando...</div>
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">📭</div>
+              <div className="empty-state-text">No hay albaranes todavía.</div>
+              <p style={{ fontSize: '13px', color: 'var(--grey-500)', marginTop: '6px' }}>
+                Sube tu primer albarán arriba para empezar.
+              </p>
             </div>
           ) : (
             <DocumentList
