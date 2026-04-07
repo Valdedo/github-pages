@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, type FileRejection } from 'react-dropzone';
 import { uploadDocument, uploadMultiImages } from '../api/client';
 import type { Document } from '../types';
 
@@ -67,7 +67,7 @@ export function FileUpload({ onUploaded }: Props) {
     }
   }, [processFile, processMultipleImages]);
 
-  const onDropRejected = useCallback((rejections: { file: File; errors: { code: string; message: string }[] }[]) => {
+  const onDropRejected = useCallback((rejections: FileRejection[]) => {
     const codes = rejections.flatMap(r => r.errors.map(e => e.code));
     if (codes.includes('file-too-large')) {
       setError('El archivo es demasiado grande. El tamaño máximo es 20 MB.');
