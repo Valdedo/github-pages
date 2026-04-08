@@ -1,6 +1,7 @@
 """
 Product technical information search service.
 Searches the web for product specs and caches results in the database.
+Uses Claude to extract ONLY technical characteristics, not prices or store links.
 """
 import json
 import logging
@@ -15,22 +16,22 @@ async def search_product_info(
     descripcion: str,
     db=None,
 ) -> Optional[dict]:
-    """Search for product technical info online.
+    """Search for product technical specs online.
 
     Strategy:
-    1. Build search query from code + description
-    2. Use a web search (DuckDuckGo scraper, no API key needed)
-    3. Fetch first relevant result
-    4. Extract key specs
-    5. Cache in DB
+    1. DuckDuckGo search for specs/ficha técnica
+    2. Fetch first relevant page
+    3. Use Claude to extract ONLY technical characteristics (dimensions, materials,
+       features, compatibility) — NOT prices, NOT store names
+    4. Return structured specs dict
 
-    Returns dict with specs or None if not found.
+    Returns dict with specs or None.
     """
     try:
         import httpx
         from bs4 import BeautifulSoup
 
-        query = f"{descripcion} {codigo} ficha técnica especificaciones".strip()
+        query = f"{descripcion} {codigo} especificaciones técnicas características"
         url = f"https://html.duckduckgo.com/html/?q={httpx.QueryParams({'q': query})}"
 
         headers = {
@@ -41,73 +42,116 @@ async def search_product_info(
         async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             if resp.status_code != 200:
-                logger.warning(f"DuckDuckGo search failed: {resp.status_code}")
                 return None
 
             soup = BeautifulSoup(resp.text, "html.parser")
-            results = soup.find_all("a", class_="result__url")
-            if not results:
+            result_links = soup.find_all("a", class_="result__url")
+            if not result_links:
                 return None
 
-            # Take first result URL
-            first_url = results[0].get_text(strip=True)
-            if not first_url.startswith("http"):
-                first_url = "https://" + first_url
+            # Try up to 3 results to find one with specs
+            for link_el in result_links[:3]:
+                first_url = link_el.get_text(strip=True)
+                if not first_url.startswith("http"):
+                    first_url = "https://" + first_url
 
-            # Fetch that page
-            try:
-                page_resp = await client.get(first_url, headers=headers, timeout=10)
-                if page_resp.status_code != 200:
-                    return None
+                # Skip obvious retailer/marketplace URLs
+                skip_domains = ["amazon.", "ebay.", "aliexpress.", "leroy", "bricomart", "leroymerlin", "aki.es"]
+                if any(d in first_url.lower() for d in skip_domains):
+                    continue
 
-                page_soup = BeautifulSoup(page_resp.text, "html.parser")
+                try:
+                    page_resp = await client.get(first_url, headers=headers, timeout=10)
+                    if page_resp.status_code != 200:
+                        continue
 
-                # Extract basic specs from page
-                specs = extract_specs_from_page(page_soup, descripcion)
-                specs["_source_url"] = first_url
+                    page_soup = BeautifulSoup(page_resp.text, "html.parser")
+                    # Extract only the text content (strip scripts/styles)
+                    for tag in page_soup(["script", "style", "nav", "footer", "header"]):
+                        tag.decompose()
+                    page_text = page_soup.get_text(separator="\n", strip=True)[:8000]
 
-                return specs
+                    specs = await _extract_specs_with_claude(descripcion, codigo, page_text)
+                    if specs:
+                        return specs
 
-            except Exception as e:
-                logger.warning(f"Could not fetch product page {first_url}: {e}")
-                return None
+                except Exception as e:
+                    logger.warning(f"Could not fetch {first_url}: {e}")
+                    continue
+
+        return None
 
     except Exception as e:
         logger.error(f"Product search failed: {e}")
         return None
 
 
-def extract_specs_from_page(soup, descripcion: str) -> dict:
-    """Extract technical specs from a product page HTML."""
+async def _extract_specs_with_claude(descripcion: str, codigo: str, page_text: str) -> Optional[dict]:
+    """Use Claude to extract only technical characteristics from page text.
+    Returns a dict of spec_name -> value, or None if nothing useful found.
+    """
+    from app.config import settings as app_settings
+
+    if not app_settings.anthropic_api_key:
+        # Fallback: basic regex-based extraction without Claude
+        return _extract_specs_basic(page_text)
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=app_settings.anthropic_api_key)
+
+        prompt = f"""Producto: {descripcion} (código: {codigo})
+
+Texto extraído de una página web:
+---
+{page_text}
+---
+
+Extrae ÚNICAMENTE las especificaciones técnicas del producto (dimensiones, peso, materiales, acabado, potencia, capacidad, compatibilidad, normas, etc.).
+NO incluyas: precios, nombres de tiendas, opiniones de usuarios, textos de marketing, información de envío.
+
+Responde SOLO con un objeto JSON donde cada clave es el nombre de la especificación y el valor es el dato.
+Máximo 15 especificaciones. Si no hay especificaciones técnicas relevantes, responde: {{}}"""
+
+        message = client.messages.create(
+            model=app_settings.claude_model,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        response_text = message.content[0].text.strip()
+        # Strip markdown if present
+        import re
+        if response_text.startswith("```"):
+            response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
+
+        specs = json.loads(response_text)
+        if not isinstance(specs, dict) or len(specs) == 0:
+            return None
+        return specs
+
+    except Exception as e:
+        logger.warning(f"Claude spec extraction failed: {e}")
+        return _extract_specs_basic(page_text)
+
+
+def _extract_specs_basic(page_text: str) -> Optional[dict]:
+    """Fallback: extract specs from tables/definition lists without Claude."""
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(page_text, "html.parser")
     specs = {}
 
-    # Try to find specification tables
-    tables = soup.find_all("table")
-    for table in tables[:3]:  # check first 3 tables
-        rows = table.find_all("tr")
-        for row in rows[:15]:
+    for table in soup.find_all("table")[:3]:
+        for row in table.find_all("tr")[:15]:
             cells = row.find_all(["td", "th"])
             if len(cells) == 2:
-                key = cells[0].get_text(strip=True)
-                val = cells[1].get_text(strip=True)
-                if key and val and len(key) < 60 and len(val) < 200:
-                    specs[key] = val
+                k = cells[0].get_text(strip=True)
+                v = cells[1].get_text(strip=True)
+                if k and v and len(k) < 60 and len(v) < 200:
+                    specs[k] = v
         if len(specs) >= 5:
             break
 
-    # Try definition lists (common on product pages)
-    if len(specs) < 3:
-        for dl in soup.find_all("dl")[:3]:
-            dts = dl.find_all("dt")
-            dds = dl.find_all("dd")
-            for dt, dd in zip(dts, dds):
-                key = dt.get_text(strip=True)
-                val = dd.get_text(strip=True)
-                if key and val and len(key) < 60:
-                    specs[key] = val[:200]
-
-    # Limit to 15 most relevant specs
-    return dict(list(specs.items())[:15])
+    return dict(list(specs.items())[:15]) if specs else None
 
 
 async def get_or_search_product(
@@ -116,25 +160,16 @@ async def get_or_search_product(
     descripcion: str,
     db,
 ) -> Optional[object]:
-    """Get product info from cache or trigger a new search.
-
-    Returns ProductInfo ORM object or None.
-    """
+    """Get product info from cache or trigger a new search."""
     from app.models.product_info import ProductInfo
 
-    # Check cache
     existing = db.query(ProductInfo).filter(
         ProductInfo.codigo_principal == codigo
     ).first()
 
-    if existing:
-        if existing.search_attempted and not existing.specs:
-            # Already tried and failed; don't retry
-            return existing
-        if existing.specs:
-            return existing
+    if existing and existing.specs:
+        return existing
 
-    # Not in cache or no specs found yet → search
     specs_data = await search_product_info(codigo, descripcion, db)
 
     if existing is None:
@@ -142,17 +177,12 @@ async def get_or_search_product(
             codigo_principal=codigo,
             descripcion=descripcion,
             specs=json.dumps(specs_data) if specs_data else None,
-            source_url=specs_data.pop("_source_url", None) if specs_data else None,
             search_attempted=True,
             cached_at=datetime.now(timezone.utc),
         )
         db.add(product_info)
     else:
-        source_url = None
-        if specs_data:
-            source_url = specs_data.pop("_source_url", None)
         existing.specs = json.dumps(specs_data) if specs_data else None
-        existing.source_url = source_url
         existing.search_attempted = True
         existing.cached_at = datetime.now(timezone.utc)
         product_info = existing

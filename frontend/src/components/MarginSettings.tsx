@@ -12,7 +12,7 @@ interface Props {
 export function MarginSettings({ settings, documentId, onUpdated, onToast }: Props) {
   const [open, setOpen] = useState(true);
   const [tiers, setTiers] = useState<MarginTier[]>(settings.margin_tiers);
-  const [roundingMode, setRoundingMode] = useState<'standard' | 'psychological' | 'ceil_5cents'>(settings.rounding_mode as 'standard' | 'psychological' | 'ceil_5cents');
+  const [roundingMode, setRoundingMode] = useState<'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents'>(settings.rounding_mode as 'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents');
   const [decimals, setDecimals] = useState(settings.rounding_decimals);
   const [companyName, setCompanyName] = useState(settings.company_name || '');
   const [saving, setSaving] = useState(false);
@@ -96,10 +96,11 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
           <div style={{ marginBottom: '18px', display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
               <label style={labelSt}>Modo de redondeo</label>
-              <select value={roundingMode} onChange={e => setRoundingMode(e.target.value as 'standard' | 'psychological' | 'ceil_5cents')} style={selectSt}>
+              <select value={roundingMode} onChange={e => setRoundingMode(e.target.value as 'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents')} style={selectSt}>
                 <option value="standard">Estándar (2 decimales)</option>
                 <option value="psychological">Psicológico (x.99)</option>
                 <option value="ceil_5cents">Al alza al 0,05 más próximo</option>
+                <option value="ceil_10cents">Al alza al 0,10 más próximo</option>
               </select>
             </div>
             {roundingMode === 'standard' && (

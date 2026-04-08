@@ -3,6 +3,7 @@ import { HomePage } from './pages/HomePage';
 import { DocumentPage } from './pages/DocumentPage';
 import { ProductInfoPage } from './pages/ProductInfoPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { SalePage } from './pages/SalePage';
 
 function Navbar() {
   const location = useLocation();
@@ -19,6 +20,13 @@ function Navbar() {
         </span>
       </a>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button
+          className={`btn btn-ghost btn-sm${location.pathname === '/venta' ? ' active' : ''}`}
+          onClick={() => navigate('/venta')}
+          style={{ color: location.pathname === '/venta' ? 'var(--brand)' : undefined }}
+        >
+          🛒 Venta
+        </button>
         <button
           className={`btn btn-ghost btn-sm${location.pathname === '/analisis' ? ' active' : ''}`}
           onClick={() => navigate('/analisis')}
@@ -70,6 +78,16 @@ function BottomNav() {
       </button>
 
       <button
+        className={`bottom-nav-item${location.pathname === '/venta' ? ' active' : ''}`}
+        onClick={() => navigate('/venta')}
+      >
+        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <path d="M3 6h18M16 10a4 4 0 01-8 0"/>
+        </svg>
+        Venta
+      </button>
+      <button
         className={`bottom-nav-item${location.pathname === '/analisis' ? ' active' : ''}`}
         onClick={() => navigate('/analisis')}
       >
@@ -93,6 +111,7 @@ export default function App() {
           <Route path="/documento/:id" element={<DocumentPage />} />
           <Route path="/producto/:id" element={<ProductInfoPage />} />
           <Route path="/analisis" element={<AnalyticsPage />} />
+          <Route path="/venta" element={<SalePage />} />
         </Routes>
       </main>
       <BottomNav />

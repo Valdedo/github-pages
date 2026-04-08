@@ -95,6 +95,8 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [bulkWorking, setBulkWorking] = useState(false);
   const [undoQueue, setUndoQueue] = useState<{ id: number; article: Article; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [pvpEditId, setPvpEditId] = useState<number | null>(null);
+  const [pvpEditValue, setPvpEditValue] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -213,6 +215,28 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       onToast?.('Error al actualizar márgenes', 'error');
     } finally {
       setBulkWorking(false);
+    }
+  };
+
+  const handlePvpOverride = async (article: Article, targetPvpConIva: number) => {
+    if (targetPvpConIva <= 0 || article.coste_neto_unitario <= 0) {
+      onToast?.('PVP inválido', 'error'); return;
+    }
+    const pvpSinIva = targetPvpConIva / (1 + (article.iva_pct || 21) / 100);
+    const impliedMargen = (pvpSinIva / article.coste_neto_unitario - 1) * 100;
+    if (impliedMargen < 0) {
+      onToast?.('Ese PVP está por debajo del coste — el margen sería negativo', 'error'); return;
+    }
+    setSaving(article.id);
+    try {
+      const { data } = await updateArticle(article.id, { margen_pct: Math.round(impliedMargen * 100) / 100, margen_override: true });
+      onArticlesChanged(articles.map(a => a.id === article.id ? data : a));
+      setPvpEditId(null);
+      onToast?.(`PVP fijado — margen resultante: ${impliedMargen.toFixed(1)}%`);
+    } catch {
+      onToast?.('Error al guardar', 'error');
+    } finally {
+      setSaving(null);
     }
   };
 
@@ -364,12 +388,28 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       cell: info => <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{fmtEur(info.getValue())}</span>,
     }),
     ch.accessor('pvp_con_iva', {
-      header: 'PVP c/IVA', size: 95, enableSorting: true,
-      cell: info => (
-        <span style={{ color: '#fff', background: 'var(--primary)', padding: '2px 7px', borderRadius: '5px', fontWeight: 700, fontSize: '13px' }}>
-          {fmtEur(info.getValue())}
-        </span>
-      ),
+      header: 'PVP c/IVA ✎', size: 100, enableSorting: true,
+      cell: info => {
+        const art = info.row.original;
+        const isOpen = pvpEditId === art.id;
+        return (
+          <button
+            onClick={() => {
+              if (isOpen) { setPvpEditId(null); return; }
+              setPvpEditId(art.id);
+              setPvpEditValue(art.pvp_con_iva != null ? art.pvp_con_iva.toFixed(2) : '');
+            }}
+            title="Clic para fijar precio de venta manualmente"
+            style={{
+              color: '#fff', background: isOpen ? 'var(--brand-dark)' : 'var(--brand)',
+              padding: '2px 7px', borderRadius: '5px', fontWeight: 700, fontSize: '13px',
+              border: 'none', cursor: 'pointer',
+            }}
+          >
+            {fmtEur(info.getValue())} {isOpen ? '▲' : '▼'}
+          </button>
+        );
+      },
     }),
     ch.accessor('codigo_principal', {
       header: 'Código', size: 100,
@@ -597,20 +637,71 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row, i) => {
+              table.getRowModel().rows.flatMap((row, i) => {
                 const isSelected = selectedIds.has(row.original.id);
-                return (
+                const art = row.original;
+                const rows = [(
                   <tr key={row.id} style={{
                     background: isSelected ? 'var(--brand-pale)' : (i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)'),
                     transition: 'background 0.1s',
                   }}>
                     {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} style={{ padding: '5px 6px', borderBottom: '1px solid var(--grey-200)', verticalAlign: 'middle' }}>
+                      <td key={cell.id} style={{ padding: '5px 6px', borderBottom: pvpEditId === art.id ? 'none' : '1px solid var(--grey-200)', verticalAlign: 'middle' }}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
                   </tr>
-                );
+                )];
+                // PVP edit expansion row
+                if (pvpEditId === art.id) {
+                  rows.push(
+                    <tr key={`pvp-edit-${art.id}`} style={{ background: 'var(--brand-pale)' }}>
+                      <td colSpan={columns.length} style={{ padding: '10px 16px', borderBottom: '2px solid var(--brand-light)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-dark)' }}>
+                            Fijar PVP con IVA para: <em>{art.descripcion}</em>
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input
+                              type="number" step="0.10" min="0"
+                              value={pvpEditValue}
+                              onChange={e => setPvpEditValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  const v = parseFloat(pvpEditValue.replace(',', '.'));
+                                  if (!isNaN(v)) handlePvpOverride(art, v);
+                                }
+                                if (e.key === 'Escape') setPvpEditId(null);
+                              }}
+                              autoFocus
+                              style={{ width: '90px', padding: '5px 8px', border: '2px solid var(--brand)', borderRadius: '6px', fontSize: '15px', fontWeight: 600, fontFamily: 'inherit' }}
+                            />
+                            <span style={{ fontSize: '13px', color: 'var(--text-2)' }}>€</span>
+                          </div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>
+                            Coste neto: {fmtEur(art.coste_neto_unitario)} · IVA {art.iva_pct ?? 21}%
+                            {pvpEditValue && !isNaN(parseFloat(pvpEditValue)) && art.coste_neto_unitario > 0 && (() => {
+                              const pv = parseFloat(pvpEditValue);
+                              const sin = pv / (1 + (art.iva_pct || 21) / 100);
+                              const m = (sin / art.coste_neto_unitario - 1) * 100;
+                              return m >= 0 ? ` → margen ${m.toFixed(1)}%` : ' ⚠ por debajo del coste';
+                            })()}
+                          </span>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            disabled={saving === art.id}
+                            onClick={() => {
+                              const v = parseFloat(pvpEditValue.replace(',', '.'));
+                              if (!isNaN(v)) handlePvpOverride(art, v);
+                            }}
+                          >{saving === art.id ? '…' : 'Guardar'}</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setPvpEditId(null)}>Cancelar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+                return rows;
               })
             )}
           </tbody>

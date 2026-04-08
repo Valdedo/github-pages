@@ -39,6 +39,28 @@ def product_to_response(p: ProductInfo) -> ProductInfoResponse:
     )
 
 
+@router.get("/scan/{code}")
+def scan_product(code: str, db: Session = Depends(get_db)):
+    """Look up a product by EAN or codigo_principal for the POS scanner."""
+    article = (
+        db.query(Article)
+        .filter((Article.ean == code) | (Article.codigo_principal == code))
+        .order_by(Article.updated_at.desc())
+        .first()
+    )
+    if not article:
+        raise HTTPException(404, "Producto no encontrado")
+    return {
+        "id": article.id,
+        "descripcion": article.descripcion,
+        "pvp_con_iva": article.pvp_con_iva,
+        "pvp_sin_iva": article.pvp_sin_iva,
+        "iva_pct": article.iva_pct,
+        "codigo_principal": article.codigo_principal,
+        "ean": article.ean,
+    }
+
+
 @router.get("/{product_id}", response_model=ProductInfoResponse)
 def get_product_info(product_id: int, db: Session = Depends(get_db)):
     """Get product info by ID (used by QR code landing page)."""
@@ -218,8 +240,7 @@ def product_sheet(
                 try:
                     specs = json.loads(pi.specs) if isinstance(pi.specs, str) else pi.specs
                     rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in specs.items())
-                    source = f'<p class="source">Fuente: <a href="{pi.source_url}" target="_blank">{pi.source_url[:60]}…</a></p>' if pi.source_url else ""
-                    specs_html = f'<div class="card"><h3>Especificaciones técnicas</h3><table class="t">{rows}</table>{source}</div>'
+                    specs_html = f'<div class="card"><h3>Especificaciones técnicas</h3><table class="t">{rows}</table></div>'
                 except Exception:
                     pass
             elif not pi.search_attempted:

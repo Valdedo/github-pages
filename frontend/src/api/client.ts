@@ -122,3 +122,6 @@ export const ensureProductInfo = (articleId: number) =>
   api.post<ProductInfo>(`/api/products/ensure/${articleId}`);
 export const triggerProductSearch = (productId: number) =>
   api.post(`/api/products/${productId}/search`);
+
+export const scanProduct = (code: string) =>
+  api.get<{ id: number; descripcion: string; pvp_con_iva: number; pvp_sin_iva: number; iva_pct: number; codigo_principal: string; ean: string }>(`/api/products/scan/${encodeURIComponent(code)}`);

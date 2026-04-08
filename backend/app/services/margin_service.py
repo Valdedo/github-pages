@@ -76,6 +76,9 @@ def apply_rounding(
         # Round to nearest integer - 0.01 (e.g. 4.99, 9.99, 14.99)
         floored = math.floor(value)
         return floored + 0.99 if floored >= 1 else max(0.01, round(value, 2))
+    if rounding_mode == "ceil_10cents":
+        # Round UP to the nearest 0.10 (e.g. 1.52 → 1.60, 1.61 → 1.70)
+        return math.ceil(value * 10) / 10
     if rounding_mode == "ceil_5cents":
         # Round UP to the nearest 0.05 (e.g. 1.52 → 1.55, 1.56 → 1.60)
         return math.ceil(value * 20) / 20
