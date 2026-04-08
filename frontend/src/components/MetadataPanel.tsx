@@ -24,7 +24,7 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
     supplier_id: document.supplier_id || '',
     doc_number: document.doc_number || '',
     doc_date: document.doc_date || '',
-    pronto_pago_pct: document.pronto_pago_pct || '',
+    pronto_pago_pct: document.pronto_pago_pct ?? '',
   });
 
   const handleSave = async () => {

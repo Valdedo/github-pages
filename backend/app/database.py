@@ -55,6 +55,7 @@ def _run_migrations():
         ("documents", "total_calculado",         "REAL"),
         ("documents", "validacion_ok",           "INTEGER"),
         ("documents", "validacion_notas",        "TEXT"),
+        ("product_info", "ficha_ia",             "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

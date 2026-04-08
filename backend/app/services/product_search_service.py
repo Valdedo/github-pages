@@ -87,47 +87,62 @@ async def search_product_info(
 
 
 async def _extract_specs_with_claude(descripcion: str, codigo: str, page_text: str) -> Optional[dict]:
-    """Use Claude to extract only technical characteristics from page text.
-    Returns a dict of spec_name -> value, or None if nothing useful found.
+    """Use Claude to extract technical specs AND generate a natural product description.
+
+    Returns dict with two keys:
+      "_ficha_ia": string — natural language description paragraph
+      ... all other keys are spec_name -> value pairs
     """
     from app.config import settings as app_settings
 
     if not app_settings.anthropic_api_key:
-        # Fallback: basic regex-based extraction without Claude
         return _extract_specs_basic(page_text)
 
     try:
-        import anthropic
+        import anthropic, re
         client = anthropic.Anthropic(api_key=app_settings.anthropic_api_key)
 
-        prompt = f"""Producto: {descripcion} (código: {codigo})
+        prompt = f"""Producto de ferretería: "{descripcion}" (código: {codigo})
 
-Texto extraído de una página web:
+Texto de una página web con información del producto:
 ---
 {page_text}
 ---
 
-Extrae ÚNICAMENTE las especificaciones técnicas del producto (dimensiones, peso, materiales, acabado, potencia, capacidad, compatibilidad, normas, etc.).
-NO incluyas: precios, nombres de tiendas, opiniones de usuarios, textos de marketing, información de envío.
+Haz dos cosas:
 
-Responde SOLO con un objeto JSON donde cada clave es el nombre de la especificación y el valor es el dato.
-Máximo 15 especificaciones. Si no hay especificaciones técnicas relevantes, responde: {{}}"""
+1. FICHA DESCRIPTIVA: Escribe un párrafo de 3-5 frases en español que explique de forma clara y útil qué es este producto, para qué sirve, cómo se usa y cuáles son sus características principales. Escríbelo como si fuera para el cliente final en una ferretería. NO menciones precios, tiendas ni información de compra.
+
+2. ESPECIFICACIONES TÉCNICAS: Extrae las especificaciones técnicas concretas (dimensiones, peso, material, acabado, potencia, capacidad, normas técnicas, etc.). Máximo 12 especificaciones. NO incluyas precios, nombres de tiendas ni marketing.
+
+Devuelve ÚNICAMENTE este JSON (sin texto adicional, sin markdown):
+{{
+  "_ficha_ia": "párrafo descriptivo aquí",
+  "Dimensiones": "valor",
+  "Material": "valor",
+  "...": "..."
+}}
+
+Si no encuentras información técnica suficiente, devuelve: {{"_ficha_ia": ""}}"""
 
         message = client.messages.create(
             model=app_settings.claude_model,
-            max_tokens=1024,
+            max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
         response_text = message.content[0].text.strip()
-        # Strip markdown if present
-        import re
         if response_text.startswith("```"):
             response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
 
-        specs = json.loads(response_text)
-        if not isinstance(specs, dict) or len(specs) == 0:
+        result = json.loads(response_text)
+        if not isinstance(result, dict):
             return None
-        return specs
+        # If ficha is empty and no specs found, return None
+        ficha = result.get("_ficha_ia", "").strip()
+        specs_only = {k: v for k, v in result.items() if k != "_ficha_ia"}
+        if not ficha and not specs_only:
+            return None
+        return result
 
     except Exception as e:
         logger.warning(f"Claude spec extraction failed: {e}")

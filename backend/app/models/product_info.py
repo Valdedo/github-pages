@@ -13,6 +13,7 @@ class ProductInfo(Base):
     codigo_principal: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     descripcion: Mapped[str] = mapped_column(Text)
     specs: Mapped[Optional[str]] = mapped_column(Text, nullable=True)       # JSON dict
+    ficha_ia: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # AI-generated description paragraph
     source_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     manual_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     search_attempted: Mapped[bool] = mapped_column(Boolean, default=False)

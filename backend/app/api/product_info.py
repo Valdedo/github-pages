@@ -230,20 +230,24 @@ def product_sheet(
     cod_fab = f"<tr><td>Cód. Fabricante</td><td>{article.codigo_fabricante}</td></tr>" if article.codigo_fabricante else ""
     iva_row = f"<tr><td>IVA</td><td>{article.iva_pct:.0f} %</td></tr>" if article.iva_pct is not None else ""
 
-    # Specs from ProductInfo if linked
+    # Specs and AI description from ProductInfo if linked
     specs_html = ""
+    ficha_html = ""
     pending_search = False
     if article.product_info_id:
         pi = db.query(ProductInfo).filter(ProductInfo.id == article.product_info_id).first()
         if pi:
+            if pi.ficha_ia:
+                ficha_html = f'<div class="card"><h3>Descripción</h3><p class="ficha-text">{pi.ficha_ia}</p></div>'
             if pi.specs:
                 try:
                     specs = json.loads(pi.specs) if isinstance(pi.specs, str) else pi.specs
-                    rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in specs.items())
-                    specs_html = f'<div class="card"><h3>Especificaciones técnicas</h3><table class="t">{rows}</table></div>'
+                    if specs:
+                        rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in specs.items())
+                        specs_html = f'<div class="card"><h3>Especificaciones técnicas</h3><table class="t">{rows}</table></div>'
                 except Exception:
                     pass
-            elif not pi.search_attempted:
+            if not pi.ficha_ia and not pi.specs and not pi.search_attempted:
                 pending_search = True
 
     pending_banner = """
@@ -274,8 +278,7 @@ def product_sheet(
     table.t tr:last-child td{{border-bottom:none}}
     table.t td:first-child{{color:#64748b;width:42%;font-weight:500;font-size:13px}}
     table.t td:last-child{{font-weight:600;color:#0f172a}}
-    .source{{font-size:11px;color:#94a3b8;margin-top:10px}}
-    .source a{{color:#16a34a}}
+    .ficha-text{{font-size:15px;line-height:1.65;color:#374151;margin:0}}
     .footer{{text-align:center;font-size:11px;color:#94a3b8;padding:20px 16px 32px}}
     .badge{{display:inline-block;background:#dcfce7;color:#15803d;font-size:11px;font-weight:700;
             padding:2px 8px;border-radius:99px;margin-bottom:10px}}
@@ -304,6 +307,7 @@ def product_sheet(
       </table>
     </div>
 
+    {ficha_html}
     {specs_html}
     {pending_banner}
   </div>
@@ -329,9 +333,11 @@ async def _search_product_bg(product_id: int, codigo: str, descripcion: str):
         specs = await search_product_info(codigo, descripcion, db)
 
         if specs:
-            source_url = specs.pop("_source_url", None)
-            product.specs = json.dumps(specs)
-            product.source_url = source_url
+            specs.pop("_source_url", None)
+            ficha_ia = specs.pop("_ficha_ia", None)
+            product.specs = json.dumps(specs) if specs else None
+            if ficha_ia:
+                product.ficha_ia = ficha_ia
         product.search_attempted = True
         db.commit()
 

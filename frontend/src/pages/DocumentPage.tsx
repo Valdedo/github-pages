@@ -87,7 +87,8 @@ export function DocumentPage() {
       timerId = setTimeout(poll, delay);
       return () => clearTimeout(timerId);
     }
-  }, [document?.status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document?.status, loadDocument]);
 
   if (loading) {
     return (

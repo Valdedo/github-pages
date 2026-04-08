@@ -65,7 +65,7 @@ def supplier_comparison(
             MAX(a.pvp_con_iva)                   AS pvp_max,
             AVG(a.pvp_con_iva)                   AS pvp_avg,
             MAX(COALESCE(d.doc_date, DATE(d.created_at))) AS ultima_compra,
-            a.descripcion
+            MAX(a.descripcion) AS descripcion
         FROM articles a
         JOIN documents d ON a.document_id = d.id
         WHERE a.codigo_principal = :codigo
