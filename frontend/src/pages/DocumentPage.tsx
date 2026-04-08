@@ -30,6 +30,7 @@ export function DocumentPage() {
   const [polling, setPolling] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [docIds, setDocIds] = useState<number[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
 
   const { showToast, ToastContainer } = useToast();
 
@@ -177,73 +178,91 @@ export function DocumentPage() {
           </div>
         </div>
 
-        {/* Right: article count */}
-        <div style={{ textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: '#fff' }}>
-            {articles.length}
+        {/* Right: article count + preview toggle */}
+        <div style={{ textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+          <div>
+            <div style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: '#fff' }}>
+              {articles.length}
+            </div>
+            <div style={{ fontSize: '10px', opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>
+              artículos
+            </div>
           </div>
-          <div style={{ fontSize: '10px', opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>
-            artículos
-          </div>
+          <button
+            className="doc-hero-nav-btn"
+            onClick={() => setShowPreview(p => !p)}
+            title={showPreview ? 'Ocultar imagen original' : 'Ver imagen original'}
+            style={{ fontSize: '14px', width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center' }}
+          >
+            📄 {showPreview ? 'Ocultar' : 'Ver doc'}
+          </button>
         </div>
       </div>
 
-      {/* ── Main 2-column layout ─────────────────────────────────── */}
-      <div className="doc-grid">
-
-        {/* Left: sticky preview */}
-        <div className="doc-grid-preview">
-          <DocumentPreview document={document} />
+      {/* ── Collapsible preview ───────────────────────────────────── */}
+      {showPreview && (
+        <div className="card" style={{ marginBottom: '14px', overflow: 'hidden' }}>
+          <div
+            className="card-header"
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+            onClick={() => setShowPreview(false)}
+          >
+            <span>📄 {document.original_filename}</span>
+            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-3)', fontWeight: 400 }}>▲ Ocultar</span>
+          </div>
+          <div style={{ height: '500px' }}>
+            <DocumentPreview document={document} />
+          </div>
         </div>
+      )}
 
-        {/* Right: panels in logical order */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* ── Panels: single-column, full width ────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-          {/* 1. Totals — first thing you want to see */}
-          <TotalsPanel articles={articles} />
+        {/* 1. Totals overview */}
+        <TotalsPanel articles={articles} />
 
-          {/* 2. Article table — MAIN work area */}
-          <ArticleTable
+        {/* 2. Article table — MAIN work area, gets full width */}
+        <ArticleTable
+          documentId={docId}
+          articles={articles}
+          onArticlesChanged={setArticles}
+          onSelectedIdsChange={setSelectedIds}
+          onToast={showToast}
+        />
+
+        {/* 3. Actions row: Export + Margin side by side on desktop */}
+        <div className="doc-actions-row">
+          <ExportPanel
             documentId={docId}
-            articles={articles}
-            onArticlesChanged={setArticles}
-            onSelectedIdsChange={setSelectedIds}
+            suppliers={suppliers}
+            selectedArticleIds={selectedIds}
+            onReprocessed={() => { setArticles([]); loadDocument(); }}
             onToast={showToast}
           />
-
-          {/* 3. Actions row: Export + Margin side by side on desktop */}
-          <div className="doc-actions-row">
-            <ExportPanel
+          {settings && (
+            <MarginSettings
+              settings={settings}
               documentId={docId}
-              suppliers={suppliers}
-              selectedArticleIds={selectedIds}
-              onReprocessed={() => { setArticles([]); loadDocument(); }}
+              onUpdated={s => { setSettings(s); loadDocument(); }}
               onToast={showToast}
             />
-            {settings && (
-              <MarginSettings
-                settings={settings}
-                documentId={docId}
-                onUpdated={s => { setSettings(s); loadDocument(); }}
-                onToast={showToast}
-              />
-            )}
-          </div>
-
-          {/* 4. Metadata — edit secondary info */}
-          <MetadataPanel
-            document={document}
-            suppliers={suppliers}
-            onUpdated={doc => setDocument(doc)}
-            onToast={showToast}
-            onProntoPagoChanged={async () => {
-              await recalculateArticles(docId);
-              const { data } = await getDocument(docId);
-              setArticles(data.articles || []);
-            }}
-          />
-
+          )}
         </div>
+
+        {/* 4. Metadata — edit secondary info */}
+        <MetadataPanel
+          document={document}
+          suppliers={suppliers}
+          onUpdated={doc => setDocument(doc)}
+          onToast={showToast}
+          onProntoPagoChanged={async () => {
+            await recalculateArticles(docId);
+            const { data } = await getDocument(docId);
+            setArticles(data.articles || []);
+          }}
+        />
+
       </div>
     </div>
   );
