@@ -91,3 +91,43 @@ export interface ProductInfo {
   search_attempted: boolean;
   cached_at?: string;
 }
+
+export interface PriceHistoryEntry {
+  article_id: number;
+  descripcion: string;
+  codigo_principal: string;
+  precio_unitario_bruto: number;
+  coste_neto_unitario: number;
+  pvp_con_iva: number;
+  pvp_sin_iva: number;
+  margen_pct: number;
+  cantidad: number;
+  document_id: number;
+  supplier_name: string;
+  doc_date: string | null;
+  doc_number: string | null;
+  created_at: string;
+}
+
+export interface SupplierComparisonEntry {
+  supplier_name: string;
+  num_compras: number;
+  coste_min: number;
+  coste_max: number;
+  coste_avg: number;
+  pvp_min: number;
+  pvp_max: number;
+  pvp_avg: number;
+  ultima_compra: string | null;
+  descripcion: string;
+}
+
+export interface TopProduct {
+  codigo_principal: string;
+  descripcion: string;
+  num_documentos: number;
+  num_lineas: number;
+  coste_avg: number;
+  pvp_avg: number;
+  num_proveedores: number;
+}

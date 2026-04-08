@@ -26,14 +26,20 @@ export function HomePage() {
     }
   };
 
+  // Keep a ref so the interval always reads the latest documents without stale closure
+  const documentsRef = useRef<typeof documents>([]);
+  useEffect(() => { documentsRef.current = documents; }, [documents]);
+
   useEffect(() => {
     loadDocuments();
     const timer = setInterval(() => {
-      const hasProcessing = documents.some(d => d.status === 'processing' || d.status === 'uploaded');
+      const hasProcessing = documentsRef.current.some(
+        d => d.status === 'processing' || d.status === 'uploaded'
+      );
       if (hasProcessing) loadDocuments();
     }, 3000);
     return () => clearInterval(timer);
-  }, [documents.length]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Allow bottom nav "Subir" button to trigger upload sheet
   useEffect(() => {
@@ -231,10 +237,17 @@ function DocCard({ doc, onOpen, onDelete }: {
       {/* Footer */}
       <div className="doc-card-footer">
         <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>
-          {new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+          {doc.doc_date
+            ? new Date(doc.doc_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+            : new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+          }
         </span>
         <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
-          <button className="btn btn-danger btn-sm" style={{ padding: '3px 8px' }} onClick={onDelete}>
+          <button
+            className="btn btn-danger btn-sm"
+            style={{ padding: '6px 12px', minWidth: '36px', minHeight: '36px' }}
+            onClick={onDelete}
+          >
             ✕
           </button>
           <button className="btn btn-primary btn-sm" onClick={onOpen}>

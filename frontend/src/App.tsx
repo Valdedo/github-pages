@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import { HomePage } from './pages/HomePage';
 import { DocumentPage } from './pages/DocumentPage';
 import { ProductInfoPage } from './pages/ProductInfoPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 
 function Navbar() {
   const location = useLocation();
@@ -18,7 +19,14 @@ function Navbar() {
         </span>
       </a>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {!isHome && (
+        <button
+          className={`btn btn-ghost btn-sm${location.pathname === '/analisis' ? ' active' : ''}`}
+          onClick={() => navigate('/analisis')}
+          style={{ color: location.pathname === '/analisis' ? 'var(--brand)' : undefined }}
+        >
+          📊 Análisis
+        </button>
+        {!isHome && location.pathname !== '/analisis' && (
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
             ← Inicio
           </button>
@@ -60,6 +68,17 @@ function BottomNav() {
         </svg>
         Subir
       </button>
+
+      <button
+        className={`bottom-nav-item${location.pathname === '/analisis' ? ' active' : ''}`}
+        onClick={() => navigate('/analisis')}
+      >
+        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <path d="M3 3v18h18"/>
+          <path d="M7 16l4-4 4 4 4-6"/>
+        </svg>
+        Análisis
+      </button>
     </nav>
   );
 }
@@ -73,6 +92,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/documento/:id" element={<DocumentPage />} />
           <Route path="/producto/:id" element={<ProductInfoPage />} />
+          <Route path="/analisis" element={<AnalyticsPage />} />
         </Routes>
       </main>
       <BottomNav />

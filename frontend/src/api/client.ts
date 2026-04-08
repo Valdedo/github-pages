@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo } from '../types';
+import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -103,6 +103,16 @@ export const updateSupplier = (id: number, data: Partial<Supplier>) =>
   api.put<Supplier>(`/api/settings/suppliers/${id}`, data);
 export const deleteSupplier = (id: number) =>
   api.delete(`/api/settings/suppliers/${id}`);
+
+// Analytics
+export const getPriceHistory = (codigo: string) =>
+  api.get<PriceHistoryEntry[]>(`/api/analytics/price-history?codigo=${encodeURIComponent(codigo)}`);
+
+export const getSupplierComparison = (codigo: string) =>
+  api.get<SupplierComparisonEntry[]>(`/api/analytics/supplier-comparison?codigo=${encodeURIComponent(codigo)}`);
+
+export const getTopProducts = (limit = 50) =>
+  api.get<TopProduct[]>(`/api/analytics/top-products?limit=${limit}`);
 
 // Product info
 export const getProductInfo = (id: number) => api.get<ProductInfo>(`/api/products/${id}`);

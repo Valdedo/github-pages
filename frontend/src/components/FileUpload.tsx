@@ -15,6 +15,41 @@ const ACCEPTED = {
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/jpg']);
 
+/** Compress an image file using canvas. Skips if already small or is a PDF. */
+async function compressImage(file: File, maxSizeMB = 3): Promise<File> {
+  if (!IMAGE_TYPES.has(file.type) || file.size <= maxSizeMB * 1024 * 1024) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Scale down so largest dimension ≤ 2400px (sufficient for OCR)
+      const MAX_DIM = 2400;
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const scale = MAX_DIM / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        blob => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+        },
+        'image/jpeg',
+        0.88, // quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 export function FileUpload({ onUploaded }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
@@ -25,9 +60,12 @@ export function FileUpload({ onUploaded }: Props) {
   const processFile = useCallback(async (file: File) => {
     setUploading(true);
     setError(null);
-    setUploadStatus('Subiendo y procesando...');
+    setUploadStatus('Preparando archivo...');
     try {
-      const { data } = await uploadDocument(file);
+      const compressed = await compressImage(file);
+      if (compressed !== file) setUploadStatus('Imagen comprimida — subiendo...');
+      else setUploadStatus('Subiendo y procesando...');
+      const { data } = await uploadDocument(compressed);
       onUploaded(data);
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
@@ -44,9 +82,11 @@ export function FileUpload({ onUploaded }: Props) {
   const processMultipleImages = useCallback(async (files: File[]) => {
     setUploading(true);
     setError(null);
-    setUploadStatus(`Subiendo ${files.length} páginas...`);
+    setUploadStatus(`Comprimiendo ${files.length} imágenes...`);
     try {
-      const { data } = await uploadMultiImages(files);
+      const compressed = await Promise.all(files.map(f => compressImage(f)));
+      setUploadStatus(`Subiendo ${compressed.length} páginas...`);
+      const { data } = await uploadMultiImages(compressed);
       onUploaded(data);
     } catch (e: unknown) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;

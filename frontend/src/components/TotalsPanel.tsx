@@ -11,7 +11,10 @@ export function TotalsPanel({ articles }: Props) {
   const totalCost      = articles.reduce((s, a) => s + (a.coste_neto_total || 0), 0);
   const totalPvpSinIva = articles.reduce((s, a) => s + (a.pvp_sin_iva || 0) * (a.cantidad || 1), 0);
   const totalPvpConIva = articles.reduce((s, a) => s + (a.pvp_con_iva || 0) * (a.cantidad || 1), 0);
-  const avgMargen      = articles.reduce((s, a) => s + (a.margen_pct || 0), 0) / articles.length;
+  // Weighted average margin (weighted by net cost, not arithmetic mean)
+  const avgMargen      = totalCost > 0
+    ? articles.reduce((s, a) => s + (a.margen_pct || 0) * (a.coste_neto_total || 0), 0) / totalCost
+    : articles.reduce((s, a) => s + (a.margen_pct || 0), 0) / articles.length;
   const totalBenefit   = totalPvpSinIva - totalCost;
 
   return (

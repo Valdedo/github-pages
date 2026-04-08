@@ -7,6 +7,7 @@ interface Props {
   suppliers: Supplier[];
   onUpdated: (doc: Document) => void;
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onProntoPagoChanged?: () => void;
 }
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
@@ -16,7 +17,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
   error:      { label: '✕ Error',       cls: 'badge badge-danger' },
 };
 
-export function MetadataPanel({ document, suppliers, onUpdated, onToast }: Props) {
+export function MetadataPanel({ document, suppliers, onUpdated, onToast, onProntoPagoChanged }: Props) {
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({
     supplier_name: document.supplier_name || '',
@@ -27,16 +28,24 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast }: Props
   });
 
   const handleSave = async () => {
+    const prevProntoPago = document.pronto_pago_pct;
+    const newProntoPago = values.pronto_pago_pct ? Number(values.pronto_pago_pct) : undefined;
     const { data } = await updateDocument(document.id, {
       supplier_name: values.supplier_name || undefined,
       supplier_id: values.supplier_id ? Number(values.supplier_id) : undefined,
       doc_number: values.doc_number || undefined,
       doc_date: values.doc_date || undefined,
-      pronto_pago_pct: values.pronto_pago_pct ? Number(values.pronto_pago_pct) : undefined,
+      pronto_pago_pct: newProntoPago,
     });
     onUpdated(data);
     setEditing(false);
-    onToast?.('Datos del albarán guardados', 'success');
+    // Trigger recalculation if pronto_pago_pct changed
+    if (newProntoPago !== prevProntoPago) {
+      onProntoPagoChanged?.();
+      onToast?.('Datos guardados — recalculando precios con descuento por pronto pago…', 'info');
+    } else {
+      onToast?.('Datos del albarán guardados', 'success');
+    }
   };
 
   const st = statusConfig[document.status] || { label: document.status, cls: 'badge badge-grey' };

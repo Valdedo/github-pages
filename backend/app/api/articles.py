@@ -28,7 +28,11 @@ def get_settings(db: Session) -> AppSettings:
     return s
 
 
-def recalc_article(article: Article, settings: AppSettings) -> Article:
+def recalc_article(
+    article: Article,
+    settings: AppSettings,
+    pronto_pago_pct: Optional[float] = None,
+) -> Article:
     """Recalculate pricing for an article based on current settings."""
     tiers = json.loads(settings.margin_tiers) if isinstance(settings.margin_tiers, str) else []
 
@@ -44,6 +48,7 @@ def recalc_article(article: Article, settings: AppSettings) -> Article:
         tiers=tiers,
         rounding_mode=settings.rounding_mode,
         decimals=settings.rounding_decimals,
+        pronto_pago_pct=pronto_pago_pct,
     )
 
     article.coste_neto_unitario = pricing["coste_neto_unitario"]
@@ -212,11 +217,15 @@ def recalculate_document_articles(
     db: Session = Depends(get_db),
 ):
     """Recalculate margins and PVPs for all articles in a document."""
+    from app.models.document import Document as Doc
     settings = get_settings(db)
+    document = db.query(Doc).filter(Doc.id == document_id).first()
+    pronto_pago_pct = document.pronto_pago_pct if document else None
+
     articles = db.query(Article).filter(Article.document_id == document_id).all()
 
     for article in articles:
-        recalc_article(article, settings)
+        recalc_article(article, settings, pronto_pago_pct=pronto_pago_pct)
 
     db.commit()
     return {"ok": True, "recalculated": len(articles)}

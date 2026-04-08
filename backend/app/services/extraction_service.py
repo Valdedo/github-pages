@@ -153,25 +153,36 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
 
         prompt = build_extraction_prompt(raw_data, supplier_template)
 
-        message = client.messages.create(
-            model=settings.claude_model,
-            max_tokens=8192,
-            system=EXTRACTION_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        for attempt in range(2):  # retry once on JSON parse error
+            if attempt > 0:
+                prompt = prompt + (
+                    "\n\nIMPORTANTE: Tu respuesta anterior no era JSON válido. "
+                    "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
+                    "sin bloques de código markdown, sin comillas extra."
+                )
+            message = client.messages.create(
+                model=settings.claude_model,
+                max_tokens=8192,
+                system=EXTRACTION_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+            )
 
-        response_text = message.content[0].text.strip()
+            response_text = message.content[0].text.strip()
 
-        # Strip markdown code blocks if present
-        if response_text.startswith("```"):
-            response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
+            # Strip markdown code blocks if present
+            if response_text.startswith("```"):
+                response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
 
-        result = json.loads(response_text)
-        return result
+            try:
+                result = json.loads(response_text)
+                return result
+            except json.JSONDecodeError as e:
+                if attempt == 0:
+                    logger.warning(f"Claude returned invalid JSON on attempt 1, retrying: {e}")
+                    continue
+                logger.error(f"Claude returned invalid JSON after retry: {e}")
+                return {"documento": {}, "articulos": []}
 
-    except json.JSONDecodeError as e:
-        logger.error(f"Claude returned invalid JSON: {e}")
-        return {"documento": {}, "articulos": []}
     except Exception as e:
         logger.error(f"Claude extraction failed: {e}")
         return {"documento": {}, "articulos": []}

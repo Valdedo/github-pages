@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info
+from app.api import documents, articles, export, settings, product_info, analytics
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +60,7 @@ app.include_router(articles.router)
 app.include_router(export.router)
 app.include_router(settings.router)
 app.include_router(product_info.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health")

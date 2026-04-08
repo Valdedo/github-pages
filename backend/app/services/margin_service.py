@@ -125,6 +125,7 @@ def compute_article_pricing(
     tiers: list[dict],
     rounding_mode: str = "standard",
     decimals: int = 2,
+    pronto_pago_pct: Optional[float] = None,
 ) -> dict:
     """Full pricing computation for one article.
 
@@ -135,6 +136,9 @@ def compute_article_pricing(
     """
     discounts = [descuento_1, descuento_2, descuento_3, descuento_4]
     coste_neto_unitario = apply_cascading_discounts(precio_bruto, discounts)
+    # Apply early-payment discount (pronto pago) as additional reduction on net cost
+    if pronto_pago_pct and pronto_pago_pct > 0:
+        coste_neto_unitario = round(coste_neto_unitario * (1 - pronto_pago_pct / 100), 6)
     coste_neto_total = round(coste_neto_unitario * cantidad, 6)
 
     if margen_pct_override is not None:

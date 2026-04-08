@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers, listDocuments } from '../api/client';
+import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
@@ -55,15 +55,22 @@ export function DocumentPage() {
     if (!document) return;
     if (document.status === 'processing' || document.status === 'uploaded') {
       setPolling(true);
-      const timer = setInterval(async () => {
+      let delay = 2000;
+      let timerId: ReturnType<typeof setTimeout>;
+
+      const poll = async () => {
         const status = await loadDocument();
-        if (status !== 'processing' && status !== 'uploaded') {
-          clearInterval(timer);
+        if (status === 'processing' || status === 'uploaded') {
+          delay = Math.min(delay * 1.4, 10000); // exponential backoff up to 10s
+          timerId = setTimeout(poll, delay);
+        } else {
           setPolling(false);
           showToast('Extracción completada', 'success');
         }
-      }, 2000);
-      return () => clearInterval(timer);
+      };
+
+      timerId = setTimeout(poll, delay);
+      return () => clearTimeout(timerId);
     }
   }, [document?.status]);
 
@@ -167,6 +174,11 @@ export function DocumentPage() {
             suppliers={suppliers}
             onUpdated={doc => setDocument(doc)}
             onToast={showToast}
+            onProntoPagoChanged={async () => {
+              await recalculateArticles(docId);
+              const { data } = await getDocument(docId);
+              setArticles(data.articles || []);
+            }}
           />
 
           {settings && (

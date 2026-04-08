@@ -2,8 +2,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
+  getSortedRowModel,
   flexRender,
   createColumnHelper,
+  type SortingState,
 } from '@tanstack/react-table';
 import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUpdateMargin, listArticles } from '../api/client';
 import { useConfirm } from './ConfirmModal';
@@ -92,6 +94,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [bulkMarginValue, setBulkMarginValue] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
   const [undoQueue, setUndoQueue] = useState<{ id: number; article: Article; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -148,6 +151,9 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       value = isNaN(n) ? null : n;
       const err = validateField(field, value as number | null);
       if (err) { onToast?.(err, 'error'); return; }
+    }
+    if (field === 'margen_pct' && value === 0) {
+      onToast?.('Atención: margen 0% significa vender al precio de coste, sin beneficio.', 'info');
     }
     setSaving(id);
     try {
@@ -301,11 +307,11 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       cell: info => <span style={{ color: 'var(--grey-500)', fontSize: '12px' }}>{info.getValue()}</span>,
     }),
     ch.accessor('descripcion', {
-      header: 'Descripción', size: 220,
+      header: 'Descripción', size: 220, enableSorting: true,
       cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'descripcion', v)} width={210} />,
     }),
     ch.accessor('cantidad', {
-      header: 'Cant.', size: 60,
+      header: 'Cant.', size: 60, enableSorting: true,
       cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'cantidad', v)} type="number" width={52} />,
     }),
     ch.accessor('precio_unitario_bruto', {
@@ -329,7 +335,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       cell: info => <EditableCell value={info.getValue() ?? ''} onSave={v => handleUpdate(info.row.original.id, 'descuento_4', v)} type="number" width={50} />,
     }),
     ch.accessor('coste_neto_unitario', {
-      header: 'Coste neto', size: 90,
+      header: 'Coste neto', size: 90, enableSorting: true,
       cell: info => <span style={{ fontWeight: 600, color: 'var(--grey-700)' }}>{fmtEur(info.getValue())}</span>,
     }),
     ch.accessor('iva_pct', {
@@ -337,7 +343,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'iva_pct', v)} type="number" width={50} />,
     }),
     ch.accessor('margen_pct', {
-      header: 'Margen%', size: 90,
+      header: 'Margen%', size: 90, enableSorting: true,
       cell: info => {
         const art = info.row.original;
         return (
@@ -354,11 +360,11 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       },
     }),
     ch.accessor('pvp_sin_iva', {
-      header: 'PVP s/IVA', size: 90,
+      header: 'PVP s/IVA', size: 90, enableSorting: true,
       cell: info => <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{fmtEur(info.getValue())}</span>,
     }),
     ch.accessor('pvp_con_iva', {
-      header: 'PVP c/IVA', size: 95,
+      header: 'PVP c/IVA', size: 95, enableSorting: true,
       cell: info => (
         <span style={{ color: '#fff', background: 'var(--primary)', padding: '2px 7px', borderRadius: '5px', fontWeight: 700, fontSize: '13px' }}>
           {fmtEur(info.getValue())}
@@ -387,7 +393,14 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     }),
   ];
 
-  const table = useReactTable({ data: filtered, columns, getCoreRowModel: getCoreRowModel() });
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
 
   // Mobile card view for small screens
   const MobileCards = () => (
@@ -541,23 +554,38 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
           <thead>
             {table.getHeaderGroups().map(hg => (
               <tr key={hg.id}>
-                {hg.headers.map(header => (
-                  <th key={header.id} style={{
-                    padding: '9px 8px',
-                    background: 'var(--surface-2)',
-                    color: 'var(--text-2)',
-                    textAlign: 'left',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 600,
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    minWidth: header.column.getSize(),
-                    borderBottom: '1px solid var(--border)',
-                  }}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                {hg.headers.map(header => {
+                  const canSort = header.column.getCanSort();
+                  const sorted = header.column.getIsSorted();
+                  return (
+                  <th key={header.id}
+                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    style={{
+                      padding: '9px 8px',
+                      background: 'var(--surface-2)',
+                      color: 'var(--text-2)',
+                      textAlign: 'left',
+                      whiteSpace: 'nowrap',
+                      fontWeight: 600,
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      minWidth: header.column.getSize(),
+                      borderBottom: '1px solid var(--border)',
+                      cursor: canSort ? 'pointer' : 'default',
+                      userSelect: 'none',
+                    }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {canSort && (
+                        <span style={{ fontSize: '9px', opacity: sorted ? 1 : 0.3 }}>
+                          {sorted === 'asc' ? '▲' : sorted === 'desc' ? '▼' : '⇅'}
+                        </span>
+                      )}
+                    </span>
                   </th>
-                ))}
+                  );
+                })}
               </tr>
             ))}
           </thead>
