@@ -47,6 +47,14 @@ def _run_migrations():
         ("app_settings", "label_columns",        "INTEGER DEFAULT 2"),
         ("app_settings", "label_rows_per_page",  "INTEGER DEFAULT 5"),
         ("app_settings", "base_url",             "TEXT DEFAULT 'http://localhost:3000'"),
+        # Document validation columns (added for total verification feature)
+        ("documents", "base_imponible_doc",      "REAL"),
+        ("documents", "total_iva_doc",           "REAL"),
+        ("documents", "total_recargo_doc",       "REAL"),
+        ("documents", "total_doc",               "REAL"),
+        ("documents", "total_calculado",         "REAL"),
+        ("documents", "validacion_ok",           "INTEGER"),
+        ("documents", "validacion_notas",        "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

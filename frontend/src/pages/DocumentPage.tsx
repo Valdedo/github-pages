@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
@@ -31,6 +31,7 @@ export function DocumentPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [docIds, setDocIds] = useState<number[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
 
   const { showToast, ToastContainer } = useToast();
 
@@ -106,6 +107,18 @@ export function DocumentPage() {
   const nextId = currentIdx >= 0 && currentIdx < docIds.length - 1 ? docIds[currentIdx + 1] : null;
   const st = STATUS_CONFIG[document.status] || STATUS_CONFIG.uploaded;
 
+  // Parse validation data
+  const validacion = useMemo(() => {
+    if (!document.validacion_notas) return null;
+    try { return JSON.parse(document.validacion_notas); } catch { return null; }
+  }, [document.validacion_notas]);
+
+  const validBadge = document.status === 'completed' ? (
+    document.validacion_ok === true  ? { label: '✓ Totales cuadran', color: '#bbf7d0', text: '#166534' } :
+    document.validacion_ok === false ? { label: '⚠ Revisar totales', color: '#fde68a', text: '#78350f' } :
+    null
+  ) : null;
+
   return (
     <div className="page-wide">
       <ToastContainer />
@@ -175,6 +188,21 @@ export function DocumentPage() {
                 Extrayendo artículos…
               </span>
             )}
+            {validBadge && (
+              <button
+                onClick={() => setShowValidation(v => !v)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  background: validBadge.color, borderRadius: '99px',
+                  padding: '2px 10px', fontSize: '11px', fontWeight: 700,
+                  color: validBadge.text, letterSpacing: '0.01em',
+                  border: 'none', cursor: 'pointer',
+                }}
+                title="Ver detalle de validación"
+              >
+                {validBadge.label}
+              </button>
+            )}
           </div>
         </div>
 
@@ -198,6 +226,55 @@ export function DocumentPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Validation detail panel ──────────────────────────────── */}
+      {showValidation && validacion && (
+        <div className="card" style={{ marginBottom: '14px', borderColor: document.validacion_ok ? '#bbf7d0' : '#fde68a' }}>
+          <div
+            className="card-header"
+            style={{ cursor: 'pointer', background: document.validacion_ok ? '#f0fdf4' : '#fffbeb' }}
+            onClick={() => setShowValidation(false)}
+          >
+            <span style={{ fontWeight: 700, color: document.validacion_ok ? '#166534' : '#78350f' }}>
+              {document.validacion_ok ? '✓ Validación de totales — cuadran' : '⚠ Validación de totales — revisar'}
+            </span>
+            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-3)', fontWeight: 400 }}>▲ Cerrar</span>
+          </div>
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Numbers row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+              {[
+                { label: 'Base calculada', value: validacion.base_calculada != null ? `${validacion.base_calculada.toFixed(2)} €` : '—' },
+                { label: 'Base documento', value: validacion.base_imponible_doc != null ? `${validacion.base_imponible_doc.toFixed(2)} €` : '—' },
+                { label: 'IVA documento', value: document.total_iva_doc != null ? `${document.total_iva_doc.toFixed(2)} €` : '—' },
+                { label: 'Recargo equiv.', value: document.total_recargo_doc != null ? `${document.total_recargo_doc.toFixed(2)} €` : '—' },
+                { label: 'Total documento', value: document.total_doc != null ? `${document.total_doc.toFixed(2)} €` : '—' },
+                { label: 'Diferencia base', value: validacion.diferencia != null ? `${validacion.diferencia > 0 ? '+' : ''}${validacion.diferencia.toFixed(2)} €` : '—', highlight: validacion.diferencia != null && Math.abs(validacion.diferencia) > 0.5 },
+              ].map(({ label, value, highlight }) => (
+                <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '10px 14px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{label}</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: highlight ? '#dc2626' : 'var(--text-1)' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            {/* Notes */}
+            {validacion.notas && (
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-2)' }}>{validacion.notas}</p>
+            )}
+            {/* Discrepancies */}
+            {validacion.discrepancias && validacion.discrepancias.length > 0 && (
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Discrepancias detectadas</div>
+                <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {validacion.discrepancias.map((d: string, i: number) => (
+                    <li key={i} style={{ fontSize: '13px', color: '#78350f' }}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Collapsible preview ───────────────────────────────────── */}
       {showPreview && (

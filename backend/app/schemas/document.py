@@ -27,6 +27,15 @@ class DocumentResponse(DocumentBase):
     doc_type: str
     status: str
     error_message: Optional[str] = None
+    # Document stated totals
+    base_imponible_doc: Optional[float] = None
+    total_iva_doc: Optional[float] = None
+    total_recargo_doc: Optional[float] = None
+    total_doc: Optional[float] = None
+    # Validation
+    total_calculado: Optional[float] = None
+    validacion_ok: Optional[bool] = None
+    validacion_notas: Optional[str] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

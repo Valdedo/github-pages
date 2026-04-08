@@ -330,6 +330,53 @@ def get_document_file(doc_id: int, db: Session = Depends(get_db)):
     )
 
 
+def _apply_validation(doc: Document, result: dict) -> None:
+    """Store extracted totals and validation result on the Document object (does NOT commit)."""
+    totales = result.get("totales_documento") or {}
+    validacion = result.get("validacion") or {}
+    articulos = result.get("articulos") or []
+
+    # Totals stated in the document
+    def _f(v):
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    doc.base_imponible_doc = _f(totales.get("base_imponible"))
+    doc.total_iva_doc      = _f(totales.get("total_iva"))
+    doc.total_recargo_doc  = _f(totales.get("total_recargo"))
+    doc.total_doc          = _f(totales.get("total_documento"))
+
+    # Our own computed base (sum coste_neto_unitario × cantidad)
+    base_calculada = _f(validacion.get("base_calculada"))
+    if base_calculada is None:
+        base_calculada = round(
+            sum(
+                (a.get("coste_neto_unitario") or 0) * (a.get("cantidad") or 1)
+                for a in articulos
+            ), 2
+        )
+    doc.total_calculado = base_calculada
+
+    # Validation result from Claude
+    cuadra = validacion.get("cuadra")
+    if cuadra is None and doc.base_imponible_doc is not None:
+        cuadra = abs(base_calculada - doc.base_imponible_doc) <= 0.50
+
+    doc.validacion_ok = bool(cuadra) if cuadra is not None else None
+
+    discrepancias = validacion.get("discrepancias") or []
+    notas = validacion.get("notas") or ""
+    doc.validacion_notas = json.dumps({
+        "notas": notas,
+        "discrepancias": discrepancias,
+        "base_calculada": base_calculada,
+        "base_imponible_doc": doc.base_imponible_doc,
+        "diferencia": round(base_calculada - (doc.base_imponible_doc or 0), 2) if doc.base_imponible_doc is not None else None,
+    }, ensure_ascii=False)
+
+
 async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Optional[int] = None):
     """Background task: extract multiple image pages as a single document."""
     from app.database import SessionLocal
@@ -453,6 +500,9 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                 otros_codigos=json.dumps(otros) if otros else None,
             )
             db.add(article)
+
+        # ── Validation ────────────────────────────────────────────────
+        _apply_validation(doc, result)
 
         doc.status = "completed"
         db.commit()
@@ -605,6 +655,9 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
                 otros_codigos=json.dumps(otros) if otros else None,
             )
             db.add(article)
+
+        # ── Validation: store totals and check if they match ──────────
+        _apply_validation(doc, result)
 
         doc.status = "completed"
         db.commit()

@@ -26,6 +26,18 @@ class Document(Base):
     doc_date: Mapped[Optional[dt.date]] = mapped_column(Date, nullable=True)
     pronto_pago_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     raw_extraction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
+
+    # Totals extracted from the document
+    base_imponible_doc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_iva_doc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_recargo_doc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_doc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Validation: does our calculated base match the document's stated base?
+    total_calculado: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    validacion_ok: Mapped[Optional[bool]] = mapped_column(nullable=True)
+    validacion_notas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of discrepancies
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

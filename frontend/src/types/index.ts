@@ -10,6 +10,15 @@ export interface Document {
   doc_number?: string;
   doc_date?: string;
   pronto_pago_pct?: number;
+  // Document stated totals
+  base_imponible_doc?: number;
+  total_iva_doc?: number;
+  total_recargo_doc?: number;
+  total_doc?: number;
+  // Validation
+  total_calculado?: number;
+  validacion_ok?: boolean | null;
+  validacion_notas?: string; // JSON string with {notas, discrepancias[], diferencia}
   created_at: string;
   updated_at: string;
   articles?: Article[];
