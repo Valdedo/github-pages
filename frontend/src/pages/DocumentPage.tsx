@@ -10,6 +10,13 @@ import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
 import type { Document, Article, AppSettings, Supplier } from '../types/index';
 
+const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
+  uploaded:   { label: 'Subido',       dot: 'rgba(255,255,255,0.5)' },
+  processing: { label: '⏳ Procesando', dot: '#fde68a' },
+  completed:  { label: '✓ Completado', dot: '#bbf7d0' },
+  error:      { label: '✕ Error',      dot: '#fca5a5' },
+};
+
 export function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -61,7 +68,7 @@ export function DocumentPage() {
       const poll = async () => {
         const status = await loadDocument();
         if (status === 'processing' || status === 'uploaded') {
-          delay = Math.min(delay * 1.4, 10000); // exponential backoff up to 10s
+          delay = Math.min(delay * 1.4, 10000);
           timerId = setTimeout(poll, delay);
         } else {
           setPolling(false);
@@ -96,79 +103,134 @@ export function DocumentPage() {
   const currentIdx = docIds.indexOf(docId);
   const prevId = currentIdx > 0 ? docIds[currentIdx - 1] : null;
   const nextId = currentIdx >= 0 && currentIdx < docIds.length - 1 ? docIds[currentIdx + 1] : null;
+  const st = STATUS_CONFIG[document.status] || STATUS_CONFIG.uploaded;
 
   return (
     <div className="page-wide">
       <ToastContainer />
 
-      {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {/* Prev / Next navigation */}
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => prevId && navigate(`/documento/${prevId}`)}
-            disabled={!prevId}
-            title="Albarán anterior"
-            style={{ padding: '4px 10px', fontSize: '16px', lineHeight: 1 }}
-          >
-            ‹
-          </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => nextId && navigate(`/documento/${nextId}`)}
-            disabled={!nextId}
-            title="Albarán siguiente"
-            style={{ padding: '4px 10px', fontSize: '16px', lineHeight: 1 }}
-          >
-            ›
-          </button>
-        </div>
+      {/* ── Document hero strip ───────────────────────────────────── */}
+      <div className="doc-page-hero">
+        {/* Left: navigation + title + chips */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+          {/* Prev / Next + counter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            <button
+              className="doc-hero-nav-btn"
+              onClick={() => prevId && navigate(`/documento/${prevId}`)}
+              disabled={!prevId}
+              title="Albarán anterior"
+            >‹</button>
+            <button
+              className="doc-hero-nav-btn"
+              onClick={() => nextId && navigate(`/documento/${nextId}`)}
+              disabled={!nextId}
+              title="Albarán siguiente"
+            >›</button>
+            {docIds.length > 0 && currentIdx >= 0 && (
+              <span style={{ fontSize: '11px', opacity: 0.6, fontWeight: 500, marginLeft: '2px' }}>
+                {currentIdx + 1} de {docIds.length}
+              </span>
+            )}
+          </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{
-            margin: 0,
-            color: 'var(--text-1)',
-            fontSize: '15px',
-            fontWeight: 700,
+          {/* Filename */}
+          <h1 style={{
+            fontSize: 'clamp(15px, 2vw, 20px)',
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: '#fff',
+            margin: '0 0 10px',
+            lineHeight: 1.2,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            letterSpacing: '-0.02em',
           }}>
             {document.original_filename}
-          </h2>
-          {docIds.length > 0 && currentIdx >= 0 && (
-            <span style={{ fontSize: '11px', color: 'var(--text-3)', fontWeight: 500 }}>
-              {currentIdx + 1} de {docIds.length}
+          </h1>
+
+          {/* Chips row */}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {document.supplier_name && (
+              <span className="doc-hero-chip doc-hero-chip-brand">{document.supplier_name}</span>
+            )}
+            {document.doc_number && (
+              <span className="doc-hero-chip">Nº {document.doc_number}</span>
+            )}
+            {document.doc_date && (
+              <span className="doc-hero-chip">{document.doc_date}</span>
+            )}
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              background: 'rgba(255,255,255,0.18)', borderRadius: '99px',
+              padding: '2px 10px', fontSize: '11px', fontWeight: 700,
+              color: '#fff', letterSpacing: '0.02em',
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: st.dot, display: 'inline-block', flexShrink: 0 }} />
+              {st.label}
             </span>
-          )}
+            {polling && (
+              <span style={{ fontSize: '12px', opacity: 0.75, fontStyle: 'italic', color: '#fff' }}>
+                Extrayendo artículos…
+              </span>
+            )}
+          </div>
         </div>
 
-        {polling && (
-          <span style={{
-            color: 'var(--warning)',
-            fontSize: '12px',
-            fontWeight: 600,
-            background: '#fffbeb',
-            border: '1px solid #fde68a',
-            borderRadius: '99px',
-            padding: '3px 10px',
-          }}>
-            Extrayendo artículos…
-          </span>
-        )}
+        {/* Right: article count */}
+        <div style={{ textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: '#fff' }}>
+            {articles.length}
+          </div>
+          <div style={{ fontSize: '10px', opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>
+            artículos
+          </div>
+        </div>
       </div>
 
-      {/* Main 2-column layout — stacks to 1 column on mobile via .doc-grid media query */}
+      {/* ── Main 2-column layout ─────────────────────────────────── */}
       <div className="doc-grid">
+
         {/* Left: sticky preview */}
         <div className="doc-grid-preview">
           <DocumentPreview document={document} />
         </div>
 
-        {/* Right: stacked panels */}
+        {/* Right: panels in logical order */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* 1. Totals — first thing you want to see */}
+          <TotalsPanel articles={articles} />
+
+          {/* 2. Article table — MAIN work area */}
+          <ArticleTable
+            documentId={docId}
+            articles={articles}
+            onArticlesChanged={setArticles}
+            onSelectedIdsChange={setSelectedIds}
+            onToast={showToast}
+          />
+
+          {/* 3. Actions row: Export + Margin side by side on desktop */}
+          <div className="doc-actions-row">
+            <ExportPanel
+              documentId={docId}
+              suppliers={suppliers}
+              selectedArticleIds={selectedIds}
+              onReprocessed={() => { setArticles([]); loadDocument(); }}
+              onToast={showToast}
+            />
+            {settings && (
+              <MarginSettings
+                settings={settings}
+                documentId={docId}
+                onUpdated={s => { setSettings(s); loadDocument(); }}
+                onToast={showToast}
+              />
+            )}
+          </div>
+
+          {/* 4. Metadata — edit secondary info */}
           <MetadataPanel
             document={document}
             suppliers={suppliers}
@@ -181,32 +243,6 @@ export function DocumentPage() {
             }}
           />
 
-          {settings && (
-            <MarginSettings
-              settings={settings}
-              documentId={docId}
-              onUpdated={s => { setSettings(s); loadDocument(); }}
-              onToast={showToast}
-            />
-          )}
-
-          <ExportPanel
-            documentId={docId}
-            suppliers={suppliers}
-            selectedArticleIds={selectedIds}
-            onReprocessed={() => { setArticles([]); loadDocument(); }}
-            onToast={showToast}
-          />
-
-          <TotalsPanel articles={articles} />
-
-          <ArticleTable
-            documentId={docId}
-            articles={articles}
-            onArticlesChanged={setArticles}
-            onSelectedIdsChange={setSelectedIds}
-            onToast={showToast}
-          />
         </div>
       </div>
     </div>
