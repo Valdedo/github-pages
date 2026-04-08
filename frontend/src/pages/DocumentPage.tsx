@@ -35,6 +35,12 @@ export function DocumentPage() {
 
   const { showToast, ToastContainer } = useToast();
 
+  // Parse validation data — must be before any early returns (Rules of Hooks)
+  const validacion = useMemo(() => {
+    if (!document?.validacion_notas) return null;
+    try { return JSON.parse(document.validacion_notas); } catch { return null; }
+  }, [document?.validacion_notas]);
+
   const loadDocument = useCallback(async () => {
     try {
       const { data } = await getDocument(docId);
@@ -106,12 +112,6 @@ export function DocumentPage() {
   const prevId = currentIdx > 0 ? docIds[currentIdx - 1] : null;
   const nextId = currentIdx >= 0 && currentIdx < docIds.length - 1 ? docIds[currentIdx + 1] : null;
   const st = STATUS_CONFIG[document.status] || STATUS_CONFIG.uploaded;
-
-  // Parse validation data
-  const validacion = useMemo(() => {
-    if (!document.validacion_notas) return null;
-    try { return JSON.parse(document.validacion_notas); } catch { return null; }
-  }, [document.validacion_notas]);
 
   const validBadge = document.status === 'completed' ? (
     document.validacion_ok === true  ? { label: '✓ Totales cuadran', color: '#bbf7d0', text: '#166534' } :
