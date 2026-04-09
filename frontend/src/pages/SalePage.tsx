@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/browser';
-import { scanProduct } from '../api/client';
+import { scanProduct, decodeBarcodeImage } from '../api/client';
 
 interface CartItem {
   id: number;
@@ -22,11 +21,22 @@ export function SalePage() {
   const [lookupError, setLookupError] = useState('');
   const [cameraError, setCameraError] = useState('');
   const [checkout, setCheckout] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [zxingAvailable, setZxingAvailable] = useState<boolean | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const readerRef = useRef<any>(null);
   const cooldownRef = useRef(false);
   const lastCodeRef = useRef('');
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if ZXing is available (dynamic import)
+  useEffect(() => {
+    import('@zxing/browser')
+      .then(() => setZxingAvailable(true))
+      .catch(() => setZxingAvailable(false));
+  }, []);
 
   // Clean up scanner on unmount
   useEffect(() => () => { stopScanner(); }, []);
@@ -61,6 +71,7 @@ export function SalePage() {
     setCameraError('');
     setScanError('');
     try {
+      const { BrowserMultiFormatReader, NotFoundException } = await import('@zxing/browser');
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
 
@@ -68,7 +79,7 @@ export function SalePage() {
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
       const backCamera = devices.find(d =>
         /back|rear|environment/i.test(d.label)
-      ) || devices[devices.length - 1]; // last device is usually the back camera
+      ) || devices[devices.length - 1];
 
       const deviceId = backCamera?.deviceId;
 
@@ -82,7 +93,6 @@ export function SalePage() {
               lastCodeRef.current = code;
               cooldownRef.current = true;
               addToCart(code);
-              // Vibrate on scan (mobile)
               if (navigator.vibrate) navigator.vibrate(80);
               setTimeout(() => {
                 cooldownRef.current = false;
@@ -91,14 +101,13 @@ export function SalePage() {
             }
           }
           if (err && !(err instanceof NotFoundException)) {
-            // Only log non-trivial errors (NotFoundException is normal "no barcode in frame")
             console.debug('Scanner:', err);
           }
         }
       );
       setScanning(true);
-    } catch (e: any) {
-      const msg = e?.message || String(e);
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message || String(e);
       if (msg.includes('Permission') || msg.includes('NotAllowed')) {
         setCameraError('Permiso de cámara denegado. Actívalo en la configuración del navegador.');
       } else if (msg.includes('NotFound') || msg.includes('device')) {
@@ -116,6 +125,33 @@ export function SalePage() {
     }
     setScanning(false);
   }, []);
+
+  // Photo capture fallback: send image to backend for decoding
+  const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoLoading(true);
+    setScanError('');
+    try {
+      const { data } = await decodeBarcodeImage(file);
+      if (data.code) {
+        if (navigator.vibrate) navigator.vibrate(80);
+        await addToCart(data.code);
+      }
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setScanError('No se detectó código de barras en la foto. Intenta de nuevo más cerca.');
+      } else {
+        setScanError('Error al procesar la imagen.');
+      }
+      setTimeout(() => setScanError(''), 5000);
+    } finally {
+      setPhotoLoading(false);
+      // Reset input so same file can be selected again
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  }, [addToCart]);
 
   const updateQty = (id: number, delta: number) => {
     setCart(prev => prev
@@ -178,6 +214,8 @@ export function SalePage() {
       <div className="card" style={{ marginBottom: '14px' }}>
         <div className="card-header">Escáner de códigos de barras</div>
         <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          {/* Live camera scanner (ZXing — works on iOS Safari, Android, Firefox) */}
           {scanning ? (
             <div style={{ position: 'relative' }}>
               <video
@@ -196,13 +234,45 @@ export function SalePage() {
               >✕ Parar cámara</button>
             </div>
           ) : (
-            <button
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '14px', fontSize: '15px' }}
-              onClick={startScanner}
-            >
-              📷 Iniciar cámara y escanear
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Live scanning button — show when ZXing loaded or still checking */}
+              {zxingAvailable !== false && (
+                <button
+                  className="btn btn-primary"
+                  style={{ flex: 1, minWidth: '160px', padding: '14px', fontSize: '15px' }}
+                  onClick={startScanner}
+                  disabled={zxingAvailable === null}
+                >
+                  📷 {zxingAvailable === null ? 'Cargando…' : 'Escanear en directo'}
+                </button>
+              )}
+
+              {/* Photo capture — always visible, universal fallback for all devices */}
+              <label
+                style={{
+                  flex: 1, minWidth: '140px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  padding: '14px', fontSize: '15px', cursor: 'pointer',
+                  background: photoLoading ? 'var(--surface)' : 'var(--brand-pale)',
+                  border: '1.5px solid var(--brand-light)',
+                  borderRadius: 'var(--r)',
+                  color: 'var(--brand-dark)',
+                  fontWeight: 600,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {photoLoading ? '⏳ Procesando…' : '📸 Foto de código'}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoCapture}
+                  disabled={photoLoading}
+                />
+              </label>
+            </div>
           )}
 
           {cameraError && (

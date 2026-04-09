@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
@@ -316,6 +316,44 @@ def product_sheet(
 </body>
 </html>"""
     return HTMLResponse(content=html)
+
+
+@router.post("/decode-image")
+async def decode_barcode_image(file: UploadFile = File(...)):
+    """Decode barcode/QR from uploaded image using OpenCV. Universal fallback for all devices."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        raise HTTPException(500, "OpenCV not available")
+
+    content = await file.read()
+    nparr = np.frombuffer(content, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(400, "No se pudo leer la imagen")
+
+    # Try OpenCV barcode detector (EAN-13, EAN-8, Code128, QR, etc.)
+    try:
+        detector = cv2.barcode.BarcodeDetector()
+        ok, decoded_info, decoded_type, _ = detector.detectAndDecodeMulti(img)
+        if ok and decoded_info:
+            codes = [c for c in decoded_info if c]
+            if codes:
+                return {"code": codes[0], "all_codes": codes}
+    except Exception:
+        pass
+
+    # Fallback: QR code detector
+    try:
+        qr = cv2.QRCodeDetector()
+        data, _, _ = qr.detectAndDecode(img)
+        if data:
+            return {"code": data, "all_codes": [data]}
+    except Exception:
+        pass
+
+    raise HTTPException(404, "No se detectó ningún código de barras en la imagen")
 
 
 async def _search_product_bg(product_id: int, codigo: str, descripcion: str):

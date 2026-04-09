@@ -125,3 +125,12 @@ export const triggerProductSearch = (productId: number) =>
 
 export const scanProduct = (code: string) =>
   api.get<{ id: number; descripcion: string; pvp_con_iva: number; pvp_sin_iva: number; iva_pct: number; codigo_principal: string; ean: string }>(`/api/products/scan/${encodeURIComponent(code)}`);
+
+export const decodeBarcodeImage = (file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return api.post<{ code: string; all_codes: string[] }>('/api/products/decode-image', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 15000,
+  });
+};
