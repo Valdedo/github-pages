@@ -522,52 +522,86 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
 
 
 async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
-    """Background task: extract document content and save articles."""
+    """Background task: extract document content and save articles.
+
+    Split into three short DB phases so SQLite is never locked during the
+    long OCR / Claude API extraction phase.
+    """
     from app.database import SessionLocal
     from app.services.extraction_service import extract_document
     from app.services.margin_service import compute_article_pricing
 
+    # ── Phase 1: quick reads + mark as processing ────────────────────────
+    db = SessionLocal()
+    file_path = doc_type = supplier_name_fallback = None
+    suppliers_data: list = []
+    tiers: list = []
+    rounding_mode = "ceil_10cents"
+    rounding_decimals = 2
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc:
+            return
+        file_path = doc.file_path
+        doc_type = doc.doc_type
+        supplier_name_fallback = doc.supplier_name
+
+        doc.status = "processing"
+        db.commit()
+
+        suppliers = db.query(Supplier).all()
+        suppliers_data = [
+            {
+                "id": s.id,
+                "name": s.name,
+                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else (s.detection_keywords or []),
+                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else (s.template_config or {}),
+            }
+            for s in suppliers
+        ]
+
+        app_settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
+        if not app_settings:
+            app_settings = AppSettings(id=1)
+            db.add(app_settings)
+            db.commit()
+        tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
+        rounding_mode = app_settings.rounding_mode or "ceil_10cents"
+        rounding_decimals = app_settings.rounding_decimals or 2
+    finally:
+        db.close()  # release DB lock before long extraction
+
+    # ── Phase 2: extraction (OCR + Claude) — no DB held ─────────────────
+    try:
+        result = await extract_document(
+            file_path=file_path,
+            doc_type=doc_type,
+            supplier_id=supplier_id,
+            suppliers=suppliers_data,
+        )
+    except Exception as e:
+        logger.error(f"Extraction failed for document {doc_id}: {e}", exc_info=True)
+        db2 = SessionLocal()
+        try:
+            doc2 = db2.query(Document).filter(Document.id == doc_id).first()
+            if doc2:
+                doc2.status = "error"
+                doc2.error_message = str(e)[:500]
+                db2.commit()
+        finally:
+            db2.close()
+        return
+
+    # ── Phase 3: quick write of results ─────────────────────────────────
     db = SessionLocal()
     try:
         doc = db.query(Document).filter(Document.id == doc_id).first()
         if not doc:
             return
 
-        doc.status = "processing"
-        db.commit()
-
-        # Load suppliers for detection
-        suppliers = db.query(Supplier).all()
-        suppliers_data = [
-            {
-                "id": s.id,
-                "name": s.name,
-                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else s.detection_keywords,
-                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else s.template_config,
-            }
-            for s in suppliers
-        ]
-
-        # Load settings for margin calculation
-        app_settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
-        if not app_settings:
-            app_settings = AppSettings(id=1)
-            db.add(app_settings)
-            db.commit()
-
-        tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
-
-        # Run extraction
-        result = await extract_document(
-            file_path=doc.file_path,
-            doc_type=doc.doc_type,
-            supplier_id=supplier_id,
-            suppliers=suppliers_data,
-        )
-
         # Update document metadata
         documento = result.get("documento", {})
-        doc.supplier_name = documento.get("proveedor") or doc.supplier_name
+        doc.supplier_name = documento.get("proveedor") or supplier_name_fallback
         doc.doc_number = documento.get("num_albaran")
         doc.pronto_pago_pct = documento.get("pronto_pago_pct")
         doc.raw_extraction = json.dumps(result.get("raw_text", "")[:5000])
@@ -584,7 +618,6 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
         if fecha_str:
             try:
                 from datetime import date, datetime
-                # Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS" formats
                 if "T" in str(fecha_str) or " " in str(fecha_str):
                     doc.doc_date = datetime.fromisoformat(str(fecha_str).split(".")[0]).date()
                 else:
@@ -604,8 +637,8 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
                 iva_pct=art_data.get("iva_pct", 21.0),
                 margen_pct_override=None,
                 tiers=tiers,
-                rounding_mode=app_settings.rounding_mode,
-                decimals=app_settings.rounding_decimals,
+                rounding_mode=rounding_mode,
+                decimals=rounding_decimals,
             )
 
             # Use provided coste_neto if available and no discounts give us a better one
@@ -615,15 +648,14 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
             ]):
                 pricing["coste_neto_unitario"] = art_data["coste_neto_unitario"]
                 pricing["coste_neto_total"] = art_data["coste_neto_unitario"] * art_data.get("cantidad", 1)
-                # Recalculate PVP from net cost
                 from app.services.margin_service import calculate_pricing, get_margin_for_cost
                 pricing["margen_pct"] = get_margin_for_cost(pricing["coste_neto_unitario"], tiers)
                 pvp = calculate_pricing(
                     pricing["coste_neto_unitario"],
                     pricing["margen_pct"],
                     art_data.get("iva_pct", 21.0),
-                    app_settings.rounding_mode,
-                    app_settings.rounding_decimals,
+                    rounding_mode,
+                    rounding_decimals,
                 )
                 pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
                 pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
@@ -656,14 +688,14 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
             )
             db.add(article)
 
-        # ── Validation: store totals and check if they match ──────────
+        # Validation: store totals and check if they match
         _apply_validation(doc, result)
 
         doc.status = "completed"
         db.commit()
 
     except Exception as e:
-        logger.error(f"Error processing document {doc_id}: {e}", exc_info=True)
+        logger.error(f"Error saving results for document {doc_id}: {e}", exc_info=True)
         try:
             doc = db.query(Document).filter(Document.id == doc_id).first()
             if doc:

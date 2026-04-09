@@ -27,6 +27,7 @@ export function DocumentPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [polling, setPolling] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [docIds, setDocIds] = useState<number[]>([]);
@@ -46,9 +47,15 @@ export function DocumentPage() {
       const { data } = await getDocument(docId);
       setDocument(data);
       setArticles(data.articles || []);
+      setLoadFailed(false);
       return data.status;
-    } catch {
-      return 'error';
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setLoadFailed(true);  // real 404 — document doesn't exist
+      }
+      // On 500/network error during processing, keep polling — SQLite may have been busy
+      return 'processing';
     }
   }, [docId]);
 
@@ -102,9 +109,19 @@ export function DocumentPage() {
   if (!document) {
     return (
       <div className="empty-state" style={{ paddingTop: '80px' }}>
-        <div className="empty-state-icon">❌</div>
-        <div className="empty-state-text">Documento no encontrado.</div>
-        <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/')}>← Volver al inicio</button>
+        {loadFailed ? (
+          <>
+            <div className="empty-state-icon">❌</div>
+            <div className="empty-state-text">Documento no encontrado.</div>
+            <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/')}>← Volver al inicio</button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: '36px', marginBottom: '12px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</div>
+            <div className="empty-state-text">Analizando documento…</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '8px' }}>Esto puede tardar hasta 30 segundos</div>
+          </>
+        )}
       </div>
     );
   }

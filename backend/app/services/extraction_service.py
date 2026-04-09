@@ -272,6 +272,8 @@ async def extract_multi_images(
     return {
         "documento": claude_result.get("documento", {}),
         "articulos": normalized_articles,
+        "totales_documento": claude_result.get("totales_documento") or {},
+        "validacion": claude_result.get("validacion") or {},
         "supplier_detected": supplier_detected,
         "raw_text": combined_raw.get("full_text", ""),
         "raw_tables": combined_raw.get("tables", []),
@@ -341,6 +343,8 @@ async def extract_document(
     return {
         "documento": documento,
         "articulos": normalized_articles,
+        "totales_documento": claude_result.get("totales_documento") or {},
+        "validacion": claude_result.get("validacion") or {},
         "supplier_detected": supplier_detected,
         "raw_text": raw_data.get("full_text", ""),
         "raw_tables": raw_data.get("tables", []),
