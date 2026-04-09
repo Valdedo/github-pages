@@ -383,12 +383,18 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
     from app.services.extraction_service import extract_multi_images
     from app.services.margin_service import compute_article_pricing
 
+    # Phase 1: quick reads + mark processing, then release DB
     db = SessionLocal()
+    suppliers_data: list = []
+    tiers: list = []
+    rounding_mode = "ceil_10cents"
+    rounding_decimals = 2
+    supplier_name_fallback = None
     try:
         doc = db.query(Document).filter(Document.id == doc_id).first()
         if not doc:
             return
-
+        supplier_name_fallback = doc.supplier_name
         doc.status = "processing"
         db.commit()
 
@@ -397,28 +403,51 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             {
                 "id": s.id,
                 "name": s.name,
-                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else s.detection_keywords,
-                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else s.template_config,
+                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else (s.detection_keywords or []),
+                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else (s.template_config or {}),
             }
             for s in suppliers
         ]
-
         app_settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
         if not app_settings:
             app_settings = AppSettings(id=1)
             db.add(app_settings)
             db.commit()
-
         tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
+        rounding_mode = app_settings.rounding_mode or "ceil_10cents"
+        rounding_decimals = app_settings.rounding_decimals or 2
+    finally:
+        db.close()
 
+    # Phase 2: extraction — no DB held
+    try:
         result = await extract_multi_images(
             file_paths=file_paths,
             supplier_id=supplier_id,
             suppliers=suppliers_data,
         )
+    except Exception as e:
+        logger.error(f"Multi extraction failed for document {doc_id}: {e}", exc_info=True)
+        db2 = SessionLocal()
+        try:
+            doc2 = db2.query(Document).filter(Document.id == doc_id).first()
+            if doc2:
+                doc2.status = "error"
+                doc2.error_message = str(e)[:500]
+                db2.commit()
+        finally:
+            db2.close()
+        return
+
+    # Phase 3: quick write of results
+    db = SessionLocal()
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc:
+            return
 
         documento = result.get("documento", {})
-        doc.supplier_name = documento.get("proveedor") or doc.supplier_name
+        doc.supplier_name = documento.get("proveedor") or supplier_name_fallback
         doc.doc_number = documento.get("num_albaran")
         doc.pronto_pago_pct = documento.get("pronto_pago_pct")
         doc.raw_extraction = json.dumps(result.get("raw_text", "")[:5000])
@@ -433,7 +462,6 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
         if fecha_str:
             try:
                 from datetime import date, datetime
-                # Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS" formats
                 if "T" in str(fecha_str) or " " in str(fecha_str):
                     doc.doc_date = datetime.fromisoformat(str(fecha_str).split(".")[0]).date()
                 else:
@@ -452,10 +480,9 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                 iva_pct=art_data.get("iva_pct", 21.0),
                 margen_pct_override=None,
                 tiers=tiers,
-                rounding_mode=app_settings.rounding_mode,
-                decimals=app_settings.rounding_decimals,
+                rounding_mode=rounding_mode,
+                decimals=rounding_decimals,
             )
-
             if art_data.get("coste_neto_unitario") and not any([
                 art_data.get("descuento_1"), art_data.get("descuento_2"),
                 art_data.get("descuento_3"), art_data.get("descuento_4")
@@ -468,8 +495,8 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                     pricing["coste_neto_unitario"],
                     pricing["margen_pct"],
                     art_data.get("iva_pct", 21.0),
-                    app_settings.rounding_mode,
-                    app_settings.rounding_decimals,
+                    rounding_mode,
+                    rounding_decimals,
                 )
                 pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
                 pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
@@ -501,14 +528,12 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             )
             db.add(article)
 
-        # ── Validation ────────────────────────────────────────────────
         _apply_validation(doc, result)
-
         doc.status = "completed"
         db.commit()
 
     except Exception as e:
-        logger.error(f"Error processing multi-document {doc_id}: {e}", exc_info=True)
+        logger.error(f"Error saving multi-doc results for {doc_id}: {e}", exc_info=True)
         try:
             doc = db.query(Document).filter(Document.id == doc_id).first()
             if doc:

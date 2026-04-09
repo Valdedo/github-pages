@@ -73,6 +73,13 @@ export function DocumentPage() {
     init();
   }, [docId]);
 
+  // When document is null (initial load failed due to server busy/error) keep retrying
+  useEffect(() => {
+    if (loading || document || loadFailed) return;
+    const timer = setTimeout(loadDocument, 3000);
+    return () => clearTimeout(timer);
+  }, [loading, document, loadFailed, loadDocument]);
+
   useEffect(() => {
     if (!document) return;
     if (document.status === 'processing' || document.status === 'uploaded') {
@@ -87,7 +94,7 @@ export function DocumentPage() {
           timerId = setTimeout(poll, delay);
         } else {
           setPolling(false);
-          showToast('Extracción completada', 'success');
+          if (status === 'completed') showToast('Extracción completada', 'success');
         }
       };
 

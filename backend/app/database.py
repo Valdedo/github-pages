@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
 
@@ -14,6 +14,13 @@ if settings.database_url.startswith("sqlite"):
         connect_args=connect_args,
         poolclass=StaticPool,
     )
+
+    # WAL mode: allows reads to proceed while a write transaction is open.
+    # busy_timeout: wait up to 5 s instead of failing immediately on a locked DB.
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, _):
+        dbapi_conn.execute("PRAGMA journal_mode=WAL")
+        dbapi_conn.execute("PRAGMA busy_timeout=5000")
 else:
     engine = create_engine(settings.database_url)
 
