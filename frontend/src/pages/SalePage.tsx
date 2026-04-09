@@ -216,25 +216,26 @@ export function SalePage() {
         <div className="card-header">Escáner de códigos de barras</div>
         <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-          {/* Live camera scanner (ZXing — works on iOS Safari, Android, Firefox) */}
-          {scanning ? (
-            <div style={{ position: 'relative' }}>
-              <video
-                ref={videoRef}
-                playsInline muted
-                style={{ width: '100%', borderRadius: '8px', background: '#000', maxHeight: '260px', objectFit: 'cover', display: 'block' }}
-              />
-              {/* Scan line overlay */}
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <div style={{ width: '70%', height: '2px', background: 'rgba(22,163,74,0.9)', boxShadow: '0 0 10px #16a34a' }} />
-              </div>
-              <button
-                className="btn btn-danger btn-sm"
-                style={{ position: 'absolute', top: '8px', right: '8px' }}
-                onClick={stopScanner}
-              >✕ Parar cámara</button>
+          {/* Video always in DOM — ref must be valid before ZXing attaches */}
+          <div style={{ display: scanning ? 'block' : 'none', position: 'relative' }}>
+            <video
+              ref={videoRef}
+              playsInline muted
+              style={{ width: '100%', borderRadius: '8px', background: '#000', maxHeight: '260px', objectFit: 'cover', display: 'block' }}
+            />
+            {/* Scan line overlay */}
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+              <div style={{ width: '70%', height: '2px', background: 'rgba(22,163,74,0.9)', boxShadow: '0 0 10px #16a34a' }} />
             </div>
-          ) : (
+            <button
+              className="btn btn-danger btn-sm"
+              style={{ position: 'absolute', top: '8px', right: '8px' }}
+              onClick={stopScanner}
+            >✕ Parar cámara</button>
+          </div>
+
+          {/* Live camera scanner (ZXing — works on iOS Safari, Android, Firefox) */}
+          {!scanning && (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {/* Live scanning button — show when ZXing loaded or still checking */}
               {zxingAvailable !== false && (

@@ -97,6 +97,9 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pvpEditId, setPvpEditId] = useState<number | null>(null);
   const [pvpEditValue, setPvpEditValue] = useState('');
+  const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
+  const [cardPvpValue, setCardPvpValue] = useState('');
+  const [cardMarginValue, setCardMarginValue] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -442,39 +445,173 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // Mobile card view for small screens
+  // Mobile card view for small screens — with full inline editing
   const MobileCards = () => (
     <div className="article-cards">
       {filtered.length === 0 ? (
         <div style={{ padding: '32px', textAlign: 'center', color: 'var(--grey-500)' }}>
           {searchDebounced ? 'No hay artículos que coincidan.' : 'Sin artículos. Reprocesa o añade manualmente.'}
         </div>
-      ) : filtered.map(a => (
-        <div key={a.id} className={`article-card${selectedIds.has(a.id) ? ' selected' : ''}`}
-          onClick={() => toggleSelect(a.id)}>
-          <div className="article-card-header">
-            <input type="checkbox" checked={selectedIds.has(a.id)}
-              onChange={() => toggleSelect(a.id)}
-              onClick={e => e.stopPropagation()}
-              style={{ accentColor: 'var(--primary)' }}
-            />
-            <span className="article-card-desc">{a.descripcion || '—'}</span>
-            <span style={{
-              background: 'var(--primary)', color: '#fff',
-              padding: '3px 10px', borderRadius: '20px', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap',
-            }}>{a.pvp_con_iva != null ? `${a.pvp_con_iva.toFixed(2)} €` : '—'}</span>
+      ) : filtered.map(a => {
+        const isExpanded = expandedCardId === a.id;
+        const isSavingThis = saving === a.id;
+
+        const openCard = () => {
+          setExpandedCardId(isExpanded ? null : a.id);
+          setCardPvpValue(a.pvp_con_iva != null ? a.pvp_con_iva.toFixed(2) : '');
+          setCardMarginValue(a.margen_pct != null ? a.margen_pct.toFixed(1) : '');
+        };
+
+        // Live margin preview from PVP input
+        const pvpNum = parseFloat(cardPvpValue.replace(',', '.'));
+        const previewMargin = !isNaN(pvpNum) && pvpNum > 0 && a.coste_neto_unitario > 0
+          ? ((pvpNum / (1 + (a.iva_pct || 21) / 100)) / a.coste_neto_unitario - 1) * 100
+          : null;
+
+        return (
+          <div key={a.id} style={{
+            borderBottom: '1px solid var(--border)',
+            background: isExpanded ? 'var(--brand-pale)' : selectedIds.has(a.id) ? '#fff8e1' : 'var(--surface)',
+          }}>
+            {/* Card header row — tap to expand editor */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', cursor: 'pointer' }}
+              onClick={openCard}>
+              <input type="checkbox" checked={selectedIds.has(a.id)}
+                onChange={() => toggleSelect(a.id)}
+                onClick={e => e.stopPropagation()}
+                style={{ accentColor: 'var(--primary)', flexShrink: 0 }}
+              />
+              <span style={{ flex: 1, fontWeight: 600, fontSize: '14px', lineHeight: 1.3 }}>
+                {a.descripcion || '—'}
+              </span>
+              <span style={{
+                background: a.margen_override ? 'var(--accent)' : 'var(--brand)',
+                color: '#fff',
+                padding: '4px 10px', borderRadius: '20px', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
+                {a.pvp_con_iva != null ? `${a.pvp_con_iva.toFixed(2)} €` : '—'}
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--text-3)', flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
+            </div>
+
+            {/* Meta row */}
+            <div className="article-card-meta" style={{ paddingLeft: '36px', paddingTop: 0, paddingBottom: isExpanded ? 0 : '10px' }}>
+              <span title="Cantidad">📦 {a.cantidad ?? '—'}</span>
+              <span title="Coste neto">💰 {a.coste_neto_unitario != null ? `${a.coste_neto_unitario.toFixed(2)} €` : '—'}</span>
+              <span title="Margen" style={{ color: a.margen_override ? 'var(--accent)' : 'var(--success)', fontWeight: 600 }}>
+                {a.margen_override ? '●' : '◉'} {a.margen_pct != null ? `${a.margen_pct.toFixed(1)}%` : '—'}
+              </span>
+              {a.codigo_principal && <span title="Referencia">REF: {a.codigo_principal}</span>}
+              {a.ean && <span title="EAN">EAN: {a.ean}</span>}
+            </div>
+
+            {/* Expanded edit panel */}
+            {isExpanded && (
+              <div style={{ padding: '12px 14px 16px', borderTop: '1px solid var(--brand-light)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                {/* PVP override */}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-dark)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                    Fijar precio de venta (c/IVA)
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="number" step="0.10" min="0"
+                      value={cardPvpValue}
+                      onChange={e => setCardPvpValue(e.target.value)}
+                      style={{ flex: 1, padding: '9px 12px', border: '2px solid var(--brand)', borderRadius: '8px', fontSize: '16px', fontWeight: 700, fontFamily: 'inherit' }}
+                    />
+                    <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>€</span>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={isSavingThis || !cardPvpValue}
+                      onClick={async () => {
+                        const v = parseFloat(cardPvpValue.replace(',', '.'));
+                        if (!isNaN(v)) {
+                          await handlePvpOverride(a, v);
+                          setExpandedCardId(null);
+                        }
+                      }}
+                    >{isSavingThis ? '…' : 'Guardar'}</button>
+                  </div>
+                  {previewMargin !== null && (
+                    <div style={{ fontSize: '12px', marginTop: '4px', color: previewMargin < 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+                      {previewMargin < 0 ? '⚠ Por debajo del coste' : `→ Margen resultante: ${previewMargin.toFixed(1)}%`}
+                    </div>
+                  )}
+                </div>
+
+                {/* Margin % */}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                    Margen %
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="number" step="1" min="0" max="500"
+                      value={cardMarginValue}
+                      onChange={e => setCardMarginValue(e.target.value)}
+                      style={{ flex: 1, padding: '9px 12px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' }}
+                    />
+                    <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>%</span>
+                    <button
+                      className="btn btn-accent btn-sm"
+                      disabled={isSavingThis || !cardMarginValue}
+                      onClick={async () => {
+                        const v = parseFloat(cardMarginValue.replace(',', '.'));
+                        if (!isNaN(v)) {
+                          await handleUpdate(a.id, 'margen_pct', cardMarginValue);
+                          setExpandedCardId(null);
+                        }
+                      }}
+                    >{isSavingThis ? '…' : 'Aplicar'}</button>
+                    {a.margen_override && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={isSavingThis}
+                        onClick={async () => { await handleResetMargin(a); setExpandedCardId(null); }}
+                        title="Restablecer margen automático"
+                      >↺ Auto</button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quantity + IVA row */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Cantidad</div>
+                    <input
+                      type="number" step="1" min="0.001"
+                      defaultValue={a.cantidad ?? ''}
+                      onBlur={e => { if (e.target.value !== String(a.cantidad ?? '')) handleUpdate(a.id, 'cantidad', e.target.value); }}
+                      style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>IVA %</div>
+                    <select
+                      defaultValue={a.iva_pct ?? 21}
+                      onChange={e => handleUpdate(a.id, 'iva_pct', e.target.value)}
+                      style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit', background: 'var(--surface)' }}
+                    >
+                      {[0, 4, 5, 10, 21].map(v => <option key={v} value={v}>{v}%</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Delete + close */}
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', paddingTop: '4px' }}>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={async () => { await handleDelete(a.id); setExpandedCardId(null); }}
+                  >✕ Eliminar artículo</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setExpandedCardId(null)}>Cerrar</button>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="article-card-meta">
-            <span title="Cantidad">📦 {a.cantidad ?? '—'}</span>
-            <span title="Coste neto">💰 {a.coste_neto_unitario != null ? `${a.coste_neto_unitario.toFixed(2)} €` : '—'}</span>
-            <span title="Margen" style={{ color: a.margen_override ? 'var(--accent)' : 'var(--success)', fontWeight: 600 }}>
-              {a.margen_override ? '●' : '◉'} {a.margen_pct != null ? `${a.margen_pct.toFixed(1)}%` : '—'}
-            </span>
-            {a.codigo_principal && <span title="Referencia">REF: {a.codigo_principal}</span>}
-            {a.ean && <span title="EAN">EAN: {a.ean}</span>}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
