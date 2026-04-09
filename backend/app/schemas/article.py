@@ -1,6 +1,6 @@
 import datetime
 import json
-from typing import Optional, Any, Dict
+from typing import Optional, Any
 from pydantic import BaseModel, field_validator
 
 
@@ -20,7 +20,7 @@ class ArticleBase(BaseModel):
     codigo_fabricante: Optional[str] = None
     ean: Optional[str] = None
     codigo_principal: Optional[str] = None
-    otros_codigos: Optional[Dict[str, Any]] = None
+    otros_codigos: Optional[Any] = None
 
 
 class ArticleCreate(ArticleBase):
@@ -44,7 +44,7 @@ class ArticleUpdate(BaseModel):
     codigo_fabricante: Optional[str] = None
     ean: Optional[str] = None
     codigo_principal: Optional[str] = None
-    otros_codigos: Optional[Dict[str, Any]] = None
+    otros_codigos: Optional[Any] = None
 
 
 class ArticleResponse(ArticleBase):
