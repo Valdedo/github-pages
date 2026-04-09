@@ -524,7 +524,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                 codigo_fabricante=art_data.get("codigo_fabricante"),
                 ean=art_data.get("ean"),
                 codigo_principal=art_data.get("codigo_principal"),
-                otros_codigos=json.dumps(otros) if otros else None,
+                otros_codigos=otros if otros else None,
             )
             db.add(article)
 
@@ -709,7 +709,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
                 codigo_fabricante=art_data.get("codigo_fabricante"),
                 ean=art_data.get("ean"),
                 codigo_principal=art_data.get("codigo_principal"),
-                otros_codigos=json.dumps(otros) if otros else None,
+                otros_codigos=otros if otros else None,
             )
             db.add(article)
 

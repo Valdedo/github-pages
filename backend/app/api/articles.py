@@ -95,7 +95,7 @@ def create_article(article_in: ArticleCreate, db: Session = Depends(get_db)):
         codigo_fabricante=article_in.codigo_fabricante,
         ean=article_in.ean,
         codigo_principal=article_in.codigo_principal,
-        otros_codigos=json.dumps(article_in.otros_codigos) if article_in.otros_codigos else None,
+        otros_codigos=article_in.otros_codigos if article_in.otros_codigos else None,
         coste_neto_unitario=0,
         coste_neto_total=0,
         pvp_sin_iva=0,
@@ -189,7 +189,7 @@ def update_article(
     # Handle otros_codigos
     if "otros_codigos" in update_data:
         oc = update_data.pop("otros_codigos")
-        article.otros_codigos = json.dumps(oc) if oc else None
+        article.otros_codigos = oc if oc else None
 
     for field, value in update_data.items():
         setattr(article, field, value)

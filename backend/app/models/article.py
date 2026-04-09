@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Integer, String, Text, Float, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import Integer, String, Text, Float, Boolean, DateTime, ForeignKey, func, JSON
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from typing import Optional
 
@@ -41,7 +41,7 @@ class Article(Base):
     codigo_fabricante: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     ean: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     codigo_principal: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    otros_codigos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
+    otros_codigos: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     product_info_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("product_info.id", ondelete="SET NULL"), nullable=True
