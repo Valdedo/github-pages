@@ -26,6 +26,7 @@ reportlab==4.2.5
 # Barcodes & QR
 python-barcode==0.15.1
 qrcode[pil]==8.0
+pyzbar==0.1.10
 
 # HTTP requests (for product search)
 httpx==0.28.1

@@ -71,12 +71,12 @@ export function SalePage() {
     setCameraError('');
     setScanError('');
     try {
-      const { BrowserMultiFormatReader, NotFoundException } = await import('@zxing/browser');
-      const reader = new BrowserMultiFormatReader();
+      const ZXing = await import('@zxing/browser');
+      const reader = new ZXing.BrowserMultiFormatReader();
       readerRef.current = reader;
 
       // Get available cameras, prefer back camera on mobile
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
       const backCamera = devices.find(d =>
         /back|rear|environment/i.test(d.label)
       ) || devices[devices.length - 1];
@@ -100,8 +100,9 @@ export function SalePage() {
               }, 2500);
             }
           }
-          if (err && !(err instanceof NotFoundException)) {
-            console.debug('Scanner:', err);
+          // Ignore "NotFoundException" (no barcode in frame — normal during scanning)
+          if (err && !err.message?.includes('No MultiFormat Readers') && !err.name?.includes('NotFoundException')) {
+            console.debug('Scanner:', err.message || err);
           }
         }
       );

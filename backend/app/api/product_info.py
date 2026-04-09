@@ -320,7 +320,7 @@ def product_sheet(
 
 @router.post("/decode-image")
 async def decode_barcode_image(file: UploadFile = File(...)):
-    """Decode barcode/QR from uploaded image using OpenCV. Universal fallback for all devices."""
+    """Decode barcode/QR from uploaded image. Uses pyzbar for EAN/Code128 + OpenCV for QR."""
     try:
         import cv2
         import numpy as np
@@ -333,27 +333,53 @@ async def decode_barcode_image(file: UploadFile = File(...)):
     if img is None:
         raise HTTPException(400, "No se pudo leer la imagen")
 
-    # Try OpenCV barcode detector (EAN-13, EAN-8, Code128, QR, etc.)
-    try:
-        detector = cv2.barcode.BarcodeDetector()
-        ok, decoded_info, decoded_type, _ = detector.detectAndDecodeMulti(img)
-        if ok and decoded_info:
-            codes = [c for c in decoded_info if c]
-            if codes:
-                return {"code": codes[0], "all_codes": codes}
-    except Exception:
-        pass
+    # Resize if too large (phone photos are 3000-4000px; 1200px is plenty)
+    h, w = img.shape[:2]
+    if max(h, w) > 1200:
+        scale = 1200 / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
-    # Fallback: QR code detector
-    try:
-        qr = cv2.QRCodeDetector()
-        data, _, _ = qr.detectAndDecode(img)
-        if data:
-            return {"code": data, "all_codes": [data]}
-    except Exception:
-        pass
+    def _try_pyzbar(image):
+        try:
+            from pyzbar.pyzbar import decode as pyzbar_decode
+            barcodes = pyzbar_decode(image)
+            codes = [b.data.decode("utf-8") for b in barcodes if b.data]
+            return codes
+        except Exception:
+            return []
 
-    raise HTTPException(404, "No se detectó ningún código de barras en la imagen")
+    def _try_qr_opencv(image):
+        try:
+            qr = cv2.QRCodeDetector()
+            data, _, _ = qr.detectAndDecode(image)
+            return [data] if data else []
+        except Exception:
+            return []
+
+    # 1. Try pyzbar on colour image
+    codes = _try_pyzbar(img)
+    if codes:
+        return {"code": codes[0], "all_codes": codes}
+
+    # 2. Try grayscale + slight sharpening
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    sharp = cv2.filter2D(gray, -1, np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]]))
+    codes = _try_pyzbar(sharp)
+    if codes:
+        return {"code": codes[0], "all_codes": codes}
+
+    # 3. Try adaptive threshold (helps with poor lighting)
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    codes = _try_pyzbar(thresh)
+    if codes:
+        return {"code": codes[0], "all_codes": codes}
+
+    # 4. OpenCV QR fallback
+    codes = _try_qr_opencv(img)
+    if codes:
+        return {"code": codes[0], "all_codes": codes}
+
+    raise HTTPException(404, "No se detectó ningún código de barras. Acércate más al código y asegúrate de que esté bien iluminado.")
 
 
 async def _search_product_bg(product_id: int, codigo: str, descripcion: str):
