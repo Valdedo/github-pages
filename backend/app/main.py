@@ -17,6 +17,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Version tag — bump this to confirm new build is running
+APP_VERSION = "2.1.0"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +36,7 @@ async def lifespan(app: FastAPI):
 
     create_tables()
     logger.info("Database tables created/verified.")
+    logger.info(f"App version: {APP_VERSION} — routers: dashboard, documents, articles, export, settings, products, analytics, repairs, orders")
     yield
     logger.info("Shutting down...")
 
@@ -72,10 +76,13 @@ def health():
     upload_ok = os.path.isdir(app_settings.upload_dir)
     export_ok = os.path.isdir(app_settings.export_dir)
     data_writable = os.access("/data", os.W_OK) if os.path.exists("/data") else False
+    routes = sorted({r.path for r in app.routes})
     return {
         "status": "ok",
+        "version": APP_VERSION,
         "service": "Albarán Processor API",
         "upload_dir_exists": upload_ok,
         "export_dir_exists": export_ok,
         "data_writable": data_writable,
+        "routes": routes,
     }
