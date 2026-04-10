@@ -1,21 +1,51 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Wrench, ShoppingCart, Clock, CheckCircle, AlertCircle, Plus } from 'lucide-react';
-import { getDashboardStats } from '../api/client';
-import type { DashboardStats } from '../types';
+import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { getDashboardStats, listDocuments } from '../api/client';
+import type { DashboardStats, DocumentListItem } from '../types';
 
 const STATUS_LABEL: Record<string, string> = {
   uploaded: 'Subido', processing: 'Analizando', completed: 'Completado', error: 'Error',
+};
+
+const EMPTY_STATS: DashboardStats = {
+  documents: { total: 0, processing: 0 },
+  repairs: { recibida: 0, en_taller: 0, reparada: 0, entregada: 0, pending: 0 },
+  orders: { pendiente: 0, parcial: 0, recibido: 0, pending: 0 },
+  recent_documents: [],
 };
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fallbackDocs, setFallbackDocs] = useState<DocumentListItem[]>([]);
 
   useEffect(() => {
     getDashboardStats()
       .then(({ data }) => setStats(data))
+      .catch(() => {
+        // Stats endpoint unavailable — fall back to documents list
+        listDocuments()
+          .then(({ data: docs }) => {
+            setFallbackDocs(docs);
+            setStats({
+              ...EMPTY_STATS,
+              documents: {
+                total: docs.length,
+                processing: docs.filter(d => d.status === 'processing').length,
+              },
+              recent_documents: docs.slice(0, 5).map(d => ({
+                id: d.id,
+                original_filename: d.original_filename,
+                status: d.status,
+                supplier_name: d.supplier_name ?? null,
+                created_at: d.created_at,
+              })),
+            });
+          })
+          .catch(() => setStats(EMPTY_STATS));
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -23,7 +53,7 @@ export function DashboardPage() {
     return (
       <div className="page">
         <div className="stat-grid">
-          {[1,2,3,4].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className="stat-card" style={{ minHeight: 110 }}>
               <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--border)', marginBottom: 8 }} />
               <div style={{ width: 60, height: 28, borderRadius: 6, background: 'var(--border)' }} />
@@ -35,21 +65,8 @@ export function DashboardPage() {
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="page">
-        <div style={{ textAlign: 'center', padding: 60 }}>
-          <AlertCircle size={40} style={{ color: 'var(--danger)', marginBottom: 16 }} />
-          <p style={{ color: 'var(--text-2)', marginBottom: 16 }}>No se pudo conectar con el servidor.</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()}>
-            Reintentar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const s = stats;
+  const s = stats ?? EMPTY_STATS;
+  const isFallback = fallbackDocs.length > 0 || (stats !== null && stats === EMPTY_STATS && !stats.repairs.pending);
 
   return (
     <div className="page">
@@ -196,7 +213,6 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Repairs needing attention */}
           {s.repairs.reparada > 0 && (
             <div className="card" style={{ borderColor: '#d1fae5', background: '#f0fdf4' }}>
               <div className="card-header" style={{ color: 'var(--success)' }}>
@@ -211,7 +227,6 @@ export function DashboardPage() {
             </div>
           )}
 
-          {/* Overdue orders */}
           {s.orders.pending > 0 && (
             <div className="card" style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
               <div className="card-header" style={{ color: 'var(--warning)' }}>
