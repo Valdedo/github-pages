@@ -5,3 +5,8 @@ dockerfilePath = "Dockerfile"
 healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
+
+[deploy.environmentVariables]
+# Railway private networking: frontend nginx → backend service
+# "backend" must match the service name in your Railway project
+BACKEND_URL = "http://backend.railway.internal:8000"

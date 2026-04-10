@@ -32,7 +32,7 @@ RUN mkdir -p /etc/nginx/templates && \
   root /usr/share/nginx/html; \
   index index.html; \
   client_max_body_size 25m; \
-  resolver 8.8.8.8 1.1.1.1 valid=30s ipv6=off; \
+  resolver 127.0.0.11 valid=30s ipv6=off; \
   location / { \
     try_files $uri $uri/ /index.html; \
   } \
