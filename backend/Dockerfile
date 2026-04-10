@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Cache-bust: v2 — forces full rebuild with repairs/orders modules
+ARG CACHEBUST=2
+
 # Install system dependencies for OCR and image processing
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
