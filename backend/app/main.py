@@ -6,11 +6,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +54,7 @@ app.add_middleware(
 )
 
 # Register API routers
+app.include_router(dashboard.router)
 app.include_router(documents.router)
 app.include_router(articles.router)
 app.include_router(export.router)
@@ -63,70 +63,6 @@ app.include_router(product_info.router)
 app.include_router(analytics.router)
 app.include_router(repairs.router)
 app.include_router(supplier_orders.router)
-
-
-@app.get("/api/dashboard/stats")
-def dashboard_stats():
-    """Aggregate stats for the home dashboard."""
-    from app.database import SessionLocal
-    from app.models.document import Document
-    from app.models.repair import Repair
-    from app.models.supplier_order import SupplierOrder
-    from sqlalchemy import func
-
-    db = SessionLocal()
-    try:
-        # Documents
-        doc_total = db.query(func.count(Document.id)).scalar() or 0
-        doc_processing = db.query(func.count(Document.id)).filter(Document.status == "processing").scalar() or 0
-
-        # Repairs
-        repair_rows = db.query(Repair.status, func.count(Repair.id)).group_by(Repair.status).all()
-        repair_stats = {r[0]: r[1] for r in repair_rows}
-
-        # Orders
-        order_rows = db.query(SupplierOrder.status, func.count(SupplierOrder.id)).group_by(SupplierOrder.status).all()
-        order_stats = {r[0]: r[1] for r in order_rows}
-
-        # Recent documents (last 5)
-        recent_docs = (
-            db.query(Document)
-            .order_by(Document.created_at.desc())
-            .limit(5)
-            .all()
-        )
-
-        return {
-            "documents": {
-                "total": doc_total,
-                "processing": doc_processing,
-            },
-            "repairs": {
-                "recibida": repair_stats.get("recibida", 0),
-                "en_taller": repair_stats.get("en_taller", 0),
-                "reparada": repair_stats.get("reparada", 0),
-                "entregada": repair_stats.get("entregada", 0),
-                "pending": repair_stats.get("recibida", 0) + repair_stats.get("en_taller", 0) + repair_stats.get("reparada", 0),
-            },
-            "orders": {
-                "pendiente": order_stats.get("pendiente", 0),
-                "parcial": order_stats.get("parcial", 0),
-                "recibido": order_stats.get("recibido", 0),
-                "pending": order_stats.get("pendiente", 0) + order_stats.get("parcial", 0),
-            },
-            "recent_documents": [
-                {
-                    "id": d.id,
-                    "original_filename": d.original_filename,
-                    "status": d.status,
-                    "supplier_name": d.supplier_name,
-                    "created_at": d.created_at.isoformat(),
-                }
-                for d in recent_docs
-            ],
-        }
-    finally:
-        db.close()
 
 
 @app.get("/health")
