@@ -690,6 +690,10 @@ select.form-input { cursor: pointer; }
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+@keyframes progress-slide {
+  0%   { left: -40%; }
+  100% { left: 100%; }
+}
 
 /* ── Article table show/hide ─────────────────────────────────── */
 .article-table-desktop { display: block; }
