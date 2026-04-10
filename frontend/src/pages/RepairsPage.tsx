@@ -119,8 +119,9 @@ function RepairModal({
         ? await updateRepair(repair.id, payload)
         : await createRepair(payload as any);
       onSaved(data);
-    } catch {
-      setError('Error al guardar la reparación');
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setError(detail ? `Error: ${detail}` : 'Error al guardar la reparación');
     } finally {
       setSaving(false);
     }

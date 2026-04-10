@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from sqlalchemy import Integer, String, Text, Float, Date, DateTime, ForeignKey, func
+from sqlalchemy import Integer, String, Text, Float, Date, DateTime, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from typing import Optional, List
 
@@ -11,35 +11,30 @@ class SupplierOrder(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
-    # Supplier (reuse existing supplier model if available, or plain text)
     supplier_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True
     )
     supplier_name: Mapped[str] = mapped_column(String(200))
 
-    # Dates
     order_date: Mapped[date] = mapped_column(Date)
     expected_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     received_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
-    # Status: pendiente | parcial | recibido | cancelado
     status: Mapped[str] = mapped_column(String(20), default="pendiente", index=True)
 
-    # Notes and references
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    reference: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # order number
+    reference: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    # Link to incoming albarán (when the delivery arrives)
     document_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True
     )
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Python-side defaults so values are available immediately after INSERT
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    # Relationships
     lines: Mapped[List["SupplierOrderLine"]] = relationship(
         "SupplierOrderLine", back_populates="order", cascade="all, delete-orphan", order_by="SupplierOrderLine.id"
     )
@@ -61,10 +56,10 @@ class SupplierOrderLine(Base):
     precio_unitario: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Python-side defaults
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
-    # Relationship
     order: Mapped["SupplierOrder"] = relationship("SupplierOrder", back_populates="lines")
