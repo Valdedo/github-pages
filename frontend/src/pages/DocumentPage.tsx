@@ -120,7 +120,7 @@ export function DocumentPage() {
           <>
             <div className="empty-state-icon">❌</div>
             <div className="empty-state-text">Documento no encontrado.</div>
-            <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/')}>← Volver al inicio</button>
+            <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/albaranes')}>← Volver a albaranes</button>
           </>
         ) : (
           <>

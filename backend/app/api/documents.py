@@ -144,23 +144,30 @@ def list_documents(
     limit: int = 50,
     db: Session = Depends(get_db),
 ):
-    """List all documents."""
-    docs = db.query(Document).order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
-    result = []
-    for doc in docs:
-        article_count = db.query(Article).filter(Article.document_id == doc.id).count()
-        item = DocumentListItem(
+    """List all documents with article counts (single query, no N+1)."""
+    from sqlalchemy import func, outerjoin
+    rows = (
+        db.query(Document, func.count(Article.id).label("article_count"))
+        .outerjoin(Article, Article.document_id == Document.id)
+        .group_by(Document.id)
+        .order_by(Document.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return [
+        DocumentListItem(
             id=doc.id,
             original_filename=doc.original_filename,
             status=doc.status,
             supplier_name=doc.supplier_name,
             doc_number=doc.doc_number,
             doc_date=doc.doc_date,
-            article_count=article_count,
+            article_count=count,
             created_at=doc.created_at,
         )
-        result.append(item)
-    return result
+        for doc, count in rows
+    ]
 
 
 @router.get("/{doc_id}", response_model=DocumentWithArticles)
@@ -387,7 +394,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
     db = SessionLocal()
     suppliers_data: list = []
     tiers: list = []
-    rounding_mode = "ceil_10cents"
+    rounding_mode = "ceil_5cents"
     rounding_decimals = 2
     supplier_name_fallback = None
     try:
@@ -414,7 +421,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             db.add(app_settings)
             db.commit()
         tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
-        rounding_mode = app_settings.rounding_mode or "ceil_10cents"
+        rounding_mode = app_settings.rounding_mode or "ceil_5cents"
         rounding_decimals = app_settings.rounding_decimals or 2
     finally:
         db.close()
@@ -561,7 +568,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
     file_path = doc_type = supplier_name_fallback = None
     suppliers_data: list = []
     tiers: list = []
-    rounding_mode = "ceil_10cents"
+    rounding_mode = "ceil_5cents"
     rounding_decimals = 2
     try:
         doc = db.query(Document).filter(Document.id == doc_id).first()
@@ -591,7 +598,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
             db.add(app_settings)
             db.commit()
         tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
-        rounding_mode = app_settings.rounding_mode or "ceil_10cents"
+        rounding_mode = app_settings.rounding_mode or "ceil_5cents"
         rounding_decimals = app_settings.rounding_decimals or 2
     finally:
         db.close()  # release DB lock before long extraction

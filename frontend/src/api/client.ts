@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct } from '../types';
+import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -134,3 +134,35 @@ export const decodeBarcodeImage = (file: File) => {
     timeout: 15000,
   });
 };
+
+// Dashboard
+export const getDashboardStats = () => api.get<DashboardStats>('/api/dashboard/stats');
+
+// Repairs
+export const listRepairs = (status?: string) =>
+  api.get<Repair[]>(`/api/repairs${status ? `?status=${status}` : ''}`);
+export const getRepair = (id: number) => api.get<Repair>(`/api/repairs/${id}`);
+export const createRepair = (data: Omit<Repair, 'id' | 'created_at' | 'updated_at' | 'date_received'>) =>
+  api.post<Repair>('/api/repairs', data);
+export const updateRepair = (id: number, data: Partial<Repair>) =>
+  api.put<Repair>(`/api/repairs/${id}`, data);
+export const deleteRepair = (id: number) => api.delete(`/api/repairs/${id}`);
+export const getRepairStats = () => api.get<{ recibida: number; en_taller: number; reparada: number; entregada: number; pending: number; total: number }>('/api/repairs/stats');
+
+// Supplier Orders
+export const listOrders = (status?: string) =>
+  api.get<SupplierOrderListItem[]>(`/api/orders${status ? `?status=${status}` : ''}`);
+export const getOrder = (id: number) => api.get<SupplierOrder>(`/api/orders/${id}`);
+export const createOrder = (data: Omit<SupplierOrder, 'id' | 'created_at' | 'updated_at' | 'lines'> & { lines?: Partial<SupplierOrderLine>[] }) =>
+  api.post<SupplierOrder>('/api/orders', data);
+export const updateOrder = (id: number, data: Partial<SupplierOrder>) =>
+  api.put<SupplierOrder>(`/api/orders/${id}`, data);
+export const deleteOrder = (id: number) => api.delete(`/api/orders/${id}`);
+export const getOrderStats = () => api.get<{ pendiente: number; parcial: number; recibido: number; pending: number; total: number }>('/api/orders/stats');
+
+export const addOrderLine = (orderId: number, data: Partial<SupplierOrderLine>) =>
+  api.post<SupplierOrderLine>(`/api/orders/${orderId}/lines`, data);
+export const updateOrderLine = (orderId: number, lineId: number, data: Partial<SupplierOrderLine>) =>
+  api.put<SupplierOrderLine>(`/api/orders/${orderId}/lines/${lineId}`, data);
+export const deleteOrderLine = (orderId: number, lineId: number) =>
+  api.delete(`/api/orders/${orderId}/lines/${lineId}`);

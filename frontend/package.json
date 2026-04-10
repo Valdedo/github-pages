@@ -9,15 +9,18 @@
   },
   "dependencies": {
     "@tanstack/react-table": "^8.20.5",
+    "@types/recharts": "^1.8.29",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "axios": "^1.7.9",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^1.8.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
     "react-dropzone": "^14.3.5",
-    "zustand": "^5.0.2",
-    "date-fns": "^4.1.0"
+    "react-router-dom": "^6.28.0",
+    "recharts": "^3.8.1",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.17",

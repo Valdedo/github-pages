@@ -40,7 +40,7 @@ def get_db():
 
 
 def create_tables():
-    from app.models import document, article, supplier, product_info, app_settings  # noqa
+    from app.models import document, article, supplier, product_info, app_settings, repair, supplier_order  # noqa
     Base.metadata.create_all(bind=engine)
     _run_migrations()
 

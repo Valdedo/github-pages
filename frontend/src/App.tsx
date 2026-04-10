@@ -1,120 +1,171 @@
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import {
+  LayoutDashboard, FileText, Wrench, ShoppingCart,
+  BarChart2, Store, ChevronLeft, Menu, X
+} from 'lucide-react';
+
+import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { DocumentPage } from './pages/DocumentPage';
 import { ProductInfoPage } from './pages/ProductInfoPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SalePage } from './pages/SalePage';
+import { RepairsPage } from './pages/RepairsPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
+import { getDashboardStats } from './api/client';
 
-function Navbar() {
+interface NavBadge {
+  repairs: number;
+  orders: number;
+}
+
+const navItems = [
+  { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
+  { to: '/albaranes', label: 'Albaranes', icon: FileText },
+  { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' as const },
+  { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' as const },
+  { to: '/venta', label: 'Venta', icon: Store },
+  { to: '/analisis', label: 'Análisis', icon: BarChart2 },
+];
+
+function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed: boolean; onToggle: () => void }) {
+  return (
+    <aside className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
+      {/* Logo */}
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">CF</div>
+        {!collapsed && (
+          <div className="sidebar-logo-text">
+            <span className="sidebar-logo-name">Casa Fonso</span>
+          </div>
+        )}
+        <button className="sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expandir' : 'Colapsar'}>
+          {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
+        </button>
+      </div>
+
+      {/* Nav items */}
+      <nav className="sidebar-nav">
+        {navItems.map(({ to, label, icon: Icon, badge, exact }) => {
+          const count = badge ? badges[badge] : 0;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={exact}
+              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+              title={collapsed ? label : undefined}
+            >
+              <span className="sidebar-item-icon">
+                <Icon size={18} />
+                {count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
+              </span>
+              {!collapsed && <span className="sidebar-item-label">{label}</span>}
+            </NavLink>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isHome = location.pathname === '/';
+  const current = navItems.find(n => n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to) && n.to !== '/');
+  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/');
 
   return (
-    <nav className="navbar">
-      <a href="/" className="navbar-brand">
-        <div className="navbar-brand-icon">CF</div>
-        <span>Casa Fonso</span>
-        <span style={{ fontWeight: 400, color: 'var(--text-3)', fontSize: '13px', paddingLeft: '2px' }}>
-          · Albaranes
-        </span>
-      </a>
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <button
-          className={`btn btn-ghost btn-sm${location.pathname === '/venta' ? ' active' : ''}`}
-          onClick={() => navigate('/venta')}
-          style={{ color: location.pathname === '/venta' ? 'var(--brand)' : undefined }}
-        >
-          🛒 Venta
+    <header className="mobile-header">
+      {isDoc ? (
+        <button className="mobile-back-btn" onClick={() => navigate(-1)}>
+          <ChevronLeft size={20} /> Volver
         </button>
-        <button
-          className={`btn btn-ghost btn-sm${location.pathname === '/analisis' ? ' active' : ''}`}
-          onClick={() => navigate('/analisis')}
-          style={{ color: location.pathname === '/analisis' ? 'var(--brand)' : undefined }}
-        >
-          📊 Análisis
-        </button>
-        {!isHome && location.pathname !== '/analisis' && (
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-            ← Inicio
-          </button>
-        )}
-      </div>
+      ) : (
+        <div className="sidebar-logo-icon" style={{ width: 28, height: 28, fontSize: 10 }}>CF</div>
+      )}
+      <span className="mobile-header-title">{current?.label ?? 'Casa Fonso'}</span>
+      <div style={{ width: 28 }} />
+    </header>
+  );
+}
+
+function BottomNav({ badges }: { badges: NavBadge }) {
+  const mobileItems = navItems.slice(0, 5);
+  return (
+    <nav className="bottom-nav">
+      {mobileItems.map(({ to, label, icon: Icon, badge, exact }) => {
+        const count = badge ? badges[badge] : 0;
+        return (
+          <NavLink
+            key={to}
+            to={to}
+            end={exact}
+            className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
+          >
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <Icon size={22} />
+              {count > 0 && (
+                <span className="bottom-badge">{count > 9 ? '9+' : count}</span>
+              )}
+            </span>
+            <span>{label}</span>
+          </NavLink>
+        );
+      })}
     </nav>
   );
 }
 
-function BottomNav() {
-  const navigate = useNavigate();
-  const location = useLocation();
+function AppShell() {
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
+  const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0 });
+
+  // Load badge counts (pending repairs + pending orders)
+  useEffect(() => {
+    const load = () => {
+      getDashboardStats().then(({ data }) => {
+        setBadges({
+          repairs: data.repairs.pending,
+          orders: data.orders.pending,
+        });
+      }).catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <nav className="bottom-nav">
-      <button
-        className={`bottom-nav-item${location.pathname === '/' ? ' active' : ''}`}
-        onClick={() => navigate('/')}
-      >
-        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"/>
-          <path d="M9 21V12h6v9"/>
-        </svg>
-        Inicio
-      </button>
-
-      <button
-        className="bottom-nav-item"
-        onClick={() => {
-          navigate('/');
-          setTimeout(() => {
-            document.getElementById('upload-trigger')?.click();
-          }, 100);
-        }}
-      >
-        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <rect x="3" y="3" width="18" height="18" rx="3"/>
-          <path d="M12 8v8M8 12h8"/>
-        </svg>
-        Subir
-      </button>
-
-      <button
-        className={`bottom-nav-item${location.pathname === '/venta' ? ' active' : ''}`}
-        onClick={() => navigate('/venta')}
-      >
-        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-          <path d="M3 6h18M16 10a4 4 0 01-8 0"/>
-        </svg>
-        Venta
-      </button>
-      <button
-        className={`bottom-nav-item${location.pathname === '/analisis' ? ' active' : ''}`}
-        onClick={() => navigate('/analisis')}
-      >
-        <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-          <path d="M3 3v18h18"/>
-          <path d="M7 16l4-4 4 4 4-6"/>
-        </svg>
-        Análisis
-      </button>
-    </nav>
+    <div className="app-layout">
+      <Sidebar badges={badges} collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
+      <div className="app-content">
+        <MobileHeader />
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/albaranes" element={<HomePage />} />
+            <Route path="/documento/:id" element={<DocumentPage />} />
+            <Route path="/producto/:id" element={<ProductInfoPage />} />
+            <Route path="/analisis" element={<AnalyticsPage />} />
+            <Route path="/venta" element={<SalePage />} />
+            <Route path="/reparaciones" element={<RepairsPage />} />
+            <Route path="/pedidos" element={<OrdersPage />} />
+            <Route path="/pedidos/:id" element={<OrderDetailPage />} />
+          </Routes>
+        </main>
+        <BottomNav badges={badges} />
+      </div>
+    </div>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Navbar />
-      <main style={{ minHeight: 'calc(100vh - 56px)' }}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/documento/:id" element={<DocumentPage />} />
-          <Route path="/producto/:id" element={<ProductInfoPage />} />
-          <Route path="/analisis" element={<AnalyticsPage />} />
-          <Route path="/venta" element={<SalePage />} />
-        </Routes>
-      </main>
-      <BottomNav />
+      <AppShell />
     </BrowserRouter>
   );
 }

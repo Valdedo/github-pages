@@ -13,7 +13,17 @@ interface CartItem {
 const fmt2 = (n: number) => n.toFixed(2).replace('.', ',');
 
 export function SalePage() {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCartRaw] = useState<CartItem[]>(() => {
+    try { return JSON.parse(localStorage.getItem('sale_cart') ?? '[]'); } catch { return []; }
+  });
+
+  const setCart = (updater: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
+    setCartRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try { localStorage.setItem('sale_cart', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const [scanning, setScanning] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [lastScanned, setLastScanned] = useState('');

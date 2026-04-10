@@ -140,3 +140,73 @@ export interface TopProduct {
   pvp_avg: number;
   num_proveedores: number;
 }
+
+export type RepairStatus = 'recibida' | 'en_taller' | 'reparada' | 'entregada';
+
+export interface Repair {
+  id: number;
+  client_name: string;
+  client_phone?: string;
+  tool_brand?: string;
+  tool_model?: string;
+  tool_description: string;
+  problem_description: string;
+  status: RepairStatus;
+  estimated_price?: number;
+  final_price?: number;
+  date_received: string;
+  date_estimated_return?: string;
+  date_returned?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type OrderStatus = 'pendiente' | 'parcial' | 'recibido' | 'cancelado';
+
+export interface SupplierOrderLine {
+  id: number;
+  order_id: number;
+  descripcion: string;
+  cantidad: number;
+  cantidad_recibida: number;
+  precio_unitario?: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierOrder {
+  id: number;
+  supplier_id?: number;
+  supplier_name: string;
+  order_date: string;
+  expected_date?: string;
+  received_date?: string;
+  status: OrderStatus;
+  notes?: string;
+  reference?: string;
+  document_id?: number;
+  lines: SupplierOrderLine[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierOrderListItem {
+  id: number;
+  supplier_name: string;
+  order_date: string;
+  expected_date?: string;
+  status: OrderStatus;
+  reference?: string;
+  line_count: number;
+  lines_received: number;
+  created_at: string;
+}
+
+export interface DashboardStats {
+  documents: { total: number; processing: number };
+  repairs: { recibida: number; en_taller: number; reparada: number; entregada: number; pending: number };
+  orders: { pendiente: number; parcial: number; recibido: number; pending: number };
+  recent_documents: Array<{ id: number; original_filename: string; status: string; supplier_name?: string; created_at: string }>;
+}
