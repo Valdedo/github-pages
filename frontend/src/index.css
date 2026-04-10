@@ -273,6 +273,14 @@ html, body, #root { height: 100%; }
   margin-bottom: 24px;
 }
 
+/* ── Dashboard content grid ───────────────────────────────────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1006,6 +1014,12 @@ select.form-input { cursor: pointer; }
   }
 
   .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-card { padding: 14px; gap: 6px; }
+  .stat-card-value { font-size: 22px; }
+  .stat-card-icon { width: 34px; height: 34px; }
+
+  .dashboard-grid { grid-template-columns: 1fr; gap: 14px; }
+  .dashboard-page-header { display: none; }
 
   .navbar { padding: 0 16px; height: 52px; }
   .navbar-brand { font-size: 14px; gap: 8px; }

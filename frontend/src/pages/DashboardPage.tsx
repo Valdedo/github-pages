@@ -70,8 +70,8 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      {/* Header — hidden on mobile (title shown in MobileHeader instead) */}
+      <div className="dashboard-page-header" style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-1)', marginBottom: 4 }}>
           Panel de control
         </h1>
@@ -126,7 +126,7 @@ export function DashboardPage() {
       </div>
 
       {/* Content grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="dashboard-grid">
         {/* Recent documents */}
         <div className="card">
           <div className="card-header">
