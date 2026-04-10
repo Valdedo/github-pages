@@ -38,8 +38,6 @@ class SupplierOrder(Base):
     lines: Mapped[List["SupplierOrderLine"]] = relationship(
         "SupplierOrderLine", back_populates="order", cascade="all, delete-orphan", order_by="SupplierOrderLine.id"
     )
-    supplier: Mapped[Optional["Supplier"]] = relationship("Supplier")  # noqa: F821
-    document: Mapped[Optional["Document"]] = relationship("Document")  # noqa: F821
 
 
 class SupplierOrderLine(Base):
