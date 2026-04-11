@@ -185,50 +185,46 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
 
     Returns:
         {"documento": {...}, "articulos": [...]}
+    Raises:
+        Exception if the API call fails (so callers can set error status).
     """
     if not settings.anthropic_api_key:
-        logger.warning("ANTHROPIC_API_KEY not set, using fallback extraction")
-        return {"documento": {}, "articulos": []}
+        raise ValueError("ANTHROPIC_API_KEY no está configurada. Ve a los ajustes del servidor.")
 
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    import anthropic
+    # Use AsyncAnthropic so we don't block the event loop during the API call
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
-        prompt = build_extraction_prompt(raw_data, supplier_template)
+    prompt = build_extraction_prompt(raw_data, supplier_template)
 
-        for attempt in range(2):  # retry once on JSON parse error
-            if attempt > 0:
-                prompt = prompt + (
-                    "\n\nIMPORTANTE: Tu respuesta anterior no era JSON válido. "
-                    "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
-                    "sin bloques de código markdown, sin comillas extra."
-                )
-            message = client.messages.create(
-                model=settings.claude_model,
-                max_tokens=8192,
-                system=EXTRACTION_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": prompt}],
+    for attempt in range(2):  # retry once on JSON parse error
+        if attempt > 0:
+            prompt = prompt + (
+                "\n\nIMPORTANTE: Tu respuesta anterior no era JSON válido. "
+                "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
+                "sin bloques de código markdown, sin comillas extra."
             )
+        message = await client.messages.create(
+            model=settings.claude_model,
+            max_tokens=8192,
+            system=EXTRACTION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+        )
 
-            response_text = message.content[0].text.strip()
+        response_text = message.content[0].text.strip()
 
-            # Strip markdown code blocks if present
-            if response_text.startswith("```"):
-                response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
+        # Strip markdown code blocks if present
+        if response_text.startswith("```"):
+            response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
 
-            try:
-                result = json.loads(response_text)
-                return result
-            except json.JSONDecodeError as e:
-                if attempt == 0:
-                    logger.warning(f"Claude returned invalid JSON on attempt 1, retrying: {e}")
-                    continue
-                logger.error(f"Claude returned invalid JSON after retry: {e}")
-                return {"documento": {}, "articulos": []}
-
-    except Exception as e:
-        logger.error(f"Claude extraction failed: {e}")
-        return {"documento": {}, "articulos": []}
+        try:
+            result = json.loads(response_text)
+            return result
+        except json.JSONDecodeError as e:
+            if attempt == 0:
+                logger.warning(f"Claude returned invalid JSON on attempt 1, retrying: {e}")
+                continue
+            raise ValueError(f"Claude devolvió JSON inválido tras reintento: {e}\nRespuesta: {response_text[:300]}")
 
 
 async def extract_multi_images(

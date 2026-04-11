@@ -6,7 +6,7 @@ from pathlib import Path
 class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: str = Field(default="", env="ANTHROPIC_API_KEY")
-    claude_model: str = Field(default="claude-haiku-4-5-20251001", env="CLAUDE_MODEL")
+    claude_model: str = Field(default="claude-sonnet-4-6", env="CLAUDE_MODEL")
 
     # Database
     database_url: str = Field(default="sqlite:////data/app.db", env="DATABASE_URL")

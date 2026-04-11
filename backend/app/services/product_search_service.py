@@ -100,7 +100,8 @@ async def _extract_specs_with_claude(descripcion: str, codigo: str, page_text: s
 
     try:
         import anthropic, re
-        client = anthropic.Anthropic(api_key=app_settings.anthropic_api_key)
+        # Use AsyncAnthropic to avoid blocking the event loop
+        client = anthropic.AsyncAnthropic(api_key=app_settings.anthropic_api_key)
 
         prompt = f"""Producto de ferretería: "{descripcion}" (código: {codigo})
 
@@ -125,7 +126,7 @@ Devuelve ÚNICAMENTE este JSON (sin texto adicional, sin markdown):
 
 Si no encuentras información técnica suficiente, devuelve: {{"_ficha_ia": ""}}"""
 
-        message = client.messages.create(
+        message = await client.messages.create(
             model=app_settings.claude_model,
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
