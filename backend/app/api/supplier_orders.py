@@ -14,7 +14,7 @@ from app.models.supplier_order import SupplierOrder, SupplierOrderLine
 from app.schemas.supplier_order import (
     SupplierOrderCreate, SupplierOrderUpdate, SupplierOrderResponse,
     SupplierOrderListItem, SupplierOrderLineCreate, SupplierOrderLineUpdate,
-    SupplierOrderLineResponse, VALID_STATUSES
+    SupplierOrderLineResponse, VALID_STATUSES, MANUAL_STATUSES
 )
 
 logger = logging.getLogger(__name__)
@@ -22,11 +22,12 @@ router = APIRouter(prefix="/api/orders", tags=["orders"])
 
 
 def _recalculate_status(order: SupplierOrder) -> str:
-    """Recompute order status from line receipts."""
+    """Recompute order status from line receipts.
+    Manual statuses (pedido, entregado, cancelado) are never overridden."""
+    if order.status in MANUAL_STATUSES:
+        return order.status
     if not order.lines:
         return order.status
-    if order.status == "cancelado":
-        return "cancelado"
     total = sum(ln.cantidad for ln in order.lines)
     received = sum(ln.cantidad_recibida for ln in order.lines)
     if received == 0:
@@ -56,6 +57,8 @@ def list_orders(
         lines_received = sum(1 for ln in o.lines if ln.cantidad_recibida >= ln.cantidad)
         result.append(SupplierOrderListItem(
             id=o.id,
+            client_name=o.client_name or "",
+            client_phone=o.client_phone,
             supplier_name=o.supplier_name,
             order_date=o.order_date,
             expected_date=o.expected_date,

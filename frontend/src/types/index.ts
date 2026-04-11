@@ -164,7 +164,7 @@ export interface Repair {
   updated_at: string;
 }
 
-export type OrderStatus = 'pendiente' | 'parcial' | 'recibido' | 'cancelado';
+export type OrderStatus = 'pendiente' | 'pedido' | 'parcial' | 'recibido' | 'entregado' | 'cancelado';
 
 export interface SupplierOrderLine {
   id: number;
@@ -180,8 +180,10 @@ export interface SupplierOrderLine {
 
 export interface SupplierOrder {
   id: number;
+  client_name: string;
+  client_phone?: string;
   supplier_id?: number;
-  supplier_name: string;
+  supplier_name?: string;
   order_date: string;
   expected_date?: string;
   received_date?: string;
@@ -196,7 +198,9 @@ export interface SupplierOrder {
 
 export interface SupplierOrderListItem {
   id: number;
-  supplier_name: string;
+  client_name: string;
+  client_phone?: string;
+  supplier_name?: string;
   order_date: string;
   expected_date?: string;
   status: OrderStatus;

@@ -11,10 +11,15 @@ class SupplierOrder(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
+    # Who the order is FOR (primary)
+    client_name: Mapped[str] = mapped_column(String(200), default="")
+    client_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Who we ordered FROM (secondary)
     supplier_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    supplier_name: Mapped[str] = mapped_column(String(200))
+    supplier_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     order_date: Mapped[date] = mapped_column(Date)
     expected_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)

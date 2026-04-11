@@ -1,25 +1,40 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, ShoppingCart, Search, Pencil, Trash2, ChevronRight, Package } from 'lucide-react';
+import { Plus, ShoppingCart, Search, Trash2, ChevronRight, Package, Phone } from 'lucide-react';
 import { listOrders, createOrder, deleteOrder, listSuppliers } from '../api/client';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 
-const STATUSES: { value: OrderStatus | ''; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'pendiente', label: 'Pendiente' },
-  { value: 'parcial', label: 'Parcial' },
-  { value: 'recibido', label: 'Recibido' },
-  { value: 'cancelado', label: 'Cancelado' },
+// Status flow: pendiente → pedido → recibido → entregado
+const STATUSES: { value: OrderStatus | ''; label: string; color: string }[] = [
+  { value: '', label: 'Todos', color: '' },
+  { value: 'pendiente', label: 'Por pedir', color: 'pendiente' },
+  { value: 'pedido', label: 'Pedido', color: 'pedido' },
+  { value: 'recibido', label: 'Recibido', color: 'recibido' },
+  { value: 'entregado', label: 'Entregado', color: 'entregado' },
+  { value: 'cancelado', label: 'Cancelado', color: 'cancelado' },
 ];
 
-function StatusChip({ status }: { status: OrderStatus }) {
-  const labels: Record<OrderStatus, string> = {
-    pendiente: 'Pendiente', parcial: 'Parcial', recibido: 'Recibido', cancelado: 'Cancelado',
-  };
-  return <span className={`status-chip ${status}`}>{labels[status]}</span>;
+const STATUS_LABEL: Record<string, string> = {
+  pendiente: 'Por pedir',
+  pedido: 'Pedido',
+  parcial: 'Parcial',
+  recibido: 'Recibido',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
+};
+
+function StatusChip({ status }: { status: string }) {
+  return <span className={`status-chip ${status}`}>{STATUS_LABEL[status] ?? status}</span>;
+}
+
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 interface NewOrderForm {
+  client_name: string;
+  client_phone: string;
   supplier_name: string;
   supplier_id: string;
   order_date: string;
@@ -34,10 +49,11 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState<NewOrderForm>({
-    supplier_name: '', supplier_id: '', order_date: today,
-    expected_date: '', reference: '', notes: '',
+    client_name: '', client_phone: '',
+    supplier_name: '', supplier_id: '',
+    order_date: today(), expected_date: '',
+    reference: '', notes: '',
     lines: [{ descripcion: '', cantidad: '1', precio_unitario: '' }],
   });
   const [saving, setSaving] = useState(false);
@@ -61,15 +77,16 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = form.supplier_name.trim() || suppliers.find(s => String(s.id) === form.supplier_id)?.name;
-    if (!name) { setError('Selecciona o escribe el nombre del proveedor'); return; }
+    if (!form.client_name.trim()) { setError('El nombre del cliente es obligatorio'); return; }
     const validLines = form.lines.filter(l => l.descripcion.trim());
-    if (validLines.length === 0) { setError('Añade al menos una línea'); return; }
+    if (validLines.length === 0) { setError('Añade al menos un artículo'); return; }
     setSaving(true);
     setError('');
     try {
       await createOrder({
-        supplier_name: name,
+        client_name: form.client_name.trim(),
+        client_phone: form.client_phone.trim() || undefined,
+        supplier_name: form.supplier_name.trim() || undefined,
         supplier_id: form.supplier_id ? parseInt(form.supplier_id) : undefined,
         order_date: form.order_date,
         expected_date: form.expected_date || undefined,
@@ -91,10 +108,10 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Nuevo pedido</span>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>Nuevo pedido especial</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -103,34 +120,57 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
               <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>{error}</div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label className="form-label">Proveedor *</label>
-                {suppliers.length > 0 ? (
-                  <select className="form-input" value={form.supplier_id} onChange={handleSupplierChange} style={{ marginBottom: 6 }}>
-                    <option value="">— Seleccionar proveedor —</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    <option value="">Otro (escribir abajo)</option>
-                  </select>
-                ) : null}
-                <input
-                  className="form-input"
-                  value={form.supplier_name}
-                  onChange={setField('supplier_name')}
-                  placeholder={suppliers.length > 0 ? 'O escribe nombre del proveedor' : 'Nombre del proveedor'}
-                  style={{ margin: 0 }}
-                />
+            {/* CLIENT — primary */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Para quién es el pedido
               </div>
-              <div>
-                <label className="form-label">Referencia / N.º pedido</label>
-                <input className="form-input" value={form.reference} onChange={setField('reference')} placeholder="PED-2024-001" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">Cliente *</label>
+                  <input className="form-input" value={form.client_name} onChange={setField('client_name')} placeholder="Nombre del cliente" required />
+                </div>
+                <div>
+                  <label className="form-label">Teléfono</label>
+                  <input className="form-input" type="tel" value={form.client_phone} onChange={setField('client_phone')} placeholder="666 123 456" />
+                </div>
               </div>
             </div>
 
+            {/* SUPPLIER — secondary */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                A quién se pide
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">Proveedor</label>
+                  {suppliers.length > 0 && (
+                    <select className="form-input" value={form.supplier_id} onChange={handleSupplierChange} style={{ marginBottom: 6 }}>
+                      <option value="">— Seleccionar —</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  )}
+                  <input
+                    className="form-input"
+                    value={form.supplier_name}
+                    onChange={setField('supplier_name')}
+                    placeholder={suppliers.length > 0 ? 'O escribir nombre' : 'Nombre del proveedor'}
+                    style={{ margin: 0 }}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Referencia / N.º pedido</label>
+                  <input className="form-input" value={form.reference} onChange={setField('reference')} placeholder="PED-001" />
+                </div>
+              </div>
+            </div>
+
+            {/* Dates */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label className="form-label">Fecha del pedido *</label>
-                <input className="form-input" type="date" value={form.order_date} onChange={setField('order_date')} required />
+                <label className="form-label">Fecha del pedido</label>
+                <input className="form-input" type="date" value={form.order_date} onChange={setField('order_date')} />
               </div>
               <div>
                 <label className="form-label">Fecha estimada de llegada</label>
@@ -141,53 +181,22 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
             {/* Lines */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label className="form-label" style={{ margin: 0 }}>Artículos del pedido *</label>
+                <label className="form-label" style={{ margin: 0 }}>Artículos pedidos *</label>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={addLine}><Plus size={13} /> Añadir línea</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 32px', gap: 8, padding: '0 4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 96px 28px', gap: 8, padding: '0 4px' }}>
                   <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>ARTÍCULO</span>
                   <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>CANT.</span>
                   <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>PRECIO U.</span>
                   <span />
                 </div>
                 {form.lines.map((line, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 32px', gap: 8, alignItems: 'center' }}>
-                    <input
-                      className="form-input"
-                      placeholder={`Artículo ${i + 1}`}
-                      value={line.descripcion}
-                      onChange={setLine(i, 'descripcion')}
-                      style={{ margin: 0 }}
-                    />
-                    <input
-                      className="form-input"
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={line.cantidad}
-                      onChange={setLine(i, 'cantidad')}
-                      style={{ margin: 0, textAlign: 'right' }}
-                    />
-                    <input
-                      className="form-input"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="€"
-                      value={line.precio_unitario}
-                      onChange={setLine(i, 'precio_unitario')}
-                      style={{ margin: 0, textAlign: 'right' }}
-                    />
-                    <button
-                      type="button"
-                      style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 4, borderRadius: 4 }}
-                      onClick={() => removeLine(i)}
-                      disabled={form.lines.length === 1}
-                    >
-                      ✕
-                    </button>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 72px 96px 28px', gap: 8, alignItems: 'center' }}>
+                    <input className="form-input" placeholder={`Artículo ${i + 1}`} value={line.descripcion} onChange={setLine(i, 'descripcion')} style={{ margin: 0 }} />
+                    <input className="form-input" type="number" min="0.01" step="0.01" value={line.cantidad} onChange={setLine(i, 'cantidad')} style={{ margin: 0, textAlign: 'right' }} />
+                    <input className="form-input" type="number" min="0" step="0.01" placeholder="€" value={line.precio_unitario} onChange={setLine(i, 'precio_unitario')} style={{ margin: 0, textAlign: 'right' }} />
+                    <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 4 }} onClick={() => removeLine(i)} disabled={form.lines.length === 1}>✕</button>
                   </div>
                 ))}
               </div>
@@ -231,7 +240,8 @@ export function OrdersPage() {
 
   const filtered = search
     ? orders.filter(o =>
-        o.supplier_name.toLowerCase().includes(search.toLowerCase()) ||
+        o.client_name.toLowerCase().includes(search.toLowerCase()) ||
+        (o.supplier_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (o.reference ?? '').toLowerCase().includes(search.toLowerCase())
       )
     : orders;
@@ -243,15 +253,15 @@ export function OrdersPage() {
   };
 
   const isOverdue = (o: SupplierOrderListItem) =>
-    o.expected_date && o.status !== 'recibido' && o.status !== 'cancelado' &&
+    o.expected_date && o.status !== 'recibido' && o.status !== 'entregado' && o.status !== 'cancelado' &&
     new Date(o.expected_date) < new Date();
 
   return (
     <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Pedidos a proveedores</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Gestión y seguimiento de pedidos</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Pedidos especiales</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Artículos pedidos para clientes concretos</p>
         </div>
         <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setShowModal(true)}>
           <Plus size={15} /> Nuevo pedido
@@ -264,7 +274,7 @@ export function OrdersPage() {
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input
             className="form-input"
-            placeholder="Buscar proveedor o referencia…"
+            placeholder="Buscar cliente o proveedor…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 32, margin: 0 }}
@@ -314,23 +324,41 @@ export function OrdersPage() {
             >
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
+
+                  {/* CLIENT — primary */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: 15 }}>{order.supplier_name}</span>
-                    {order.reference && (
-                      <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>
-                        {order.reference}
-                      </span>
+                    <span style={{ fontWeight: 700, fontSize: 15 }}>{order.client_name || '—'}</span>
+                    {order.client_phone && (
+                      <a
+                        href={`tel:${order.client_phone}`}
+                        style={{ color: 'var(--text-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <Phone size={12} /> {order.client_phone}
+                      </a>
                     )}
                     <StatusChip status={order.status} />
                     {isOverdue(order) && (
                       <span style={{ fontSize: 11, color: '#b91c1c', fontWeight: 600 }}>⚠ Retrasado</span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap' }}>
-                    <span>Pedido: {new Date(order.order_date).toLocaleDateString('es-ES')}</span>
+
+                  {/* SUPPLIER + meta — secondary */}
+                  <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {order.supplier_name && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <ShoppingCart size={11} /> {order.supplier_name}
+                      </span>
+                    )}
+                    {order.reference && (
+                      <span style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>
+                        {order.reference}
+                      </span>
+                    )}
+                    <span>Pedido: {fmtDate(order.order_date)}</span>
                     {order.expected_date && (
                       <span style={{ color: isOverdue(order) ? '#b91c1c' : undefined }}>
-                        Estimado: {new Date(order.expected_date).toLocaleDateString('es-ES')}
+                        Est. llegada: {fmtDate(order.expected_date)}
                       </span>
                     )}
                     <span>{order.line_count} artículo{order.line_count !== 1 ? 's' : ''}</span>
@@ -338,24 +366,22 @@ export function OrdersPage() {
                 </div>
 
                 {/* Receipt progress */}
-                <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 120 }}>
-                  {order.line_count > 0 && (
-                    <>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
-                        {order.lines_received}/{order.line_count} recibidos
-                      </div>
-                      <div className="progress-bar" style={{ width: 100 }}>
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${(order.lines_received / order.line_count) * 100}%`,
-                            background: order.status === 'recibido' ? 'var(--success)' : 'var(--brand)',
-                          }}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
+                {order.line_count > 0 && (
+                  <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 110 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+                      {order.lines_received}/{order.line_count} recibidos
+                    </div>
+                    <div className="progress-bar" style={{ width: 90 }}>
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${(order.lines_received / order.line_count) * 100}%`,
+                          background: order.status === 'recibido' || order.status === 'entregado' ? 'var(--success)' : 'var(--brand)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                   <button
@@ -382,4 +408,10 @@ export function OrdersPage() {
       )}
     </div>
   );
+}
+
+function fmtDate(dt?: string | null): string {
+  if (!dt) return '';
+  const [y, m, d] = dt.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
 }

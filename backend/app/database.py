@@ -66,6 +66,9 @@ def _run_migrations():
         # Repair tracking dates (v2.2.0)
         ("repairs", "date_sent_to_repair",       "TEXT"),
         ("repairs", "date_repaired",             "TEXT"),
+        # Client-centric order fields (v2.2.0)
+        ("supplier_orders", "client_name",       "TEXT DEFAULT ''"),
+        ("supplier_orders", "client_phone",      "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

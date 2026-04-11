@@ -261,8 +261,10 @@ html, body, #root { height: 100%; }
 .status-chip.reparada   { background: #d1fae5; color: #065f46; }
 .status-chip.entregada  { background: #f1f5f9; color: #64748b; }
 .status-chip.pendiente  { background: #fef3c7; color: #b45309; }
-.status-chip.parcial    { background: #dbeafe; color: #1d4ed8; }
+.status-chip.pedido     { background: #dbeafe; color: #1d4ed8; }
+.status-chip.parcial    { background: #e0e7ff; color: #4338ca; }
 .status-chip.recibido   { background: #d1fae5; color: #065f46; }
+.status-chip.entregado  { background: #f1f5f9; color: #64748b; }
 .status-chip.cancelado  { background: #fee2e2; color: #b91c1c; }
 
 /* ── Dashboard stat cards ────────────────────────────────────── */

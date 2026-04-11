@@ -2,7 +2,11 @@ import datetime
 from typing import Optional, List
 from pydantic import BaseModel
 
-VALID_STATUSES = {"pendiente", "parcial", "recibido", "cancelado"}
+# pedido = ordered to supplier; entregado = given to client
+VALID_STATUSES = {"pendiente", "pedido", "parcial", "recibido", "entregado", "cancelado"}
+
+# Statuses where auto-recalculation from lines should NOT override the manual state
+MANUAL_STATUSES = {"pedido", "entregado", "cancelado"}
 
 
 class SupplierOrderLineBase(BaseModel):
@@ -36,8 +40,12 @@ class SupplierOrderLineResponse(SupplierOrderLineBase):
 
 
 class SupplierOrderBase(BaseModel):
+    # Who the order is FOR (primary)
+    client_name: str = ""
+    client_phone: Optional[str] = None
+    # Who we ordered FROM (secondary)
     supplier_id: Optional[int] = None
-    supplier_name: str
+    supplier_name: Optional[str] = None
     order_date: datetime.date
     expected_date: Optional[datetime.date] = None
     status: str = "pendiente"
@@ -51,6 +59,8 @@ class SupplierOrderCreate(SupplierOrderBase):
 
 
 class SupplierOrderUpdate(BaseModel):
+    client_name: Optional[str] = None
+    client_phone: Optional[str] = None
     supplier_name: Optional[str] = None
     supplier_id: Optional[int] = None
     order_date: Optional[datetime.date] = None
@@ -75,7 +85,9 @@ class SupplierOrderResponse(SupplierOrderBase):
 
 class SupplierOrderListItem(BaseModel):
     id: int
-    supplier_name: str
+    client_name: str = ""
+    client_phone: Optional[str] = None
+    supplier_name: Optional[str] = None
     order_date: datetime.date
     expected_date: Optional[datetime.date] = None
     status: str

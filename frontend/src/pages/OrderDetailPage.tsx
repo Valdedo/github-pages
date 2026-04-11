@@ -4,12 +4,23 @@ import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link } from 
 import { getOrder, updateOrder, addOrderLine, updateOrderLine, deleteOrderLine, deleteOrder, listDocuments } from '../api/client';
 import type { SupplierOrder, SupplierOrderLine, DocumentListItem, OrderStatus } from '../types';
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  pendiente: 'Pendiente', parcial: 'Parcial', recibido: 'Recibido', cancelado: 'Cancelado',
+const STATUS_LABELS: Record<string, string> = {
+  pendiente: 'Por pedir', pedido: 'Pedido', parcial: 'Parcial',
+  recibido: 'Recibido', entregado: 'Entregado', cancelado: 'Cancelado',
 };
 
-function StatusChip({ status }: { status: OrderStatus }) {
-  return <span className={`status-chip ${status}`}>{STATUS_LABELS[status]}</span>;
+// Next manual status a user can advance to
+const STATUS_NEXT: Record<string, { status: string; label: string } | null> = {
+  pendiente: { status: 'pedido', label: 'Marcar como pedido' },
+  pedido:    { status: 'recibido', label: 'Marcar recibido' },
+  parcial:   { status: 'recibido', label: 'Marcar recibido' },
+  recibido:  { status: 'entregado', label: 'Marcar entregado al cliente' },
+  entregado: null,
+  cancelado: null,
+};
+
+function StatusChip({ status }: { status: string }) {
+  return <span className={`status-chip ${status}`}>{STATUS_LABELS[status] ?? status}</span>;
 }
 
 function ReceiveLineModal({
@@ -175,6 +186,14 @@ export function OrderDetailPage() {
     load();
   };
 
+  const handleAdvanceStatus = async () => {
+    if (!order) return;
+    const next = STATUS_NEXT[order.status];
+    if (!next) return;
+    await updateOrder(order.id, { status: next.status as OrderStatus });
+    load();
+  };
+
   const handleCancelOrder = async () => {
     if (!order || !confirm('¿Cancelar este pedido?')) return;
     await updateOrder(order.id, { status: 'cancelado' });
@@ -210,33 +229,47 @@ export function OrderDetailPage() {
         </button>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }}>
+            {/* CLIENT — primary */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>{order.supplier_name}</h1>
+              <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>{order.client_name || '—'}</h1>
+              {order.client_phone && (
+                <a href={`tel:${order.client_phone}`} style={{ fontSize: 13, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+                  📞 {order.client_phone}
+                </a>
+              )}
               {order.reference && (
-                <span style={{ fontSize: 13, color: 'var(--text-3)', background: 'var(--bg)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
                   {order.reference}
                 </span>
               )}
               <StatusChip status={order.status} />
             </div>
+            {/* SUPPLIER — secondary */}
             <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap' }}>
+              {order.supplier_name && <span>Proveedor: <strong style={{ color: 'var(--text-2)' }}>{order.supplier_name}</strong></span>}
               <span>Pedido el {new Date(order.order_date).toLocaleDateString('es-ES')}</span>
-              {order.expected_date && <span>Estimado: {new Date(order.expected_date).toLocaleDateString('es-ES')}</span>}
+              {order.expected_date && <span>Est. llegada: {new Date(order.expected_date).toLocaleDateString('es-ES')}</span>}
               {order.received_date && <span>Recibido: {new Date(order.received_date).toLocaleDateString('es-ES')}</span>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {totalPending > 0 && order.status !== 'cancelado' && (
-              <button className="btn btn-primary btn-sm" onClick={handleReceiveAll}>
-                <Check size={14} /> Recibir todo
+            {/* Advance status button */}
+            {STATUS_NEXT[order.status] && (
+              <button className="btn btn-primary btn-sm" onClick={handleAdvanceStatus}>
+                <Check size={14} /> {STATUS_NEXT[order.status]!.label}
+              </button>
+            )}
+            {totalPending > 0 && order.status !== 'cancelado' && order.status !== 'entregado' && (
+              <button className="btn btn-ghost btn-sm" onClick={handleReceiveAll}>
+                Recibir todo
               </button>
             )}
             <button className="btn btn-ghost btn-sm" onClick={openLinkModal} title="Vincular albarán">
               <Link size={14} /> Vincular albarán
             </button>
-            {order.status !== 'cancelado' && order.status !== 'recibido' && (
+            {order.status !== 'cancelado' && order.status !== 'entregado' && (
               <button className="btn btn-ghost btn-sm" style={{ color: 'var(--warning)' }} onClick={handleCancelOrder}>
-                Cancelar pedido
+                Cancelar
               </button>
             )}
             <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={handleDeleteOrder}>
