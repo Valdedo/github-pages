@@ -95,6 +95,7 @@ export function DocumentPage() {
         } else {
           setPolling(false);
           if (status === 'completed') showToast('Extracción completada', 'success');
+          else if (status === 'error') showToast('Error en la extracción — ver detalle abajo', 'error');
         }
       };
 
@@ -251,6 +252,35 @@ export function DocumentPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Error banner ─────────────────────────────────────────── */}
+      {document.status === 'error' && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 'var(--r)',
+          padding: '12px 16px', marginBottom: '14px',
+          display: 'flex', flexDirection: 'column', gap: '6px',
+        }}>
+          <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '14px' }}>
+            ✕ Error en la extracción
+          </div>
+          {document.error_message ? (
+            <pre style={{
+              margin: 0, fontFamily: 'monospace', fontSize: '12px',
+              color: '#7f1d1d', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              background: '#fee2e2', borderRadius: '4px', padding: '8px 10px',
+            }}>
+              {document.error_message}
+            </pre>
+          ) : (
+            <div style={{ fontSize: '13px', color: '#991b1b' }}>
+              No se guardó el mensaje de error. Revisa los logs del servidor.
+            </div>
+          )}
+          <div style={{ fontSize: '12px', color: '#b91c1c' }}>
+            Pulsa <strong>Reprocesar extracción</strong> para volver a intentarlo.
+          </div>
+        </div>
+      )}
 
       {/* ── Validation detail panel ──────────────────────────────── */}
       {showValidation && validacion && (
