@@ -20,7 +20,7 @@ class RepairBase(BaseModel):
 
 
 class RepairCreate(RepairBase):
-    pass
+    date_received: Optional[datetime.datetime] = None  # defaults to now on the server if omitted
 
 
 class RepairUpdate(BaseModel):
@@ -33,6 +33,7 @@ class RepairUpdate(BaseModel):
     status: Optional[str] = None
     estimated_price: Optional[float] = None
     final_price: Optional[float] = None
+    date_received: Optional[datetime.datetime] = None
     date_estimated_return: Optional[datetime.datetime] = None
     date_returned: Optional[datetime.datetime] = None
     notes: Optional[str] = None

@@ -49,7 +49,7 @@ def repair_stats(db: Session = Depends(get_db)):
 def create_repair(repair_in: RepairCreate, db: Session = Depends(get_db)):
     if repair_in.status not in VALID_STATUSES:
         raise HTTPException(400, f"Estado inválido. Valores: {VALID_STATUSES}")
-    repair = Repair(**repair_in.model_dump())
+    repair = Repair(**repair_in.model_dump(exclude_none=True))
     db.add(repair)
     db.commit()
     db.refresh(repair)

@@ -53,6 +53,18 @@ function StatusProgress({ status }: { status: RepairStatus }) {
   );
 }
 
+// Convert ISO datetime string → YYYY-MM-DD for date inputs
+function toDateInput(dt?: string | null): string {
+  if (!dt) return '';
+  return dt.split('T')[0];
+}
+
+// Convert YYYY-MM-DD from date input → ISO string for API, or undefined if empty
+function fromDateInput(s: string): string | undefined {
+  if (!s) return undefined;
+  return new Date(s + 'T12:00:00').toISOString();
+}
+
 interface RepairFormData {
   client_name: string;
   client_phone: string;
@@ -62,11 +74,17 @@ interface RepairFormData {
   problem_description: string;
   estimated_price: string;
   notes: string;
+  date_received: string;
+  date_estimated_return: string;
+  date_returned: string;
 }
 
 const EMPTY_FORM: RepairFormData = {
   client_name: '', client_phone: '', tool_brand: '', tool_model: '',
   tool_description: '', problem_description: '', estimated_price: '', notes: '',
+  date_received: toDateInput(new Date().toISOString()),
+  date_estimated_return: '',
+  date_returned: '',
 };
 
 function RepairModal({
@@ -88,6 +106,9 @@ function RepairModal({
       problem_description: repair.problem_description,
       estimated_price: repair.estimated_price != null ? String(repair.estimated_price) : '',
       notes: repair.notes ?? '',
+      date_received: toDateInput(repair.date_received),
+      date_estimated_return: toDateInput(repair.date_estimated_return),
+      date_returned: toDateInput(repair.date_returned),
     } : EMPTY_FORM
   );
   const [saving, setSaving] = useState(false);
@@ -114,6 +135,9 @@ function RepairModal({
         estimated_price: form.estimated_price ? parseFloat(form.estimated_price) : undefined,
         notes: form.notes.trim() || undefined,
         status: repair?.status ?? 'recibida' as RepairStatus,
+        date_received: fromDateInput(form.date_received),
+        date_estimated_return: fromDateInput(form.date_estimated_return),
+        date_returned: fromDateInput(form.date_returned),
       };
       const { data } = repair
         ? await updateRepair(repair.id, payload)
@@ -128,7 +152,7 @@ function RepairModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 16 }}>
@@ -137,7 +161,7 @@ function RepairModal({
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
             {error && (
               <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>{error}</div>
             )}
@@ -180,6 +204,22 @@ function RepairModal({
                 style={{ resize: 'vertical' }}
                 required
               />
+            </div>
+
+            {/* Dates */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div>
+                <label className="form-label">Fecha recibida</label>
+                <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
+              </div>
+              <div>
+                <label className="form-label">Entrega estimada</label>
+                <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
+              </div>
+              <div>
+                <label className="form-label">Fecha entregada</label>
+                <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} />
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -346,6 +386,16 @@ export function RepairsPage() {
                     <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                       Recibida: {new Date(repair.date_received).toLocaleDateString('es-ES')}
                     </span>
+                    {repair.date_estimated_return && (
+                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                        Entrega est.: {new Date(repair.date_estimated_return).toLocaleDateString('es-ES')}
+                      </span>
+                    )}
+                    {repair.date_returned && (
+                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                        Entregada: {new Date(repair.date_returned).toLocaleDateString('es-ES')}
+                      </span>
+                    )}
                     {repair.estimated_price != null && (
                       <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                         Estimado: {repair.estimated_price.toFixed(2)} €
