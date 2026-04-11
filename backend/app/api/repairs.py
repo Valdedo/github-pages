@@ -75,10 +75,15 @@ def update_repair(repair_id: int, update: RepairUpdate, db: Session = Depends(ge
     if "status" in data and data["status"] not in VALID_STATUSES:
         raise HTTPException(400, f"Estado inválido. Valores: {VALID_STATUSES}")
 
-    # Auto-set date_returned when status → entregada
-    if data.get("status") == "entregada" and not repair.date_returned:
-        from datetime import datetime
-        data.setdefault("date_returned", datetime.utcnow())
+    # Auto-set tracking dates when status advances
+    from datetime import datetime as _dt
+    new_status = data.get("status")
+    if new_status == "en_taller" and not repair.date_sent_to_repair:
+        data.setdefault("date_sent_to_repair", _dt.utcnow())
+    if new_status == "reparada" and not repair.date_repaired:
+        data.setdefault("date_repaired", _dt.utcnow())
+    if new_status == "entregada" and not repair.date_returned:
+        data.setdefault("date_returned", _dt.utcnow())
 
     for field, value in data.items():
         setattr(repair, field, value)

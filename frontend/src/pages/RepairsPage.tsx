@@ -53,16 +53,33 @@ function StatusProgress({ status }: { status: RepairStatus }) {
   );
 }
 
+// Format a stored datetime string for display (e.g. "11/04/2026")
+function fmtDate(dt?: string | null): string {
+  if (!dt) return '';
+  // Parse the date part directly to avoid timezone shifts
+  const [y, m, d] = dt.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
+}
+
 // Convert ISO datetime string → YYYY-MM-DD for date inputs
 function toDateInput(dt?: string | null): string {
   if (!dt) return '';
   return dt.split('T')[0];
 }
 
-// Convert YYYY-MM-DD from date input → ISO string for API, or undefined if empty
+// Today's date as YYYY-MM-DD (local date, not UTC)
+function today(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Convert YYYY-MM-DD → naive ISO datetime string for API (no timezone = no drift)
 function fromDateInput(s: string): string | undefined {
   if (!s) return undefined;
-  return new Date(s + 'T12:00:00').toISOString();
+  return s + 'T12:00:00'; // noon, naive — avoids any UTC date-shift issues
 }
 
 interface RepairFormData {
@@ -75,6 +92,8 @@ interface RepairFormData {
   estimated_price: string;
   notes: string;
   date_received: string;
+  date_sent_to_repair: string;
+  date_repaired: string;
   date_estimated_return: string;
   date_returned: string;
 }
@@ -82,7 +101,9 @@ interface RepairFormData {
 const EMPTY_FORM: RepairFormData = {
   client_name: '', client_phone: '', tool_brand: '', tool_model: '',
   tool_description: '', problem_description: '', estimated_price: '', notes: '',
-  date_received: toDateInput(new Date().toISOString()),
+  date_received: today(),
+  date_sent_to_repair: '',
+  date_repaired: '',
   date_estimated_return: '',
   date_returned: '',
 };
@@ -107,6 +128,8 @@ function RepairModal({
       estimated_price: repair.estimated_price != null ? String(repair.estimated_price) : '',
       notes: repair.notes ?? '',
       date_received: toDateInput(repair.date_received),
+      date_sent_to_repair: toDateInput(repair.date_sent_to_repair),
+      date_repaired: toDateInput(repair.date_repaired),
       date_estimated_return: toDateInput(repair.date_estimated_return),
       date_returned: toDateInput(repair.date_returned),
     } : EMPTY_FORM
@@ -136,6 +159,8 @@ function RepairModal({
         notes: form.notes.trim() || undefined,
         status: repair?.status ?? 'recibida' as RepairStatus,
         date_received: fromDateInput(form.date_received),
+        date_sent_to_repair: fromDateInput(form.date_sent_to_repair),
+        date_repaired: fromDateInput(form.date_repaired),
         date_estimated_return: fromDateInput(form.date_estimated_return),
         date_returned: fromDateInput(form.date_returned),
       };
@@ -206,19 +231,32 @@ function RepairModal({
               />
             </div>
 
-            {/* Dates */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div>
-                <label className="form-label">Fecha recibida</label>
-                <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
+            {/* Dates — 4 tracking milestones */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Seguimiento de fechas
               </div>
-              <div>
-                <label className="form-label">Entrega estimada</label>
-                <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label className="form-label">📥 Fecha recibida</label>
+                  <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
+                </div>
+                <div>
+                  <label className="form-label">🔧 Enviada al taller</label>
+                  <input className="form-input" type="date" value={form.date_sent_to_repair} onChange={set('date_sent_to_repair')} placeholder="Auto al cambiar estado" />
+                </div>
+                <div>
+                  <label className="form-label">✅ Llegó reparada</label>
+                  <input className="form-input" type="date" value={form.date_repaired} onChange={set('date_repaired')} placeholder="Auto al cambiar estado" />
+                </div>
+                <div>
+                  <label className="form-label">🏠 Entregada al cliente</label>
+                  <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} placeholder="Auto al cambiar estado" />
+                </div>
               </div>
-              <div>
-                <label className="form-label">Fecha entregada</label>
-                <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} />
+              <div style={{ marginTop: 8 }}>
+                <label className="form-label">📅 Entrega estimada</label>
+                <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} style={{ maxWidth: 200 }} />
               </div>
             </div>
 
@@ -381,24 +419,34 @@ export function RepairsPage() {
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{repair.problem_description}</div>
 
                   {/* Progress + dates */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
                     <StatusProgress status={repair.status} />
                     <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                      Recibida: {new Date(repair.date_received).toLocaleDateString('es-ES')}
+                      📥 {fmtDate(repair.date_received)}
                     </span>
-                    {repair.date_estimated_return && (
+                    {repair.date_sent_to_repair && (
                       <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        Entrega est.: {new Date(repair.date_estimated_return).toLocaleDateString('es-ES')}
+                        🔧 {fmtDate(repair.date_sent_to_repair)}
+                      </span>
+                    )}
+                    {repair.date_repaired && (
+                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                        ✅ {fmtDate(repair.date_repaired)}
                       </span>
                     )}
                     {repair.date_returned && (
                       <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        Entregada: {new Date(repair.date_returned).toLocaleDateString('es-ES')}
+                        🏠 {fmtDate(repair.date_returned)}
+                      </span>
+                    )}
+                    {repair.date_estimated_return && !repair.date_returned && (
+                      <span style={{ fontSize: 11, color: 'var(--brand)' }}>
+                        Est. {fmtDate(repair.date_estimated_return)}
                       </span>
                     )}
                     {repair.estimated_price != null && (
                       <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        Estimado: {repair.estimated_price.toFixed(2)} €
+                        · {repair.estimated_price.toFixed(2)} €
                       </span>
                     )}
                   </div>

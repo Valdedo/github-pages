@@ -63,6 +63,9 @@ def _run_migrations():
         ("documents", "validacion_ok",           "INTEGER"),
         ("documents", "validacion_notas",        "TEXT"),
         ("product_info", "ficha_ia",             "TEXT"),
+        # Repair tracking dates (v2.2.0)
+        ("repairs", "date_sent_to_repair",       "TEXT"),
+        ("repairs", "date_repaired",             "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

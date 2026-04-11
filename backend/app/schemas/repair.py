@@ -34,6 +34,8 @@ class RepairUpdate(BaseModel):
     estimated_price: Optional[float] = None
     final_price: Optional[float] = None
     date_received: Optional[datetime.datetime] = None
+    date_sent_to_repair: Optional[datetime.datetime] = None
+    date_repaired: Optional[datetime.datetime] = None
     date_estimated_return: Optional[datetime.datetime] = None
     date_returned: Optional[datetime.datetime] = None
     notes: Optional[str] = None
@@ -42,6 +44,8 @@ class RepairUpdate(BaseModel):
 class RepairResponse(RepairBase):
     id: int
     date_received: datetime.datetime
+    date_sent_to_repair: Optional[datetime.datetime] = None
+    date_repaired: Optional[datetime.datetime] = None
     date_returned: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime

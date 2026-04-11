@@ -32,6 +32,8 @@ class Repair(Base):
 
     # Dates — Python-side defaults so values are available immediately after INSERT
     date_received: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    date_sent_to_repair: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    date_repaired: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     date_estimated_return: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     date_returned: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 

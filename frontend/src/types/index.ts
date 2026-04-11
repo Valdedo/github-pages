@@ -155,6 +155,8 @@ export interface Repair {
   estimated_price?: number;
   final_price?: number;
   date_received: string;
+  date_sent_to_repair?: string;
+  date_repaired?: string;
   date_estimated_return?: string;
   date_returned?: string;
   notes?: string;
