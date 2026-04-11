@@ -234,6 +234,7 @@ def product_sheet(
     specs_html = ""
     ficha_html = ""
     pending_search = False
+    pi_id_for_poll = None
     if article.product_info_id:
         pi = db.query(ProductInfo).filter(ProductInfo.id == article.product_info_id).first()
         if pi:
@@ -249,12 +250,51 @@ def product_sheet(
                     pass
             if not pi.ficha_ia and not pi.specs and not pi.search_attempted:
                 pending_search = True
+                pi_id_for_poll = pi.id
+
+    # JavaScript snippet to auto-reload once AI search completes
+    poll_script = ""
+    if pending_search and pi_id_for_poll:
+        poll_script = f"""
+<script>
+(function() {{
+  var piId = {pi_id_for_poll};
+  var attempts = 0;
+  var maxAttempts = 30;
+  function poll() {{
+    if (attempts >= maxAttempts) return;
+    attempts++;
+    fetch('/api/products/' + piId)
+      .then(function(r) {{ return r.json(); }})
+      .then(function(data) {{
+        if (data.search_attempted) {{
+          window.location.reload();
+        }} else {{
+          setTimeout(poll, 3000);
+        }}
+      }})
+      .catch(function() {{ setTimeout(poll, 3000); }});
+  }}
+  setTimeout(poll, 3000);
+}})();
+</script>"""
 
     pending_banner = """
-  <div class="card" style="background:#f0fdf4;border:1px solid #bbf7d0;text-align:center;color:#15803d;font-size:13px;">
-    🔍 Buscando especificaciones técnicas en internet…<br>
-    <span style="font-size:11px;opacity:.7">Vuelve en unos segundos para ver los detalles</span>
-  </div>""" if pending_search else ""
+  <div class="card" id="search-banner" style="background:#f0fdf4;border:1px solid #bbf7d0;text-align:center;color:#15803d;font-size:13px;">
+    <div style="font-size:22px;margin-bottom:6px">🔍</div>
+    <strong>Buscando especificaciones técnicas…</strong><br>
+    <span style="font-size:12px;opacity:.75">La página se actualizará automáticamente en unos segundos</span>
+    <div style="margin-top:10px;height:4px;background:#bbf7d0;border-radius:99px;overflow:hidden">
+      <div style="height:100%;background:#16a34a;border-radius:99px;animation:bar 1.6s ease-in-out infinite"></div>
+    </div>
+  </div>
+  <style>
+    @keyframes bar {{
+      0%   {{ width:0%;margin-left:0 }}
+      50%  {{ width:60%;margin-left:20% }}
+      100% {{ width:0%;margin-left:100% }}
+    }}
+  </style>""" if pending_search else ""
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
@@ -313,6 +353,7 @@ def product_sheet(
   </div>
 
   <div class="footer">{company} · Ficha de producto</div>
+{poll_script}
 </body>
 </html>"""
     return HTMLResponse(content=html)
