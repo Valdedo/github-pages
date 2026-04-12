@@ -14,7 +14,6 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
   const [tiers, setTiers] = useState<MarginTier[]>(settings.margin_tiers);
   const [roundingMode, setRoundingMode] = useState<'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents'>(settings.rounding_mode as 'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents');
   const [decimals, setDecimals] = useState(settings.rounding_decimals);
-  const [companyName, setCompanyName] = useState(settings.company_name || '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -34,7 +33,6 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
         margin_tiers: tiers,
         rounding_mode: roundingMode,
         rounding_decimals: decimals,
-        company_name: companyName,
       });
       if (documentId) await recalculateArticles(documentId);
       onUpdated(data);
@@ -83,18 +81,6 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
 
       {open && (
         <div className="card-body">
-          {/* Company name */}
-          <div style={{ marginBottom: '18px' }}>
-            <label style={labelSt}>Nombre de empresa (aparece en etiquetas)</label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={e => setCompanyName(e.target.value)}
-              placeholder="Tu Ferretería S.L."
-              style={{ ...inputSt, width: '320px' }}
-            />
-          </div>
-
           {/* Rounding */}
           <div style={{ marginBottom: '18px', display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
@@ -154,7 +140,7 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={addTier} className="btn btn-accent btn-sm">+ Añadir tramo</button>
             <button onClick={handleSave} disabled={saving} className="btn btn-success">
-              {saving ? 'Guardando…' : '💾 Guardar y recalcular'}
+              {saving ? <><span className="spinner spinner-sm spinner-white" /> Guardando…</> : '💾 Guardar y recalcular'}
             </button>
           </div>
         </div>

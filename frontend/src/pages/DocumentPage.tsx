@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts } from '../api/client';
+import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts, downloadExcel, downloadTreyFact, downloadLabels, downloadPriceList } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
@@ -41,6 +41,7 @@ export function DocumentPage() {
   const [assignSearch, setAssignSearch] = useState('');
   const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([]);
   const [showAlerts, setShowAlerts] = useState(true);
+  const [dlBusy, setDlBusy] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const assignSearchRef = useRef<HTMLInputElement>(null);
 
@@ -170,7 +171,7 @@ export function DocumentPage() {
   if (loading) {
     return (
       <div className="empty-state" style={{ paddingTop: '80px' }}>
-        <div style={{ fontSize: '36px', marginBottom: '12px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</div>
+        <span className="spinner spinner-lg" style={{ marginBottom: '16px' }} />
         <div className="empty-state-text">Cargando albarán…</div>
       </div>
     );
@@ -187,7 +188,7 @@ export function DocumentPage() {
           </>
         ) : (
           <>
-            <div style={{ fontSize: '36px', marginBottom: '12px', animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</div>
+            <span className="spinner spinner-lg" style={{ marginBottom: '16px' }} />
             <div className="empty-state-text">Analizando documento…</div>
             <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '8px' }}>Esto puede tardar hasta 30 segundos</div>
           </>
@@ -272,7 +273,8 @@ export function DocumentPage() {
               {st.label}
             </span>
             {polling && (
-              <span style={{ fontSize: '12px', opacity: 0.75, fontStyle: 'italic', color: '#fff' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', opacity: 0.85, color: '#fff' }}>
+                <span className="spinner spinner-sm spinner-white" />
                 Extrayendo artículos…
               </span>
             )}
@@ -592,6 +594,39 @@ export function DocumentPage() {
           )}
         </div>
       )}
+
+      {/* ── Quick-action export bar ───────────────────────────────── */}
+      {document.status === 'completed' && articles.length > 0 && (() => {
+        const dl = (key: string, fn: () => void, msg: string) => {
+          if (dlBusy) return;
+          setDlBusy(key);
+          fn();
+          showToast(msg, 'info');
+          setTimeout(() => setDlBusy(null), 2500);
+        };
+        return (
+          <div className="quick-actions">
+            <span className="quick-actions-label">Exportar</span>
+            <button className="btn btn-success btn-sm" disabled={!!dlBusy}
+              onClick={() => dl('xl', () => downloadExcel(docId), 'Descargando Excel…')}>
+              {dlBusy === 'xl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : '📊 Excel'}
+            </button>
+            <button className="btn btn-success btn-sm" disabled={!!dlBusy}
+              title="Para importar en TreyFact"
+              onClick={() => dl('tf', () => downloadTreyFact(docId), 'Generando TreyFact…')}>
+              {dlBusy === 'tf' ? <><span className="spinner spinner-sm spinner-white"/>…</> : '📥 TreyFact'}
+            </button>
+            <button className="btn btn-primary btn-sm" disabled={!!dlBusy}
+              onClick={() => dl('pl', () => downloadPriceList(docId), 'Generando listín…')}>
+              {dlBusy === 'pl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : '💶 Listín PDF'}
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={!!dlBusy}
+              onClick={() => dl('lb', () => downloadLabels(docId), 'Generando etiquetas…')}>
+              {dlBusy === 'lb' ? <><span className="spinner spinner-sm"/>…</> : '🏷️ Etiquetas'}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── Panels: single-column, full width ────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

@@ -696,6 +696,138 @@ select.form-input { cursor: pointer; }
   0%   { left: -40%; }
   100% { left: 100%; }
 }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ── Spinner ─────────────────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.spinner-sm { width: 12px; height: 12px; border-width: 1.5px; }
+.spinner-lg { width: 26px; height: 26px; border-width: 3px; }
+.spinner-white { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
+
+/* ── Skeleton loader ─────────────────────────────────────────── */
+.skeleton {
+  background: var(--border);
+  border-radius: var(--r-sm);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+  display: block;
+}
+.skeleton-line { height: 13px; }
+.skeleton-line-sm { height: 10px; }
+.skeleton-line-lg { height: 18px; }
+.skeleton-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Table sort indicators ───────────────────────────────────── */
+.th-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.th-sortable:hover { filter: brightness(1.15); }
+.sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  opacity: 0.35;
+  font-size: 10px;
+  vertical-align: middle;
+}
+.sort-icon.asc, .sort-icon.desc { opacity: 1; }
+
+/* ── Search input ────────────────────────────────────────────── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.search-bar:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-pale);
+}
+.search-bar-icon {
+  padding: 0 12px;
+  color: var(--text-3);
+  font-size: 15px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 10px 12px 10px 0;
+  font-size: 14px;
+  font-family: var(--font);
+  background: transparent;
+  color: var(--text-1);
+  min-width: 0;
+}
+.search-bar input::placeholder { color: var(--text-3); }
+.search-bar-clear {
+  padding: 0 12px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.search-bar-clear:hover { color: var(--text-1); }
+
+/* ── Quick actions bar (document page) ──────────────────────── */
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  margin-bottom: 14px;
+  align-items: center;
+}
+.quick-actions-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+/* ── Catalog mobile cards ────────────────────────────────────── */
+.catalog-table  { display: block; }
+.catalog-cards  { display: none; }
 
 /* ── Article table show/hide ─────────────────────────────────── */
 .article-table-desktop { display: block; }
@@ -1127,8 +1259,18 @@ select.form-input { cursor: pointer; }
 
   .doc-page-hero { padding: 16px 16px; border-radius: var(--r-lg); margin-bottom: 14px; }
   .doc-actions-row { grid-template-columns: 1fr; }
+
+  .catalog-table  { display: none !important; }
+  .catalog-cards  { display: flex !important; flex-direction: column; gap: 10px; }
+
+  .quick-actions { flex-direction: row; overflow-x: auto; flex-wrap: nowrap; padding: 8px 12px; gap: 6px; }
+  .quick-actions .btn { flex-shrink: 0; }
 }
 
 @media (max-width: 420px) {
   .totals-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Global spin keyframe alias ──────────────────────────────── */
+/* Used by inline style `animation: spin 1s linear infinite` */
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -85,9 +85,6 @@ export const downloadPdfReport = (documentId: number) => {
   window.open(getPdfReportUrl(documentId), '_blank');
 };
 
-export const downloadWooCommerceCSV = (documentId: number) => {
-  window.open(`${BASE}/api/export/woocommerce/${documentId}`, '_blank');
-};
 
 export const downloadTreyFact = (documentId: number) => {
   window.open(`${BASE}/api/export/treyfact/${documentId}`, '_blank');
@@ -122,8 +119,6 @@ export const downloadCatalogPriceList = (params?: { familia?: string; q?: string
   window.open(`${BASE}/api/catalog/export-pricelist${query ? '?' + query : ''}`, '_blank');
 };
 
-export const cloneDocument = (id: number) =>
-  api.post<{ id: number; original_filename: string }>(`/api/documents/${id}/clone`);
 
 // Settings
 export const getSettings = () => api.get<AppSettings>('/api/settings');

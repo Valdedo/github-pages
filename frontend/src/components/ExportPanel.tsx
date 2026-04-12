@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   reprocessDocument, downloadExcel, downloadLabels,
-  downloadPdfReport, downloadWooCommerceCSV, cloneDocument,
-  downloadTreyFact, downloadPriceList,
+  downloadPdfReport, downloadTreyFact, downloadPriceList,
 } from '../api/client';
 import { useConfirm } from './ConfirmModal';
 import type { Supplier } from '../types/index';
@@ -17,18 +15,11 @@ interface Props {
 }
 
 export function ExportPanel({ documentId, suppliers, selectedArticleIds, onReprocessed, onToast }: Props) {
-  const navigate = useNavigate();
   const { confirm, ConfirmDialog } = useConfirm();
   const [supplierId, setSupplierId] = useState<string>('');
   const [reprocessing, setReprocessing] = useState(false);
-  const [cloning, setCloning] = useState(false);
-  const [dlExcel, setDlExcel] = useState(false);
-  const [dlPdf, setDlPdf] = useState(false);
-  const [dlWoo, setDlWoo] = useState(false);
-  const [dlTreyfact, setDlTreyfact] = useState(false);
-  const [dlPricelist, setDlPricelist] = useState(false);
-  const [dlLabels, setDlLabels] = useState(false);
   const [copies, setCopies] = useState(1);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const handleReprocess = async () => {
     const ok = await confirm({
@@ -48,114 +39,132 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
     }
   };
 
-  const handleClone = async () => {
-    setCloning(true);
-    try {
-      const { data } = await cloneDocument(documentId);
-      onToast?.(`Albarán clonado: ${data.original_filename}`, 'success');
-      setTimeout(() => navigate(`/documento/${data.id}`), 1200);
-    } catch {
-      onToast?.('Error al clonar el albarán', 'error');
-    } finally {
-      setCloning(false);
-    }
-  };
-
-  const handleDownload = async (
-    setter: (v: boolean) => void,
-    fn: () => void,
-    msg: string,
-  ) => {
-    setter(true);
+  const dl = (key: string, fn: () => void, msg: string) => {
+    if (busy) return;
+    setBusy(key);
     fn();
     onToast?.(msg, 'info');
-    // Reset after 2s (download is triggered via window.open)
-    setTimeout(() => setter(false), 2000);
+    setTimeout(() => setBusy(null), 2500);
   };
 
   const hasSelection = selectedArticleIds.length > 0;
+  const isLoading = (key: string) => busy === key;
 
   return (
     <div className="card">
       {ConfirmDialog}
       <div className="card-header">
-        <span>📤</span> Acciones y exportación
+        <span>📤</span> Exportar y acciones
       </div>
-      <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-        {/* Row 1: Reprocess + Clone */}
-        <div className="export-group">
-          {suppliers.length > 0 && (
-            <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
-              style={{ padding: '7px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: '#fff' }}>
-              <option value="">Auto-detectar proveedor</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          )}
-          <button className="btn btn-warning" onClick={handleReprocess} disabled={reprocessing}>
-            {reprocessing ? '⏳ Procesando…' : '🔄 Reprocesar extracción'}
-          </button>
-          <div className="export-divider" />
-          <button className="btn btn-ghost" onClick={handleClone} disabled={cloning}>
-            {cloning ? '⏳ Clonando…' : '📋 Clonar albarán'}
-          </button>
-        </div>
-
-        {/* Row 2: Downloads */}
-        <div className="export-group">
-          <button className="btn btn-success" disabled={dlExcel}
-            onClick={() => handleDownload(setDlExcel, () => downloadExcel(documentId), 'Descargando Excel…')}>
-            {dlExcel ? '⏳ Generando…' : '📊 Excel'}
-          </button>
-          <button className="btn btn-danger" disabled={dlPdf}
-            onClick={() => handleDownload(setDlPdf, () => downloadPdfReport(documentId), 'Descargando informe PDF…')}>
-            {dlPdf ? '⏳ Generando…' : '🖨️ Informe PDF'}
-          </button>
-          <button className="btn btn-ghost" disabled={dlWoo}
-            title="Exportar para WooCommerce / PrestaShop"
-            onClick={() => handleDownload(setDlWoo, () => downloadWooCommerceCSV(documentId), 'Descargando CSV…')}>
-            {dlWoo ? '⏳ Generando…' : '🛒 WooCommerce CSV'}
-          </button>
-        </div>
-
-        {/* Row 2b: TreyFact + Price list */}
-        <div className="export-group">
-          <button className="btn btn-success" disabled={dlTreyfact}
-            title="Exportar para importar artículos en TreyFact"
-            onClick={() => handleDownload(setDlTreyfact, () => downloadTreyFact(documentId), 'Generando Excel TreyFact…')}>
-            {dlTreyfact ? '⏳ Generando…' : '📥 TreyFact Excel'}
-          </button>
-          <button className="btn btn-primary" disabled={dlPricelist}
-            title="Listín de precios en PDF para entregar o enviar"
-            onClick={() => handleDownload(setDlPricelist, () => downloadPriceList(documentId), 'Generando listín PDF…')}>
-            {dlPricelist ? '⏳ Generando…' : '💶 Listín precios PDF'}
-          </button>
-        </div>
-
-        {/* Row 3: Labels */}
-        <div className="export-group">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', padding: '5px 8px', background: '#fff', flexShrink: 0 }}>
-            <label style={{ fontSize: '12px', color: 'var(--grey-500)', fontWeight: 600 }}>Copias:</label>
-            <input
-              type="number" min={1} max={20} value={copies}
-              onChange={e => setCopies(Math.max(1, Math.min(20, Number(e.target.value))))}
-              style={{ width: '44px', border: 'none', fontSize: '13px', fontFamily: 'inherit', textAlign: 'center', outline: 'none' }}
-            />
+        {/* Section: Reprocesar */}
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+            Extracción
           </div>
-          <button className="btn btn-primary" disabled={dlLabels}
-            onClick={() => handleDownload(setDlLabels, () => downloadLabels(documentId, undefined, copies), 'Generando etiquetas…')}>
-            {dlLabels ? '⏳ Generando…' : '🏷️ Todas las etiquetas'}
-          </button>
-          {hasSelection && (
-            <button className="btn btn-primary" disabled={dlLabels}
-              onClick={() => handleDownload(setDlLabels, () => downloadLabels(documentId, selectedArticleIds, copies), `Generando ${selectedArticleIds.length} etiquetas…`)}>
-              {dlLabels ? '⏳ Generando…' : `🏷️ Etiquetas sel. (${selectedArticleIds.length})`}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {suppliers.length > 0 && (
+              <select
+                value={supplierId}
+                onChange={e => setSupplierId(e.target.value)}
+                style={{ padding: '8px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: '#fff', flex: '1 1 160px', minWidth: 0 }}
+              >
+                <option value="">Auto-detectar proveedor</option>
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+            <button
+              className="btn btn-warning"
+              onClick={handleReprocess}
+              disabled={reprocessing}
+              style={{ flex: '0 0 auto' }}
+            >
+              {reprocessing ? <><span className="spinner spinner-sm spinner-white" /> Procesando…</> : '🔄 Reprocesar'}
             </button>
-          )}
+          </div>
+        </div>
+
+        {/* Section: Descargas */}
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+            Descargar
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px' }}>
+            <button
+              className="btn btn-success"
+              disabled={!!busy}
+              onClick={() => dl('excel', () => downloadExcel(documentId), 'Descargando Excel…')}
+            >
+              {isLoading('excel') ? <><span className="spinner spinner-sm spinner-white" /> Generando…</> : '📊 Excel'}
+            </button>
+
+            <button
+              className="btn btn-success"
+              disabled={!!busy}
+              title="Exportar para importar en TreyFact"
+              onClick={() => dl('treyfact', () => downloadTreyFact(documentId), 'Generando TreyFact…')}
+            >
+              {isLoading('treyfact') ? <><span className="spinner spinner-sm spinner-white" /> Generando…</> : '📥 TreyFact'}
+            </button>
+
+            <button
+              className="btn btn-danger"
+              disabled={!!busy}
+              onClick={() => dl('pdf', () => downloadPdfReport(documentId), 'Descargando informe…')}
+            >
+              {isLoading('pdf') ? <><span className="spinner spinner-sm spinner-white" /> Generando…</> : '🖨️ Informe PDF'}
+            </button>
+
+            <button
+              className="btn btn-primary"
+              disabled={!!busy}
+              title="Listín de precios para clientes"
+              onClick={() => dl('pricelist', () => downloadPriceList(documentId), 'Generando listín…')}
+            >
+              {isLoading('pricelist') ? <><span className="spinner spinner-sm spinner-white" /> Generando…</> : '💶 Listín precios'}
+            </button>
+          </div>
+        </div>
+
+        {/* Section: Etiquetas */}
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+            Etiquetas
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              border: '1.5px solid var(--grey-300)', borderRadius: '8px',
+              padding: '6px 10px', background: '#fff', flexShrink: 0,
+            }}>
+              <label style={{ fontSize: '12px', color: 'var(--grey-500)', fontWeight: 600 }}>Copias:</label>
+              <input
+                type="number" min={1} max={20} value={copies}
+                onChange={e => setCopies(Math.max(1, Math.min(20, Number(e.target.value))))}
+                style={{ width: '40px', border: 'none', fontSize: '13px', fontFamily: 'inherit', textAlign: 'center', outline: 'none' }}
+              />
+            </div>
+            <button
+              className="btn btn-ghost"
+              disabled={!!busy}
+              onClick={() => dl('labels-all', () => downloadLabels(documentId, undefined, copies), 'Generando etiquetas…')}
+            >
+              {isLoading('labels-all') ? <><span className="spinner spinner-sm" /> Generando…</> : '🏷️ Todas'}
+            </button>
+            {hasSelection && (
+              <button
+                className="btn btn-ghost"
+                disabled={!!busy}
+                onClick={() => dl('labels-sel', () => downloadLabels(documentId, selectedArticleIds, copies), `Etiquetas seleccionadas…`)}
+              >
+                {isLoading('labels-sel') ? <><span className="spinner spinner-sm" /> Generando…</> : `🏷️ Sel. (${selectedArticleIds.length})`}
+              </button>
+            )}
+          </div>
         </div>
 
       </div>
     </div>
   );
 }
-
