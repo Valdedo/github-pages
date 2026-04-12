@@ -23,16 +23,52 @@ interface NavBadge {
   orders: number;
 }
 
-const navItems = [
+// Primary items → shown in both sidebar and mobile bottom nav
+const primaryNavItems = [
   { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
   { to: '/albaranes', label: 'Albaranes', icon: FileText },
-  { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
   { to: '/consulta', label: 'Consulta', icon: Search },
   { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' as const },
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' as const },
-  { to: '/venta', label: 'Venta', icon: Store },
-  { to: '/analisis', label: 'Análisis', icon: BarChart2 },
 ];
+
+// Secondary items → sidebar only (desktop)
+const secondaryNavItems = [
+  { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
+  { to: '/analisis', label: 'Análisis', icon: BarChart2 },
+  { to: '/venta', label: 'Venta', icon: Store },
+];
+
+const navItems = [...primaryNavItems, ...secondaryNavItems];
+
+function SidebarNavGroup({ items, badges, collapsed }: {
+  items: typeof navItems;
+  badges: NavBadge;
+  collapsed: boolean;
+}) {
+  return (
+    <>
+      {items.map(({ to, label, icon: Icon, badge, exact }) => {
+        const count = badge ? badges[badge as keyof NavBadge] : 0;
+        return (
+          <NavLink
+            key={to}
+            to={to}
+            end={exact}
+            className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+            title={collapsed ? label : undefined}
+          >
+            <span className="sidebar-item-icon">
+              <Icon size={18} />
+              {count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
+            </span>
+            {!collapsed && <span className="sidebar-item-label">{label}</span>}
+          </NavLink>
+        );
+      })}
+    </>
+  );
+}
 
 function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed: boolean; onToggle: () => void }) {
   return (
@@ -50,26 +86,17 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
         </button>
       </div>
 
-      {/* Nav items */}
+      {/* Primary nav */}
       <nav className="sidebar-nav">
-        {navItems.map(({ to, label, icon: Icon, badge, exact }) => {
-          const count = badge ? badges[badge] : 0;
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              end={exact}
-              className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
-              title={collapsed ? label : undefined}
-            >
-              <span className="sidebar-item-icon">
-                <Icon size={18} />
-                {count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
-              </span>
-              {!collapsed && <span className="sidebar-item-label">{label}</span>}
-            </NavLink>
-          );
-        })}
+        <SidebarNavGroup items={primaryNavItems} badges={badges} collapsed={collapsed} />
+      </nav>
+
+      {/* Secondary nav */}
+      <nav className="sidebar-nav sidebar-nav-secondary">
+        {!collapsed && (
+          <div className="sidebar-section-label">Herramientas</div>
+        )}
+        <SidebarNavGroup items={secondaryNavItems} badges={badges} collapsed={collapsed} />
       </nav>
     </aside>
   );
@@ -97,11 +124,10 @@ function MobileHeader() {
 }
 
 function BottomNav({ badges }: { badges: NavBadge }) {
-  const mobileItems = navItems.slice(0, 6);
   return (
     <nav className="bottom-nav">
-      {mobileItems.map(({ to, label, icon: Icon, badge, exact }) => {
-        const count = badge ? badges[badge] : 0;
+      {primaryNavItems.map(({ to, label, icon: Icon, badge, exact }) => {
+        const count = badge ? badges[badge as keyof NavBadge] : 0;
         return (
           <NavLink
             key={to}

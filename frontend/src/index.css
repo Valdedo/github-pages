@@ -161,8 +161,21 @@ html, body, #root { height: 100%; }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
   overflow-y: auto;
+}
+.sidebar-nav:first-of-type { flex: 1; }
+.sidebar-nav-secondary {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 0;
+}
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 2px 10px 6px;
 }
 
 .sidebar-item {
@@ -1203,9 +1216,16 @@ select.form-input { cursor: pointer; }
     font-weight: 600;
     cursor: pointer;
     transition: color 0.12s;
-    padding: 6px 0;
+    padding: 6px 4px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
+    min-width: 0;
+  }
+  .bottom-nav-item span:last-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   .bottom-nav-item.active { color: var(--brand); }
   .bottom-nav-item svg { flex-shrink: 0; }
