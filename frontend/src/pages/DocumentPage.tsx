@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles } from '../api/client';
+import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
@@ -37,7 +37,10 @@ export function DocumentPage() {
   const [verifiedIds, setVerifiedIds] = useState<Set<number>>(new Set());
   const [scanInput, setScanInput] = useState('');
   const [scanFeedback, setScanFeedback] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [assigningBarcode, setAssigningBarcode] = useState<string | null>(null); // barcode pending assignment
+  const [assignSearch, setAssignSearch] = useState('');
   const scanInputRef = useRef<HTMLInputElement>(null);
+  const assignSearchRef = useRef<HTMLInputElement>(null);
 
   const { showToast, ToastContainer } = useToast();
 
@@ -67,24 +70,41 @@ export function DocumentPage() {
   const handleScan = useCallback((barcode: string) => {
     const clean = barcode.trim();
     if (!clean) return;
+    setScanInput('');
+
     const match = articles.find(a =>
       (a.ean && a.ean === clean) ||
       (a.codigo_principal && a.codigo_principal === clean) ||
       (a.codigo_proveedor && a.codigo_proveedor === clean) ||
       (a.codigo_fabricante && a.codigo_fabricante === clean)
     );
+
     if (match) {
       setVerifiedIds(prev => new Set([...prev, match.id]));
       setScanFeedback({ msg: `✓ ${match.descripcion.slice(0, 50)}`, ok: true });
+      setTimeout(() => { setScanFeedback(null); scanInputRef.current?.focus(); }, 1500);
     } else {
-      setScanFeedback({ msg: `No encontrado: ${clean}`, ok: false });
+      // Unknown barcode → open assignment picker
+      setAssigningBarcode(clean);
+      setAssignSearch('');
+      setTimeout(() => assignSearchRef.current?.focus(), 80);
     }
-    setScanInput('');
-    setTimeout(() => {
-      setScanFeedback(null);
-      scanInputRef.current?.focus();
-    }, 1500);
   }, [articles]);
+
+  const handleAssign = useCallback(async (articleId: number) => {
+    if (!assigningBarcode) return;
+    try {
+      const { data } = await updateArticle(articleId, { ean: assigningBarcode });
+      setArticles(prev => prev.map(a => a.id === articleId ? data : a));
+      setVerifiedIds(prev => new Set([...prev, articleId]));
+      setScanFeedback({ msg: `✓ EAN guardado y artículo verificado`, ok: true });
+    } catch {
+      setScanFeedback({ msg: 'Error al guardar el EAN', ok: false });
+    }
+    setAssigningBarcode(null);
+    setAssignSearch('');
+    setTimeout(() => { setScanFeedback(null); scanInputRef.current?.focus(); }, 1800);
+  }, [assigningBarcode]);
 
   useEffect(() => {
     const init = async () => {
@@ -420,48 +440,93 @@ export function DocumentPage() {
             }} />
           </div>
 
-          {/* Scan input */}
-          <input
-            ref={scanInputRef}
-            type="text"
-            inputMode="numeric"
-            value={scanInput}
-            placeholder="Escanea un código de barras con la PDA…"
-            onChange={e => setScanInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleScan(scanInput); }}
-            autoFocus
-            style={{
-              width: '100%', padding: '13px 16px', fontSize: '18px',
-              border: '2px solid #22c55e', borderRadius: '10px',
-              fontFamily: 'monospace', boxSizing: 'border-box',
-              background: '#fff', marginBottom: '8px',
-            }}
-          />
-
-          {/* Scan feedback */}
-          {scanFeedback ? (
-            <div style={{
-              padding: '9px 14px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-              background: scanFeedback.ok ? '#dcfce7' : '#fee2e2',
-              color: scanFeedback.ok ? '#166534' : '#dc2626',
-              transition: 'opacity 0.3s',
-            }}>
-              {scanFeedback.msg}
-            </div>
-          ) : verifiedIds.size === articles.length && articles.length > 0 ? (
-            <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#dcfce7', fontWeight: 700, color: '#166534', fontSize: '15px', textAlign: 'center' }}>
-              ✓ ¡Todos los artículos verificados!
-            </div>
-          ) : verifiedIds.size > 0 ? (
-            <div style={{ fontSize: '12px', color: '#6b7280' }}>
-              <strong style={{ color: '#374151' }}>Pendientes:</strong>{' '}
-              {articles.filter(a => !verifiedIds.has(a.id)).map(a => a.descripcion).join(' · ').slice(0, 120)}
-              {articles.filter(a => !verifiedIds.has(a.id)).length > 3 ? '…' : ''}
+          {/* Assignment picker — shown when a scanned barcode is unknown */}
+          {assigningBarcode ? (
+            <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: '10px', padding: '14px' }}>
+              <div style={{ fontWeight: 700, fontSize: '14px', color: '#92400e', marginBottom: '4px' }}>
+                Código desconocido: <span style={{ fontFamily: 'monospace' }}>{assigningBarcode}</span>
+              </div>
+              <div style={{ fontSize: '12px', color: '#78350f', marginBottom: '10px' }}>
+                Toca el artículo al que corresponde este código — quedará guardado para la próxima vez.
+              </div>
+              <input
+                ref={assignSearchRef}
+                type="text"
+                value={assignSearch}
+                placeholder="Filtrar artículos…"
+                onChange={e => setAssignSearch(e.target.value)}
+                style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #fcd34d', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', marginBottom: '8px' }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '220px', overflowY: 'auto' }}>
+                {articles
+                  .filter(a => !verifiedIds.has(a.id))
+                  .filter(a => !assignSearch || a.descripcion.toLowerCase().includes(assignSearch.toLowerCase()))
+                  .map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => handleAssign(a.id)}
+                      style={{
+                        textAlign: 'left', padding: '10px 12px', borderRadius: '8px',
+                        border: '1.5px solid #fcd34d', background: '#fff',
+                        cursor: 'pointer', fontSize: '13px', lineHeight: 1.3,
+                      }}
+                    >
+                      <strong>{a.descripcion}</strong>
+                      {a.codigo_principal && <span style={{ color: '#9ca3af', marginLeft: '8px', fontSize: '11px' }}>{a.codigo_principal}</span>}
+                    </button>
+                  ))}
+                {articles.filter(a => !verifiedIds.has(a.id)).length === 0 && (
+                  <div style={{ fontSize: '13px', color: '#6b7280', padding: '8px' }}>Todos los artículos ya están verificados.</div>
+                )}
+              </div>
+              <button
+                onClick={() => { setAssigningBarcode(null); setAssignSearch(''); setTimeout(() => scanInputRef.current?.focus(), 80); }}
+                style={{ marginTop: '10px', fontSize: '12px', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >Cancelar — saltar este código</button>
             </div>
           ) : (
-            <div style={{ fontSize: '12px', color: '#6b7280' }}>
-              Apunta la PDA a un código de barras o pulsa sobre un artículo para marcarlo manualmente
-            </div>
+            <>
+              {/* Normal scan input */}
+              <input
+                ref={scanInputRef}
+                type="text"
+                inputMode="numeric"
+                value={scanInput}
+                placeholder="Escanea un código de barras con la PDA…"
+                onChange={e => setScanInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleScan(scanInput); }}
+                autoFocus
+                style={{
+                  width: '100%', padding: '13px 16px', fontSize: '18px',
+                  border: '2px solid #22c55e', borderRadius: '10px',
+                  fontFamily: 'monospace', boxSizing: 'border-box',
+                  background: '#fff', marginBottom: '8px',
+                }}
+              />
+              {/* Feedback / status */}
+              {scanFeedback ? (
+                <div style={{
+                  padding: '9px 14px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                  background: scanFeedback.ok ? '#dcfce7' : '#fee2e2',
+                  color: scanFeedback.ok ? '#166534' : '#dc2626',
+                }}>
+                  {scanFeedback.msg}
+                </div>
+              ) : verifiedIds.size === articles.length && articles.length > 0 ? (
+                <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#dcfce7', fontWeight: 700, color: '#166534', fontSize: '15px', textAlign: 'center' }}>
+                  ✓ ¡Todos los artículos verificados!
+                </div>
+              ) : verifiedIds.size > 0 ? (
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                  <strong style={{ color: '#374151' }}>Pendientes ({articles.filter(a => !verifiedIds.has(a.id)).length}):</strong>{' '}
+                  {articles.filter(a => !verifiedIds.has(a.id)).map(a => a.descripcion).join(' · ').slice(0, 150)}…
+                </div>
+              ) : (
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                  Escanea cada artículo. Si el código no está registrado, podrás asignarlo al artículo correcto y se guardará para siempre.
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
