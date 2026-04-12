@@ -101,6 +101,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
   const [cardPvpValue, setCardPvpValue] = useState('');
   const [cardMarginValue, setCardMarginValue] = useState('');
+  const [cardEanValue, setCardEanValue] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -126,6 +127,15 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     };
   }, []);
+
+  // Seed EAN input with existing value when a card is expanded
+  useEffect(() => {
+    if (expandedCardId !== null) {
+      const art = articles.find(a => a.id === expandedCardId);
+      setCardEanValue(art?.ean ?? '');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedCardId]);
 
   const filtered = searchDebounced.trim()
     ? articles.filter(a =>
@@ -608,6 +618,53 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                       {[0, 4, 5, 10, 21].map(v => <option key={v} value={v}>{v}%</option>)}
                     </select>
                   </div>
+                </div>
+
+                {/* EAN / Barcode scan */}
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                    EAN / Código de barras
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={cardEanValue}
+                      placeholder="Escanear o escribir EAN…"
+                      onChange={e => setCardEanValue(e.target.value)}
+                      onFocus={e => (e.target as HTMLInputElement).select()}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          const v = cardEanValue.trim();
+                          if (v && v !== (a.ean ?? '')) handleUpdate(a.id, 'ean', v);
+                        }
+                      }}
+                      onBlur={() => {
+                        const v = cardEanValue.trim();
+                        if (v && v !== (a.ean ?? '')) handleUpdate(a.id, 'ean', v);
+                      }}
+                      style={{
+                        flex: 1, padding: '10px 12px',
+                        border: `2px solid ${cardEanValue && cardEanValue !== (a.ean ?? '') ? 'var(--brand)' : 'var(--grey-300)'}`,
+                        borderRadius: '8px', fontSize: '16px',
+                        fontFamily: 'monospace', letterSpacing: '0.04em',
+                        background: 'var(--surface)',
+                      }}
+                    />
+                    {cardEanValue !== (a.ean ?? '') && cardEanValue.trim() && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={isSavingThis}
+                        onClick={() => handleUpdate(a.id, 'ean', cardEanValue.trim())}
+                        title="Guardar EAN"
+                      >{isSavingThis ? '…' : '✓'}</button>
+                    )}
+                  </div>
+                  {a.ean && (
+                    <div style={{ fontSize: '11px', color: 'var(--success)', marginTop: '5px', fontWeight: 600 }}>
+                      ✓ Guardado: {a.ean}
+                    </div>
+                  )}
                 </div>
 
                 {/* Delete + close */}
