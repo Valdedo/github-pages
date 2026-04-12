@@ -227,41 +227,146 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
             raise ValueError(f"Claude devolvió JSON inválido tras reintento: {e}\nRespuesta: {response_text[:300]}")
 
 
+def _image_to_base64_block(source) -> dict:
+    """Convert a file path or PIL Image to a Claude Vision image content block.
+
+    Resizes to max 2000px (sufficient for OCR quality), encodes as JPEG.
+    """
+    import base64
+    import io
+    from PIL import Image, ImageOps
+
+    if isinstance(source, str):
+        img = Image.open(source)
+    else:
+        img = source
+
+    # Apply EXIF orientation (critical for mobile camera photos)
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+
+    img = img.convert("RGB")
+
+    # Resize: max 2000px on longest side — enough detail for printed text
+    max_dim = max(img.width, img.height)
+    if max_dim > 2000:
+        scale = 2000 / max_dim
+        img = img.resize((int(img.width * scale), int(img.height * scale)), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=92)
+    img_bytes = buf.getvalue()
+
+    # Reduce quality if still too large (5MB Claude limit)
+    if len(img_bytes) > 4_500_000:
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=70)
+        img_bytes = buf.getvalue()
+
+    b64 = base64.b64encode(img_bytes).decode("utf-8")
+    return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}}
+
+
+async def extract_with_claude_vision(
+    image_sources: list,
+    supplier_template: Optional[dict] = None,
+) -> dict:
+    """Use Claude Vision to extract structured data directly from document images.
+
+    Bypasses pytesseract entirely — Claude reads the images directly.
+    Much more accurate for mobile photos, uneven lighting, handwriting, etc.
+
+    Args:
+        image_sources: list of file paths (str) or PIL Image objects (max 20)
+        supplier_template: optional hints dict
+
+    Returns:
+        Same structure as extract_with_claude()
+    Raises:
+        Exception if API call fails.
+    """
+    if not settings.anthropic_api_key:
+        raise ValueError("ANTHROPIC_API_KEY no está configurada. Ve a los ajustes del servidor.")
+
+    import anthropic
+
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+
+    # Build image content blocks (Claude allows up to 20 images per request)
+    content: list = []
+    for src in image_sources[:20]:
+        try:
+            content.append(_image_to_base64_block(src))
+        except Exception as e:
+            logger.warning(f"Could not encode image {src}: {e}")
+
+    if not content:
+        raise ValueError("No se pudo cargar ninguna imagen para el análisis.")
+
+    # Text prompt appended after the images
+    hint = ""
+    if supplier_template and supplier_template.get("hints"):
+        hint = f"\nHINTS DEL PROVEEDOR: {supplier_template['hints']}\n"
+    content.append({"type": "text", "text": f"Extrae todos los artículos del albarán que aparece en {'esta imagen' if len(content) == 1 else 'estas imágenes'}:{hint}"})
+
+    retry_content = None
+    for attempt in range(2):
+        msg_content = retry_content if retry_content else content
+        message = await client.messages.create(
+            model=settings.claude_model,
+            max_tokens=8192,
+            system=EXTRACTION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": msg_content}],
+        )
+
+        response_text = message.content[0].text.strip()
+        if response_text.startswith("```"):
+            response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
+
+        try:
+            result = json.loads(response_text)
+            return result
+        except json.JSONDecodeError as e:
+            if attempt == 0:
+                logger.warning(f"Claude Vision returned invalid JSON on attempt 1, retrying: {e}")
+                # Second attempt: add only a text block asking for valid JSON
+                retry_content = [
+                    {"type": "text", "text": (
+                        "IMPORTANTE: Tu respuesta anterior no era JSON válido. "
+                        "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
+                        "sin bloques de código markdown.\n\n"
+                        f"Extrae todos los artículos del albarán que aparece en {'esta imagen' if len(content) == 1 else 'estas imágenes'}:{hint}"
+                    )}
+                ] + [b for b in content if b["type"] == "image"]
+                continue
+            raise ValueError(f"Claude Vision devolvió JSON inválido tras reintento: {e}\nRespuesta: {response_text[:300]}")
+
+
 async def extract_multi_images(
     file_paths: list,
     supplier_id: Optional[int] = None,
     suppliers: list = None,
     lang: str = "spa+eng",
 ) -> dict:
-    """Extract from multiple image files combined as a single multi-page document."""
-    from app.services import ocr_service
-
-    all_text_parts = []
-    all_tables = []
-
-    for i, path in enumerate(file_paths):
-        raw = ocr_service.extract(path, lang)
-        if raw.get("full_text"):
-            all_text_parts.append(f"=== PÁGINA {i + 1} ===\n{raw['full_text']}")
-        if raw.get("tables"):
-            all_tables.extend(raw["tables"])
-
-    combined_raw = {
-        "full_text": "\n\n".join(all_text_parts),
-        "tables": all_tables,
-    }
-
-    # Detect supplier
+    """Extract from multiple image files using Claude Vision (bypasses pytesseract)."""
+    # Detect supplier by reading a quick OCR pass on first image (for keyword matching)
     supplier_detected = None
     supplier_template = None
     if suppliers:
-        supplier_detected = detect_supplier(combined_raw.get("full_text", ""), suppliers)
-        if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
-            supplier_template = json.loads(supplier_detected["template_config"])
-        elif supplier_detected:
-            supplier_template = supplier_detected.get("template_config", {})
+        try:
+            from app.services import ocr_service
+            quick_raw = ocr_service.extract(file_paths[0], lang)
+            supplier_detected = detect_supplier(quick_raw.get("full_text", ""), suppliers)
+            if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
+                supplier_template = json.loads(supplier_detected["template_config"])
+            elif supplier_detected:
+                supplier_template = supplier_detected.get("template_config", {})
+        except Exception as e:
+            logger.warning(f"Quick OCR for supplier detection failed: {e}")
 
-    claude_result = await extract_with_claude(combined_raw, supplier_template)
+    claude_result = await extract_with_claude_vision(file_paths, supplier_template)
     raw_articles = claude_result.get("articulos", [])
     normalized_articles = normalize_extracted_articles(raw_articles)
 
@@ -271,8 +376,8 @@ async def extract_multi_images(
         "totales_documento": claude_result.get("totales_documento") or {},
         "validacion": claude_result.get("validacion") or {},
         "supplier_detected": supplier_detected,
-        "raw_text": combined_raw.get("full_text", ""),
-        "raw_tables": combined_raw.get("tables", []),
+        "raw_text": "",
+        "raw_tables": [],
     }
 
 
@@ -300,48 +405,114 @@ async def extract_document(
     """
     from app.services import pdf_service, ocr_service
 
-    # Step 1: Extract raw content
+    # Step 1: Determine extraction strategy
     if doc_type == "pdf":
-        from app.services.pdf_service import is_scanned_pdf
+        from app.services.pdf_service import is_scanned_pdf, pdf_to_images
         if is_scanned_pdf(file_path):
-            logger.info(f"Detected scanned PDF, using OCR for {file_path}")
-            raw_data = ocr_service.extract(file_path, lang)
+            # Scanned PDF → convert pages to images → Claude Vision
+            logger.info(f"Detected scanned PDF, using Claude Vision for {file_path}")
+            images = pdf_to_images(file_path)
+            if not images:
+                raise ValueError("No se pudieron extraer páginas del PDF escaneado.")
+
+            # Detect supplier via quick OCR on first page
+            supplier_detected = None
+            supplier_template = None
+            if suppliers:
+                try:
+                    quick_text = ocr_service.extract_text_from_pil_image(images[0], lang)
+                    supplier_detected = detect_supplier(quick_text, suppliers)
+                    if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
+                        supplier_template = json.loads(supplier_detected["template_config"])
+                    elif supplier_detected:
+                        supplier_template = supplier_detected.get("template_config", {})
+                except Exception as e:
+                    logger.warning(f"Quick OCR for supplier detection failed: {e}")
+
+            claude_result = await extract_with_claude_vision(images, supplier_template)
+            raw_articles = claude_result.get("articulos", [])
+            normalized_articles = normalize_extracted_articles(raw_articles)
+            return {
+                "documento": claude_result.get("documento", {}),
+                "articulos": normalized_articles,
+                "totales_documento": claude_result.get("totales_documento") or {},
+                "validacion": claude_result.get("validacion") or {},
+                "supplier_detected": supplier_detected,
+                "raw_text": "",
+                "raw_tables": [],
+            }
         else:
+            # Digital PDF → pdfplumber text extraction → Claude text
             logger.info(f"Detected digital PDF, using pdfplumber for {file_path}")
             raw_data = pdf_service.extract_text_and_tables(file_path)
-            # Fallback: if little text was extracted, try OCR
+            # Fallback: if little text was extracted, try Vision
             if len(raw_data.get("full_text", "")) < 100:
-                logger.info("Low text yield, falling back to OCR")
-                raw_data = ocr_service.extract(file_path, lang)
+                logger.info("Low text yield from pdfplumber, falling back to Claude Vision")
+                images = pdf_to_images(file_path)
+                if images:
+                    supplier_detected = None
+                    supplier_template = None
+                    claude_result = await extract_with_claude_vision(images, None)
+                    raw_articles = claude_result.get("articulos", [])
+                    return {
+                        "documento": claude_result.get("documento", {}),
+                        "articulos": normalize_extracted_articles(raw_articles),
+                        "totales_documento": claude_result.get("totales_documento") or {},
+                        "validacion": claude_result.get("validacion") or {},
+                        "supplier_detected": None,
+                        "raw_text": "",
+                        "raw_tables": [],
+                    }
+
+            # Detect supplier from extracted text
+            supplier_detected = None
+            supplier_template = None
+            if suppliers:
+                supplier_detected = detect_supplier(raw_data.get("full_text", ""), suppliers)
+                if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
+                    supplier_template = json.loads(supplier_detected["template_config"])
+                elif supplier_detected:
+                    supplier_template = supplier_detected.get("template_config", {})
+
+            claude_result = await extract_with_claude(raw_data, supplier_template)
+            raw_articles = claude_result.get("articulos", [])
+            normalized_articles = normalize_extracted_articles(raw_articles)
+            return {
+                "documento": claude_result.get("documento", {}),
+                "articulos": normalized_articles,
+                "totales_documento": claude_result.get("totales_documento") or {},
+                "validacion": claude_result.get("validacion") or {},
+                "supplier_detected": supplier_detected,
+                "raw_text": raw_data.get("full_text", ""),
+                "raw_tables": raw_data.get("tables", []),
+            }
     else:
-        # image file
-        raw_data = ocr_service.extract(file_path, lang)
+        # Image file → Claude Vision directly (no pytesseract)
+        logger.info(f"Image file, using Claude Vision for {file_path}")
 
-    # Step 2: Detect supplier
-    supplier_detected = None
-    supplier_template = None
-    if suppliers:
-        supplier_detected = detect_supplier(raw_data.get("full_text", ""), suppliers)
-        if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
-            supplier_template = json.loads(supplier_detected["template_config"])
-        elif supplier_detected:
-            supplier_template = supplier_detected.get("template_config", {})
+        # Detect supplier via quick OCR (lightweight, for keyword matching only)
+        supplier_detected = None
+        supplier_template = None
+        if suppliers:
+            try:
+                quick_raw = ocr_service.extract(file_path, lang)
+                supplier_detected = detect_supplier(quick_raw.get("full_text", ""), suppliers)
+                if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
+                    supplier_template = json.loads(supplier_detected["template_config"])
+                elif supplier_detected:
+                    supplier_template = supplier_detected.get("template_config", {})
+            except Exception as e:
+                logger.warning(f"Quick OCR for supplier detection failed: {e}")
 
-    # Step 3: Claude AI extraction
-    claude_result = await extract_with_claude(raw_data, supplier_template)
-
-    # Step 4: Normalize articles
-    raw_articles = claude_result.get("articulos", [])
-    normalized_articles = normalize_extracted_articles(raw_articles)
-
-    documento = claude_result.get("documento", {})
-
-    return {
-        "documento": documento,
-        "articulos": normalized_articles,
-        "totales_documento": claude_result.get("totales_documento") or {},
-        "validacion": claude_result.get("validacion") or {},
-        "supplier_detected": supplier_detected,
-        "raw_text": raw_data.get("full_text", ""),
-        "raw_tables": raw_data.get("tables", []),
-    }
+        claude_result = await extract_with_claude_vision([file_path], supplier_template)
+        raw_articles = claude_result.get("articulos", [])
+        normalized_articles = normalize_extracted_articles(raw_articles)
+        return {
+            "documento": claude_result.get("documento", {}),
+            "articulos": normalized_articles,
+            "totales_documento": claude_result.get("totales_documento") or {},
+            "validacion": claude_result.get("validacion") or {},
+            "supplier_detected": supplier_detected,
+            "raw_text": "",
+            "raw_tables": [],
+        }
