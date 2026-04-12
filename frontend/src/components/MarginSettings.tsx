@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function MarginSettings({ settings, documentId, onUpdated, onToast }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [tiers, setTiers] = useState<MarginTier[]>(settings.margin_tiers);
   const [roundingMode, setRoundingMode] = useState<'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents'>(settings.rounding_mode as 'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents');
   const [decimals, setDecimals] = useState(settings.rounding_decimals);
