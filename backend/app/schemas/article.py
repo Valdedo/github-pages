@@ -1,19 +1,19 @@
 import datetime
 from typing import Optional, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ArticleBase(BaseModel):
     descripcion: str
-    cantidad: float = 1.0
-    precio_unitario_bruto: float = 0.0
-    descuento_1: Optional[float] = None
-    descuento_2: Optional[float] = None
-    descuento_3: Optional[float] = None
-    descuento_4: Optional[float] = None
+    cantidad: float = Field(default=1.0, gt=0)
+    precio_unitario_bruto: float = Field(default=0.0, ge=0)
+    descuento_1: Optional[float] = Field(default=None, ge=0, le=100)
+    descuento_2: Optional[float] = Field(default=None, ge=0, le=100)
+    descuento_3: Optional[float] = Field(default=None, ge=0, le=100)
+    descuento_4: Optional[float] = Field(default=None, ge=0, le=100)
     iva_pct: float = 21.0
-    recargo_pct: Optional[float] = None
-    margen_pct: Optional[float] = None
+    recargo_pct: Optional[float] = Field(default=None, ge=0, le=100)
+    margen_pct: Optional[float] = Field(default=None, ge=0, le=500)
     margen_override: bool = False
     codigo_proveedor: Optional[str] = None
     codigo_fabricante: Optional[str] = None

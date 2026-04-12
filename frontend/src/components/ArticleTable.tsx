@@ -94,6 +94,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [bulkMarginValue, setBulkMarginValue] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
   const [undoQueue, setUndoQueue] = useState<{ id: number; article: Article; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pvpEditId, setPvpEditId] = useState<number | null>(null);
   const [pvpEditValue, setPvpEditValue] = useState('');
@@ -118,6 +119,13 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [saving]);
+
+  // Clear undo timer on unmount to prevent deleting after navigation
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
 
   const filtered = searchDebounced.trim()
     ? articles.filter(a =>
@@ -273,8 +281,10 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
 
     const timer = setTimeout(async () => {
       try { await deleteArticle(id); } catch { /* already deleted */ }
+      undoTimerRef.current = null;
       setUndoQueue(null);
     }, 5000);
+    undoTimerRef.current = timer;
     setUndoQueue({ id, article, timer });
     onToast?.('Artículo eliminado — Deshacer', 'info');
   };
@@ -282,6 +292,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const handleUndo = () => {
     if (!undoQueue) return;
     clearTimeout(undoQueue.timer);
+    undoTimerRef.current = null;
     onArticlesChanged([...articles, undoQueue.article].sort((a, b) => a.line_number - b.line_number));
     setUndoQueue(null);
     onToast?.('Eliminación deshecha', 'success');

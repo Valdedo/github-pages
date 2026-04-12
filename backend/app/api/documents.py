@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, BackgroundTasks
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -140,8 +140,8 @@ async def upload_multi_images(
 
 @router.get("", response_model=List[DocumentListItem])
 def list_documents(
-    skip: int = 0,
-    limit: int = 50,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     """List all documents with article counts (single query, no N+1)."""
@@ -456,7 +456,12 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
         documento = result.get("documento", {})
         doc.supplier_name = documento.get("proveedor") or supplier_name_fallback
         doc.doc_number = documento.get("num_albaran")
-        doc.pronto_pago_pct = documento.get("pronto_pago_pct")
+        _raw_ppp = documento.get("pronto_pago_pct")
+        try:
+            _ppp = float(_raw_ppp) if _raw_ppp is not None else None
+            doc.pronto_pago_pct = _ppp if _ppp is not None and 0 <= _ppp <= 50 else None
+        except (TypeError, ValueError):
+            doc.pronto_pago_pct = None
         doc.raw_extraction = json.dumps(result.get("raw_text", "")[:5000])
 
         if result.get("supplier_detected") and not supplier_id:
@@ -465,14 +470,18 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             if not doc.supplier_name:
                 doc.supplier_name = supplier_det.get("name")
 
-        fecha_str = documento.get("fecha")
+        fecha_str = str(documento.get("fecha") or "").strip()
         if fecha_str:
             try:
-                from datetime import date, datetime
-                if "T" in str(fecha_str) or " " in str(fecha_str):
-                    doc.doc_date = datetime.fromisoformat(str(fecha_str).split(".")[0]).date()
-                else:
-                    doc.doc_date = date.fromisoformat(str(fecha_str)[:10])
+                from datetime import datetime as _dt
+                _clean = fecha_str.split(".")[0].replace("Z", "").strip()
+                for _fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d",
+                              "%d/%m/%Y", "%d-%m-%Y"]:
+                    try:
+                        doc.doc_date = _dt.strptime(_clean, _fmt).date()
+                        break
+                    except ValueError:
+                        continue
             except Exception:
                 pass
 
@@ -635,7 +644,12 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
         documento = result.get("documento", {})
         doc.supplier_name = documento.get("proveedor") or supplier_name_fallback
         doc.doc_number = documento.get("num_albaran")
-        doc.pronto_pago_pct = documento.get("pronto_pago_pct")
+        _raw_ppp = documento.get("pronto_pago_pct")
+        try:
+            _ppp = float(_raw_ppp) if _raw_ppp is not None else None
+            doc.pronto_pago_pct = _ppp if _ppp is not None and 0 <= _ppp <= 50 else None
+        except (TypeError, ValueError):
+            doc.pronto_pago_pct = None
         doc.raw_extraction = json.dumps(result.get("raw_text", "")[:5000])
 
         # Handle detected supplier
@@ -646,14 +660,18 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
                 doc.supplier_name = supplier_det.get("name")
 
         # Parse date
-        fecha_str = documento.get("fecha")
+        fecha_str = str(documento.get("fecha") or "").strip()
         if fecha_str:
             try:
-                from datetime import date, datetime
-                if "T" in str(fecha_str) or " " in str(fecha_str):
-                    doc.doc_date = datetime.fromisoformat(str(fecha_str).split(".")[0]).date()
-                else:
-                    doc.doc_date = date.fromisoformat(str(fecha_str)[:10])
+                from datetime import datetime as _dt
+                _clean = fecha_str.split(".")[0].replace("Z", "").strip()
+                for _fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d",
+                              "%d/%m/%Y", "%d-%m-%Y"]:
+                    try:
+                        doc.doc_date = _dt.strptime(_clean, _fmt).date()
+                        break
+                    except ValueError:
+                        continue
             except Exception:
                 pass
 

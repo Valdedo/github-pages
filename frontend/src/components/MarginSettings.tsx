@@ -47,9 +47,12 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
   };
 
   const updateTier = (idx: number, field: keyof MarginTier, value: string) => {
-    setTiers(prev => prev.map((t, i) =>
-      i === idx ? { ...t, [field]: value === '' ? null : Number(value) } : t
-    ));
+    setTiers(prev => prev.map((t, i) => {
+      if (i !== idx) return t;
+      if (value === '') return { ...t, [field]: null };
+      const num = Number(value);
+      return isNaN(num) ? t : { ...t, [field]: num };
+    }));
   };
 
   const addTier = () => {
