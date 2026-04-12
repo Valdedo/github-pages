@@ -36,8 +36,8 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
         rounding_decimals: decimals,
         company_name: companyName,
       });
-      onUpdated(data);
       if (documentId) await recalculateArticles(documentId);
+      onUpdated(data);
       onToast?.('Configuración guardada y precios recalculados', 'success');
     } catch {
       onToast?.('Error al guardar la configuración', 'error');
