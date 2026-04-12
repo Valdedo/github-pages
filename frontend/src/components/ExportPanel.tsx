@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   reprocessDocument, downloadExcel, downloadLabels,
   downloadPdfReport, downloadWooCommerceCSV, cloneDocument,
+  downloadTreyFact, downloadPriceList,
 } from '../api/client';
 import { useConfirm } from './ConfirmModal';
 import type { Supplier } from '../types/index';
@@ -24,6 +25,8 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
   const [dlExcel, setDlExcel] = useState(false);
   const [dlPdf, setDlPdf] = useState(false);
   const [dlWoo, setDlWoo] = useState(false);
+  const [dlTreyfact, setDlTreyfact] = useState(false);
+  const [dlPricelist, setDlPricelist] = useState(false);
   const [dlLabels, setDlLabels] = useState(false);
   const [copies, setCopies] = useState(1);
 
@@ -112,6 +115,20 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
             title="Exportar para WooCommerce / PrestaShop"
             onClick={() => handleDownload(setDlWoo, () => downloadWooCommerceCSV(documentId), 'Descargando CSV…')}>
             {dlWoo ? '⏳ Generando…' : '🛒 WooCommerce CSV'}
+          </button>
+        </div>
+
+        {/* Row 2b: TreyFact + Price list */}
+        <div className="export-group">
+          <button className="btn btn-success" disabled={dlTreyfact}
+            title="Exportar para importar artículos en TreyFact"
+            onClick={() => handleDownload(setDlTreyfact, () => downloadTreyFact(documentId), 'Generando Excel TreyFact…')}>
+            {dlTreyfact ? '⏳ Generando…' : '📥 TreyFact Excel'}
+          </button>
+          <button className="btn btn-primary" disabled={dlPricelist}
+            title="Listín de precios en PDF para entregar o enviar"
+            onClick={() => handleDownload(setDlPricelist, () => downloadPriceList(documentId), 'Generando listín PDF…')}>
+            {dlPricelist ? '⏳ Generando…' : '💶 Listín precios PDF'}
           </button>
         </div>
 

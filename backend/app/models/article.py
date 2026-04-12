@@ -43,6 +43,9 @@ class Article(Base):
     codigo_principal: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     otros_codigos: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
+    # Category
+    familia: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
     product_info_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("product_info.id", ondelete="SET NULL"), nullable=True
     )

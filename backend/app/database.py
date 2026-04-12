@@ -69,6 +69,8 @@ def _run_migrations():
         # Client-centric order fields (v2.2.0)
         ("supplier_orders", "client_name",       "TEXT DEFAULT ''"),
         ("supplier_orders", "client_phone",      "TEXT"),
+        # Article category (v2.3.0)
+        ("articles", "familia",                  "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle } from '../api/client';
+import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
@@ -8,7 +8,7 @@ import { ArticleTable } from '../components/ArticleTable';
 import { ExportPanel } from '../components/ExportPanel';
 import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
-import type { Document, Article, AppSettings, Supplier } from '../types/index';
+import type { Document, Article, AppSettings, Supplier, PriceAlert } from '../types/index';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
   uploaded:   { label: 'Subido',       dot: 'rgba(255,255,255,0.5)' },
@@ -39,6 +39,8 @@ export function DocumentPage() {
   const [scanFeedback, setScanFeedback] = useState<{ msg: string; ok: boolean } | null>(null);
   const [assigningBarcode, setAssigningBarcode] = useState<string | null>(null); // barcode pending assignment
   const [assignSearch, setAssignSearch] = useState('');
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([]);
+  const [showAlerts, setShowAlerts] = useState(true);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const assignSearchRef = useRef<HTMLInputElement>(null);
 
@@ -109,13 +111,19 @@ export function DocumentPage() {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([
+      const [docStatus] = await Promise.all([
         loadDocument(),
         getSettings().then(r => setSettings(r.data)),
         listSuppliers().then(r => setSuppliers(r.data)),
         listDocuments().then(r => setDocIds(r.data.map((d: { id: number }) => d.id).reverse())),
       ]);
       setLoading(false);
+      // Load price alerts if document is already completed
+      if (docStatus === 'completed') {
+        getPriceAlerts(docId).then(({ data }) => {
+          if (data.length > 0) setPriceAlerts(data);
+        }).catch(() => {});
+      }
     };
     init();
   }, [docId]);
@@ -141,8 +149,15 @@ export function DocumentPage() {
           timerId = setTimeout(poll, delay);
         } else {
           setPolling(false);
-          if (status === 'completed') showToast('Extracción completada', 'success');
-          else if (status === 'error') showToast('Error en la extracción — ver detalle abajo', 'error');
+          if (status === 'completed') {
+            showToast('Extracción completada', 'success');
+            // Load price alerts for this document
+            getPriceAlerts(docId).then(({ data }) => {
+              if (data.length > 0) setPriceAlerts(data);
+            }).catch(() => {});
+          } else if (status === 'error') {
+            showToast('Error en la extracción — ver detalle abajo', 'error');
+          }
         }
       };
 
@@ -335,6 +350,53 @@ export function DocumentPage() {
           )}
           <div style={{ fontSize: '12px', color: '#b91c1c' }}>
             Pulsa <strong>Reprocesar extracción</strong> para volver a intentarlo.
+          </div>
+        </div>
+      )}
+
+      {/* ── Price alerts panel ──────────────────────────────────── */}
+      {priceAlerts.length > 0 && showAlerts && (
+        <div style={{
+          background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 'var(--r)',
+          padding: '12px 16px', marginBottom: '14px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontWeight: 700, color: '#92400e', fontSize: '14px' }}>
+              ⚠ Subidas de precio detectadas ({priceAlerts.length})
+            </span>
+            <button
+              onClick={() => setShowAlerts(false)}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#b45309' }}
+            >✕ Cerrar</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {priceAlerts.map(alert => (
+              <div key={alert.article_id} style={{
+                display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center',
+                background: '#fff', borderRadius: '6px', padding: '8px 12px',
+                border: '1px solid #fde68a', fontSize: '13px',
+              }}>
+                <div>
+                  <span style={{ fontWeight: 600 }}>{alert.descripcion}</span>
+                  {alert.codigo_principal && (
+                    <span style={{ fontFamily: 'monospace', color: '#9ca3af', fontSize: '11px', marginLeft: '8px' }}>
+                      {alert.codigo_principal}
+                    </span>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <span style={{ color: '#6b7280', textDecoration: 'line-through', marginRight: '6px' }}>
+                    {alert.coste_anterior.toFixed(4)} €
+                  </span>
+                  <span style={{ fontWeight: 700, color: '#dc2626' }}>
+                    {alert.coste_actual.toFixed(4)} € (+{alert.pct_cambio.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: '11px', color: '#b45309', marginTop: '8px' }}>
+            Revisa los PVP de estos artículos — es posible que debas actualizarlos.
           </div>
         </div>
       )}

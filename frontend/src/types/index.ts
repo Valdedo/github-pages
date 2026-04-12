@@ -59,9 +59,42 @@ export interface Article {
   ean?: string;
   codigo_principal?: string;
   otros_codigos?: Record<string, string>;
+  familia?: string;
   product_info_id?: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface CatalogArticle {
+  id: number;
+  descripcion: string;
+  coste_neto_unitario: number;
+  pvp_sin_iva: number;
+  pvp_con_iva: number;
+  margen_pct: number;
+  iva_pct: number;
+  codigo_principal?: string;
+  codigo_proveedor?: string;
+  codigo_fabricante?: string;
+  ean?: string;
+  familia?: string;
+  document_id: number;
+  supplier_name?: string;
+  doc_date?: string;
+  doc_number?: string;
+}
+
+export interface PriceAlert {
+  article_id: number;
+  codigo_principal: string;
+  descripcion: string;
+  coste_anterior: number;
+  coste_actual: number;
+  pvp_anterior: number;
+  pvp_actual: number;
+  pct_cambio: number;
+  prev_doc_id: number;
+  prev_doc_date?: string;
 }
 
 export interface MarginTier {

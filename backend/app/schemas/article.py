@@ -20,6 +20,7 @@ class ArticleBase(BaseModel):
     ean: Optional[str] = None
     codigo_principal: Optional[str] = None
     otros_codigos: Optional[Any] = None
+    familia: Optional[str] = None
 
 
 class ArticleCreate(ArticleBase):
@@ -44,6 +45,7 @@ class ArticleUpdate(BaseModel):
     ean: Optional[str] = None
     codigo_principal: Optional[str] = None
     otros_codigos: Optional[Any] = None
+    familia: Optional[str] = None
 
 
 class ArticleResponse(ArticleBase):
@@ -57,6 +59,7 @@ class ArticleResponse(ArticleBase):
     pvp_sin_iva: float
     pvp_con_iva: float
     product_info_id: Optional[int] = None
+    familia: Optional[str] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

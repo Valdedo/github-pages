@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats } from '../types';
+import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -87,6 +87,39 @@ export const downloadPdfReport = (documentId: number) => {
 
 export const downloadWooCommerceCSV = (documentId: number) => {
   window.open(`${BASE}/api/export/woocommerce/${documentId}`, '_blank');
+};
+
+export const downloadTreyFact = (documentId: number) => {
+  window.open(`${BASE}/api/export/treyfact/${documentId}`, '_blank');
+};
+
+export const downloadPriceList = (documentId: number) => {
+  window.open(`${BASE}/api/export/pricelist/${documentId}`, '_blank');
+};
+
+// Catalog
+export const getCatalog = (params?: { q?: string; familia?: string; limit?: number }) =>
+  api.get<CatalogArticle[]>('/api/catalog', { params });
+
+export const getCatalogFamilies = () => api.get<string[]>('/api/catalog/families');
+
+export const getPriceAlerts = (documentId: number, thresholdPct = 5) =>
+  api.get<PriceAlert[]>(`/api/catalog/price-alerts/${documentId}?threshold_pct=${thresholdPct}`);
+
+export const downloadCatalogTreyFact = (params?: { familia?: string; q?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.familia) qs.set('familia', params.familia);
+  if (params?.q) qs.set('q', params.q);
+  const query = qs.toString();
+  window.open(`${BASE}/api/catalog/export-treyfact${query ? '?' + query : ''}`, '_blank');
+};
+
+export const downloadCatalogPriceList = (params?: { familia?: string; q?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.familia) qs.set('familia', params.familia);
+  if (params?.q) qs.set('q', params.q);
+  const query = qs.toString();
+  window.open(`${BASE}/api/catalog/export-pricelist${query ? '?' + query : ''}`, '_blank');
 };
 
 export const cloneDocument = (id: number) =>

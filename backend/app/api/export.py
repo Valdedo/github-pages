@@ -150,6 +150,72 @@ def export_labels(
     )
 
 
+@router.get("/treyfact/{document_id}")
+def export_treyfact(document_id: int, db: Session = Depends(get_db)):
+    """Export document articles as TreyFact-compatible Excel for article import."""
+    from app.services.treyfact_service import generate_treyfact_excel
+
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    articles = (
+        db.query(Article)
+        .filter(Article.document_id == document_id)
+        .order_by(Article.line_number)
+        .all()
+    )
+    if not articles:
+        raise HTTPException(404, "No articles found for this document")
+
+    excel_bytes = generate_treyfact_excel(articles, supplier_name=doc.supplier_name or "")
+    safe_name = doc.original_filename.rsplit(".", 1)[0]
+    filename = f"treyfact_{safe_name}_{doc.id}.xlsx"
+
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/pricelist/{document_id}")
+def export_price_list(document_id: int, db: Session = Depends(get_db)):
+    """Export document articles as a PDF price list."""
+    from app.services.price_list_service import generate_price_list_pdf
+
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    articles = (
+        db.query(Article)
+        .filter(Article.document_id == document_id)
+        .order_by(Article.line_number)
+        .all()
+    )
+    if not articles:
+        raise HTTPException(404, "No articles found for this document")
+
+    settings = get_settings(db)
+    pdf_bytes = generate_price_list_pdf(
+        articles=articles,
+        company_name=settings.company_name or "",
+        supplier_name=doc.supplier_name or "",
+        doc_number=doc.doc_number or "",
+        doc_date=doc.doc_date,
+        title="Listín de Precios",
+    )
+    safe_name = doc.original_filename.rsplit(".", 1)[0]
+    filename = f"listin_{safe_name}_{doc.id}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/woocommerce/{document_id}")
 def export_woocommerce_csv(document_id: int, db: Session = Depends(get_db)):
     """Export articles as WooCommerce-compatible CSV for product import."""

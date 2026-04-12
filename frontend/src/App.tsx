@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, Store, ChevronLeft, Menu, X
+  BarChart2, Store, ChevronLeft, Menu, X, BookOpen, Search
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
@@ -14,6 +14,8 @@ import { SalePage } from './pages/SalePage';
 import { RepairsPage } from './pages/RepairsPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
+import { CatalogPage } from './pages/CatalogPage';
+import { PriceLookupPage } from './pages/PriceLookupPage';
 import { getDashboardStats } from './api/client';
 
 interface NavBadge {
@@ -24,6 +26,8 @@ interface NavBadge {
 const navItems = [
   { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
   { to: '/albaranes', label: 'Albaranes', icon: FileText },
+  { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
+  { to: '/consulta', label: 'Consulta', icon: Search },
   { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' as const },
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' as const },
   { to: '/venta', label: 'Venta', icon: Store },
@@ -75,7 +79,7 @@ function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const current = navItems.find(n => n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to) && n.to !== '/');
-  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/');
+  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/');
 
   return (
     <header className="mobile-header">
@@ -93,7 +97,7 @@ function MobileHeader() {
 }
 
 function BottomNav({ badges }: { badges: NavBadge }) {
-  const mobileItems = navItems.slice(0, 5);
+  const mobileItems = navItems.slice(0, 6);
   return (
     <nav className="bottom-nav">
       {mobileItems.map(({ to, label, icon: Icon, badge, exact }) => {
@@ -154,6 +158,8 @@ function AppShell() {
             <Route path="/reparaciones" element={<RepairsPage />} />
             <Route path="/pedidos" element={<OrdersPage />} />
             <Route path="/pedidos/:id" element={<OrderDetailPage />} />
+            <Route path="/catalogo" element={<CatalogPage />} />
+            <Route path="/consulta" element={<PriceLookupPage />} />
           </Routes>
         </main>
         <BottomNav badges={badges} />

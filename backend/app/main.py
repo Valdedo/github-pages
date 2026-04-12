@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.3.0"
 
 
 @asynccontextmanager
@@ -67,6 +67,7 @@ app.include_router(product_info.router)
 app.include_router(analytics.router)
 app.include_router(repairs.router)
 app.include_router(supplier_orders.router)
+app.include_router(catalog.router)
 
 
 @app.get("/health")
