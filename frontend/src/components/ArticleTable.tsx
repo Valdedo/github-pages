@@ -29,6 +29,8 @@ interface Props {
   onArticlesChanged: (articles: Article[]) => void;
   onSelectedIdsChange?: (ids: number[]) => void;
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  verifiedIds?: Set<number>;
+  onVerify?: (id: number) => void;
 }
 
 const fmt = (n: number | undefined | null, digits = 2) =>
@@ -83,7 +85,7 @@ function EditableCell({
 
 const ch = createColumnHelper<Article>();
 
-export function ArticleTable({ documentId, articles, onArticlesChanged, onSelectedIdsChange, onToast }: Props) {
+export function ArticleTable({ documentId, articles, onArticlesChanged, onSelectedIdsChange, onToast, verifiedIds, onVerify }: Props) {
   const [saving, setSaving] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [addingRow, setAddingRow] = useState(false);
@@ -489,19 +491,33 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
           ? ((pvpNum / (1 + (a.iva_pct || 21) / 100)) / a.coste_neto_unitario - 1) * 100
           : null;
 
+        const isVerified = verifiedIds?.has(a.id) ?? false;
         return (
           <div key={a.id} style={{
             borderBottom: '1px solid var(--border)',
-            background: isExpanded ? 'var(--brand-pale)' : selectedIds.has(a.id) ? '#fff8e1' : 'var(--surface)',
+            borderLeft: isVerified ? '4px solid #22c55e' : verifiedIds ? '4px solid transparent' : undefined,
+            background: isVerified ? '#f0fdf4' : isExpanded ? 'var(--brand-pale)' : selectedIds.has(a.id) ? '#fff8e1' : 'var(--surface)',
+            transition: 'background 0.2s',
           }}>
             {/* Card header row — tap to expand editor */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', cursor: 'pointer' }}
-              onClick={openCard}>
-              <input type="checkbox" checked={selectedIds.has(a.id)}
-                onChange={() => toggleSelect(a.id)}
-                onClick={e => e.stopPropagation()}
-                style={{ accentColor: 'var(--primary)', flexShrink: 0 }}
-              />
+              onClick={verifiedIds ? () => onVerify?.(a.id) : openCard}>
+              {verifiedIds ? (
+                <span style={{
+                  width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                  background: isVerified ? '#22c55e' : '#e5e7eb',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '13px', color: '#fff', fontWeight: 700,
+                }}>
+                  {isVerified ? '✓' : ''}
+                </span>
+              ) : (
+                <input type="checkbox" checked={selectedIds.has(a.id)}
+                  onChange={() => toggleSelect(a.id)}
+                  onClick={e => e.stopPropagation()}
+                  style={{ accentColor: 'var(--primary)', flexShrink: 0 }}
+                />
+              )}
               <span style={{ flex: 1, fontWeight: 600, fontSize: '14px', lineHeight: 1.3 }}>
                 {a.descripcion || '—'}
               </span>
@@ -512,7 +528,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
               }}>
                 {a.pvp_con_iva != null ? `${a.pvp_con_iva.toFixed(2)} €` : '—'}
               </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-3)', flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
+              {!verifiedIds && <span style={{ fontSize: '12px', color: 'var(--text-3)', flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>}
             </div>
 
             {/* Meta row */}
@@ -844,11 +860,13 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
             ) : (
               table.getRowModel().rows.flatMap((row, i) => {
                 const isSelected = selectedIds.has(row.original.id);
+                const isVerified = verifiedIds?.has(row.original.id) ?? false;
                 const art = row.original;
                 const rows = [(
                   <tr key={row.id} style={{
-                    background: isSelected ? 'var(--brand-pale)' : (i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)'),
-                    transition: 'background 0.1s',
+                    background: isVerified ? '#f0fdf4' : isSelected ? 'var(--brand-pale)' : (i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)'),
+                    borderLeft: isVerified ? '3px solid #22c55e' : verifiedIds ? '3px solid transparent' : undefined,
+                    transition: 'background 0.2s',
                   }}>
                     {row.getVisibleCells().map(cell => (
                       <td key={cell.id} style={{ padding: '5px 6px', borderBottom: pvpEditId === art.id ? 'none' : '1px solid var(--grey-200)', verticalAlign: 'middle' }}>

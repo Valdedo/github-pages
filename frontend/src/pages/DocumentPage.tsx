@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
@@ -33,6 +33,11 @@ export function DocumentPage() {
   const [docIds, setDocIds] = useState<number[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [verificationMode, setVerificationMode] = useState(false);
+  const [verifiedIds, setVerifiedIds] = useState<Set<number>>(new Set());
+  const [scanInput, setScanInput] = useState('');
+  const [scanFeedback, setScanFeedback] = useState<{ msg: string; ok: boolean } | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   const { showToast, ToastContainer } = useToast();
 
@@ -58,6 +63,28 @@ export function DocumentPage() {
       return 'processing';
     }
   }, [docId]);
+
+  const handleScan = useCallback((barcode: string) => {
+    const clean = barcode.trim();
+    if (!clean) return;
+    const match = articles.find(a =>
+      (a.ean && a.ean === clean) ||
+      (a.codigo_principal && a.codigo_principal === clean) ||
+      (a.codigo_proveedor && a.codigo_proveedor === clean) ||
+      (a.codigo_fabricante && a.codigo_fabricante === clean)
+    );
+    if (match) {
+      setVerifiedIds(prev => new Set([...prev, match.id]));
+      setScanFeedback({ msg: `✓ ${match.descripcion.slice(0, 50)}`, ok: true });
+    } else {
+      setScanFeedback({ msg: `No encontrado: ${clean}`, ok: false });
+    }
+    setScanInput('');
+    setTimeout(() => {
+      setScanFeedback(null);
+      scanInputRef.current?.focus();
+    }, 1500);
+  }, [articles]);
 
   useEffect(() => {
     const init = async () => {
@@ -250,6 +277,16 @@ export function DocumentPage() {
           >
             📄 {showPreview ? 'Ocultar' : 'Ver doc'}
           </button>
+          {document.status === 'completed' && articles.length > 0 && (
+            <button
+              className="doc-hero-nav-btn"
+              onClick={() => { setVerificationMode(v => !v); setVerifiedIds(new Set()); setScanInput(''); setScanFeedback(null); }}
+              title="Verificar artículos escaneando códigos de barras"
+              style={{ fontSize: '14px', width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center', background: verificationMode ? '#16a34a' : undefined }}
+            >
+              {verificationMode ? '✕ Salir' : '📦 Verificar'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -348,6 +385,87 @@ export function DocumentPage() {
         </div>
       )}
 
+      {/* ── Verification mode panel ──────────────────────────────── */}
+      {verificationMode && (
+        <div style={{
+          background: '#f0fdf4', border: '2px solid #22c55e', borderRadius: 'var(--r)',
+          padding: '16px', marginBottom: '14px',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, fontSize: '14px', color: '#166534' }}>
+              📦 Verificando recepción
+            </span>
+            <span style={{
+              background: verifiedIds.size === articles.length && articles.length > 0 ? '#22c55e' : '#bbf7d0',
+              color: '#14532d', borderRadius: '99px', padding: '2px 10px',
+              fontSize: '13px', fontWeight: 700,
+            }}>
+              {verifiedIds.size} / {articles.length}
+            </span>
+            {verifiedIds.size > 0 && (
+              <button
+                style={{ marginLeft: 'auto', fontSize: '12px', background: 'none', border: '1px solid #86efac', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', color: '#166534' }}
+                onClick={() => setVerifiedIds(new Set())}
+              >↺ Reiniciar</button>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ background: '#dcfce7', borderRadius: '99px', height: '8px', marginBottom: '12px', overflow: 'hidden' }}>
+            <div style={{
+              background: '#22c55e', height: '8px', borderRadius: '99px',
+              width: `${articles.length ? (verifiedIds.size / articles.length * 100) : 0}%`,
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+
+          {/* Scan input */}
+          <input
+            ref={scanInputRef}
+            type="text"
+            inputMode="numeric"
+            value={scanInput}
+            placeholder="Escanea un código de barras con la PDA…"
+            onChange={e => setScanInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleScan(scanInput); }}
+            autoFocus
+            style={{
+              width: '100%', padding: '13px 16px', fontSize: '18px',
+              border: '2px solid #22c55e', borderRadius: '10px',
+              fontFamily: 'monospace', boxSizing: 'border-box',
+              background: '#fff', marginBottom: '8px',
+            }}
+          />
+
+          {/* Scan feedback */}
+          {scanFeedback ? (
+            <div style={{
+              padding: '9px 14px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+              background: scanFeedback.ok ? '#dcfce7' : '#fee2e2',
+              color: scanFeedback.ok ? '#166534' : '#dc2626',
+              transition: 'opacity 0.3s',
+            }}>
+              {scanFeedback.msg}
+            </div>
+          ) : verifiedIds.size === articles.length && articles.length > 0 ? (
+            <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#dcfce7', fontWeight: 700, color: '#166534', fontSize: '15px', textAlign: 'center' }}>
+              ✓ ¡Todos los artículos verificados!
+            </div>
+          ) : verifiedIds.size > 0 ? (
+            <div style={{ fontSize: '12px', color: '#6b7280' }}>
+              <strong style={{ color: '#374151' }}>Pendientes:</strong>{' '}
+              {articles.filter(a => !verifiedIds.has(a.id)).map(a => a.descripcion).join(' · ').slice(0, 120)}
+              {articles.filter(a => !verifiedIds.has(a.id)).length > 3 ? '…' : ''}
+            </div>
+          ) : (
+            <div style={{ fontSize: '12px', color: '#6b7280' }}>
+              Apunta la PDA a un código de barras o pulsa sobre un artículo para marcarlo manualmente
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Panels: single-column, full width ────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
@@ -361,6 +479,12 @@ export function DocumentPage() {
           onArticlesChanged={setArticles}
           onSelectedIdsChange={setSelectedIds}
           onToast={showToast}
+          verifiedIds={verificationMode ? verifiedIds : undefined}
+          onVerify={verificationMode ? (id) => setVerifiedIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+          }) : undefined}
         />
 
         {/* 3. Actions row: Export + Margin side by side on desktop */}
