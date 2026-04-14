@@ -1230,6 +1230,82 @@ select.form-input { cursor: pointer; }
   .bottom-nav-item.active { color: var(--brand); }
   .bottom-nav-item svg { flex-shrink: 0; }
 
+  /* More drawer backdrop */
+  .more-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / .35);
+    z-index: 190;
+    animation: fadeIn 0.18s ease;
+  }
+
+  /* More drawer (slides up from bottom, above bottom nav) */
+  .more-drawer {
+    position: fixed;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 8px 20px 20px;
+    z-index: 195;
+    box-shadow: 0 -4px 24px rgb(0 0 0 / .12);
+    transform: translateY(100%);
+    transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+  }
+  .more-drawer.more-drawer-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .more-drawer-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+    cursor: pointer;
+  }
+  .more-drawer-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 14px;
+  }
+  .more-drawer-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .more-drawer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 8px;
+    border-radius: 12px;
+    background: var(--bg);
+    color: var(--text-2);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    transition: background 0.12s, color 0.12s;
+    border: 1.5px solid transparent;
+  }
+  .more-drawer-item.active {
+    color: var(--brand);
+    background: var(--brand-pale);
+    border-color: var(--brand-light);
+  }
+  .more-drawer-item:active {
+    background: var(--brand-light);
+  }
+
   /* FAB */
   .fab {
     display: flex;

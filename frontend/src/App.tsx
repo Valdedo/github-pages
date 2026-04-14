@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, Store, ChevronLeft, Menu, X, BookOpen, Search, Tag
+  BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
@@ -126,28 +126,72 @@ function MobileHeader() {
 }
 
 function BottomNav({ badges }: { badges: NavBadge }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const location = useLocation();
+
+  // Close drawer on navigation
+  useEffect(() => setDrawerOpen(false), [location.pathname]);
+
+  const isSecondaryActive = secondaryNavItems.some(
+    n => location.pathname === n.to || location.pathname.startsWith(n.to + '/')
+  );
+
   return (
-    <nav className="bottom-nav">
-      {primaryNavItems.map(({ to, label, icon: Icon, badge, exact }) => {
-        const count = badge ? badges[badge as keyof NavBadge] : 0;
-        return (
-          <NavLink
-            key={to}
-            to={to}
-            end={exact}
-            className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
-          >
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <Icon size={22} />
-              {count > 0 && (
-                <span className="bottom-badge">{count > 9 ? '9+' : count}</span>
-              )}
-            </span>
-            <span>{label}</span>
-          </NavLink>
-        );
-      })}
-    </nav>
+    <>
+      {/* Backdrop */}
+      {drawerOpen && (
+        <div className="more-drawer-backdrop" onClick={() => setDrawerOpen(false)} />
+      )}
+
+      {/* Tools drawer */}
+      <div className={`more-drawer${drawerOpen ? ' more-drawer-open' : ''}`}>
+        <div className="more-drawer-handle" onClick={() => setDrawerOpen(false)} />
+        <div className="more-drawer-title">Herramientas</div>
+        <div className="more-drawer-grid">
+          {secondaryNavItems.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `more-drawer-item${isActive ? ' active' : ''}`}
+            >
+              <Icon size={26} />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom nav */}
+      <nav className="bottom-nav">
+        {primaryNavItems.map(({ to, label, icon: Icon, badge, exact }) => {
+          const count = badge ? badges[badge as keyof NavBadge] : 0;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={exact}
+              className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
+            >
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <Icon size={22} />
+                {count > 0 && (
+                  <span className="bottom-badge">{count > 9 ? '9+' : count}</span>
+                )}
+              </span>
+              <span>{label}</span>
+            </NavLink>
+          );
+        })}
+        {/* "More" button */}
+        <button
+          className={`bottom-nav-item${isSecondaryActive || drawerOpen ? ' active' : ''}`}
+          onClick={() => setDrawerOpen(v => !v)}
+        >
+          <MoreHorizontal size={22} />
+          <span>Más</span>
+        </button>
+      </nav>
+    </>
   );
 }
 
