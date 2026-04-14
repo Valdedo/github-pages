@@ -286,33 +286,60 @@ export function CustomLabelsPage() {
 
   return (
     <div className="page">
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Tag size={20} /> Etiquetas personalizadas
+      {/* Header — stacks vertically on mobile */}
+      {isMobile ? (
+        /* ── Mobile header ── */
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+            <Tag size={18} /> Etiquetas personalizadas
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
-            Rellena los artículos a mano y genera un PDF listo para imprimir.
-          </p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+              {validRows.length} art. · {totalLabels} etiq.
+            </span>
+            <button className="btn btn-ghost btn-sm"
+              onClick={() => { if (confirm('¿Limpiar todos los artículos?')) setRows([newRow()]); }}
+              style={{ color: 'var(--danger)' }}>
+              Limpiar
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={handleGenerate}
+              disabled={generating || validRows.length === 0}
+              style={{ marginLeft: 'auto', flexShrink: 0 }}>
+              {generating
+                ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
+                : <><Download size={14} /> Generar PDF</>}
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
-            {validRows.length} art. · {totalLabels} etiq.
-          </span>
-          <button className="btn btn-ghost btn-sm"
-            onClick={() => { if (confirm('¿Limpiar todos los artículos?')) setRows([newRow()]); }}
-            style={{ color: 'var(--danger)' }}>
-            Limpiar
-          </button>
-          <button className="btn btn-primary" onClick={handleGenerate}
-            disabled={generating || validRows.length === 0}>
-            {generating
-              ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
-              : <><Download size={15} /> Generar PDF</>}
-          </button>
+      ) : (
+        /* ── Desktop header ── */
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Tag size={20} /> Etiquetas personalizadas
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
+              Rellena los artículos a mano y genera un PDF listo para imprimir.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+              {validRows.length} art. · {totalLabels} etiq.
+            </span>
+            <button className="btn btn-ghost btn-sm"
+              onClick={() => { if (confirm('¿Limpiar todos los artículos?')) setRows([newRow()]); }}
+              style={{ color: 'var(--danger)' }}>
+              Limpiar
+            </button>
+            <button className="btn btn-primary" onClick={handleGenerate}
+              disabled={generating || validRows.length === 0}>
+              {generating
+                ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
+                : <><Download size={15} /> Generar PDF</>}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
@@ -326,12 +353,14 @@ export function CustomLabelsPage() {
         : <DesktopTable {...sharedProps} />
       }
 
-      {/* Help note */}
-      <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--text-2)' }}>Descripción</strong> y <strong style={{ color: 'var(--text-2)' }}>PVP</strong> son obligatorios.{' '}
-        Los artículos se guardan en la base de datos al generar, por lo que el QR del móvil y el código de barras funcionan igual que en cualquier albarán.
-        El <strong style={{ color: 'var(--text-2)' }}>Coste</strong> se muestra cifrado en la etiqueta (solo uso interno).
-      </div>
+      {/* Help note — hidden on mobile to save space */}
+      {!isMobile && (
+        <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+          <strong style={{ color: 'var(--text-2)' }}>Descripción</strong> y <strong style={{ color: 'var(--text-2)' }}>PVP</strong> son obligatorios.{' '}
+          Los artículos se guardan en la base de datos al generar, por lo que el QR del móvil y el código de barras funcionan igual que en cualquier albarán.
+          El <strong style={{ color: 'var(--text-2)' }}>Coste</strong> se muestra cifrado en la etiqueta (solo uso interno).
+        </div>
+      )}
     </div>
   );
 }
