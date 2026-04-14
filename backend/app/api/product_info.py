@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.product_info import ProductInfo
 from app.models.article import Article
+from app.models.app_settings import AppSettings
 from app.schemas.settings import ProductInfoResponse, ProductInfoUpdate
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,81 @@ def scan_product(code: str, db: Session = Depends(get_db)):
         "codigo_principal": article.codigo_principal,
         "ean": article.ean,
     }
+
+
+@router.get("/ficha/{code}", response_class=HTMLResponse)
+def product_ficha(code: str, db: Session = Depends(get_db)):
+    """QR code landing page — returns a mobile-friendly HTML page with product info.
+
+    Looks up the article by EAN or codigo_principal (most recently updated wins).
+    """
+    article = (
+        db.query(Article)
+        .filter((Article.ean == code) | (Article.codigo_principal == code))
+        .order_by(Article.updated_at.desc())
+        .first()
+    )
+
+    settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
+    company = (settings.company_name if settings else "") or "Almacén"
+
+    _CSS = """
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+           background:#f0fdf4;min-height:100vh;display:flex;flex-direction:column;
+           align-items:center;padding:24px 16px}
+      .card{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;
+            box-shadow:0 4px 24px rgba(0,0,0,.09);margin-bottom:16px}
+      .badge{display:inline-block;background:#1B5E20;color:#fff;font-weight:700;
+             font-size:13px;padding:3px 14px;border-radius:20px;margin-bottom:16px}
+      h1{font-size:21px;font-weight:700;color:#0f172a;line-height:1.3;margin-bottom:20px}
+      .price{font-size:44px;font-weight:800;color:#1B5E20;letter-spacing:-.03em;margin-bottom:20px}
+      hr{border:none;border-top:1px solid #e2e8f0;margin-bottom:16px}
+      table{width:100%;border-collapse:collapse}
+      td{padding:10px 0;font-size:15px;border-bottom:1px solid #f1f5f9}
+      tr:last-child td{border-bottom:none}
+      .lbl{color:#94a3b8;font-weight:500}
+      .val{color:#0f172a;font-weight:600;text-align:right}
+      .footer{font-size:12px;color:#94a3b8;text-align:center}
+      .not-found{text-align:center;padding:40px 0;color:#94a3b8}
+      .not-found h2{font-size:18px;color:#475569;margin-bottom:8px}
+    """
+
+    if not article:
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Producto no encontrado</title><style>{_CSS}</style></head>
+        <body><div class="card"><div class="not-found">
+          <h2>Producto no encontrado</h2>
+          <p>Código: <strong>{code}</strong></p>
+        </div></div>
+        <div class="footer">{company}</div></body></html>"""
+        return HTMLResponse(html, status_code=404)
+
+    pvp = f"{article.pvp_con_iva:.2f}".replace(".", ",")
+
+    rows_html = ""
+    if article.codigo_principal:
+        rows_html += f'<tr><td class="lbl">Referencia</td><td class="val">{article.codigo_principal}</td></tr>'
+    if article.ean:
+        rows_html += f'<tr><td class="lbl">EAN</td><td class="val">{article.ean}</td></tr>'
+    if article.familia:
+        rows_html += f'<tr><td class="lbl">Familia</td><td class="val">{article.familia}</td></tr>'
+
+    html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{article.descripcion}</title><style>{_CSS}</style></head>
+    <body>
+      <div class="card">
+        <div class="badge">{company}</div>
+        <h1>{article.descripcion}</h1>
+        <div class="price">{pvp}&nbsp;€</div>
+        <hr>
+        <table>{rows_html}</table>
+      </div>
+      <div class="footer">{company} &middot; Gestión de almacén</div>
+    </body></html>"""
+    return HTMLResponse(html)
 
 
 @router.get("/{product_id}", response_model=ProductInfoResponse)

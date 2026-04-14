@@ -17,15 +17,204 @@ const newRow = (): Row => ({
   copies: 1,
 });
 
-// Displayed field config
-const COLUMNS = [
-  { key: 'descripcion',        label: 'Descripción',   type: 'text',   required: true,  placeholder: 'Nombre del artículo',  flex: '2 1 200px' },
-  { key: 'pvp_con_iva',        label: 'PVP (€)',        type: 'number', required: true,  placeholder: '0,00',                  flex: '0 0 90px'  },
-  { key: 'codigo_principal',   label: 'Referencia',     type: 'text',   required: false, placeholder: 'REF-001',               flex: '1 1 100px' },
-  { key: 'ean',                label: 'EAN/Código',     type: 'text',   required: false, placeholder: '8412345678901',         flex: '1 1 120px' },
-  { key: 'coste_neto_unitario',label: 'Coste (€)',      type: 'number', required: false, placeholder: '—',                    flex: '0 0 90px'  },
-  { key: 'copies',             label: 'Copias',         type: 'number', required: true,  placeholder: '1',                    flex: '0 0 70px'  },
-] as const;
+// ─── Shared field helpers ─────────────────────────────────────────────────────
+
+function numVal(v: unknown): string {
+  if (v === undefined || v === null || v === 0) return '';
+  return String(v);
+}
+
+function parseNum(s: string, fallback: number): number {
+  const n = parseFloat(s.replace(',', '.'));
+  return isNaN(n) ? fallback : n;
+}
+
+// ─── Desktop table ────────────────────────────────────────────────────────────
+
+interface TableProps {
+  rows: Row[];
+  setField: (id: string, key: keyof Row, value: string) => void;
+  addRow: () => void;
+  duplicateRow: (id: string) => void;
+  removeRow: (id: string) => void;
+}
+
+function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: TableProps) {
+  const thStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 700, color: 'var(--text-3)',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
+  };
+  const inputStyle = (invalid?: boolean): React.CSSProperties => ({
+    padding: '7px 8px',
+    border: `1.5px solid ${invalid ? '#fca5a5' : 'var(--grey-300)'}`,
+    borderRadius: 7, fontSize: 13, fontFamily: 'inherit',
+    width: '100%', boxSizing: 'border-box',
+    background: invalid ? '#fff5f5' : undefined,
+  });
+
+  return (
+    <div className="card custom-labels-desktop" style={{ overflowX: 'auto' }}>
+      {/* Header */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '2fr 90px 110px 130px 90px 70px 68px',
+        gap: 8, padding: '10px 16px',
+        borderBottom: '1px solid var(--border)', background: 'var(--bg)', minWidth: 680,
+      }}>
+        {['Descripción *', 'PVP (€) *', 'Referencia', 'EAN / Código', 'Coste (€)', 'Copias', ''].map(h => (
+          <span key={h} style={thStyle}>{h}</span>
+        ))}
+      </div>
+
+      {/* Rows */}
+      <div style={{ minWidth: 680 }}>
+        {rows.map((row, idx) => {
+          const noDesc = !row.descripcion.trim();
+          return (
+            <div key={row._id} style={{
+              display: 'grid',
+              gridTemplateColumns: '2fr 90px 110px 130px 90px 70px 68px',
+              gap: 8, padding: '8px 16px',
+              borderBottom: '1px solid var(--border)',
+              background: idx % 2 === 0 ? undefined : 'var(--bg)',
+              alignItems: 'center',
+            }}>
+              <input style={inputStyle(noDesc)} placeholder="Nombre del artículo"
+                value={row.descripcion} onChange={e => setField(row._id, 'descripcion', e.target.value)} />
+              <input style={{ ...inputStyle(), textAlign: 'right' }} type="number" min={0} step={0.01}
+                placeholder="0,00" value={numVal(row.pvp_con_iva)}
+                onChange={e => setField(row._id, 'pvp_con_iva', e.target.value)} />
+              <input style={inputStyle()} placeholder="REF-001"
+                value={row.codigo_principal ?? ''} onChange={e => setField(row._id, 'codigo_principal', e.target.value)} />
+              <input style={inputStyle()} placeholder="8412345678901"
+                value={row.ean ?? ''} onChange={e => setField(row._id, 'ean', e.target.value)} />
+              <input style={{ ...inputStyle(), textAlign: 'right' }} type="number" min={0} step={0.01}
+                placeholder="—" value={numVal(row.coste_neto_unitario)}
+                onChange={e => setField(row._id, 'coste_neto_unitario', e.target.value)} />
+              <input style={{ ...inputStyle(), textAlign: 'center' }} type="number" min={1} max={50} step={1}
+                value={row.copies || 1} onChange={e => setField(row._id, 'copies', e.target.value)} />
+              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost btn-sm" title="Duplicar" style={{ color: 'var(--text-3)' }}
+                  onClick={() => duplicateRow(row._id)}><Copy size={12} /></button>
+                <button className="btn btn-ghost btn-sm" title="Eliminar"
+                  style={{ color: rows.length === 1 ? 'var(--grey-300)' : 'var(--danger)' }}
+                  disabled={rows.length === 1} onClick={() => removeRow(row._id)}><Trash2 size={12} /></button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+        <button className="btn btn-ghost btn-sm" onClick={addRow}><Plus size={13} /> Añadir artículo</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Mobile cards ─────────────────────────────────────────────────────────────
+
+function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableProps) {
+  const inputCls = (invalid?: boolean) => ({
+    padding: '10px 12px',
+    border: `1.5px solid ${invalid ? '#fca5a5' : 'var(--grey-300)'}`,
+    borderRadius: 9, fontSize: 15, fontFamily: 'inherit',
+    width: '100%', boxSizing: 'border-box' as const,
+    background: invalid ? '#fff5f5' : '#fff',
+    WebkitAppearance: 'none' as const,
+  });
+  const label = (text: string) => (
+    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+      {text}
+    </div>
+  );
+
+  return (
+    <div className="custom-labels-mobile">
+      {rows.map((row, idx) => {
+        const noDesc = !row.descripcion.trim();
+        return (
+          <div key={row._id} className="card" style={{ marginBottom: 12, padding: 0, overflow: 'hidden' }}>
+            {/* Card header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--bg)', borderBottom: '1px solid var(--border)',
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)' }}>
+                Artículo {idx + 1}
+              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => duplicateRow(row._id)}
+                  style={{ color: 'var(--text-3)' }}><Copy size={14} /></button>
+                <button className="btn btn-ghost btn-sm"
+                  style={{ color: rows.length === 1 ? 'var(--grey-300)' : 'var(--danger)' }}
+                  disabled={rows.length === 1} onClick={() => removeRow(row._id)}><Trash2 size={14} /></button>
+              </div>
+            </div>
+
+            {/* Fields */}
+            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Descripción */}
+              <div>
+                {label('Descripción *')}
+                <input style={inputCls(noDesc)} placeholder="Nombre del artículo"
+                  value={row.descripcion} onChange={e => setField(row._id, 'descripcion', e.target.value)} />
+              </div>
+
+              {/* PVP + Copias */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  {label('PVP (€) *')}
+                  <input style={{ ...inputCls(), textAlign: 'right' }} type="number" min={0} step={0.01}
+                    inputMode="decimal" placeholder="0,00" value={numVal(row.pvp_con_iva)}
+                    onChange={e => setField(row._id, 'pvp_con_iva', e.target.value)} />
+                </div>
+                <div>
+                  {label('Copias')}
+                  <input style={{ ...inputCls(), textAlign: 'center' }} type="number" min={1} max={50} step={1}
+                    inputMode="numeric" value={row.copies || 1}
+                    onChange={e => setField(row._id, 'copies', e.target.value)} />
+                </div>
+              </div>
+
+              {/* Referencia + EAN */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  {label('Referencia')}
+                  <input style={inputCls()} placeholder="REF-001"
+                    value={row.codigo_principal ?? ''} onChange={e => setField(row._id, 'codigo_principal', e.target.value)} />
+                </div>
+                <div>
+                  {label('EAN / Código')}
+                  <input style={inputCls()} placeholder="8412345…" inputMode="numeric"
+                    value={row.ean ?? ''} onChange={e => setField(row._id, 'ean', e.target.value)} />
+                </div>
+              </div>
+
+              {/* Coste */}
+              <div style={{ maxWidth: '50%' }}>
+                {label('Coste neto (€)')}
+                <input style={{ ...inputCls(), textAlign: 'right' }} type="number" min={0} step={0.01}
+                  inputMode="decimal" placeholder="—" value={numVal(row.coste_neto_unitario)}
+                  onChange={e => setField(row._id, 'coste_neto_unitario', e.target.value)} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Add button */}
+      <button className="btn btn-ghost" onClick={addRow}
+        style={{ width: '100%', padding: '14px', marginTop: 4, borderRadius: 12, border: '2px dashed var(--border)', color: 'var(--text-3)' }}>
+        <Plus size={16} /> Añadir artículo
+      </button>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export function CustomLabelsPage() {
   const [rows, setRows] = useState<Row[]>([newRow()]);
@@ -38,14 +227,9 @@ export function CustomLabelsPage() {
   const setField = (id: string, key: keyof Row, value: string) => {
     setRows(prev => prev.map(r => {
       if (r._id !== id) return r;
-      if (key === 'pvp_con_iva' || key === 'coste_neto_unitario') {
-        const num = value === '' ? (key === 'pvp_con_iva' ? 0 : undefined) : parseFloat(value.replace(',', '.'));
-        return { ...r, [key]: isNaN(num as number) ? r[key] : num };
-      }
-      if (key === 'copies') {
-        const num = Math.max(1, Math.min(50, parseInt(value) || 1));
-        return { ...r, copies: num };
-      }
+      if (key === 'pvp_con_iva') return { ...r, pvp_con_iva: parseNum(value, 0) };
+      if (key === 'coste_neto_unitario') return { ...r, coste_neto_unitario: value === '' ? undefined : parseNum(value, 0) };
+      if (key === 'copies') return { ...r, copies: Math.max(1, Math.min(50, parseInt(value) || 1)) };
       return { ...r, [key]: value };
     }));
   };
@@ -67,10 +251,7 @@ export function CustomLabelsPage() {
 
   const handleGenerate = async () => {
     setError('');
-    if (validRows.length === 0) {
-      setError('Añade al menos un artículo con descripción.');
-      return;
-    }
+    if (validRows.length === 0) { setError('Añade al menos un artículo con descripción.'); return; }
     setGenerating(true);
     try {
       const items: CustomLabelItem[] = validRows.map(r => ({
@@ -89,39 +270,34 @@ export function CustomLabelsPage() {
     }
   };
 
-  const handleClearAll = () => {
-    if (!confirm('¿Limpiar todos los artículos?')) return;
-    setRows([newRow()]);
-  };
+  const sharedProps = { rows, setField, addRow, duplicateRow, removeRow };
 
   return (
     <div className="page">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Tag size={20} /> Etiquetas personalizadas
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
-            Rellena los artículos a mano y genera un PDF listo para imprimir con el mismo formato de siempre.
+            Rellena los artículos a mano y genera un PDF listo para imprimir.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)' }}>
-            {validRows.length} artículo{validRows.length !== 1 ? 's' : ''} · {totalLabels} etiqueta{totalLabels !== 1 ? 's' : ''}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+            {validRows.length} art. · {totalLabels} etiq.
           </span>
-          <button className="btn btn-ghost btn-sm" onClick={handleClearAll} style={{ color: 'var(--danger)' }}>
-            Limpiar todo
+          <button className="btn btn-ghost btn-sm"
+            onClick={() => { if (confirm('¿Limpiar todos los artículos?')) setRows([newRow()]); }}
+            style={{ color: 'var(--danger)' }}>
+            Limpiar
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleGenerate}
-            disabled={generating || validRows.length === 0}
-          >
+          <button className="btn btn-primary" onClick={handleGenerate}
+            disabled={generating || validRows.length === 0}>
             {generating
               ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
-              : <><Download size={15} /> Generar PDF</>
-            }
+              : <><Download size={15} /> Generar PDF</>}
           </button>
         </div>
       </div>
@@ -132,107 +308,15 @@ export function CustomLabelsPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="card" style={{ overflowX: 'auto' }}>
-        {/* Table header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `${COLUMNS.map(c => c.flex.split(' ').pop()).join(' ')} 72px`,
-          gap: 8, padding: '10px 16px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg)',
-          minWidth: 700,
-        }}>
-          {COLUMNS.map(col => (
-            <span key={col.key} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {col.label}{col.required ? ' *' : ''}
-            </span>
-          ))}
-          <span />
-        </div>
-
-        {/* Rows */}
-        <div style={{ minWidth: 700 }}>
-          {rows.map((row, idx) => (
-            <div
-              key={row._id}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `${COLUMNS.map(c => c.flex.split(' ').pop()).join(' ')} 72px`,
-                gap: 8, padding: '8px 16px',
-                borderBottom: '1px solid var(--border)',
-                background: idx % 2 === 0 ? undefined : 'var(--bg)',
-                alignItems: 'center',
-              }}
-            >
-              {COLUMNS.map(col => {
-                const val = row[col.key as keyof Row];
-                const strVal = val === undefined || val === null ? '' : String(val);
-                const isEmpty = col.required && !strVal && strVal !== '0';
-                return (
-                  <input
-                    key={col.key}
-                    type={col.type}
-                    min={col.type === 'number' ? 0 : undefined}
-                    step={col.key === 'copies' ? 1 : col.type === 'number' ? 0.01 : undefined}
-                    placeholder={col.placeholder}
-                    value={col.key === 'copies' ? (row.copies || 1) : (col.type === 'number' && (val === 0 || val === undefined) ? '' : strVal)}
-                    onChange={e => setField(row._id, col.key as keyof Row, e.target.value)}
-                    style={{
-                      padding: '6px 8px',
-                      border: `1.5px solid ${isEmpty ? '#fca5a5' : 'var(--grey-300)'}`,
-                      borderRadius: 7,
-                      fontSize: 13,
-                      fontFamily: 'inherit',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      textAlign: col.type === 'number' ? 'right' : 'left',
-                      background: isEmpty ? '#fff5f5' : undefined,
-                    }}
-                  />
-                );
-              })}
-
-              {/* Row actions */}
-              <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => duplicateRow(row._id)}
-                  title="Duplicar fila"
-                  style={{ color: 'var(--text-3)' }}
-                >
-                  <Copy size={12} />
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => removeRow(row._id)}
-                  title="Eliminar fila"
-                  disabled={rows.length === 1}
-                  style={{ color: rows.length === 1 ? 'var(--grey-300)' : 'var(--danger)' }}
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Add row footer */}
-        <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
-          <button className="btn btn-ghost btn-sm" onClick={addRow}>
-            <Plus size={13} /> Añadir artículo
-          </button>
-        </div>
-      </div>
+      {/* Desktop table / Mobile cards — CSS toggles which is visible */}
+      <DesktopTable {...sharedProps} />
+      <MobileCards  {...sharedProps} />
 
       {/* Help note */}
       <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--text-2)' }}>Campos:</strong>{' '}
-        <strong>Descripción</strong> y <strong>PVP</strong> son obligatorios.
-        La <strong>Referencia</strong> aparece en la etiqueta y se usa para el código de barras si no hay EAN.
-        El <strong>EAN</strong> genera un código de barras EAN-13 si es un número de 13 dígitos.
-        El <strong>Coste</strong> se muestra en cifrado interno (CALZETYNUS) solo si se rellena.
-        Las <strong>Copias</strong> controlan cuántas etiquetas se generan para ese artículo.
+        <strong style={{ color: 'var(--text-2)' }}>Descripción</strong> y <strong style={{ color: 'var(--text-2)' }}>PVP</strong> son obligatorios.{' '}
+        Los artículos se guardan en la base de datos al generar, por lo que el QR del móvil y el código de barras funcionan igual que en cualquier albarán.
+        El <strong style={{ color: 'var(--text-2)' }}>Coste</strong> se muestra cifrado en la etiqueta (solo uso interno).
       </div>
     </div>
   );

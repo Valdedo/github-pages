@@ -149,6 +149,7 @@ def list_documents(
     rows = (
         db.query(Document, func.count(Article.id).label("article_count"))
         .outerjoin(Article, Article.document_id == Document.id)
+        .filter(Document.supplier_name != "__manual__")  # hide manual-labels document
         .group_by(Document.id)
         .order_by(Document.created_at.desc())
         .offset(skip)

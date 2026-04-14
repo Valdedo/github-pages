@@ -842,6 +842,10 @@ select.form-input { cursor: pointer; }
 .catalog-table  { display: block; }
 .catalog-cards  { display: none; }
 
+/* ── Custom labels: desktop table / mobile cards ─────────────── */
+.custom-labels-desktop { display: block; }
+.custom-labels-mobile  { display: none; }
+
 /* ── Article table show/hide ─────────────────────────────────── */
 .article-table-desktop { display: block; }
 .article-table-mobile  { display: none; }
@@ -1358,6 +1362,10 @@ select.form-input { cursor: pointer; }
 
   .catalog-table  { display: none !important; }
   .catalog-cards  { display: flex !important; flex-direction: column; gap: 10px; }
+
+  /* Custom labels: swap to card layout on mobile */
+  .custom-labels-desktop { display: none !important; }
+  .custom-labels-mobile  { display: block !important; }
 
   .quick-actions { flex-direction: row; overflow-x: auto; flex-wrap: nowrap; padding: 8px 12px; gap: 6px; }
   .quick-actions .btn { flex-shrink: 0; }

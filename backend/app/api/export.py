@@ -2,7 +2,6 @@
 Export endpoints: Excel and PDF labels.
 """
 import logging
-import types
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -14,6 +13,9 @@ from app.database import get_db
 from app.models.document import Document
 from app.models.article import Article
 from app.models.app_settings import AppSettings
+
+# Marker used in supplier_name to identify the hidden manual-entries document
+MANUAL_MARKER = "__manual__"
 
 
 class CustomLabelItem(BaseModel):
@@ -28,6 +30,7 @@ class CustomLabelItem(BaseModel):
 class CustomLabelsRequest(BaseModel):
     items: List[CustomLabelItem]
 
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -40,6 +43,77 @@ def get_settings(db: Session) -> AppSettings:
         db.commit()
         db.refresh(s)
     return s
+
+
+def _get_or_create_manual_document(db: Session) -> Document:
+    """Return the hidden Document used to persist manually-entered label articles."""
+    doc = db.query(Document).filter(Document.supplier_name == MANUAL_MARKER).first()
+    if not doc:
+        doc = Document(
+            filename="manual_entries",
+            original_filename="Entradas manuales",
+            file_path="manual",   # placeholder — no actual file on disk
+            doc_type="pdf",
+            status="completed",
+            supplier_name=MANUAL_MARKER,
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
+    return doc
+
+
+def _upsert_manual_article(
+    db: Session, document_id: int, item: CustomLabelItem, line_number: int
+) -> Article:
+    """Create or update a manual article.  If codigo_principal matches an
+    existing article in the manual document it is updated in place so that the
+    same QR / barcode always points to the same DB row."""
+    existing: Optional[Article] = None
+    if item.codigo_principal:
+        existing = (
+            db.query(Article)
+            .filter(
+                Article.document_id == document_id,
+                Article.codigo_principal == item.codigo_principal,
+            )
+            .first()
+        )
+
+    pvp_sin_iva = round((item.pvp_con_iva or 0.0) / 1.21, 4)
+    coste = item.coste_neto_unitario or 0.0
+
+    if existing:
+        existing.descripcion = item.descripcion
+        existing.pvp_con_iva = item.pvp_con_iva or 0.0
+        existing.pvp_sin_iva = pvp_sin_iva
+        existing.coste_neto_unitario = coste
+        existing.coste_neto_total = coste
+        if item.ean:
+            existing.ean = item.ean
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    article = Article(
+        document_id=document_id,
+        line_number=line_number,
+        descripcion=item.descripcion,
+        cantidad=1.0,
+        precio_unitario_bruto=coste,
+        coste_neto_unitario=coste,
+        coste_neto_total=coste,
+        iva_pct=21.0,
+        margen_pct=0.0,
+        pvp_sin_iva=pvp_sin_iva,
+        pvp_con_iva=item.pvp_con_iva or 0.0,
+        codigo_principal=item.codigo_principal or "",
+        ean=item.ean or "",
+    )
+    db.add(article)
+    db.commit()
+    db.refresh(article)
+    return article
 
 
 @router.get("/excel/{document_id}")
@@ -200,7 +274,11 @@ def export_custom_labels(
     payload: CustomLabelsRequest,
     db: Session = Depends(get_db),
 ):
-    """Generate a labels PDF from manually provided article data (no document required)."""
+    """Generate a labels PDF from manually provided article data.
+
+    Articles are persisted in a hidden 'manual' document so that QR codes
+    and barcode lookups work exactly like any other article in the system.
+    """
     from app.services.label_service import generate_labels_pdf
 
     if not payload.items:
@@ -208,17 +286,18 @@ def export_custom_labels(
 
     settings = get_settings(db)
 
-    # Build simple objects that match the attribute interface expected by _draw_label
-    articles = []
-    for item in payload.items:
+    # Persist articles to the DB so QR / barcode lookups resolve correctly
+    manual_doc = _get_or_create_manual_document(db)
+    saved_articles: list[Article] = []
+    for idx, item in enumerate(payload.items):
+        article = _upsert_manual_article(db, manual_doc.id, item, line_number=idx)
+        saved_articles.append(article)
+
+    # Expand per-item copies
+    expanded: list[Article] = []
+    for article, item in zip(saved_articles, payload.items):
         for _ in range(max(1, item.copies)):
-            articles.append(types.SimpleNamespace(
-                descripcion=item.descripcion,
-                pvp_con_iva=item.pvp_con_iva,
-                codigo_principal=item.codigo_principal or "",
-                ean=item.ean or "",
-                coste_neto_unitario=item.coste_neto_unitario,
-            ))
+            expanded.append(article)
 
     base_url = settings.base_url
     if "localhost" in base_url or "127.0.0.1" in base_url:
@@ -227,11 +306,11 @@ def export_custom_labels(
             base_url = f"http://{host}"
 
     pdf_bytes = generate_labels_pdf(
-        articles=articles,
+        articles=expanded,
         base_url=base_url,
         cols=settings.label_columns,
         rows_per_page=settings.label_rows_per_page,
-        copies=1,  # already expanded per-item above
+        copies=1,
         company_name=settings.company_name or "",
     )
 
