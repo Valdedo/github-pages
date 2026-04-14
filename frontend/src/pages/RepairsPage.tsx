@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Plus, Wrench, Search, Phone, Pencil, Trash2, ChevronRight } from 'lucide-react';
-import { listRepairs, createRepair, updateRepair, deleteRepair } from '../api/client';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Plus, Wrench, Search, Phone, ChevronRight } from 'lucide-react';
+import { listRepairs, createRepair, updateRepair } from '../api/client';
 import type { Repair, RepairStatus } from '../types';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
@@ -293,12 +293,12 @@ function RepairModal({
 
 export function RepairsPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<RepairStatus | ''>((searchParams.get('status') as RepairStatus) ?? '');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('new') === '1');
-  const [editing, setEditing] = useState<Repair | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -324,7 +324,6 @@ export function RepairsPage() {
       return [r, ...prev];
     });
     setShowModal(false);
-    setEditing(null);
   };
 
   const advanceStatus = async (repair: Repair) => {
@@ -332,12 +331,6 @@ export function RepairsPage() {
     if (!next) return;
     const { data } = await updateRepair(repair.id, { status: next });
     setRepairs(prev => prev.map(r => r.id === data.id ? data : r));
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar esta reparación?')) return;
-    await deleteRepair(id);
-    setRepairs(prev => prev.filter(r => r.id !== id));
   };
 
   return (
@@ -348,7 +341,7 @@ export function RepairsPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Reparaciones</h1>
           <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Seguimiento de herramientas en servicio técnico</p>
         </div>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => { setEditing(null); setShowModal(true); }}>
+        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setShowModal(true)}>
           <Plus size={15} /> Nueva reparación
         </button>
       </div>
@@ -397,7 +390,8 @@ export function RepairsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(repair => (
-            <div key={repair.id} className="card" style={{ padding: '16px 20px' }}>
+            <div key={repair.id} className="card" style={{ padding: '16px 20px', cursor: 'pointer' }}
+              onClick={() => navigate(`/reparaciones/${repair.id}`)}>
               <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 {/* Left */}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -452,8 +446,9 @@ export function RepairsPage() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                {/* Quick advance button — stopPropagation so card click doesn't fire */}
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}
+                  onClick={e => e.stopPropagation()}>
                   {STATUS_NEXT[repair.status] && (
                     <button
                       className="btn btn-sm btn-primary"
@@ -463,12 +458,6 @@ export function RepairsPage() {
                       {STATUS_NEXT_LABEL[repair.status]} <ChevronRight size={13} />
                     </button>
                   )}
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(repair); setShowModal(true); }}>
-                    <Pencil size={14} />
-                  </button>
-                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDelete(repair.id)}>
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               </div>
             </div>
@@ -476,10 +465,10 @@ export function RepairsPage() {
         </div>
       )}
 
-      {(showModal || editing) && (
+      {showModal && (
         <RepairModal
-          repair={editing}
-          onClose={() => { setShowModal(false); setEditing(null); }}
+          repair={null}
+          onClose={() => setShowModal(false)}
           onSaved={handleSaved}
         />
       )}

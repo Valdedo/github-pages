@@ -17,6 +17,7 @@ import { OrderDetailPage } from './pages/OrderDetailPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { PriceLookupPage } from './pages/PriceLookupPage';
 import { CustomLabelsPage } from './pages/CustomLabelsPage';
+import { RepairDetailPage } from './pages/RepairDetailPage';
 import { getDashboardStats } from './api/client';
 
 interface NavBadge {
@@ -108,7 +109,7 @@ function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const current = navItems.find(n => n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to) && n.to !== '/');
-  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/');
+  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/') || location.pathname.startsWith('/reparaciones/');
 
   return (
     <header className="mobile-header">
@@ -228,6 +229,7 @@ function AppShell() {
             <Route path="/analisis" element={<AnalyticsPage />} />
             <Route path="/venta" element={<SalePage />} />
             <Route path="/reparaciones" element={<RepairsPage />} />
+            <Route path="/reparaciones/:id" element={<RepairDetailPage />} />
             <Route path="/pedidos" element={<OrdersPage />} />
             <Route path="/pedidos/:id" element={<OrderDetailPage />} />
             <Route path="/catalogo" element={<CatalogPage />} />
