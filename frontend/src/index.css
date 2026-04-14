@@ -896,7 +896,9 @@ select.form-input { cursor: pointer; }
 .export-divider { width: 1px; height: 26px; background: var(--border); flex-shrink: 0; }
 
 /* ── Bottom navigation (mobile only) ────────────────────────── */
-.bottom-nav {
+.bottom-nav,
+.more-drawer,
+.more-drawer-backdrop {
   display: none;
 }
 
@@ -1233,6 +1235,7 @@ select.form-input { cursor: pointer; }
 
   /* More drawer backdrop */
   .more-drawer-backdrop {
+    display: block;
     position: fixed;
     inset: 0;
     background: rgb(0 0 0 / .35);
@@ -1242,6 +1245,7 @@ select.form-input { cursor: pointer; }
 
   /* More drawer (slides up from bottom, above bottom nav) */
   .more-drawer {
+    display: block;
     position: fixed;
     bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     left: 0;
