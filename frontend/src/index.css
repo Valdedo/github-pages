@@ -280,6 +280,43 @@ html, body, #root { height: 100%; }
 .status-chip.entregado  { background: #f1f5f9; color: #64748b; }
 .status-chip.cancelado  { background: #fee2e2; color: #b91c1c; }
 
+/* ── Dashboard hero (mobile greeting) ───────────────────────── */
+.dashboard-hero         { display: none; }
+.dashboard-hero-skeleton { display: none; }
+.dashboard-alerts       { display: none; }
+.dashboard-alert-card   { display: block; }
+
+/* ── Quick action tiles ──────────────────────────────────────── */
+.quick-action-grid {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quick-action-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-1);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+  transition: background 0.12s, border-color 0.12s;
+}
+.quick-action-tile:hover { background: var(--bg); border-color: var(--border-strong); }
+.quick-action-tile--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.quick-action-tile--primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+
 /* ── Dashboard stat cards ────────────────────────────────────── */
 .stat-grid {
   display: grid;
@@ -1167,13 +1204,107 @@ select.form-input { cursor: pointer; }
     font-family: var(--font);
   }
 
-  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
   .stat-card { padding: 14px; gap: 6px; }
-  .stat-card-value { font-size: 22px; }
+  .stat-card-value { font-size: 26px; }
   .stat-card-icon { width: 34px; height: 34px; }
 
   .dashboard-grid { grid-template-columns: 1fr; gap: 14px; }
   .dashboard-page-header { display: none; }
+
+  /* Dashboard hero */
+  .dashboard-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--brand) 0%, #166534 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 20px 20px 22px;
+    margin-bottom: 14px;
+  }
+  .dashboard-hero-skeleton {
+    display: block;
+    height: 96px;
+    background: var(--border);
+    border-radius: 18px;
+    margin-bottom: 14px;
+  }
+  .dashboard-hero-greeting {
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+  .dashboard-hero-date {
+    font-size: 12px;
+    opacity: 0.7;
+    text-align: right;
+  }
+  .dashboard-hero-brand {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .dashboard-hero-alert {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    background: rgba(255 255 255 / .2);
+    border: 1.5px solid rgba(255 255 255 / .35);
+    color: #fff;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font);
+    width: fit-content;
+  }
+
+  /* Alert strip (visible only on mobile, below stats) */
+  .dashboard-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .dashboard-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .dashboard-alert--green { background: #dcfce7; color: #166534; }
+  .dashboard-alert--amber { background: #fef3c7; color: #92400e; }
+  .dashboard-alert-link   { margin-left: auto; font-weight: 700; }
+
+  /* Hide the card-based alert cards on mobile (shown in the strip above) */
+  .dashboard-alert-card { display: none !important; }
+
+  /* Quick action tiles: 3-column grid on mobile */
+  .quick-action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px;
+  }
+  .quick-action-tile {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 14px 8px;
+    font-size: 11px;
+    text-align: center;
+    border-radius: 12px;
+  }
 
   .navbar { padding: 0 16px; height: 52px; }
   .navbar-brand { font-size: 14px; gap: 8px; }

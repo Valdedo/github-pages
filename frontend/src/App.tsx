@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
@@ -25,9 +25,8 @@ interface NavBadge {
   orders: number;
 }
 
-// Primary items → shown in both sidebar and mobile bottom nav
+// Primary items → shown in sidebar AND mobile bottom nav (no Inicio — CF logo is the home link)
 const primaryNavItems = [
-  { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
   { to: '/albaranes', label: 'Albaranes', icon: FileText },
   { to: '/consulta', label: 'Consulta', icon: Search },
   { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' as const },
@@ -76,12 +75,17 @@ function SidebarNavGroup({ items, badges, collapsed }: {
 function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed: boolean; onToggle: () => void }) {
   return (
     <aside className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
-      {/* Logo */}
+      {/* Logo — also acts as Home link */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">CF</div>
+        <NavLink to="/" end className={({ isActive }) => `sidebar-logo-icon${isActive ? ' active' : ''}`}
+          style={{ textDecoration: 'none', color: 'inherit' }}>
+          CF
+        </NavLink>
         {!collapsed && (
           <div className="sidebar-logo-text">
-            <span className="sidebar-logo-name">Casa Fonso</span>
+            <NavLink to="/" end style={{ textDecoration: 'none', color: 'inherit' }}>
+              <span className="sidebar-logo-name">Casa Fonso</span>
+            </NavLink>
           </div>
         )}
         <button className="sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expandir' : 'Colapsar'}>
@@ -91,6 +95,12 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
 
       {/* Primary nav */}
       <nav className="sidebar-nav">
+        {/* Inicio only in sidebar, not in bottom nav */}
+        <NavLink to="/" end className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+          title={collapsed ? 'Inicio' : undefined}>
+          <span className="sidebar-item-icon"><LayoutDashboard size={18} /></span>
+          {!collapsed && <span className="sidebar-item-label">Inicio</span>}
+        </NavLink>
         <SidebarNavGroup items={primaryNavItems} badges={badges} collapsed={collapsed} />
       </nav>
 
@@ -118,7 +128,9 @@ function MobileHeader() {
           <ChevronLeft size={20} /> Volver
         </button>
       ) : (
-        <div className="sidebar-logo-icon" style={{ width: 28, height: 28, fontSize: 10 }}>CF</div>
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <div className="sidebar-logo-icon" style={{ width: 28, height: 28, fontSize: 10 }}>CF</div>
+        </Link>
       )}
       <span className="mobile-header-title">{current?.label ?? 'Casa Fonso'}</span>
       <div style={{ width: 28 }} />
