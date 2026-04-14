@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw } from 'lucide-react';
 import { getOrder, updateOrder, addOrderLine, updateOrderLine, deleteOrderLine, deleteOrder, listDocuments } from '../api/client';
+import { useConfirm } from '../components/ConfirmModal';
 import type { SupplierOrder, SupplierOrderLine, DocumentListItem, OrderStatus } from '../types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -217,6 +218,7 @@ function AddLineModal({ orderId, onClose, onAdded }: { orderId: number; onClose:
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { confirm, ConfirmDialog } = useConfirm();
   const [order, setOrder]           = useState<SupplierOrder | null>(null);
   const [loading, setLoading]       = useState(true);
   const [editingLine, setEditingLine] = useState<SupplierOrderLine | null>(null);
@@ -246,7 +248,9 @@ export function OrderDetailPage() {
   };
 
   const handleDeleteLine = async (lineId: number) => {
-    if (!order || !confirm('¿Eliminar esta línea?')) return;
+    if (!order) return;
+    const ok = await confirm({ title: 'Eliminar línea', message: '¿Eliminar esta línea del pedido?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     await deleteOrderLine(order.id, lineId);
     load();
   };
@@ -278,19 +282,24 @@ export function OrderDetailPage() {
     if (!order) return;
     const prev = STATUS_PREV[order.status];
     if (!prev) return;
-    if (!confirm(`¿${prev.label}?`)) return;
+    const ok = await confirm({ title: 'Cambiar estado', message: `¿${prev.label}?`, confirmLabel: 'Confirmar' });
+    if (!ok) return;
     await updateOrder(order.id, { status: prev.status });
     load();
   };
 
   const handleCancelOrder = async () => {
-    if (!order || !confirm('¿Cancelar este pedido?')) return;
+    if (!order) return;
+    const ok = await confirm({ title: 'Cancelar pedido', message: '¿Cancelar este pedido?', confirmLabel: 'Cancelar pedido', danger: true });
+    if (!ok) return;
     await updateOrder(order.id, { status: 'cancelado' });
     load();
   };
 
   const handleDeleteOrder = async () => {
-    if (!order || !confirm('¿Eliminar este pedido? Esta acción no se puede deshacer.')) return;
+    if (!order) return;
+    const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido? Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     await deleteOrder(order.id);
     navigate('/pedidos');
   };
@@ -313,6 +322,7 @@ export function OrderDetailPage() {
 
   return (
     <div className="page" style={{ maxWidth: 860 }}>
+      {ConfirmDialog}
       {/* Back + header */}
       <div style={{ marginBottom: 20 }}>
         <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => navigate('/pedidos')}>

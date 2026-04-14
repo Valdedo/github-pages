@@ -22,6 +22,18 @@ function greeting(): string {
   return 'Buenas noches';
 }
 
+function relativeDate(dt?: string | null): string {
+  if (!dt) return '';
+  const date = new Date(dt.replace('T', ' ').split(' ')[0]); // parse date part only
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - date.getTime()) / 86400000);
+  if (diff === 0) return 'hoy';
+  if (diff === 1) return 'ayer';
+  if (diff < 7)  return `hace ${diff} días`;
+  if (diff < 30) return `hace ${Math.floor(diff / 7)} sem.`;
+  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+}
+
 function fmtToday(): string {
   return new Date().toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -195,15 +207,16 @@ export function DashboardPage() {
                     : doc.status === 'error' ? 'var(--danger)' : 'var(--text-3)',
                 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {doc.original_filename}
+                  <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {doc.supplier_name || doc.original_filename}
                   </div>
                   {doc.supplier_name && (
-                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{doc.supplier_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.original_filename}</div>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>
-                  {STATUS_LABEL[doc.status] ?? doc.status}
+                <div style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, textAlign: 'right' }}>
+                  <div>{STATUS_LABEL[doc.status] ?? doc.status}</div>
+                  <div>{relativeDate(doc.created_at)}</div>
                 </div>
               </div>
             ))}

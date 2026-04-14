@@ -33,32 +33,22 @@ function StatusChip({ status }: { status: RepairStatus }) {
   return <span className={`status-chip ${status}`}>{labels[status]}</span>;
 }
 
-function StatusProgress({ status }: { status: RepairStatus }) {
-  const idx = STATUS_STEPS.indexOf(status);
-  return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-      {STATUS_STEPS.map((s, i) => (
-        <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: i <= idx ? 'var(--brand)' : 'var(--border)',
-            transition: 'background 0.2s',
-          }} />
-          {i < STATUS_STEPS.length - 1 && (
-            <div style={{ width: 20, height: 2, background: i < idx ? 'var(--brand)' : 'var(--border)' }} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Format a stored datetime string for display (e.g. "11/04/2026")
 function fmtDate(dt?: string | null): string {
   if (!dt) return '';
-  // Parse the date part directly to avoid timezone shifts
   const [y, m, d] = dt.split('T')[0].split('-');
   return `${d}/${m}/${y}`;
+}
+
+function relativeDate(dt?: string | null): string {
+  if (!dt) return '';
+  const date = new Date(dt.split('T')[0]);
+  const diff = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (diff === 0) return 'hoy';
+  if (diff === 1) return 'ayer';
+  if (diff < 7)  return `hace ${diff} días`;
+  if (diff < 30) return `hace ${Math.floor(diff / 7)} sem.`;
+  return fmtDate(dt);
 }
 
 // Convert ISO datetime string → YYYY-MM-DD for date inputs
@@ -412,30 +402,14 @@ export function RepairsPage() {
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{repair.problem_description}</div>
 
-                  {/* Progress + dates */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-                    <StatusProgress status={repair.status} />
+                  {/* Date summary */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                      📥 {fmtDate(repair.date_received)}
+                      Recibida {relativeDate(repair.date_received)}
                     </span>
-                    {repair.date_sent_to_repair && (
-                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        🔧 {fmtDate(repair.date_sent_to_repair)}
-                      </span>
-                    )}
-                    {repair.date_repaired && (
-                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        ✅ {fmtDate(repair.date_repaired)}
-                      </span>
-                    )}
-                    {repair.date_returned && (
-                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        🏠 {fmtDate(repair.date_returned)}
-                      </span>
-                    )}
                     {repair.date_estimated_return && !repair.date_returned && (
-                      <span style={{ fontSize: 11, color: 'var(--brand)' }}>
-                        Est. {fmtDate(repair.date_estimated_return)}
+                      <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>
+                        · entrega est. {fmtDate(repair.date_estimated_return)}
                       </span>
                     )}
                     {repair.estimated_price != null && (

@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, Link, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
   BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal
@@ -115,11 +115,44 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
   );
 }
 
+// ── Scroll restoration: saves/restores .app-main scroll on back navigation ──
+function ScrollRestoration() {
+  const { pathname } = useLocation();
+  const navType = useNavigationType();
+  const KEY = (p: string) => `scroll:${p}`;
+
+  // Restore on POP (back/forward), scroll to top on PUSH/REPLACE
+  useEffect(() => {
+    const el = document.getElementById('app-main');
+    if (!el) return;
+    if (navType === 'POP') {
+      const saved = sessionStorage.getItem(KEY(pathname));
+      if (saved) { requestAnimationFrame(() => { el.scrollTop = parseInt(saved); }); return; }
+    }
+    el.scrollTop = 0;
+  }, [pathname, navType]);
+
+  // Save position before leaving
+  const savedPath = useRef(pathname);
+  useEffect(() => {
+    const el = document.getElementById('app-main');
+    return () => {
+      if (el) sessionStorage.setItem(KEY(savedPath.current), String(el.scrollTop));
+      savedPath.current = pathname;
+    };
+  }, [pathname]);
+
+  return null;
+}
+
 function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const current = navItems.find(n => n.exact ? location.pathname === n.to : location.pathname.startsWith(n.to) && n.to !== '/');
   const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/') || location.pathname.startsWith('/reparaciones/');
+
+  // Find current section (for title + clickable root link)
+  const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
+  const title = location.pathname === '/' ? 'Casa Fonso' : (section?.label ?? 'Casa Fonso');
 
   return (
     <header className="mobile-header">
@@ -132,7 +165,14 @@ function MobileHeader() {
           <div className="sidebar-logo-icon" style={{ width: 28, height: 28, fontSize: 10 }}>CF</div>
         </Link>
       )}
-      <span className="mobile-header-title">{current?.label ?? 'Casa Fonso'}</span>
+      {/* Title is a link to section root — tapping it resets filters/scroll */}
+      {section && !isDoc ? (
+        <Link to={section.to} className="mobile-header-title" style={{ textDecoration: 'none', color: 'inherit' }}>
+          {title}
+        </Link>
+      ) : (
+        <span className="mobile-header-title">{title}</span>
+      )}
       <div style={{ width: 28 }} />
     </header>
   );
@@ -232,7 +272,8 @@ function AppShell() {
       <Sidebar badges={badges} collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       <div className="app-content">
         <MobileHeader />
-        <main className="app-main">
+        <main id="app-main" className="app-main">
+          <ScrollRestoration />
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/albaranes" element={<HomePage />} />

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save } from 'lucide-react';
 import { getRepair, updateRepair, deleteRepair } from '../api/client';
+import { useConfirm } from '../components/ConfirmModal';
 import type { Repair, RepairStatus } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -143,6 +144,7 @@ export function RepairDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const { confirm, ConfirmDialog } = useConfirm();
   const [repair, setRepair] = useState<Repair | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -219,7 +221,13 @@ export function RepairDetailPage() {
 
   const handleDelete = async () => {
     if (!repair) return;
-    if (!confirm(`¿Eliminar la reparación de ${repair.client_name}? Esta acción no se puede deshacer.`)) return;
+    const ok = await confirm({
+      title: 'Eliminar reparación',
+      message: `¿Eliminar la reparación de ${repair.client_name}? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
     await deleteRepair(repair.id);
     navigate('/reparaciones');
   };
@@ -237,6 +245,7 @@ export function RepairDetailPage() {
 
   return (
     <div className="page">
+      {ConfirmDialog}
       {/* ── Top bar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reparaciones')} style={{ gap: 4 }}>

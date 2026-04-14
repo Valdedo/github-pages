@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, ShoppingCart, Search, Trash2, ChevronRight, Package, Phone } from 'lucide-react';
 import { listOrders, createOrder, deleteOrder, listSuppliers } from '../api/client';
+import { useConfirm } from '../components/ConfirmModal';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 
 // Status flow: pendiente → pedido → recibido → entregado
@@ -222,6 +223,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
 export function OrdersPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { confirm, ConfirmDialog } = useConfirm();
   const [orders, setOrders] = useState<SupplierOrderListItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,7 +249,8 @@ export function OrdersPage() {
     : orders;
 
   const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este pedido?')) return;
+    const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     await deleteOrder(id);
     setOrders(prev => prev.filter(o => o.id !== id));
   };
@@ -258,6 +261,7 @@ export function OrdersPage() {
 
   return (
     <div className="page">
+      {ConfirmDialog}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Pedidos especiales</h1>

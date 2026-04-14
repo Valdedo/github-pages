@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Tag, Download, Copy } from 'lucide-react';
 import { downloadCustomLabels } from '../api/client';
+import { useConfirm } from '../components/ConfirmModal';
 import type { CustomLabelItem } from '../api/client';
 
 interface Row extends CustomLabelItem {
@@ -232,6 +233,7 @@ export function CustomLabelsPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const isMobile = useIsMobile();
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const totalLabels = rows.reduce((s, r) => s + Math.max(1, r.copies || 1), 0);
   const validRows = rows.filter(r => r.descripcion.trim());
@@ -286,6 +288,7 @@ export function CustomLabelsPage() {
 
   return (
     <div className="page">
+      {ConfirmDialog}
       {/* Header — stacks vertically on mobile */}
       {isMobile ? (
         /* ── Mobile header ── */
@@ -298,7 +301,7 @@ export function CustomLabelsPage() {
               {validRows.length} art. · {totalLabels} etiq.
             </span>
             <button className="btn btn-ghost btn-sm"
-              onClick={() => { if (confirm('¿Limpiar todos los artículos?')) setRows([newRow()]); }}
+              onClick={async () => { const ok = await confirm({ title: 'Limpiar artículos', message: '¿Limpiar todos los artículos?', confirmLabel: 'Limpiar', danger: true }); if (ok) setRows([newRow()]); }}
               style={{ color: 'var(--danger)' }}>
               Limpiar
             </button>
@@ -327,7 +330,7 @@ export function CustomLabelsPage() {
               {validRows.length} art. · {totalLabels} etiq.
             </span>
             <button className="btn btn-ghost btn-sm"
-              onClick={() => { if (confirm('¿Limpiar todos los artículos?')) setRows([newRow()]); }}
+              onClick={async () => { const ok = await confirm({ title: 'Limpiar artículos', message: '¿Limpiar todos los artículos?', confirmLabel: 'Limpiar', danger: true }); if (ok) setRows([newRow()]); }}
               style={{ color: 'var(--danger)' }}>
               Limpiar
             </button>
