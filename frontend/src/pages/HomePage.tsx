@@ -258,7 +258,10 @@ function DocCard({ doc, onOpen, onDelete }: {
           {st.label}
         </span>
       </div>
-      <div className="doc-card-title">{doc.original_filename}</div>
+      <div className="doc-card-title">{doc.supplier_name || doc.original_filename}</div>
+      {doc.supplier_name && (
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.original_filename}</div>
+      )}
       <div className="doc-card-meta">
         {doc.supplier_name && <span className="doc-card-chip supplier">{doc.supplier_name}</span>}
         {doc.doc_number    && <span className="doc-card-chip">Nº {doc.doc_number}</span>}

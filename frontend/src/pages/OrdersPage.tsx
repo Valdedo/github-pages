@@ -101,8 +101,9 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
         })),
       } as any);
       onSaved();
-    } catch {
-      setError('Error al crear el pedido');
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      setError(detail ? `Error: ${detail}` : 'Error al crear el pedido. Comprueba la conexión con el servidor.');
     } finally {
       setSaving(false);
     }
@@ -126,7 +127,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Para quién es el pedido
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                 <div>
                   <label className="form-label">Cliente *</label>
                   <input className="form-input" value={form.client_name} onChange={setField('client_name')} placeholder="Nombre del cliente" required />
@@ -143,7 +144,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 A quién se pide
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                 <div>
                   <label className="form-label">Proveedor</label>
                   {suppliers.length > 0 && (
@@ -168,7 +169,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
             </div>
 
             {/* Dates */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
               <div>
                 <label className="form-label">Fecha del pedido</label>
                 <input className="form-input" type="date" value={form.order_date} onChange={setField('order_date')} />
@@ -251,8 +252,13 @@ export function OrdersPage() {
   const handleDelete = async (id: number) => {
     const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', confirmLabel: 'Eliminar', danger: true });
     if (!ok) return;
-    await deleteOrder(id);
-    setOrders(prev => prev.filter(o => o.id !== id));
+    try {
+      await deleteOrder(id);
+      setOrders(prev => prev.filter(o => o.id !== id));
+    } catch {
+      // silently ignore; reload to sync
+      load();
+    }
   };
 
   const isOverdue = (o: SupplierOrderListItem) =>

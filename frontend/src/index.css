@@ -101,6 +101,11 @@ html, body, #root { height: 100%; }
   min-width: 60px;
 }
 
+.sidebar.sidebar-collapsed .sidebar-logo {
+  padding: 0;
+  gap: 0;
+}
+
 .sidebar-logo {
   height: 56px;
   padding: 0 12px;

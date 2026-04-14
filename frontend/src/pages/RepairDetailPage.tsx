@@ -1,9 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save } from 'lucide-react';
+import { Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save } from 'lucide-react';
 import { getRepair, updateRepair, deleteRepair } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import type { Repair, RepairStatus } from '../types';
+
+function useIsMobile(bp = 768) {
+  const [m, setM] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${bp}px)`);
+    const h = (e: MediaQueryListEvent) => setM(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, [bp]);
+  return m;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -54,28 +65,30 @@ function StatusChip({ status }: { status: RepairStatus }) {
 function StatusBar({ status }: { status: RepairStatus }) {
   const idx = STATUS_STEPS.indexOf(status);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-      {STATUS_STEPS.map((s, i) => (
-        <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < STATUS_STEPS.length - 1 ? 1 : 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: i <= idx ? 'var(--brand)' : 'var(--border)',
-              color: i <= idx ? '#fff' : 'var(--text-3)',
-              fontSize: 12, fontWeight: 700, transition: 'background 0.2s',
-              flexShrink: 0,
-            }}>
-              {i < idx ? '✓' : i + 1}
+    <div style={{ overflowX: 'auto', marginBottom: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 260 }}>
+        {STATUS_STEPS.map((s, i) => (
+          <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < STATUS_STEPS.length - 1 ? 1 : 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: i <= idx ? 'var(--brand)' : 'var(--border)',
+                color: i <= idx ? '#fff' : 'var(--text-3)',
+                fontSize: 12, fontWeight: 700, transition: 'background 0.2s',
+                flexShrink: 0,
+              }}>
+                {i < idx ? '✓' : i + 1}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: i === idx ? 700 : 400, color: i === idx ? 'var(--brand)' : 'var(--text-3)', whiteSpace: 'nowrap' }}>
+                {STATUS_LABELS[s]}
+              </span>
             </div>
-            <span style={{ fontSize: 10, fontWeight: i === idx ? 700 : 400, color: i === idx ? 'var(--brand)' : 'var(--text-3)', whiteSpace: 'nowrap' }}>
-              {STATUS_LABELS[s]}
-            </span>
+            {i < STATUS_STEPS.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: i < idx ? 'var(--brand)' : 'var(--border)', margin: '0 4px', marginBottom: 14 }} />
+            )}
           </div>
-          {i < STATUS_STEPS.length - 1 && (
-            <div style={{ flex: 1, height: 2, background: i < idx ? 'var(--brand)' : 'var(--border)', margin: '0 4px', marginBottom: 14 }} />
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -143,6 +156,7 @@ function repairToForm(r: Repair): FormState {
 export function RepairDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const { confirm, ConfirmDialog } = useConfirm();
   const [repair, setRepair] = useState<Repair | null>(null);
@@ -243,50 +257,52 @@ export function RepairDetailPage() {
   const nextStep = STATUS_NEXT[repair.status];
   const prevStep = STATUS_PREV[repair.status];
 
+  // Bottom save bar clears the mobile nav (64px) + margin
+  const saveBarBottom = isMobile ? 76 : 16;
+
   return (
     <div className="page">
       {ConfirmDialog}
-      {/* ── Top bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reparaciones')} style={{ gap: 4 }}>
-          <ArrowLeft size={15} /> Reparaciones
-        </button>
+
+      {/* ── Top header (desktop only back button — mobile header handles navigation) ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
-              <Wrench size={17} style={{ verticalAlign: 'middle', marginRight: 6, opacity: 0.6 }} />
+            <h1 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
+              <Wrench size={16} style={{ verticalAlign: 'middle', marginRight: 6, opacity: 0.6 }} />
               {repair.client_name}
             </h1>
             <StatusChip status={repair.status} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
             {repair.client_phone && (
               <a href={`tel:${repair.client_phone}`} style={{ fontSize: 13, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
                 <Phone size={13} /> {repair.client_phone}
               </a>
             )}
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              {repair.tool_description}
+              {(repair.tool_brand || repair.tool_model) && ` · ${[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}`}
+            </span>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '2px 0 0', lineHeight: 1.4 }}>
-            {repair.tool_description}
-            {(repair.tool_brand || repair.tool_model) && ` · ${[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}`}
-            {' · '}Recibida el {fmtDate(repair.date_received)}
-          </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-          {dirty && (
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ gap: 5 }}>
-              <Save size={14} /> {saving ? 'Guardando…' : 'Guardar cambios'}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          {!isMobile && dirty && (
+            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} style={{ gap: 5 }}>
+              <Save size={14} /> {saving ? 'Guardando…' : 'Guardar'}
             </button>
           )}
-          {saved && !dirty && (
+          {!isMobile && saved && !dirty && (
             <span style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600 }}>✓ Guardado</span>
           )}
-          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={handleDelete}>
+          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={handleDelete} title="Eliminar reparación">
             <Trash2 size={14} />
           </button>
         </div>
       </div>
 
       {error && (
-        <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
           {error}
         </div>
       )}
@@ -311,8 +327,8 @@ export function RepairDetailPage() {
         </div>
       </SectionCard>
 
-      {/* ── Two-column layout on desktop ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
+      {/* ── Fields grid ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
 
         {/* Cliente */}
         <SectionCard title="👤 Datos del cliente">
@@ -334,10 +350,10 @@ export function RepairDetailPage() {
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field label="Marca">
-                <input className="form-input" value={form.tool_brand} onChange={set('tool_brand')} placeholder="Bosch, DeWalt…" />
+                <input className="form-input" value={form.tool_brand} onChange={set('tool_brand')} placeholder="Bosch…" />
               </Field>
               <Field label="Modelo">
-                <input className="form-input" value={form.tool_model} onChange={set('tool_model')} placeholder="GSB 13 RE…" />
+                <input className="form-input" value={form.tool_model} onChange={set('tool_model')} placeholder="GSB 13…" />
               </Field>
             </div>
           </div>
@@ -346,7 +362,7 @@ export function RepairDetailPage() {
 
       {/* Problema */}
       <div style={{ marginTop: 12 }}>
-        <SectionCard title="📝 Descripción del problema">
+        <SectionCard title="📝 Problema">
           <textarea
             className="form-input"
             value={form.problem_description}
@@ -359,27 +375,27 @@ export function RepairDetailPage() {
       </div>
 
       {/* Fechas + Precios */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
 
         {/* Fechas */}
-        <SectionCard title="📅 Seguimiento de fechas">
+        <SectionCard title="📅 Fechas">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Field label="📥 Recibida">
               <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
             </Field>
-            <Field label="🔧 Enviada al taller">
+            <Field label="🔧 Al taller">
               <input className="form-input" type="date" value={form.date_sent_to_repair} onChange={set('date_sent_to_repair')} />
             </Field>
-            <Field label="✅ Llegó reparada">
+            <Field label="✅ Reparada">
               <input className="form-input" type="date" value={form.date_repaired} onChange={set('date_repaired')} />
             </Field>
-            <Field label="🏠 Entregada al cliente">
+            <Field label="🏠 Entregada">
               <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} />
             </Field>
           </div>
           <div style={{ marginTop: 10 }}>
             <Field label="📆 Entrega estimada">
-              <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} style={{ maxWidth: 200 }} />
+              <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
             </Field>
           </div>
         </SectionCard>
@@ -388,18 +404,18 @@ export function RepairDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <SectionCard title="💰 Precios">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="Precio estimado (€)">
+              <Field label="Estimado (€)">
                 <input className="form-input" type="number" step="0.01" min="0"
                   value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" />
               </Field>
-              <Field label="Precio final (€)">
+              <Field label="Final (€)">
                 <input className="form-input" type="number" step="0.01" min="0"
                   value={form.final_price} onChange={set('final_price')} placeholder="0,00" />
               </Field>
             </div>
           </SectionCard>
 
-          <SectionCard title="📌 Notas internas">
+          <SectionCard title="📌 Notas">
             <textarea
               className="form-input"
               value={form.notes}
@@ -415,19 +431,22 @@ export function RepairDetailPage() {
       {/* ── Bottom save bar (visible when dirty) ── */}
       {dirty && (
         <div style={{
-          position: 'sticky', bottom: 16, marginTop: 16,
+          position: 'sticky', bottom: saveBarBottom, marginTop: 16,
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 12, padding: '12px 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           boxShadow: '0 4px 20px rgb(0 0 0 / .10)',
+          zIndex: 10,
         }}>
-          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>Tienes cambios sin guardar</span>
+          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>
+            {isMobile ? 'Sin guardar' : 'Tienes cambios sin guardar'}
+          </span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => { setForm(repairToForm(repair)); setDirty(false); setError(''); }}>
               Descartar
             </button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              <Save size={14} /> {saving ? 'Guardando…' : 'Guardar cambios'}
+              <Save size={14} /> {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </div>
