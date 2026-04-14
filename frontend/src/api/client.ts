@@ -120,6 +120,26 @@ export const downloadCatalogPriceList = (params?: { familia?: string; q?: string
 };
 
 
+// Custom labels (manual input, no document)
+export interface CustomLabelItem {
+  descripcion: string;
+  pvp_con_iva: number;
+  codigo_principal?: string;
+  ean?: string;
+  coste_neto_unitario?: number;
+  copies: number;
+}
+
+export const downloadCustomLabels = async (items: CustomLabelItem[]): Promise<void> => {
+  const response = await api.post('/api/export/labels/custom', { items }, { responseType: 'blob' });
+  const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'etiquetas_custom.pdf';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 // Settings
 export const getSettings = () => api.get<AppSettings>('/api/settings');
 export const updateSettings = (data: Partial<AppSettings>) => api.put<AppSettings>('/api/settings', data);

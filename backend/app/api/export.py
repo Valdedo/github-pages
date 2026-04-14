@@ -2,16 +2,31 @@
 Export endpoints: Excel and PDF labels.
 """
 import logging
+import types
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.document import Document
 from app.models.article import Article
 from app.models.app_settings import AppSettings
+
+
+class CustomLabelItem(BaseModel):
+    descripcion: str
+    pvp_con_iva: float = 0.0
+    codigo_principal: Optional[str] = None
+    ean: Optional[str] = None
+    coste_neto_unitario: Optional[float] = None
+    copies: int = Field(1, ge=1, le=50)
+
+
+class CustomLabelsRequest(BaseModel):
+    items: List[CustomLabelItem]
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -176,6 +191,54 @@ def export_treyfact(document_id: int, db: Session = Depends(get_db)):
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/labels/custom")
+def export_custom_labels(
+    request: Request,
+    payload: CustomLabelsRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate a labels PDF from manually provided article data (no document required)."""
+    from app.services.label_service import generate_labels_pdf
+
+    if not payload.items:
+        raise HTTPException(400, "No items provided")
+
+    settings = get_settings(db)
+
+    # Build simple objects that match the attribute interface expected by _draw_label
+    articles = []
+    for item in payload.items:
+        for _ in range(max(1, item.copies)):
+            articles.append(types.SimpleNamespace(
+                descripcion=item.descripcion,
+                pvp_con_iva=item.pvp_con_iva,
+                codigo_principal=item.codigo_principal or "",
+                ean=item.ean or "",
+                coste_neto_unitario=item.coste_neto_unitario,
+            ))
+
+    base_url = settings.base_url
+    if "localhost" in base_url or "127.0.0.1" in base_url:
+        host = request.headers.get("host", "")
+        if host:
+            base_url = f"http://{host}"
+
+    pdf_bytes = generate_labels_pdf(
+        articles=articles,
+        base_url=base_url,
+        cols=settings.label_columns,
+        rows_per_page=settings.label_rows_per_page,
+        copies=1,  # already expanded per-item above
+        company_name=settings.company_name or "",
+    )
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="etiquetas_custom.pdf"'},
     )
 
 

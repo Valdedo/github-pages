@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, useNavigate, useLocation } from 
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, Store, ChevronLeft, Menu, X, BookOpen, Search
+  BarChart2, Store, ChevronLeft, Menu, X, BookOpen, Search, Tag
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
@@ -16,6 +16,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { PriceLookupPage } from './pages/PriceLookupPage';
+import { CustomLabelsPage } from './pages/CustomLabelsPage';
 import { getDashboardStats } from './api/client';
 
 interface NavBadge {
@@ -34,9 +35,10 @@ const primaryNavItems = [
 
 // Secondary items → sidebar only (desktop)
 const secondaryNavItems = [
-  { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
-  { to: '/analisis', label: 'Análisis', icon: BarChart2 },
-  { to: '/venta', label: 'Venta', icon: Store },
+  { to: '/catalogo',  label: 'Catálogo',  icon: BookOpen },
+  { to: '/analisis',  label: 'Análisis',  icon: BarChart2 },
+  { to: '/venta',     label: 'Venta',     icon: Store },
+  { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
 ];
 
 const navItems = [...primaryNavItems, ...secondaryNavItems];
@@ -186,6 +188,7 @@ function AppShell() {
             <Route path="/pedidos/:id" element={<OrderDetailPage />} />
             <Route path="/catalogo" element={<CatalogPage />} />
             <Route path="/consulta" element={<PriceLookupPage />} />
+            <Route path="/etiquetas" element={<CustomLabelsPage />} />
           </Routes>
         </main>
         <BottomNav badges={badges} />
