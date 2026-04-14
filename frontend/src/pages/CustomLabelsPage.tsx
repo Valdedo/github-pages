@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, Tag, Download, Copy } from 'lucide-react';
 import { downloadCustomLabels } from '../api/client';
 import type { CustomLabelItem } from '../api/client';
@@ -53,7 +53,7 @@ function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: Table
   });
 
   return (
-    <div className="card custom-labels-desktop" style={{ overflowX: 'auto' }}>
+    <div className="card" style={{ overflowX: 'auto' }}>
       {/* Header */}
       <div style={{
         display: 'grid',
@@ -131,7 +131,7 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
   );
 
   return (
-    <div className="custom-labels-mobile">
+    <div>
       {rows.map((row, idx) => {
         const noDesc = !row.descripcion.trim();
         return (
@@ -216,10 +216,22 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= breakpoint);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export function CustomLabelsPage() {
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const isMobile = useIsMobile();
 
   const totalLabels = rows.reduce((s, r) => s + Math.max(1, r.copies || 1), 0);
   const validRows = rows.filter(r => r.descripcion.trim());
@@ -308,9 +320,11 @@ export function CustomLabelsPage() {
         </div>
       )}
 
-      {/* Desktop table / Mobile cards — CSS toggles which is visible */}
-      <DesktopTable {...sharedProps} />
-      <MobileCards  {...sharedProps} />
+      {/* Desktop table / Mobile cards — only one is mounted at a time */}
+      {isMobile
+        ? <MobileCards  {...sharedProps} />
+        : <DesktopTable {...sharedProps} />
+      }
 
       {/* Help note */}
       <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
