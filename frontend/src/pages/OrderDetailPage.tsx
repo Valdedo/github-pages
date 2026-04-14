@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw } from 'lucide-react';
 import { getOrder, updateOrder, addOrderLine, updateOrderLine, deleteOrderLine, deleteOrder, listDocuments } from '../api/client';
 import type { SupplierOrder, SupplierOrderLine, DocumentListItem, OrderStatus } from '../types';
 
@@ -9,21 +9,31 @@ const STATUS_LABELS: Record<string, string> = {
   recibido: 'Recibido', entregado: 'Entregado', cancelado: 'Cancelado',
 };
 
-// Next manual status a user can advance to
 const STATUS_NEXT: Record<string, { status: string; label: string } | null> = {
-  pendiente: { status: 'pedido', label: 'Marcar como pedido' },
-  pedido:    { status: 'recibido', label: 'Marcar recibido' },
-  parcial:   { status: 'recibido', label: 'Marcar recibido' },
+  pendiente: { status: 'pedido',    label: 'Marcar como pedido' },
+  pedido:    { status: 'recibido',  label: 'Marcar recibido' },
+  parcial:   { status: 'recibido',  label: 'Marcar recibido' },
   recibido:  { status: 'entregado', label: 'Marcar entregado al cliente' },
   entregado: null,
   cancelado: null,
+};
+
+const STATUS_PREV: Record<string, { status: OrderStatus; label: string } | null> = {
+  pendiente: null,
+  pedido:    { status: 'pendiente', label: 'Volver a "Por pedir"' },
+  parcial:   { status: 'pedido',    label: 'Volver a "Pedido"' },
+  recibido:  { status: 'pedido',    label: 'Deshacer recepción' },
+  entregado: { status: 'recibido',  label: 'Volver a "Recibido"' },
+  cancelado: { status: 'pendiente', label: 'Reactivar pedido' },
 };
 
 function StatusChip({ status }: { status: string }) {
   return <span className={`status-chip ${status}`}>{STATUS_LABELS[status] ?? status}</span>;
 }
 
-function ReceiveLineModal({
+// ─── Edit line modal ─────────────────────────────────────────────────────────
+// Handles both editing article details AND setting cantidad_recibida (incl. 0 to undo)
+function EditLineModal({
   line,
   onClose,
   onSaved,
@@ -32,46 +42,114 @@ function ReceiveLineModal({
   onClose: () => void;
   onSaved: (updated: SupplierOrderLine) => void;
 }) {
-  const [qty, setQty] = useState(String(line.cantidad_recibida || line.cantidad));
-  const [saving, setSaving] = useState(false);
+  const [desc, setDesc]       = useState(line.descripcion);
+  const [qty, setQty]         = useState(String(line.cantidad));
+  const [price, setPrice]     = useState(line.precio_unitario != null ? String(line.precio_unitario) : '');
+  const [received, setReceived] = useState(String(line.cantidad_recibida));
+  const [notes, setNotes]     = useState(line.notes ?? '');
+  const [saving, setSaving]   = useState(false);
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!desc.trim()) return;
     setSaving(true);
     try {
       const { data } = await updateOrderLine(line.order_id, line.id, {
-        cantidad_recibida: parseFloat(qty) || 0,
+        descripcion:       desc.trim(),
+        cantidad:          parseFloat(qty) || 1,
+        precio_unitario:   price ? parseFloat(price) : undefined,
+        cantidad_recibida: Math.max(0, parseFloat(received) || 0),
+        notes:             notes.trim() || undefined,
       });
       onSaved(data);
     } finally { setSaving(false); }
   };
 
+  const qtyNum      = parseFloat(qty) || 1;
+  const receivedNum = parseFloat(received) || 0;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span style={{ fontWeight: 700 }}>Marcar recibido</span>
+          <span style={{ fontWeight: 700 }}>Editar artículo</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handle}>
-          <div style={{ padding: 20 }}>
-            <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>
-              <strong>{line.descripcion}</strong><br />
-              Pedido: {line.cantidad} ud
-            </p>
-            <label className="form-label">Cantidad recibida</label>
-            <input
-              className="form-input"
-              type="number" min="0" step="0.01" max={line.cantidad}
-              value={qty}
-              onChange={e => setQty(e.target.value)}
-              autoFocus
-            />
+          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Article details */}
+            <div>
+              <label className="form-label">Descripción *</label>
+              <input className="form-input" value={desc} onChange={e => setDesc(e.target.value)} autoFocus required />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label className="form-label">Cantidad pedida</label>
+                <input className="form-input" type="number" min="0.01" step="0.01" value={qty} onChange={e => setQty(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">Precio u. (€)</label>
+                <input className="form-input" type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" />
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                Recepción
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label className="form-label">Cantidad recibida</label>
+                  <input
+                    className="form-input"
+                    type="number" min="0" step="0.01"
+                    value={received}
+                    onChange={e => setReceived(e.target.value)}
+                    style={{ borderColor: receivedNum === 0 ? undefined : receivedNum >= qtyNum ? 'var(--success)' : 'var(--accent)' }}
+                  />
+                </div>
+                {/* Quick shortcuts */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 18 }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setReceived('0')}
+                    title="Deshacer recepción"
+                    style={{ fontSize: 11 }}
+                  >
+                    ✕ Ninguna
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setReceived(qty)}
+                    title="Marcar todo recibido"
+                    style={{ fontSize: 11 }}
+                  >
+                    ✓ Todas
+                  </button>
+                </div>
+              </div>
+              {receivedNum > 0 && receivedNum < qtyNum && (
+                <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>
+                  Recepción parcial: quedan {(qtyNum - receivedNum).toFixed(2)} ud
+                </div>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="form-label">Notas (opcional)</label>
+              <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones…" />
+            </div>
+
           </div>
           <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Guardando…' : 'Confirmar recepción'}
+              {saving ? 'Guardando…' : 'Guardar cambios'}
             </button>
           </div>
         </form>
@@ -80,9 +158,10 @@ function ReceiveLineModal({
   );
 }
 
+// ─── Add line modal ───────────────────────────────────────────────────────────
 function AddLineModal({ orderId, onClose, onAdded }: { orderId: number; onClose: () => void; onAdded: (l: SupplierOrderLine) => void }) {
-  const [desc, setDesc] = useState('');
-  const [qty, setQty] = useState('1');
+  const [desc, setDesc]   = useState('');
+  const [qty, setQty]     = useState('1');
   const [price, setPrice] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -134,15 +213,16 @@ function AddLineModal({ orderId, onClose, onAdded }: { orderId: number; onClose:
   );
 }
 
+// ─── Main page ────────────────────────────────────────────────────────────────
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [order, setOrder] = useState<SupplierOrder | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [receivingLine, setReceivingLine] = useState<SupplierOrderLine | null>(null);
+  const [order, setOrder]           = useState<SupplierOrder | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [editingLine, setEditingLine] = useState<SupplierOrderLine | null>(null);
   const [addingLine, setAddingLine] = useState(false);
   const [linkingDoc, setLinkingDoc] = useState(false);
-  const [documents, setDocuments] = useState<DocumentListItem[]>([]);
+  const [documents, setDocuments]   = useState<DocumentListItem[]>([]);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -156,11 +236,11 @@ export function OrderDetailPage() {
 
   const handleLineSaved = (updated: SupplierOrderLine) => {
     setOrder(o => o ? { ...o, lines: o.lines.map(l => l.id === updated.id ? updated : l) } : o);
-    setReceivingLine(null);
+    setEditingLine(null);
     load(); // reload to get updated order status
   };
 
-  const handleLineAdded = (line: SupplierOrderLine) => {
+  const handleLineAdded = (_line: SupplierOrderLine) => {
     setAddingLine(false);
     load();
   };
@@ -194,6 +274,15 @@ export function OrderDetailPage() {
     load();
   };
 
+  const handleRevertStatus = async () => {
+    if (!order) return;
+    const prev = STATUS_PREV[order.status];
+    if (!prev) return;
+    if (!confirm(`¿${prev.label}?`)) return;
+    await updateOrder(order.id, { status: prev.status });
+    load();
+  };
+
   const handleCancelOrder = async () => {
     if (!order || !confirm('¿Cancelar este pedido?')) return;
     await updateOrder(order.id, { status: 'cancelado' });
@@ -213,12 +302,14 @@ export function OrderDetailPage() {
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Cargando…</div>;
-  if (!order) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Pedido no encontrado</div>;
+  if (!order)  return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Pedido no encontrado</div>;
 
-  const totalPending = order.lines.filter(l => l.cantidad_recibida < l.cantidad).length;
-  const totalLines = order.lines.length;
+  const totalLines    = order.lines.length;
   const totalReceived = order.lines.filter(l => l.cantidad_recibida >= l.cantidad).length;
-  const progressPct = totalLines > 0 ? Math.round((totalReceived / totalLines) * 100) : 0;
+  const totalPending  = totalLines - totalReceived;
+  const progressPct   = totalLines > 0 ? Math.round((totalReceived / totalLines) * 100) : 0;
+
+  const canEdit = order.status !== 'cancelado';
 
   return (
     <div className="page" style={{ maxWidth: 860 }}>
@@ -252,14 +343,27 @@ export function OrderDetailPage() {
               {order.received_date && <span>Recibido: {new Date(order.received_date).toLocaleDateString('es-ES')}</span>}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {/* Advance status button */}
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Advance status */}
             {STATUS_NEXT[order.status] && (
               <button className="btn btn-primary btn-sm" onClick={handleAdvanceStatus}>
                 <Check size={14} /> {STATUS_NEXT[order.status]!.label}
               </button>
             )}
-            {totalPending > 0 && order.status !== 'cancelado' && order.status !== 'entregado' && (
+            {/* Revert status */}
+            {STATUS_PREV[order.status] && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handleRevertStatus}
+                title={STATUS_PREV[order.status]!.label}
+                style={{ color: 'var(--text-3)' }}
+              >
+                <RotateCcw size={13} /> {STATUS_PREV[order.status]!.label}
+              </button>
+            )}
+            {totalPending > 0 && canEdit && (
               <button className="btn btn-ghost btn-sm" onClick={handleReceiveAll}>
                 Recibir todo
               </button>
@@ -302,7 +406,7 @@ export function OrderDetailPage() {
       <div className="card">
         <div className="card-header" style={{ justifyContent: 'space-between' }}>
           <span><Package size={14} /> Artículos del pedido</span>
-          {order.status !== 'cancelado' && order.status !== 'recibido' && (
+          {canEdit && (
             <button className="btn btn-ghost btn-sm" onClick={() => setAddingLine(true)}><Plus size={13} /> Añadir</button>
           )}
         </div>
@@ -314,46 +418,61 @@ export function OrderDetailPage() {
         ) : (
           <div>
             {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px 90px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px 72px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
               {['ARTÍCULO', 'PEDIDO', 'RECIBIDO', 'PRECIO U.', ''].map(h => (
                 <span key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>{h}</span>
               ))}
             </div>
             {order.lines.map(line => {
-              const done = line.cantidad_recibida >= line.cantidad;
+              const done    = line.cantidad_recibida >= line.cantidad;
               const partial = line.cantidad_recibida > 0 && !done;
               return (
                 <div
                   key={line.id}
                   style={{
-                    display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px 90px',
+                    display: 'grid', gridTemplateColumns: '1fr 90px 90px 100px 72px',
                     gap: 12, padding: '12px 20px',
                     borderBottom: '1px solid var(--border)',
                     background: done ? '#f0fdf4' : undefined,
                     alignItems: 'center',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 18, opacity: 0.6 }}>{done ? '✓' : partial ? '◑' : '○'}</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: done ? 'var(--text-3)' : 'var(--text-1)', textDecoration: done ? 'line-through' : undefined }}>
-                      {line.descripcion}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ fontSize: 18, opacity: 0.6, flexShrink: 0 }}>{done ? '✓' : partial ? '◑' : '○'}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: done ? 'var(--text-3)' : 'var(--text-1)', textDecoration: done ? 'line-through' : undefined, display: 'block' }}>
+                        {line.descripcion}
+                      </span>
+                      {line.notes && (
+                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{line.notes}</span>
+                      )}
+                    </div>
                   </div>
                   <span style={{ fontSize: 13, color: 'var(--text-2)', textAlign: 'right' }}>{line.cantidad} ud</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: done ? 'var(--success)' : partial ? 'var(--accent)' : 'var(--text-3)', textAlign: 'right' }}>
-                    {line.cantidad_recibida} ud
+                    {line.cantidad_recibida > 0 ? `${line.cantidad_recibida} ud` : '—'}
                   </span>
                   <span style={{ fontSize: 13, color: 'var(--text-2)', textAlign: 'right' }}>
                     {line.precio_unitario != null ? `${line.precio_unitario.toFixed(2)} €` : '—'}
                   </span>
                   <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                    {!done && order.status !== 'cancelado' && (
-                      <button className="btn btn-sm btn-primary" onClick={() => setReceivingLine(line)} title="Registrar recepción">
-                        <Check size={12} />
+                    {canEdit && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setEditingLine(line)}
+                        title="Editar artículo"
+                        style={{ color: done ? 'var(--text-3)' : undefined }}
+                      >
+                        <Pencil size={12} />
                       </button>
                     )}
-                    {order.status !== 'cancelado' && order.status !== 'recibido' && (
-                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteLine(line.id)}>
+                    {canEdit && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--danger)' }}
+                        onClick={() => handleDeleteLine(line.id)}
+                        title="Eliminar línea"
+                      >
                         <Trash2 size={12} />
                       </button>
                     )}
@@ -372,8 +491,8 @@ export function OrderDetailPage() {
         </div>
       )}
 
-      {receivingLine && (
-        <ReceiveLineModal line={receivingLine} onClose={() => setReceivingLine(null)} onSaved={handleLineSaved} />
+      {editingLine && (
+        <EditLineModal line={editingLine} onClose={() => setEditingLine(null)} onSaved={handleLineSaved} />
       )}
       {addingLine && (
         <AddLineModal orderId={order.id} onClose={() => setAddingLine(false)} onAdded={handleLineAdded} />
