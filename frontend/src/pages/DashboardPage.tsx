@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle, Plus, Search, Tag } from 'lucide-react';
+import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle, Plus, Search, Tag, BookOpen } from 'lucide-react';
 import { getDashboardStats, listDocuments } from '../api/client';
 import type { DashboardStats, DocumentListItem } from '../types';
 
@@ -110,11 +110,27 @@ export function DashboardPage() {
       </div>
 
       {/* ── Desktop header (hidden on mobile) ── */}
-      <div className="dashboard-page-header" style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-1)', marginBottom: 4 }}>
-          Panel de control
-        </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Resumen de actividad de Casa Fonso</p>
+      <div className="dashboard-desktop-header">
+        <div>
+          <h1 className="dashboard-desktop-greeting">{greeting()}</h1>
+          <p className="dashboard-desktop-date">{fmtToday()}</p>
+        </div>
+        {(s.repairs.reparada > 0 || s.orders.pending > 0) && (
+          <div className="dashboard-desktop-summary">
+            {s.repairs.reparada > 0 && (
+              <button className="dashboard-summary-chip dashboard-summary-chip--green"
+                onClick={() => navigate('/reparaciones?status=reparada')}>
+                ✓ {s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar
+              </button>
+            )}
+            {s.orders.pending > 0 && (
+              <button className="dashboard-summary-chip dashboard-summary-chip--amber"
+                onClick={() => navigate('/pedidos')}>
+                {s.orders.pending} pedido{s.orders.pending > 1 ? 's' : ''} pendiente{s.orders.pending > 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Stat cards ── */}
@@ -231,42 +247,46 @@ export function DashboardPage() {
         {/* Quick actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Desktop: vertical button list / Mobile: tile grid */}
+          {/* Quick action grid 3×2 */}
           <div className="card">
             <div className="card-header"><Plus size={15} />Acciones rápidas</div>
             <div className="quick-action-grid">
               <button className="quick-action-tile quick-action-tile--primary" onClick={() => navigate('/albaranes')}>
-                <FileText size={22} />
+                <FileText size={20} />
                 <span>Subir albarán</span>
               </button>
               <button className="quick-action-tile" onClick={() => navigate('/reparaciones?new=1')}>
-                <Wrench size={22} />
+                <Wrench size={20} />
                 <span>Nueva reparación</span>
               </button>
               <button className="quick-action-tile" onClick={() => navigate('/pedidos?new=1')}>
-                <ShoppingCart size={22} />
+                <ShoppingCart size={20} />
                 <span>Nuevo pedido</span>
               </button>
               <button className="quick-action-tile" onClick={() => navigate('/consulta')}>
-                <Search size={22} />
+                <Search size={20} />
                 <span>Buscar artículo</span>
               </button>
               <button className="quick-action-tile" onClick={() => navigate('/etiquetas')}>
-                <Tag size={22} />
+                <Tag size={20} />
                 <span>Etiquetas</span>
+              </button>
+              <button className="quick-action-tile" onClick={() => navigate('/catalogo')}>
+                <BookOpen size={20} />
+                <span>Catálogo</span>
               </button>
             </div>
           </div>
 
-          {/* Desktop-only alert cards (alerts shown in banner strip above on mobile) */}
+          {/* Desktop-only alert cards */}
           {s.repairs.reparada > 0 && (
-            <div className="card dashboard-alert-card" style={{ borderColor: '#d1fae5', background: '#f0fdf4' }}>
+            <div className="card dashboard-alert-card dashboard-alert-card--success">
               <div className="card-header" style={{ color: 'var(--success)' }}>
                 <CheckCircle size={15} />
                 {s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar
               </div>
               <div style={{ padding: '12px 20px' }}>
-                <button className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }} onClick={() => navigate('/reparaciones?status=reparada')}>
+                <button className="btn btn-sm btn-success" onClick={() => navigate('/reparaciones?status=reparada')}>
                   Ver reparaciones listas →
                 </button>
               </div>
@@ -274,7 +294,7 @@ export function DashboardPage() {
           )}
 
           {s.orders.pending > 0 && (
-            <div className="card dashboard-alert-card" style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
+            <div className="card dashboard-alert-card dashboard-alert-card--warning">
               <div className="card-header" style={{ color: 'var(--warning)' }}>
                 <AlertCircle size={15} />
                 {s.orders.pending} pedido{s.orders.pending > 1 ? 's' : ''} sin completar
