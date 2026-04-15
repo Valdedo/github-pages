@@ -71,6 +71,8 @@ def _run_migrations():
         ("supplier_orders", "client_phone",      "TEXT"),
         # Article category (v2.3.0)
         ("articles", "familia",                  "TEXT"),
+        # Per-line supplier (v2.4.0)
+        ("supplier_order_lines", "supplier_name", "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

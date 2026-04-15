@@ -206,6 +206,7 @@ export interface SupplierOrderLine {
   cantidad: number;
   cantidad_recibida: number;
   precio_unitario?: number;
+  supplier_name?: string;
   notes?: string;
   created_at: string;
   updated_at: string;

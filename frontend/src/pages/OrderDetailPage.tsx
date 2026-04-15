@@ -32,23 +32,97 @@ function StatusChip({ status }: { status: string }) {
   return <span className={`status-chip ${status}`}>{STATUS_LABELS[status] ?? status}</span>;
 }
 
+// ─── Order status bar (step circles) ─────────────────────────────────────────
+
+const ORDER_STEPS = [
+  { key: 'pendiente', label: 'Por pedir' },
+  { key: 'pedido',    label: 'Pedido'    },
+  { key: 'recibido',  label: 'Recibido'  },
+  { key: 'entregado', label: 'Entregado' },
+];
+
+function OrderStatusBar({ status, received, total }: { status: string; received: number; total: number }) {
+  const cancelled = status === 'cancelado';
+  const partial   = status === 'parcial';
+  const idx = { pendiente: 0, pedido: 1, parcial: 2, recibido: 2, entregado: 3 }[status] ?? 0;
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 260 }}>
+        {ORDER_STEPS.map((step, i) => {
+          const done    = !cancelled && i < idx;
+          const current = !cancelled && i === idx;
+          const pStep   = partial && i === 2;          // "recibido" circle shows ◑ when parcial
+
+          const bg = cancelled ? 'var(--border)'
+            : done    ? 'var(--brand)'
+            : pStep   ? 'var(--accent)'
+            : current ? 'var(--brand)'
+            : 'var(--border)';
+          const fg = (done || current) && !cancelled ? '#fff' : 'var(--text-3)';
+
+          return (
+            <div key={step.key} style={{ display: 'flex', alignItems: 'center', flex: i < ORDER_STEPS.length - 1 ? 1 : 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: bg, color: fg, fontSize: 12, fontWeight: 700,
+                  transition: 'background 0.2s',
+                }}>
+                  {cancelled ? '✕' : done ? '✓' : pStep ? '◑' : i + 1}
+                </div>
+                <span style={{
+                  fontSize: 10, whiteSpace: 'nowrap',
+                  fontWeight: current ? 700 : 400,
+                  color: cancelled ? 'var(--text-3)'
+                    : pStep   ? 'var(--accent)'
+                    : current ? 'var(--brand)'
+                    : 'var(--text-3)',
+                }}>
+                  {pStep ? `Recibiendo (${received}/${total})` : step.label}
+                </span>
+              </div>
+              {i < ORDER_STEPS.length - 1 && (
+                <div style={{
+                  flex: 1, height: 2, margin: '0 4px', marginBottom: 14,
+                  background: cancelled ? 'var(--border)' : i < idx ? 'var(--brand)' : 'var(--border)',
+                }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Receipt count shown for non-terminal states (not parcial since it's inline) */}
+      {!cancelled && !partial && status !== 'entregado' && total > 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-3)' }}>
+          {received}/{total} artículos recibidos
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Edit line modal ─────────────────────────────────────────────────────────
 // Handles both editing article details AND setting cantidad_recibida (incl. 0 to undo)
 function EditLineModal({
   line,
+  orderSupplierName,
   onClose,
   onSaved,
 }: {
   line: SupplierOrderLine;
+  orderSupplierName?: string;
   onClose: () => void;
   onSaved: (updated: SupplierOrderLine) => void;
 }) {
-  const [desc, setDesc]       = useState(line.descripcion);
-  const [qty, setQty]         = useState(String(line.cantidad));
-  const [price, setPrice]     = useState(line.precio_unitario != null ? String(line.precio_unitario) : '');
-  const [received, setReceived] = useState(String(line.cantidad_recibida));
-  const [notes, setNotes]     = useState(line.notes ?? '');
-  const [saving, setSaving]   = useState(false);
+  const [desc, setDesc]           = useState(line.descripcion);
+  const [qty, setQty]             = useState(String(line.cantidad));
+  const [price, setPrice]         = useState(line.precio_unitario != null ? String(line.precio_unitario) : '');
+  const [received, setReceived]   = useState(String(line.cantidad_recibida));
+  const [supplier, setSupplier]   = useState(line.supplier_name ?? '');
+  const [notes, setNotes]         = useState(line.notes ?? '');
+  const [saving, setSaving]       = useState(false);
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +134,7 @@ function EditLineModal({
         cantidad:          parseFloat(qty) || 1,
         precio_unitario:   price ? parseFloat(price) : undefined,
         cantidad_recibida: Math.max(0, parseFloat(received) || 0),
+        supplier_name:     supplier.trim() || undefined,
         notes:             notes.trim() || undefined,
       });
       onSaved(data);
@@ -140,6 +215,17 @@ function EditLineModal({
               )}
             </div>
 
+            {/* Supplier */}
+            <div>
+              <label className="form-label">Proveedor (opcional)</label>
+              <input
+                className="form-input"
+                value={supplier}
+                onChange={e => setSupplier(e.target.value)}
+                placeholder={orderSupplierName || 'A qué proveedor se pide este artículo'}
+              />
+            </div>
+
             {/* Notes */}
             <div>
               <label className="form-label">Notas (opcional)</label>
@@ -160,11 +246,12 @@ function EditLineModal({
 }
 
 // ─── Add line modal ───────────────────────────────────────────────────────────
-function AddLineModal({ orderId, onClose, onAdded }: { orderId: number; onClose: () => void; onAdded: (l: SupplierOrderLine) => void }) {
-  const [desc, setDesc]   = useState('');
-  const [qty, setQty]     = useState('1');
-  const [price, setPrice] = useState('');
-  const [saving, setSaving] = useState(false);
+function AddLineModal({ orderId, orderSupplierName, onClose, onAdded }: { orderId: number; orderSupplierName?: string; onClose: () => void; onAdded: (l: SupplierOrderLine) => void }) {
+  const [desc, setDesc]         = useState('');
+  const [qty, setQty]           = useState('1');
+  const [price, setPrice]       = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [saving, setSaving]     = useState(false);
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,9 +259,10 @@ function AddLineModal({ orderId, onClose, onAdded }: { orderId: number; onClose:
     setSaving(true);
     try {
       const { data } = await addOrderLine(orderId, {
-        descripcion: desc.trim(),
-        cantidad: parseFloat(qty) || 1,
+        descripcion:   desc.trim(),
+        cantidad:      parseFloat(qty) || 1,
         precio_unitario: price ? parseFloat(price) : undefined,
+        supplier_name: supplier.trim() || undefined,
       });
       onAdded(data);
     } finally { setSaving(false); }
@@ -202,6 +290,10 @@ function AddLineModal({ orderId, onClose, onAdded }: { orderId: number; onClose:
                 <label className="form-label">Precio u. (€)</label>
                 <input className="form-input" type="number" min="0" step="0.01" value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" />
               </div>
+            </div>
+            <div>
+              <label className="form-label">Proveedor (opcional)</label>
+              <input className="form-input" value={supplier} onChange={e => setSupplier(e.target.value)} placeholder={orderSupplierName || 'Proveedor de este artículo'} />
             </div>
           </div>
           <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -393,24 +485,16 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Progress */}
-      {totalLines > 0 && (
-        <div className="card" style={{ padding: '16px 20px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Progreso de recepción</span>
-            <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{totalReceived} / {totalLines} artículos recibidos</span>
+      {/* Status flow + progress */}
+      <div className="card" style={{ padding: '16px 20px', marginBottom: 16 }}>
+        <OrderStatusBar status={order.status} received={totalReceived} total={totalLines} />
+        {order.document_id && (
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-3)' }}>
+            <FileText size={13} />
+            Albarán vinculado — <button className="btn btn-ghost btn-sm" style={{ padding: '1px 6px', fontSize: 12 }} onClick={() => navigate(`/documento/${order.document_id}`)}>Ver albarán →</button>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progressPct}%`, background: progressPct === 100 ? 'var(--success)' : 'var(--brand)' }} />
-          </div>
-          {order.document_id && (
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-3)' }}>
-              <FileText size={13} />
-              Albarán vinculado — <button className="btn btn-ghost btn-sm" style={{ padding: '1px 6px', fontSize: 12 }} onClick={() => navigate(`/documento/${order.document_id}`)}>Ver albarán →</button>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Lines */}
       <div className="card">
@@ -453,8 +537,11 @@ export function OrderDetailPage() {
                       <span style={{ fontSize: 13, fontWeight: 500, color: done ? 'var(--text-3)' : 'var(--text-1)', textDecoration: done ? 'line-through' : undefined, display: 'block' }}>
                         {line.descripcion}
                       </span>
-                      {line.notes && (
-                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{line.notes}</span>
+                      {(line.supplier_name || line.notes) && (
+                        <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                          {line.supplier_name && <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', marginRight: 4 }}>{line.supplier_name}</span>}
+                          {line.notes}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -502,10 +589,10 @@ export function OrderDetailPage() {
       )}
 
       {editingLine && (
-        <EditLineModal line={editingLine} onClose={() => setEditingLine(null)} onSaved={handleLineSaved} />
+        <EditLineModal line={editingLine} orderSupplierName={order.supplier_name} onClose={() => setEditingLine(null)} onSaved={handleLineSaved} />
       )}
       {addingLine && (
-        <AddLineModal orderId={order.id} onClose={() => setAddingLine(false)} onAdded={handleLineAdded} />
+        <AddLineModal orderId={order.id} orderSupplierName={order.supplier_name} onClose={() => setAddingLine(false)} onAdded={handleLineAdded} />
       )}
       {linkingDoc && (
         <div className="modal-overlay" onClick={() => setLinkingDoc(false)}>

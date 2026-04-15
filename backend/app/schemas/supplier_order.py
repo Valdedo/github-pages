@@ -14,6 +14,7 @@ class SupplierOrderLineBase(BaseModel):
     cantidad: float = 1.0
     cantidad_recibida: float = 0.0
     precio_unitario: Optional[float] = None
+    supplier_name: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -26,6 +27,7 @@ class SupplierOrderLineUpdate(BaseModel):
     cantidad: Optional[float] = None
     cantidad_recibida: Optional[float] = None
     precio_unitario: Optional[float] = None
+    supplier_name: Optional[str] = None
     notes: Optional[str] = None
 
 

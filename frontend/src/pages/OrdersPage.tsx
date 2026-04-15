@@ -42,7 +42,7 @@ interface NewOrderForm {
   expected_date: string;
   reference: string;
   notes: string;
-  lines: { descripcion: string; cantidad: string; precio_unitario: string }[];
+  lines: { descripcion: string; cantidad: string; precio_unitario: string; supplier_name: string }[];
 }
 
 function NewOrderModal({ suppliers, onClose, onSaved }: {
@@ -55,7 +55,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
     supplier_name: '', supplier_id: '',
     order_date: today(), expected_date: '',
     reference: '', notes: '',
-    lines: [{ descripcion: '', cantidad: '1', precio_unitario: '' }],
+    lines: [{ descripcion: '', cantidad: '1', precio_unitario: '', supplier_name: '' }],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -67,7 +67,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
     setForm(f => { const lines = [...f.lines]; lines[i] = { ...lines[i], [k]: e.target.value }; return { ...f, lines }; });
   };
 
-  const addLine = () => setForm(f => ({ ...f, lines: [...f.lines, { descripcion: '', cantidad: '1', precio_unitario: '' }] }));
+  const addLine = () => setForm(f => ({ ...f, lines: [...f.lines, { descripcion: '', cantidad: '1', precio_unitario: '', supplier_name: '' }] }));
   const removeLine = (i: number) => setForm(f => ({ ...f, lines: f.lines.filter((_, j) => j !== i) }));
 
   const handleSupplierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -95,9 +95,10 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
         notes: form.notes.trim() || undefined,
         status: 'pendiente',
         lines: validLines.map(l => ({
-          descripcion: l.descripcion.trim(),
-          cantidad: parseFloat(l.cantidad) || 1,
+          descripcion:   l.descripcion.trim(),
+          cantidad:      parseFloat(l.cantidad) || 1,
           precio_unitario: l.precio_unitario ? parseFloat(l.precio_unitario) : undefined,
+          supplier_name: l.supplier_name.trim() || undefined,
         })),
       } as any);
       onSaved();
@@ -186,19 +187,34 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
                 <label className="form-label" style={{ margin: 0 }}>Artículos pedidos *</label>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={addLine}><Plus size={13} /> Añadir línea</button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 96px 28px', gap: 8, padding: '0 4px' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>ARTÍCULO</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>CANT.</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>PRECIO U.</span>
-                  <span />
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {form.lines.map((line, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 72px 96px 28px', gap: 8, alignItems: 'center' }}>
-                    <input className="form-input" placeholder={`Artículo ${i + 1}`} value={line.descripcion} onChange={setLine(i, 'descripcion')} style={{ margin: 0 }} />
-                    <input className="form-input" type="number" min="0.01" step="0.01" value={line.cantidad} onChange={setLine(i, 'cantidad')} style={{ margin: 0, textAlign: 'right' }} />
-                    <input className="form-input" type="number" min="0" step="0.01" placeholder="€" value={line.precio_unitario} onChange={setLine(i, 'precio_unitario')} style={{ margin: 0, textAlign: 'right' }} />
-                    <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 4 }} onClick={() => removeLine(i)} disabled={form.lines.length === 1}>✕</button>
+                  <div key={i} style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 10px 8px', border: '1px solid var(--border)' }}>
+                    {/* Row 1: description + delete */}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                      <input className="form-input" placeholder={`Artículo ${i + 1}`} value={line.descripcion}
+                        onChange={setLine(i, 'descripcion')} style={{ margin: 0, flex: 1 }} />
+                      <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}
+                        onClick={() => removeLine(i)} disabled={form.lines.length === 1}>✕</button>
+                    </div>
+                    {/* Row 2: cant / precio / proveedor */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '80px 90px 1fr', gap: 6 }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>CANT.</div>
+                        <input className="form-input" type="number" min="0.01" step="0.01" value={line.cantidad}
+                          onChange={setLine(i, 'cantidad')} style={{ margin: 0, textAlign: 'right' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>PRECIO</div>
+                        <input className="form-input" type="number" min="0" step="0.01" placeholder="€" value={line.precio_unitario}
+                          onChange={setLine(i, 'precio_unitario')} style={{ margin: 0, textAlign: 'right' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>PROVEEDOR</div>
+                        <input className="form-input" placeholder={form.supplier_name || '—'} value={line.supplier_name}
+                          onChange={setLine(i, 'supplier_name')} style={{ margin: 0 }} />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -4,29 +4,29 @@ import { downloadCustomLabels } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import type { CustomLabelItem } from '../api/client';
 
-interface Row extends CustomLabelItem {
+// Row stores prices as RAW STRINGS so mid-typing ("0,0", "0.0") is never lost
+interface Row {
   _id: string;
+  descripcion: string;
+  pvp_con_iva: string;        // raw string, parsed on generate
+  codigo_principal: string;
+  ean: string;
+  coste_neto_unitario: string; // raw string, parsed on generate
+  copies: number;
 }
 
 const newRow = (): Row => ({
   _id: Math.random().toString(36).slice(2),
   descripcion: '',
-  pvp_con_iva: 0,
+  pvp_con_iva: '',
   codigo_principal: '',
   ean: '',
-  coste_neto_unitario: undefined,
+  coste_neto_unitario: '',
   copies: 1,
 });
 
-// ─── Shared field helpers ─────────────────────────────────────────────────────
-
-function numVal(v: unknown): string {
-  if (v === undefined || v === null || v === 0) return '';
-  return String(v);
-}
-
 function parseNum(s: string, fallback: number): number {
-  const n = parseFloat(s.replace(',', '.'));
+  const n = parseFloat(String(s).replace(',', '.'));
   return isNaN(n) ? fallback : n;
 }
 
@@ -82,15 +82,15 @@ function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: Table
             }}>
               <input style={inputStyle(noDesc)} placeholder="Nombre del artículo"
                 value={row.descripcion} onChange={e => setField(row._id, 'descripcion', e.target.value)} />
-              <input style={{ ...inputStyle(), textAlign: 'right' }} type="number" min={0} step={0.01}
-                placeholder="0,00" value={numVal(row.pvp_con_iva)}
+              <input style={{ ...inputStyle(), textAlign: 'right' }} type="text" inputMode="decimal"
+                placeholder="0,00" value={row.pvp_con_iva}
                 onChange={e => setField(row._id, 'pvp_con_iva', e.target.value)} />
               <input style={inputStyle()} placeholder="REF-001"
-                value={row.codigo_principal ?? ''} onChange={e => setField(row._id, 'codigo_principal', e.target.value)} />
+                value={row.codigo_principal} onChange={e => setField(row._id, 'codigo_principal', e.target.value)} />
               <input style={inputStyle()} placeholder="8412345678901"
-                value={row.ean ?? ''} onChange={e => setField(row._id, 'ean', e.target.value)} />
-              <input style={{ ...inputStyle(), textAlign: 'right' }} type="number" min={0} step={0.01}
-                placeholder="—" value={numVal(row.coste_neto_unitario)}
+                value={row.ean} onChange={e => setField(row._id, 'ean', e.target.value)} />
+              <input style={{ ...inputStyle(), textAlign: 'right' }} type="text" inputMode="decimal"
+                placeholder="—" value={row.coste_neto_unitario}
                 onChange={e => setField(row._id, 'coste_neto_unitario', e.target.value)} />
               <input style={{ ...inputStyle(), textAlign: 'center' }} type="number" min={1} max={50} step={1}
                 value={row.copies || 1} onChange={e => setField(row._id, 'copies', e.target.value)} />
@@ -168,8 +168,8 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
                   {label('PVP (€) *')}
-                  <input style={{ ...inputCls(), textAlign: 'right' }} type="number" min={0} step={0.01}
-                    inputMode="decimal" placeholder="0,00" value={numVal(row.pvp_con_iva)}
+                  <input style={{ ...inputCls(), textAlign: 'right' }} type="text" inputMode="decimal"
+                    placeholder="0,00" value={row.pvp_con_iva}
                     onChange={e => setField(row._id, 'pvp_con_iva', e.target.value)} />
                 </div>
                 <div>
@@ -185,20 +185,20 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
                 <div>
                   {label('Referencia')}
                   <input style={inputCls()} placeholder="REF-001"
-                    value={row.codigo_principal ?? ''} onChange={e => setField(row._id, 'codigo_principal', e.target.value)} />
+                    value={row.codigo_principal} onChange={e => setField(row._id, 'codigo_principal', e.target.value)} />
                 </div>
                 <div>
                   {label('EAN / Código')}
                   <input style={inputCls()} placeholder="8412345…" inputMode="numeric"
-                    value={row.ean ?? ''} onChange={e => setField(row._id, 'ean', e.target.value)} />
+                    value={row.ean} onChange={e => setField(row._id, 'ean', e.target.value)} />
                 </div>
               </div>
 
               {/* Coste */}
               <div style={{ maxWidth: '50%' }}>
                 {label('Coste neto (€)')}
-                <input style={{ ...inputCls(), textAlign: 'right' }} type="number" min={0} step={0.01}
-                  inputMode="decimal" placeholder="—" value={numVal(row.coste_neto_unitario)}
+                <input style={{ ...inputCls(), textAlign: 'right' }} type="text" inputMode="decimal"
+                  placeholder="—" value={row.coste_neto_unitario}
                   onChange={e => setField(row._id, 'coste_neto_unitario', e.target.value)} />
               </div>
             </div>
@@ -241,10 +241,8 @@ export function CustomLabelsPage() {
   const setField = (id: string, key: keyof Row, value: string) => {
     setRows(prev => prev.map(r => {
       if (r._id !== id) return r;
-      if (key === 'pvp_con_iva') return { ...r, pvp_con_iva: parseNum(value, 0) };
-      if (key === 'coste_neto_unitario') return { ...r, coste_neto_unitario: value === '' ? undefined : parseNum(value, 0) };
       if (key === 'copies') return { ...r, copies: Math.max(1, Math.min(50, parseInt(value) || 1)) };
-      return { ...r, [key]: value };
+      return { ...r, [key]: value };  // prices stored as raw strings
     }));
   };
 
@@ -270,10 +268,10 @@ export function CustomLabelsPage() {
     try {
       const items: CustomLabelItem[] = validRows.map(r => ({
         descripcion:         r.descripcion.trim(),
-        pvp_con_iva:         r.pvp_con_iva || 0,
-        codigo_principal:    r.codigo_principal?.trim() || undefined,
-        ean:                 r.ean?.trim() || undefined,
-        coste_neto_unitario: r.coste_neto_unitario,
+        pvp_con_iva:         parseNum(r.pvp_con_iva, 0),
+        codigo_principal:    r.codigo_principal.trim() || undefined,
+        ean:                 r.ean.trim() || undefined,
+        coste_neto_unitario: r.coste_neto_unitario.trim() ? parseNum(r.coste_neto_unitario, 0) : undefined,
         copies:              Math.max(1, r.copies || 1),
       }));
       await downloadCustomLabels(items);

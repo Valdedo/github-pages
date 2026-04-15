@@ -57,6 +57,7 @@ class SupplierOrderLine(Base):
     cantidad: Mapped[float] = mapped_column(Float, default=1.0)
     cantidad_recibida: Mapped[float] = mapped_column(Float, default=0.0)
     precio_unitario: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    supplier_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Python-side defaults
