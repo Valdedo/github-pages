@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save } from 'lucide-react';
 import { getRepair, updateRepair, deleteRepair } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
 import { useIsMobile } from '../hooks';
 import type { Repair, RepairStatus } from '../types';
 
@@ -149,6 +150,7 @@ export function RepairDetailPage() {
   const isMobile = useIsMobile();
 
   const { confirm, ConfirmDialog } = useConfirm();
+  const { showToast, ToastContainer } = useToast();
   const [repair, setRepair] = useState<Repair | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -215,12 +217,25 @@ export function RepairDetailPage() {
     }
   };
 
-  const handleStatusChange = async (newStatus: RepairStatus) => {
+  const handleStatusChange = async (newStatus: RepairStatus, isPrev = false) => {
     if (!repair) return;
-    const { data } = await updateRepair(repair.id, { status: newStatus });
-    setRepair(data);
-    setForm(repairToForm(data));
-    setDirty(false);
+    if (isPrev) {
+      const prevStep = STATUS_PREV[repair.status];
+      const ok = await confirm({
+        title: 'Cambiar estado',
+        message: `¿${prevStep?.label ?? 'Deshacer estado'}?`,
+        confirmLabel: 'Confirmar',
+      });
+      if (!ok) return;
+    }
+    try {
+      const { data } = await updateRepair(repair.id, { status: newStatus });
+      setRepair(data);
+      setForm(repairToForm(data));
+      setDirty(false);
+    } catch {
+      showToast('Error al cambiar el estado', 'error');
+    }
   };
 
   const handleDelete = async () => {
@@ -232,8 +247,12 @@ export function RepairDetailPage() {
       danger: true,
     });
     if (!ok) return;
-    await deleteRepair(repair.id);
-    navigate('/reparaciones');
+    try {
+      await deleteRepair(repair.id);
+      navigate('/reparaciones');
+    } catch {
+      showToast('Error al eliminar la reparación', 'error');
+    }
   };
 
   if (loading) {
@@ -253,6 +272,7 @@ export function RepairDetailPage() {
   return (
     <div className="page">
       {ConfirmDialog}
+      <ToastContainer />
 
       {/* ── Top header (desktop only back button — mobile header handles navigation) ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
@@ -302,7 +322,7 @@ export function RepairDetailPage() {
         <StatusBar status={repair.status} />
         <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
           {prevStep && (
-            <button className="btn btn-ghost btn-sm" onClick={() => handleStatusChange(prevStep.status)} style={{ gap: 5 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => handleStatusChange(prevStep.status, true)} style={{ gap: 5 }}>
               <RotateCcw size={13} /> {prevStep.label}
             </button>
           )}
@@ -426,7 +446,7 @@ export function RepairDetailPage() {
           borderRadius: 12, padding: '12px 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           boxShadow: '0 4px 20px rgb(0 0 0 / .10)',
-          zIndex: 10,
+          zIndex: 'var(--z-fab)' as any,
         }}>
           <span style={{ fontSize: 13, color: 'var(--text-3)' }}>
             {isMobile ? 'Sin guardar' : 'Tienes cambios sin guardar'}

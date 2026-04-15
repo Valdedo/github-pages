@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, ShoppingCart, Search, Trash2, ChevronRight, Package, Phone } from 'lucide-react';
 import { listOrders, createOrder, deleteOrder, listSuppliers } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 
 // Status flow: pendiente → pedido → recibido → entregado
@@ -241,6 +242,7 @@ export function OrdersPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { confirm, ConfirmDialog } = useConfirm();
+  const { showToast, ToastContainer } = useToast();
   const [orders, setOrders] = useState<SupplierOrderListItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,8 +273,9 @@ export function OrdersPage() {
     try {
       await deleteOrder(id);
       setOrders(prev => prev.filter(o => o.id !== id));
+      showToast('Eliminado correctamente', 'success');
     } catch {
-      // silently ignore; reload to sync
+      showToast('Error al eliminar el pedido', 'error');
       load();
     }
   };
@@ -284,6 +287,7 @@ export function OrdersPage() {
   return (
     <div className="page">
       {ConfirmDialog}
+      <ToastContainer />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Pedidos especiales</h1>

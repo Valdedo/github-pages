@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw } from 'lucide-react';
 import { getOrder, updateOrder, addOrderLine, updateOrderLine, deleteOrderLine, deleteOrder, listDocuments } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
 import type { SupplierOrder, SupplierOrderLine, DocumentListItem, OrderStatus } from '../types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -311,11 +312,13 @@ export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { confirm, ConfirmDialog } = useConfirm();
+  const { showToast, ToastContainer } = useToast();
   const [order, setOrder]           = useState<SupplierOrder | null>(null);
   const [loading, setLoading]       = useState(true);
   const [editingLine, setEditingLine] = useState<SupplierOrderLine | null>(null);
   const [addingLine, setAddingLine] = useState(false);
   const [linkingDoc, setLinkingDoc] = useState(false);
+  const [loadingDocs, setLoadingDocs] = useState(false);
   const [documents, setDocuments]   = useState<DocumentListItem[]>([]);
 
   const load = useCallback(() => {
@@ -343,8 +346,13 @@ export function OrderDetailPage() {
     if (!order) return;
     const ok = await confirm({ title: 'Eliminar línea', message: '¿Eliminar esta línea del pedido?', confirmLabel: 'Eliminar', danger: true });
     if (!ok) return;
-    await deleteOrderLine(order.id, lineId);
-    load();
+    try {
+      await deleteOrderLine(order.id, lineId);
+      showToast('Línea eliminada', 'success');
+      load();
+    } catch {
+      showToast('Error al eliminar la línea', 'error');
+    }
   };
 
   const handleReceiveAll = async () => {
@@ -366,8 +374,12 @@ export function OrderDetailPage() {
     if (!order) return;
     const next = STATUS_NEXT[order.status];
     if (!next) return;
-    await updateOrder(order.id, { status: next.status as OrderStatus });
-    load();
+    try {
+      await updateOrder(order.id, { status: next.status as OrderStatus });
+      load();
+    } catch {
+      showToast('Error al cambiar el estado', 'error');
+    }
   };
 
   const handleRevertStatus = async () => {
@@ -376,30 +388,47 @@ export function OrderDetailPage() {
     if (!prev) return;
     const ok = await confirm({ title: 'Cambiar estado', message: `¿${prev.label}?`, confirmLabel: 'Confirmar' });
     if (!ok) return;
-    await updateOrder(order.id, { status: prev.status });
-    load();
+    try {
+      await updateOrder(order.id, { status: prev.status });
+      load();
+    } catch {
+      showToast('Error al cambiar el estado', 'error');
+    }
   };
 
   const handleCancelOrder = async () => {
     if (!order) return;
     const ok = await confirm({ title: 'Cancelar pedido', message: '¿Cancelar este pedido?', confirmLabel: 'Cancelar pedido', danger: true });
     if (!ok) return;
-    await updateOrder(order.id, { status: 'cancelado' });
-    load();
+    try {
+      await updateOrder(order.id, { status: 'cancelado' });
+      load();
+    } catch {
+      showToast('Error al cancelar el pedido', 'error');
+    }
   };
 
   const handleDeleteOrder = async () => {
     if (!order) return;
     const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido? Esta acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true });
     if (!ok) return;
-    await deleteOrder(order.id);
-    navigate('/pedidos');
+    try {
+      await deleteOrder(order.id);
+      navigate('/pedidos');
+    } catch {
+      showToast('Error al eliminar el pedido', 'error');
+    }
   };
 
   const openLinkModal = async () => {
-    const { data } = await listDocuments();
-    setDocuments(data.filter(d => d.status === 'completed'));
     setLinkingDoc(true);
+    setLoadingDocs(true);
+    try {
+      const { data } = await listDocuments();
+      setDocuments(data.filter(d => d.status === 'completed'));
+    } finally {
+      setLoadingDocs(false);
+    }
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Cargando…</div>;
@@ -415,6 +444,7 @@ export function OrderDetailPage() {
   return (
     <div className="page" style={{ maxWidth: 860 }}>
       {ConfirmDialog}
+      <ToastContainer />
       {/* Back + header */}
       <div style={{ marginBottom: 20 }}>
         <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => navigate('/pedidos')}>
@@ -602,7 +632,11 @@ export function OrderDetailPage() {
               <button className="modal-close" onClick={() => setLinkingDoc(false)}>✕</button>
             </div>
             <div style={{ padding: '12px 0', maxHeight: 360, overflowY: 'auto' }}>
-              {documents.length === 0
+              {loadingDocs ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <span className="spinner spinner-sm" /> Cargando albaranes…
+                </div>
+              ) : documents.length === 0
                 ? <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No hay albaranes completados</div>
                 : documents.map(doc => (
                   <div
