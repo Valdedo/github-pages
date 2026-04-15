@@ -51,9 +51,13 @@ export function ProductInfoPage() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
+    let mounted = true;
+
     const load = async () => {
       try {
         const { data } = await getProductInfo(productId);
+        if (!mounted) return;
         setProduct(data);
         setManualUrl(data.manual_url || '');
 
@@ -65,16 +69,21 @@ export function ProductInfoPage() {
           } catch {
             // Search might already be running — still poll
           }
-          startPolling(0);
+          if (mounted) startPolling(0);
         }
       } catch {
+        if (!mounted) return;
         setError('Producto no encontrado');
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
     load();
-    return () => stopPolling();
+    return () => {
+      mounted = false;
+      controller.abort();
+      stopPolling();
+    };
   }, [productId]);
 
   const handleManualSearch = async () => {
