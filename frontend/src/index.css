@@ -223,14 +223,13 @@ html, body, #root { height: 100%; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px 9px 7px;
-  border-left: 3px solid transparent;
+  padding: 8px 10px;
   border-radius: var(--r);
   color: var(--text-2);
   text-decoration: none;
   font-size: 13.5px;
   font-weight: 500;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: background 0.12s, color 0.12s;
   white-space: nowrap;
   position: relative;
 }
@@ -244,7 +243,6 @@ html, body, #root { height: 100%; }
   background: var(--brand-pale);
   color: var(--brand-dark);
   font-weight: 600;
-  border-left-color: var(--brand);
 }
 
 .sidebar-item.active .sidebar-item-icon { color: var(--brand); }
@@ -331,9 +329,6 @@ html, body, #root { height: 100%; }
 
 /* ── Dashboard desktop header ────────────────────────────────── */
 .dashboard-desktop-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
   margin-bottom: 28px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border);
@@ -1480,22 +1475,26 @@ select.form-input { cursor: pointer; }
   .more-drawer {
     display: block;
     position: fixed;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    bottom: 0;
     left: 0;
     right: 0;
     background: var(--surface);
     border-top: 1px solid var(--border);
     border-radius: 16px 16px 0 0;
-    padding: 8px 20px 20px;
+    padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0px));
     z-index: var(--z-drawer);
     box-shadow: 0 -4px 24px rgb(0 0 0 / .12);
-    /* Extra 120px pushes the handle fully below the bottom-nav when closed */
-    transform: translateY(calc(100% + 120px));
-    transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+    transform: translateY(100%);
+    visibility: hidden;
+    transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+                visibility 0s linear 0.26s;
     pointer-events: none;
   }
   .more-drawer.more-drawer-open {
     transform: translateY(0);
+    visibility: visible;
+    transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1),
+                visibility 0s linear 0s;
     pointer-events: auto;
   }
   .more-drawer-handle {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle, Plus, Search, Tag, BookOpen } from 'lucide-react';
+import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle } from 'lucide-react';
 import { getDashboardStats, listDocuments } from '../api/client';
 import type { DashboardStats, DocumentListItem } from '../types';
 
@@ -111,68 +111,43 @@ export function DashboardPage() {
 
       {/* ── Desktop header (hidden on mobile) ── */}
       <div className="dashboard-desktop-header">
-        <div>
-          <h1 className="dashboard-desktop-greeting">{greeting()}</h1>
-          <p className="dashboard-desktop-date">{fmtToday()}</p>
-        </div>
-        {(s.repairs.reparada > 0 || s.orders.pending > 0) && (
-          <div className="dashboard-desktop-summary">
-            {s.repairs.reparada > 0 && (
-              <button className="dashboard-summary-chip dashboard-summary-chip--green"
-                onClick={() => navigate('/reparaciones?status=reparada')}>
-                ✓ {s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar
-              </button>
-            )}
-            {s.orders.pending > 0 && (
-              <button className="dashboard-summary-chip dashboard-summary-chip--amber"
-                onClick={() => navigate('/pedidos')}>
-                {s.orders.pending} pedido{s.orders.pending > 1 ? 's' : ''} pendiente{s.orders.pending > 1 ? 's' : ''}
-              </button>
-            )}
-          </div>
-        )}
+        <h1 className="dashboard-desktop-greeting">{greeting()}</h1>
+        <p className="dashboard-desktop-date">{fmtToday()}</p>
       </div>
 
       {/* ── Stat cards ── */}
       <div className="stat-grid">
-        <div className="stat-card stat-card--clickable stat-card--blue" onClick={() => navigate('/albaranes')}>
+        <div className="stat-card stat-card--clickable" onClick={() => navigate('/albaranes')}>
           <div className="stat-card-icon blue"><FileText size={20} /></div>
           <div className="stat-card-value">{s.documents.total}</div>
           <div className="stat-card-label">Albaranes totales</div>
-          {s.documents.processing > 0 ? (
+          {s.documents.processing > 0 && (
             <div className="stat-card-sub" style={{ color: 'var(--warning)' }}>⏳ {s.documents.processing} procesando…</div>
-          ) : (
-            <div className="stat-card-sub">Ver historial →</div>
           )}
         </div>
 
-        <div className="stat-card stat-card--clickable stat-card--orange" onClick={() => navigate('/reparaciones')}>
+        <div className="stat-card stat-card--clickable" onClick={() => navigate('/reparaciones')}>
           <div className="stat-card-icon orange"><Wrench size={20} /></div>
           <div className="stat-card-value">{s.repairs.pending}</div>
           <div className="stat-card-label">Reparaciones activas</div>
-          <div className="stat-card-sub">
-            {s.repairs.reparada > 0
-              ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ {s.repairs.reparada} listas</span>
-              : <span>{s.repairs.recibida} recib. · {s.repairs.en_taller} en taller</span>}
-          </div>
+          {s.repairs.reparada > 0 && (
+            <div className="stat-card-sub" style={{ color: 'var(--success)', fontWeight: 600 }}>✓ {s.repairs.reparada} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar</div>
+          )}
         </div>
 
-        <div className="stat-card stat-card--clickable stat-card--green" onClick={() => navigate('/pedidos')}>
+        <div className="stat-card stat-card--clickable" onClick={() => navigate('/pedidos')}>
           <div className="stat-card-icon green"><ShoppingCart size={20} /></div>
           <div className="stat-card-value">{s.orders.pending}</div>
           <div className="stat-card-label">Pedidos pendientes</div>
-          <div className="stat-card-sub">
-            {s.orders.parcial > 0
-              ? <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.orders.parcial} parciales</span>
-              : <span>{s.orders.pendiente} sin recibir</span>}
-          </div>
+          {s.orders.parcial > 0 && (
+            <div className="stat-card-sub" style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.orders.parcial} con recepción parcial</div>
+          )}
         </div>
 
-        <div className="stat-card stat-card--clickable stat-card--purple" onClick={() => navigate('/reparaciones')}>
+        <div className="stat-card stat-card--clickable" onClick={() => navigate('/reparaciones')}>
           <div className="stat-card-icon purple"><CheckCircle size={20} /></div>
           <div className="stat-card-value">{s.repairs.entregada}</div>
           <div className="stat-card-label">Reparaciones entregadas</div>
-          <div className="stat-card-sub">{s.orders.recibido} pedidos completados</div>
         </div>
       </div>
 
@@ -244,68 +219,82 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick actions */}
+        {/* Activity cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Quick action grid 3×2 */}
-          <div className="card">
-            <div className="card-header"><Plus size={15} />Acciones rápidas</div>
-            <div className="quick-action-grid">
-              <button className="quick-action-tile quick-action-tile--primary" onClick={() => navigate('/albaranes')}>
-                <FileText size={20} />
-                <span>Subir albarán</span>
-              </button>
-              <button className="quick-action-tile" onClick={() => navigate('/reparaciones?new=1')}>
-                <Wrench size={20} />
-                <span>Nueva reparación</span>
-              </button>
-              <button className="quick-action-tile" onClick={() => navigate('/pedidos?new=1')}>
-                <ShoppingCart size={20} />
-                <span>Nuevo pedido</span>
-              </button>
-              <button className="quick-action-tile" onClick={() => navigate('/consulta')}>
-                <Search size={20} />
-                <span>Buscar artículo</span>
-              </button>
-              <button className="quick-action-tile" onClick={() => navigate('/etiquetas')}>
-                <Tag size={20} />
-                <span>Etiquetas</span>
-              </button>
-              <button className="quick-action-tile" onClick={() => navigate('/catalogo')}>
-                <BookOpen size={20} />
-                <span>Catálogo</span>
+          {/* Reparaciones activity card */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/reparaciones')}>
+            <div className="card-header">
+              <Wrench size={15} />
+              Reparaciones
+              <span style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>{s.repairs.pending}</span>
+            </div>
+            {s.repairs.pending === 0 ? (
+              <div style={{ padding: '16px 20px', color: 'var(--text-3)', fontSize: 13 }}>
+                Sin reparaciones activas
+              </div>
+            ) : (
+              <div style={{ padding: '8px 20px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {s.repairs.recibida > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-2)' }}>Recibidas</span>
+                    <span className="status-chip recibida">{s.repairs.recibida}</span>
+                  </div>
+                )}
+                {s.repairs.en_taller > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-2)' }}>En taller</span>
+                    <span className="status-chip en_taller">{s.repairs.en_taller}</span>
+                  </div>
+                )}
+                {s.repairs.reparada > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Listas para entregar</span>
+                    <span className="status-chip reparada">{s.repairs.reparada}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                Ver reparaciones →
               </button>
             </div>
           </div>
 
-          {/* Desktop-only alert cards */}
-          {s.repairs.reparada > 0 && (
-            <div className="card dashboard-alert-card dashboard-alert-card--success">
-              <div className="card-header" style={{ color: 'var(--success)' }}>
-                <CheckCircle size={15} />
-                {s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar
-              </div>
-              <div style={{ padding: '12px 20px' }}>
-                <button className="btn btn-sm btn-success" onClick={() => navigate('/reparaciones?status=reparada')}>
-                  Ver reparaciones listas →
-                </button>
-              </div>
+          {/* Pedidos activity card */}
+          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/pedidos')}>
+            <div className="card-header">
+              <ShoppingCart size={15} />
+              Pedidos pendientes
+              <span style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>{s.orders.pending}</span>
             </div>
-          )}
-
-          {s.orders.pending > 0 && (
-            <div className="card dashboard-alert-card dashboard-alert-card--warning">
-              <div className="card-header" style={{ color: 'var(--warning)' }}>
-                <AlertCircle size={15} />
-                {s.orders.pending} pedido{s.orders.pending > 1 ? 's' : ''} sin completar
+            {s.orders.pending === 0 ? (
+              <div style={{ padding: '16px 20px', color: 'var(--text-3)', fontSize: 13 }}>
+                Sin pedidos pendientes
               </div>
-              <div style={{ padding: '12px 20px' }}>
-                <button className="btn btn-sm" style={{ background: 'var(--warning)', color: '#fff', border: 'none' }} onClick={() => navigate('/pedidos')}>
-                  Ver pedidos →
-                </button>
+            ) : (
+              <div style={{ padding: '8px 20px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {s.orders.pendiente > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-2)' }}>Por pedir</span>
+                    <span className="status-chip pendiente">{s.orders.pendiente}</span>
+                  </div>
+                )}
+                {s.orders.parcial > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-2)' }}>Recepción parcial</span>
+                    <span className="status-chip parcial">{s.orders.parcial}</span>
+                  </div>
+                )}
               </div>
+            )}
+            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
+                Ver pedidos →
+              </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
