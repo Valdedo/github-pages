@@ -145,11 +145,11 @@ def list_documents(
     db: Session = Depends(get_db),
 ):
     """List all documents with article counts (single query, no N+1)."""
-    from sqlalchemy import func, outerjoin
+    from sqlalchemy import func, outerjoin, or_
     rows = (
         db.query(Document, func.count(Article.id).label("article_count"))
         .outerjoin(Article, Article.document_id == Document.id)
-        .filter(Document.supplier_name != "__manual__")  # hide manual-labels document
+        .filter(or_(Document.supplier_name != "__manual__", Document.supplier_name.is_(None)))
         .group_by(Document.id)
         .order_by(Document.created_at.desc())
         .offset(skip)
