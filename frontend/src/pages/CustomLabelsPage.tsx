@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2, Tag, Download, Copy } from 'lucide-react';
 import { downloadCustomLabels } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
+import { useIsMobile } from '../hooks';
 import type { CustomLabelItem } from '../api/client';
 
 // Row stores prices as RAW STRINGS so mid-typing ("0,0", "0.0") is never lost
@@ -216,17 +217,6 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= breakpoint);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [breakpoint]);
-  return isMobile;
-}
 
 export function CustomLabelsPage() {
   const [rows, setRows] = useState<Row[]>([newRow()]);

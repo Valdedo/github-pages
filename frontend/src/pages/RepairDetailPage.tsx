@@ -3,18 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save } from 'lucide-react';
 import { getRepair, updateRepair, deleteRepair } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
+import { useIsMobile } from '../hooks';
 import type { Repair, RepairStatus } from '../types';
-
-function useIsMobile(bp = 768) {
-  const [m, setM] = useState(() => window.innerWidth <= bp);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${bp}px)`);
-    const h = (e: MediaQueryListEvent) => setM(e.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, [bp]);
-  return m;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

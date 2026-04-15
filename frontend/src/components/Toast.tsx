@@ -9,10 +9,10 @@ interface ToastItem {
 }
 
 const colors: Record<ToastType, { bg: string; border: string; icon: string }> = {
-  success: { bg: '#f0fdf4', border: '#86efac', icon: '✓' },
-  error:   { bg: '#fef2f2', border: '#fca5a5', icon: '✕' },
-  warning: { bg: '#fffbeb', border: '#fcd34d', icon: '⚠' },
-  info:    { bg: '#eff6ff', border: '#93c5fd', icon: 'ℹ' },
+  success: { bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', icon: '✓' },
+  error:   { bg: 'var(--color-error-bg)',   border: 'var(--color-error-border)',   icon: '✕' },
+  warning: { bg: 'var(--color-warning-bg)', border: 'var(--color-warning-border)', icon: '⚠' },
+  info:    { bg: 'var(--color-info-bg)',    border: 'var(--color-info-border)',    icon: 'ℹ' },
 };
 
 let _counter = 0;
@@ -30,7 +30,7 @@ export function useToast() {
     <div style={{
       position: 'fixed', bottom: '24px', right: '24px',
       display: 'flex', flexDirection: 'column', gap: '8px',
-      zIndex: 9999, pointerEvents: 'none',
+      zIndex: 'var(--z-toast)', pointerEvents: 'none',
     }}>
       {toasts.map(t => (
         <ToastChip key={t.id} item={t} />
