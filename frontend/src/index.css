@@ -1405,13 +1405,13 @@ select.form-input { cursor: pointer; }
   .bottom-nav-item.active { color: var(--brand); }
   .bottom-nav-item svg { flex-shrink: 0; }
 
-  /* More drawer backdrop */
+  /* More drawer backdrop — sits below bottom-nav so the nav bar stays visible */
   .more-drawer-backdrop {
     display: block;
     position: fixed;
     inset: 0;
     background: rgb(0 0 0 / .35);
-    z-index: calc(var(--z-drawer) - 10);
+    z-index: calc(var(--z-bottom-nav) - 10);
     animation: fadeIn 0.18s ease;
   }
 
