@@ -38,7 +38,7 @@ interface TableProps {
   setField: (id: string, key: keyof Row, value: string) => void;
   addRow: () => void;
   duplicateRow: (id: string) => void;
-  removeRow: (id: string) => void;
+  removeRow: (id: string) => void | Promise<void>;
 }
 
 function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: TableProps) {
@@ -247,7 +247,10 @@ export function CustomLabelsPage() {
     });
   };
 
-  const removeRow = (id: string) => {
+  const removeRow = async (id: string) => {
+    if (rows.length <= 1) return;
+    const ok = await confirm({ title: 'Eliminar fila', message: '¿Eliminar este artículo?', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
     setRows(prev => prev.length > 1 ? prev.filter(r => r._id !== id) : prev);
   };
 

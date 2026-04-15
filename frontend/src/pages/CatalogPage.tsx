@@ -4,12 +4,14 @@ import {
   getCatalog, getCatalogFamilies,
   downloadCatalogTreyFact, downloadCatalogPriceList,
 } from '../api/client';
+import { useToast } from '../components/Toast';
 import type { CatalogArticle } from '../types';
 
 type SortKey = 'descripcion' | 'pvp_con_iva' | 'margen_pct' | 'supplier_name' | 'doc_date';
 
 export function CatalogPage() {
   const navigate = useNavigate();
+  const { showToast, ToastContainer } = useToast();
   const [articles, setArticles] = useState<CatalogArticle[]>([]);
   const [families, setFamilies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,11 @@ export function CatalogPage() {
       ]);
       setArticles(catRes.data);
       setFamilies(famRes.data);
+      // Warn if backend truncated the results
+      const truncatedCount = catRes.headers?.['x-truncated-count'];
+      if (truncatedCount) {
+        showToast(`Atención: solo se muestran ${catRes.data.length} artículos de ${truncatedCount} en total`, 'warning');
+      }
     } finally {
       setLoading(false);
     }
@@ -69,6 +76,7 @@ export function CatalogPage() {
 
   return (
     <div className="page-wide">
+      <ToastContainer />
       {/* Header */}
       <div className="doc-page-hero" style={{ marginBottom: '14px' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
