@@ -222,7 +222,7 @@ def get_price_alerts(
                 "pvp_actual":         art.pvp_con_iva,
                 "pct_cambio":         round(pct_change, 1),
                 "prev_doc_id":        prev.document_id,
-                "prev_doc_date":      str(prev.document.doc_date) if prev.document.doc_date else None,
+                "prev_doc_date":      str(prev.document.doc_date) if (prev.document and prev.document.doc_date) else None,
             })
 
     alerts.sort(key=lambda a: a["pct_cambio"], reverse=True)
@@ -239,6 +239,9 @@ def export_catalog_treyfact(
     from fastapi.responses import Response
     from app.services.treyfact_service import generate_treyfact_excel
 
+    # Count total matching articles before applying the 2000 limit
+    total_matching = len(get_catalog(q=q, familia=familia, limit=999999, db=db))
+
     # Reuse catalog query logic to get articles
     catalog = get_catalog(q=q, familia=familia, limit=2000, db=db)
 
@@ -253,10 +256,13 @@ def export_catalog_treyfact(
     articles.sort(key=lambda a: id_order.get(a.id, 9999))
 
     excel_bytes = generate_treyfact_excel(articles, supplier_name="")
+    resp_headers = {"Content-Disposition": 'attachment; filename="catalogo_treyfact.xlsx"'}
+    if total_matching > 2000:
+        resp_headers["X-Truncated-Count"] = str(total_matching)
     return Response(
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="catalogo_treyfact.xlsx"'},
+        headers=resp_headers,
     )
 
 
@@ -274,6 +280,9 @@ def export_catalog_pricelist(
     settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
     company = settings.company_name if settings else ""
 
+    # Count total matching articles before applying the 2000 limit
+    total_matching = len(get_catalog(q=q, familia=familia, limit=999999, db=db))
+
     catalog = get_catalog(q=q, familia=familia, limit=2000, db=db)
     ids = [row["id"] for row in catalog]
     if not ids:
@@ -288,8 +297,11 @@ def export_catalog_pricelist(
         company_name=company,
         title="Catálogo de Precios",
     )
+    resp_headers = {"Content-Disposition": 'attachment; filename="catalogo_precios.pdf"'}
+    if total_matching > 2000:
+        resp_headers["X-Truncated-Count"] = str(total_matching)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="catalogo_precios.pdf"'},
+        headers=resp_headers,
     )

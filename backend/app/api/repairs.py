@@ -5,7 +5,7 @@ Track tools sent for repair / service.
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/repairs", tags=["repairs"])
 def list_repairs(
     status: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     q = db.query(Repair).order_by(Repair.created_at.desc())

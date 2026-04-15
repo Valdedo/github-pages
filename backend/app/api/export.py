@@ -24,6 +24,7 @@ class CustomLabelItem(BaseModel):
     codigo_principal: Optional[str] = None
     ean: Optional[str] = None
     coste_neto_unitario: Optional[float] = None
+    iva_pct: Optional[float] = None
     copies: int = Field(1, ge=1, le=50)
 
 
@@ -80,7 +81,8 @@ def _upsert_manual_article(
             .first()
         )
 
-    pvp_sin_iva = round((item.pvp_con_iva or 0.0) / 1.21, 4)
+    iva_divisor = 1.0 + ((getattr(item, 'iva_pct', None) or 21.0) / 100.0)
+    pvp_sin_iva = round((item.pvp_con_iva or 0.0) / iva_divisor, 4)
     coste = item.coste_neto_unitario or 0.0
 
     if existing:

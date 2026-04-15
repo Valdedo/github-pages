@@ -175,6 +175,8 @@ def update_line(
     for field, value in data.items():
         setattr(line, field, value)
 
+    db.flush()  # ensure updated line is visible to _recalculate_status
+
     # Recompute order status from lines
     order = db.query(SupplierOrder).filter(SupplierOrder.id == order_id).first()
     if order and order.status != "cancelado":

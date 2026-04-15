@@ -39,8 +39,8 @@ class Article(Base):
     # Codes
     codigo_proveedor: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     codigo_fabricante: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    ean: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    codigo_principal: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    ean: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
+    codigo_principal: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     otros_codigos: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Category

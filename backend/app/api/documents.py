@@ -29,6 +29,63 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
+def _build_article(art_data: dict, doc_id: int, tiers: list, rounding_mode: str, rounding_decimals: int) -> Article:
+    """Build an Article ORM object from extraction data. Does NOT add to session."""
+    from app.services.margin_service import compute_article_pricing, calculate_pricing, get_margin_for_cost
+    pricing = compute_article_pricing(
+        precio_bruto=art_data.get("precio_unitario_bruto", 0),
+        cantidad=art_data.get("cantidad", 1),
+        descuento_1=art_data.get("descuento_1"),
+        descuento_2=art_data.get("descuento_2"),
+        descuento_3=art_data.get("descuento_3"),
+        descuento_4=art_data.get("descuento_4"),
+        iva_pct=art_data.get("iva_pct", 21.0),
+        margen_pct_override=None,
+        tiers=tiers,
+        rounding_mode=rounding_mode,
+        decimals=rounding_decimals,
+    )
+    if art_data.get("coste_neto_unitario") and not any([
+        art_data.get("descuento_1"), art_data.get("descuento_2"),
+        art_data.get("descuento_3"), art_data.get("descuento_4"),
+    ]):
+        pricing["coste_neto_unitario"] = art_data["coste_neto_unitario"]
+        pricing["coste_neto_total"] = art_data["coste_neto_unitario"] * art_data.get("cantidad", 1)
+        pricing["margen_pct"] = get_margin_for_cost(pricing["coste_neto_unitario"], tiers)
+        pvp = calculate_pricing(
+            pricing["coste_neto_unitario"], pricing["margen_pct"],
+            art_data.get("iva_pct", 21.0), rounding_mode, rounding_decimals,
+        )
+        pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
+        pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
+
+    otros = art_data.get("otros_codigos", {})
+    return Article(
+        document_id=doc_id,
+        line_number=art_data.get("line_number", 0),
+        descripcion=art_data.get("descripcion", ""),
+        cantidad=art_data.get("cantidad", 1),
+        precio_unitario_bruto=art_data.get("precio_unitario_bruto", 0),
+        descuento_1=art_data.get("descuento_1"),
+        descuento_2=art_data.get("descuento_2"),
+        descuento_3=art_data.get("descuento_3"),
+        descuento_4=art_data.get("descuento_4"),
+        coste_neto_unitario=pricing["coste_neto_unitario"],
+        coste_neto_total=pricing["coste_neto_total"],
+        iva_pct=art_data.get("iva_pct", 21.0),
+        recargo_pct=art_data.get("recargo_pct"),
+        margen_pct=pricing["margen_pct"],
+        margen_override=pricing["margen_override"],
+        pvp_sin_iva=pricing["pvp_sin_iva"],
+        pvp_con_iva=pricing["pvp_con_iva"],
+        codigo_proveedor=art_data.get("codigo_proveedor"),
+        codigo_fabricante=art_data.get("codigo_fabricante"),
+        ean=art_data.get("ean"),
+        codigo_principal=art_data.get("codigo_principal"),
+        otros_codigos=otros if otros else None,
+    )
+
+
 def get_or_create_settings(db: Session) -> AppSettings:
     s = db.query(AppSettings).filter(AppSettings.id == 1).first()
     if not s:
@@ -320,7 +377,6 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
     """Background task: extract multiple image pages as a single document."""
     from app.database import SessionLocal
     from app.services.extraction_service import extract_multi_images
-    from app.services.margin_service import compute_article_pricing
 
     # Phase 1: quick reads + mark processing, then release DB
     db = SessionLocal()
@@ -338,15 +394,23 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
         db.commit()
 
         suppliers = db.query(Supplier).all()
-        suppliers_data = [
-            {
+        for s in suppliers:
+            try:
+                keywords = json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else (s.detection_keywords or [])
+            except (json.JSONDecodeError, TypeError):
+                keywords = []
+                logger.warning(f"Supplier {s.id}: invalid detection_keywords JSON, skipping")
+            try:
+                tmpl = json.loads(s.template_config) if isinstance(s.template_config, str) else (s.template_config or {})
+            except (json.JSONDecodeError, TypeError):
+                tmpl = {}
+                logger.warning(f"Supplier {s.id}: invalid template_config JSON, skipping")
+            suppliers_data.append({
                 "id": s.id,
                 "name": s.name,
-                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else (s.detection_keywords or []),
-                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else (s.template_config or {}),
-            }
-            for s in suppliers
-        ]
+                "detection_keywords": keywords,
+                "template_config": tmpl,
+            })
         app_settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
         if not app_settings:
             app_settings = AppSettings(id=1)
@@ -418,63 +482,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                 pass
 
         for art_data in result.get("articulos", []):
-            pricing = compute_article_pricing(
-                precio_bruto=art_data.get("precio_unitario_bruto", 0),
-                cantidad=art_data.get("cantidad", 1),
-                descuento_1=art_data.get("descuento_1"),
-                descuento_2=art_data.get("descuento_2"),
-                descuento_3=art_data.get("descuento_3"),
-                descuento_4=art_data.get("descuento_4"),
-                iva_pct=art_data.get("iva_pct", 21.0),
-                margen_pct_override=None,
-                tiers=tiers,
-                rounding_mode=rounding_mode,
-                decimals=rounding_decimals,
-            )
-            if art_data.get("coste_neto_unitario") and not any([
-                art_data.get("descuento_1"), art_data.get("descuento_2"),
-                art_data.get("descuento_3"), art_data.get("descuento_4")
-            ]):
-                pricing["coste_neto_unitario"] = art_data["coste_neto_unitario"]
-                pricing["coste_neto_total"] = art_data["coste_neto_unitario"] * art_data.get("cantidad", 1)
-                from app.services.margin_service import calculate_pricing, get_margin_for_cost
-                pricing["margen_pct"] = get_margin_for_cost(pricing["coste_neto_unitario"], tiers)
-                pvp = calculate_pricing(
-                    pricing["coste_neto_unitario"],
-                    pricing["margen_pct"],
-                    art_data.get("iva_pct", 21.0),
-                    rounding_mode,
-                    rounding_decimals,
-                )
-                pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
-                pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
-
-            otros = art_data.get("otros_codigos", {})
-            article = Article(
-                document_id=doc_id,
-                line_number=art_data.get("line_number", 0),
-                descripcion=art_data.get("descripcion", ""),
-                cantidad=art_data.get("cantidad", 1),
-                precio_unitario_bruto=art_data.get("precio_unitario_bruto", 0),
-                descuento_1=art_data.get("descuento_1"),
-                descuento_2=art_data.get("descuento_2"),
-                descuento_3=art_data.get("descuento_3"),
-                descuento_4=art_data.get("descuento_4"),
-                coste_neto_unitario=pricing["coste_neto_unitario"],
-                coste_neto_total=pricing["coste_neto_total"],
-                iva_pct=art_data.get("iva_pct", 21.0),
-                recargo_pct=art_data.get("recargo_pct"),
-                margen_pct=pricing["margen_pct"],
-                margen_override=pricing["margen_override"],
-                pvp_sin_iva=pricing["pvp_sin_iva"],
-                pvp_con_iva=pricing["pvp_con_iva"],
-                codigo_proveedor=art_data.get("codigo_proveedor"),
-                codigo_fabricante=art_data.get("codigo_fabricante"),
-                ean=art_data.get("ean"),
-                codigo_principal=art_data.get("codigo_principal"),
-                otros_codigos=otros if otros else None,
-            )
-            db.add(article)
+            db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals))
 
         _apply_validation(doc, result)
         doc.status = "completed"
@@ -483,6 +491,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
     except Exception as e:
         logger.error(f"Error saving multi-doc results for {doc_id}: {e}", exc_info=True)
         try:
+            db.rollback()
             doc = db.query(Document).filter(Document.id == doc_id).first()
             if doc:
                 doc.status = "error"
@@ -502,7 +511,6 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
     """
     from app.database import SessionLocal
     from app.services.extraction_service import extract_document
-    from app.services.margin_service import compute_article_pricing
 
     # ── Phase 1: quick reads + mark as processing ────────────────────────
     db = SessionLocal()
@@ -523,15 +531,23 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
         db.commit()
 
         suppliers = db.query(Supplier).all()
-        suppliers_data = [
-            {
+        for s in suppliers:
+            try:
+                keywords = json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else (s.detection_keywords or [])
+            except (json.JSONDecodeError, TypeError):
+                keywords = []
+                logger.warning(f"Supplier {s.id}: invalid detection_keywords JSON, skipping")
+            try:
+                tmpl = json.loads(s.template_config) if isinstance(s.template_config, str) else (s.template_config or {})
+            except (json.JSONDecodeError, TypeError):
+                tmpl = {}
+                logger.warning(f"Supplier {s.id}: invalid template_config JSON, skipping")
+            suppliers_data.append({
                 "id": s.id,
                 "name": s.name,
-                "detection_keywords": json.loads(s.detection_keywords) if isinstance(s.detection_keywords, str) else (s.detection_keywords or []),
-                "template_config": json.loads(s.template_config) if isinstance(s.template_config, str) else (s.template_config or {}),
-            }
-            for s in suppliers
-        ]
+                "detection_keywords": keywords,
+                "template_config": tmpl,
+            })
 
         app_settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
         if not app_settings:
@@ -609,66 +625,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
 
         # Save articles
         for art_data in result.get("articulos", []):
-            pricing = compute_article_pricing(
-                precio_bruto=art_data.get("precio_unitario_bruto", 0),
-                cantidad=art_data.get("cantidad", 1),
-                descuento_1=art_data.get("descuento_1"),
-                descuento_2=art_data.get("descuento_2"),
-                descuento_3=art_data.get("descuento_3"),
-                descuento_4=art_data.get("descuento_4"),
-                iva_pct=art_data.get("iva_pct", 21.0),
-                margen_pct_override=None,
-                tiers=tiers,
-                rounding_mode=rounding_mode,
-                decimals=rounding_decimals,
-            )
-
-            # Use provided coste_neto if available and no discounts give us a better one
-            if art_data.get("coste_neto_unitario") and not any([
-                art_data.get("descuento_1"), art_data.get("descuento_2"),
-                art_data.get("descuento_3"), art_data.get("descuento_4")
-            ]):
-                pricing["coste_neto_unitario"] = art_data["coste_neto_unitario"]
-                pricing["coste_neto_total"] = art_data["coste_neto_unitario"] * art_data.get("cantidad", 1)
-                from app.services.margin_service import calculate_pricing, get_margin_for_cost
-                pricing["margen_pct"] = get_margin_for_cost(pricing["coste_neto_unitario"], tiers)
-                pvp = calculate_pricing(
-                    pricing["coste_neto_unitario"],
-                    pricing["margen_pct"],
-                    art_data.get("iva_pct", 21.0),
-                    rounding_mode,
-                    rounding_decimals,
-                )
-                pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
-                pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
-
-            otros = art_data.get("otros_codigos", {})
-
-            article = Article(
-                document_id=doc_id,
-                line_number=art_data.get("line_number", 0),
-                descripcion=art_data.get("descripcion", ""),
-                cantidad=art_data.get("cantidad", 1),
-                precio_unitario_bruto=art_data.get("precio_unitario_bruto", 0),
-                descuento_1=art_data.get("descuento_1"),
-                descuento_2=art_data.get("descuento_2"),
-                descuento_3=art_data.get("descuento_3"),
-                descuento_4=art_data.get("descuento_4"),
-                coste_neto_unitario=pricing["coste_neto_unitario"],
-                coste_neto_total=pricing["coste_neto_total"],
-                iva_pct=art_data.get("iva_pct", 21.0),
-                recargo_pct=art_data.get("recargo_pct"),
-                margen_pct=pricing["margen_pct"],
-                margen_override=pricing["margen_override"],
-                pvp_sin_iva=pricing["pvp_sin_iva"],
-                pvp_con_iva=pricing["pvp_con_iva"],
-                codigo_proveedor=art_data.get("codigo_proveedor"),
-                codigo_fabricante=art_data.get("codigo_fabricante"),
-                ean=art_data.get("ean"),
-                codigo_principal=art_data.get("codigo_principal"),
-                otros_codigos=otros if otros else None,
-            )
-            db.add(article)
+            db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals))
 
         # Validation: store totals and check if they match
         _apply_validation(doc, result)
@@ -679,6 +636,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
     except Exception as e:
         logger.error(f"Error saving results for document {doc_id}: {e}", exc_info=True)
         try:
+            db.rollback()
             doc = db.query(Document).filter(Document.id == doc_id).first()
             if doc:
                 doc.status = "error"
