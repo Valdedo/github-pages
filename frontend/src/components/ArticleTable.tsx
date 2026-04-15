@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -139,13 +139,15 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedCardId]);
 
-  const filtered = searchDebounced.trim()
-    ? articles.filter(a =>
-        (a.descripcion || '').toLowerCase().includes(searchDebounced.toLowerCase()) ||
-        (a.codigo_principal || '').toLowerCase().includes(searchDebounced.toLowerCase()) ||
-        (a.ean || '').includes(searchDebounced)
-      )
-    : articles;
+  const filtered = useMemo(() => {
+    if (!searchDebounced.trim()) return articles;
+    const q = searchDebounced.toLowerCase();
+    return articles.filter(a =>
+      (a.descripcion || '').toLowerCase().includes(q) ||
+      (a.codigo_principal || '').toLowerCase().includes(q) ||
+      (a.ean || '').includes(searchDebounced)
+    );
+  }, [articles, searchDebounced]);
 
   // Notify parent when selection changes
   useEffect(() => {
