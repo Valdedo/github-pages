@@ -119,7 +119,7 @@ html, body, #root { height: 100%; }
 .sidebar {
   width: 220px;
   min-width: 220px;
-  background: #f1f5f9;
+  background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -175,19 +175,10 @@ html, body, #root { height: 100%; }
 
 .sidebar-logo-name {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: -0.02em;
   color: var(--text-1);
   white-space: nowrap;
-  line-height: 1.2;
-}
-
-.sidebar-logo-sub {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .sidebar-collapse-btn {
@@ -245,7 +236,7 @@ html, body, #root { height: 100%; }
 }
 
 .sidebar-item:hover {
-  background: #e8edf2;
+  background: var(--bg);
   color: var(--text-1);
 }
 
@@ -437,6 +428,7 @@ html, body, #root { height: 100%; }
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--border);
   border-radius: var(--r-lg);
   padding: 20px;
   display: flex;
@@ -447,6 +439,10 @@ html, body, #root { height: 100%; }
 }
 .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .stat-card--clickable { cursor: pointer; }
+.stat-card--blue   { border-top-color: #2563eb; }
+.stat-card--orange { border-top-color: #d97706; }
+.stat-card--green  { border-top-color: var(--brand); }
+.stat-card--purple { border-top-color: #7c3aed; }
 .card.dashboard-alert-card--success { border-color: var(--color-success-border); background: var(--color-success-bg); }
 .card.dashboard-alert-card--warning { border-color: var(--color-warning-border); background: var(--color-warning-bg); }
 
@@ -1493,7 +1489,8 @@ select.form-input { cursor: pointer; }
     padding: 8px 20px 20px;
     z-index: var(--z-drawer);
     box-shadow: 0 -4px 24px rgb(0 0 0 / .12);
-    transform: translateY(100%);
+    /* Extra 120px pushes the handle fully below the bottom-nav when closed */
+    transform: translateY(calc(100% + 120px));
     transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1);
     pointer-events: none;
   }

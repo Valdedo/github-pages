@@ -135,7 +135,7 @@ export function DashboardPage() {
 
       {/* ── Stat cards ── */}
       <div className="stat-grid">
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/albaranes')}>
+        <div className="stat-card stat-card--clickable stat-card--blue" onClick={() => navigate('/albaranes')}>
           <div className="stat-card-icon blue"><FileText size={20} /></div>
           <div className="stat-card-value">{s.documents.total}</div>
           <div className="stat-card-label">Albaranes totales</div>
@@ -146,7 +146,7 @@ export function DashboardPage() {
           )}
         </div>
 
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/reparaciones')}>
+        <div className="stat-card stat-card--clickable stat-card--orange" onClick={() => navigate('/reparaciones')}>
           <div className="stat-card-icon orange"><Wrench size={20} /></div>
           <div className="stat-card-value">{s.repairs.pending}</div>
           <div className="stat-card-label">Reparaciones activas</div>
@@ -157,7 +157,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/pedidos')}>
+        <div className="stat-card stat-card--clickable stat-card--green" onClick={() => navigate('/pedidos')}>
           <div className="stat-card-icon green"><ShoppingCart size={20} /></div>
           <div className="stat-card-value">{s.orders.pending}</div>
           <div className="stat-card-label">Pedidos pendientes</div>
@@ -168,7 +168,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/reparaciones')}>
+        <div className="stat-card stat-card--clickable stat-card--purple" onClick={() => navigate('/reparaciones')}>
           <div className="stat-card-icon purple"><CheckCircle size={20} /></div>
           <div className="stat-card-value">{s.repairs.entregada}</div>
           <div className="stat-card-label">Reparaciones entregadas</div>

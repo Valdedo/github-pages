@@ -86,7 +86,6 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
             <NavLink to="/" end style={{ textDecoration: 'none', color: 'inherit' }}>
               <span className="sidebar-logo-name">Casa Fonso</span>
             </NavLink>
-            <span className="sidebar-logo-sub">Ferretería</span>
           </div>
         )}
         <button className="sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expandir' : 'Colapsar'}>
