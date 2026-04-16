@@ -140,17 +140,16 @@ export function ProductInfoPage() {
     <div style={{ maxWidth: 700, margin: '0 auto', padding: '24px 16px' }}>
       {/* Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #1F4E79 0%, #2980b9 100%)',
-        color: '#fff',
-        borderRadius: 14,
-        padding: '20px 24px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-lg)',
+        padding: '16px 20px',
         marginBottom: 20,
-        boxShadow: '0 4px 16px rgba(31,78,121,0.25)',
       }}>
-        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           {product.codigo_principal}
         </div>
-        <h1 style={{ margin: 0, fontSize: 18, lineHeight: 1.35, fontWeight: 700 }}>
+        <h1 style={{ margin: 0, fontSize: 17, lineHeight: 1.35, fontWeight: 700, color: 'var(--text-1)' }}>
           {product.descripcion}
         </h1>
       </div>

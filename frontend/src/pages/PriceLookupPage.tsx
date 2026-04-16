@@ -54,51 +54,49 @@ export function PriceLookupPage() {
   return (
     <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px' }}>
 
+      {/* Page header */}
+      <div style={{ marginBottom: '20px', paddingBottom: '18px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 4 }}>
+          Consulta de precios
+        </div>
+        <div style={{ fontSize: '13px', color: 'var(--text-3)' }}>
+          Escanea o escribe código EAN, referencia, o descripción
+        </div>
+      </div>
+
       {/* Search bar */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%)',
-        borderRadius: '14px', padding: '20px', marginBottom: '16px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-      }}>
-        <div style={{ fontWeight: 800, fontSize: '18px', color: '#fff', marginBottom: '12px', letterSpacing: '-0.02em' }}>
-          🔍 Consulta rápida de precios
-        </div>
-        <div style={{ position: 'relative' }}>
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={e => e.target.select()}
-            placeholder="Escanea o escribe código / descripción…"
-            autoComplete="off"
+      <div style={{ position: 'relative', marginBottom: '16px' }}>
+        <input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={e => e.target.select()}
+          placeholder="Código / EAN / descripción…"
+          autoComplete="off"
+          style={{
+            width: '100%',
+            padding: '12px 44px 12px 16px',
+            fontSize: '16px',
+            fontFamily: 'var(--font)',
+            border: '1.5px solid var(--border)',
+            borderRadius: 'var(--r-lg)',
+            background: 'var(--surface)',
+            outline: 'none',
+            color: 'var(--text-1)',
+          }}
+        />
+        {query && (
+          <button
+            onClick={clear}
             style={{
-              width: '100%',
-              padding: '14px 48px 14px 16px',
-              fontSize: '18px',
-              fontFamily: 'monospace',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '10px',
-              background: 'rgba(255,255,255,0.95)',
-              boxSizing: 'border-box',
-              outline: 'none',
+              position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px',
+              color: 'var(--text-3)', padding: '4px',
             }}
-          />
-          {query && (
-            <button
-              onClick={clear}
-              style={{
-                position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px',
-                color: '#9ca3af', padding: '4px',
-              }}
-            >✕</button>
-          )}
-        </div>
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginTop: '8px' }}>
-          Busca por código EAN, referencia, o descripción. Pulsa Enter o escanea con la PDA.
-        </div>
+          >✕</button>
+        )}
       </div>
 
       {/* Results */}
@@ -122,38 +120,38 @@ export function PriceLookupPage() {
       )}
 
       {!loading && results.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {results.map(art => (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
+          {results.map((art, idx) => (
             <div
               key={art.id}
               style={{
-                background: '#fff', borderRadius: '12px', border: '1.5px solid var(--grey-200)',
-                overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none',
+                overflow: 'hidden',
               }}
             >
               {/* Description + codes */}
-              <div style={{ padding: '14px 16px 8px' }}>
-                <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-1)', marginBottom: '6px', lineHeight: 1.3 }}>
+              <div style={{ padding: '12px 16px 8px' }}>
+                <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-1)', marginBottom: '6px', lineHeight: 1.3 }}>
                   {art.descripcion}
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {art.codigo_principal && (
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#f1f5f9', color: '#475569', borderRadius: '5px', padding: '2px 7px' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--bg)', color: 'var(--text-2)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--border)' }}>
                       {art.codigo_principal}
                     </span>
                   )}
                   {art.ean && art.ean !== art.codigo_principal && (
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#f0fdf4', color: '#166534', borderRadius: '5px', padding: '2px 7px' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--brand-pale)', color: 'var(--brand-dark)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--brand-light)' }}>
                       EAN: {art.ean}
                     </span>
                   )}
                   {art.familia && (
-                    <span style={{ fontSize: '11px', background: '#ede9fe', color: '#5b21b6', borderRadius: '5px', padding: '2px 7px', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', background: 'var(--bg)', color: 'var(--text-3)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--border)' }}>
                       {art.familia}
                     </span>
                   )}
                   {art.supplier_name && (
-                    <span style={{ fontSize: '11px', background: '#f8fafc', color: 'var(--text-3)', borderRadius: '5px', padding: '2px 7px' }}>
+                    <span style={{ fontSize: '11px', background: 'var(--bg)', color: 'var(--text-3)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--border)' }}>
                       {art.supplier_name}
                     </span>
                   )}
@@ -163,7 +161,7 @@ export function PriceLookupPage() {
               {/* Price band */}
               <div style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-                background: '#f8fafc', borderTop: '1px solid var(--grey-100)',
+                background: 'var(--bg)', borderTop: '1px solid var(--border)',
                 padding: '10px 16px',
               }}>
                 <div style={{ textAlign: 'center' }}>

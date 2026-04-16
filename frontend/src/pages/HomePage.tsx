@@ -88,33 +88,20 @@ export function HomePage() {
       <ToastContainer />
       <button id="upload-trigger" style={{ display: 'none' }} />
 
-      {/* ── Hero card ── */}
+      {/* ── Page header ── */}
       <div className="hero-card">
-        <p style={{ fontSize: '11px', fontWeight: 700, opacity: 0.7, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }}>
-          Albaranes procesados
-        </p>
-        <div style={{ fontSize: '52px', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-          {loading ? '—' : completed}
+        <div>
+          <div className="hero-card-title">Albaranes</div>
+          <div className="hero-card-meta">
+            {loading ? 'Cargando…'
+              : documents.length === 0 ? 'Sin albaranes todavía'
+              : processing > 0
+                ? `${completed} completados · ${processing} procesando`
+                : `${documents.length} albaranes · ${completed} completados`
+            }
+          </div>
         </div>
-        <p style={{ fontSize: '13px', opacity: 0.75, position: 'relative', zIndex: 1 }}>
-          {loading ? 'Cargando…'
-            : documents.length === 0 ? 'Sube tu primer albarán'
-            : processing > 0
-              ? `${documents.length} en total · ${processing} procesando…`
-              : `${documents.length} en total · todos al día`
-          }
-        </p>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setShowUpload(true)}
-          style={{
-            marginTop: '18px',
-            background: 'rgba(255,255,255,0.18)',
-            color: '#fff',
-            border: '1.5px solid rgba(255,255,255,0.3)',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
+        <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
           + Subir albarán
         </button>
       </div>
@@ -136,20 +123,14 @@ export function HomePage() {
 
       {/* ── Document list ── */}
       {loading ? (
-        // Skeleton loading
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="skeleton-card">
-              <span className="skeleton skeleton-line" style={{ width: '30%' }} />
-              <span className="skeleton skeleton-line-lg" style={{ width: '70%' }} />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span className="skeleton skeleton-line-sm" style={{ width: '80px' }} />
-                <span className="skeleton skeleton-line-sm" style={{ width: '60px' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
-                <span className="skeleton skeleton-line-sm" style={{ width: '100px' }} />
-                <span className="skeleton skeleton-line" style={{ width: '80px', height: '30px', borderRadius: 'var(--r)' }} />
-              </div>
+        // Skeleton loading — table rows
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+              <span className="skeleton" style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }} />
+              <span className="skeleton skeleton-line" style={{ flex: 1 }} />
+              <span className="skeleton skeleton-line-sm" style={{ width: 60 }} />
+              <span className="skeleton skeleton-line-sm" style={{ width: 80 }} />
             </div>
           ))}
         </div>
@@ -242,6 +223,13 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
   error:      { label: 'Error',       cls: 'badge badge-danger'  },
 };
 
+const DOT_COLOR: Record<string, string> = {
+  completed:  'var(--brand)',
+  processing: 'var(--warning)',
+  uploaded:   'var(--text-3)',
+  error:      'var(--danger)',
+};
+
 function DocCard({ doc, onOpen, onDelete }: {
   doc: DocumentListItem;
   onOpen: () => void;
@@ -249,41 +237,46 @@ function DocCard({ doc, onOpen, onDelete }: {
 }) {
   const st = statusConfig[doc.status] || statusConfig.uploaded;
   const isProcessing = doc.status === 'processing' || doc.status === 'uploaded';
+  const dateStr = doc.doc_date
+    ? new Date(doc.doc_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+    : new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
     <div className="doc-card" onClick={onOpen}>
-      <div className="doc-card-status">
-        <span className={st.cls} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          {isProcessing && <span className="spinner spinner-sm" />}
-          {st.label}
-        </span>
+      {/* Status dot */}
+      <div className="doc-card-status" style={{ background: DOT_COLOR[doc.status] ?? 'var(--text-3)' }} />
+
+      {/* Title + filename */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="doc-card-title">{doc.supplier_name || doc.original_filename}</div>
+        {doc.supplier_name && (
+          <div className="doc-card-subtitle">{doc.original_filename}</div>
+        )}
       </div>
-      <div className="doc-card-title">{doc.supplier_name || doc.original_filename}</div>
-      {doc.supplier_name && (
-        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.original_filename}</div>
-      )}
-      <div className="doc-card-meta">
-        {doc.supplier_name && <span className="doc-card-chip supplier">{doc.supplier_name}</span>}
-        {doc.doc_number    && <span className="doc-card-chip">Nº {doc.doc_number}</span>}
-        {doc.doc_date      && <span className="doc-card-chip">{doc.doc_date}</span>}
+
+      {/* Meta chips — hidden on very small screens */}
+      <div className="doc-card-meta" style={{ display: 'flex' }}>
+        {doc.doc_number && <span className="doc-card-chip">Nº {doc.doc_number}</span>}
         <span className="doc-card-chip">{doc.article_count} art.</span>
       </div>
-      <div className="doc-card-footer">
-        <span style={{ fontSize: '12px', color: 'var(--text-3)' }}>
-          {doc.doc_date
-            ? new Date(doc.doc_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-            : new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-          }
-        </span>
-        <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
-          <button
-            className="btn btn-danger btn-sm"
-            style={{ minWidth: '36px', minHeight: '36px' }}
-            onClick={onDelete}
-            title="Eliminar albarán"
-          >✕</button>
-          <button className="btn btn-primary btn-sm" onClick={onOpen}>Abrir →</button>
-        </div>
+
+      {/* Date */}
+      <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, whiteSpace: 'nowrap' }}>{dateStr}</span>
+
+      {/* Status badge */}
+      <span className={st.cls} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        {isProcessing && <span className="spinner spinner-sm" />}
+        {st.label}
+      </span>
+
+      {/* Actions — stop propagation */}
+      <div className="doc-card-footer" onClick={e => e.stopPropagation()}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={onDelete}
+          title="Eliminar albarán"
+          style={{ color: 'var(--danger)', borderColor: 'transparent', padding: '4px 8px' }}
+        >✕</button>
       </div>
     </div>
   );

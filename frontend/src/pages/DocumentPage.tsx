@@ -11,10 +11,10 @@ import { useToast } from '../components/Toast';
 import type { Document, Article, AppSettings, Supplier, PriceAlert } from '../types/index';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
-  uploaded:   { label: 'Subido',       dot: 'rgba(255,255,255,0.5)' },
-  processing: { label: '⏳ Procesando', dot: '#fde68a' },
-  completed:  { label: '✓ Completado', dot: '#bbf7d0' },
-  error:      { label: '✕ Error',      dot: '#fca5a5' },
+  uploaded:   { label: 'Subido',       dot: 'var(--text-3)' },
+  processing: { label: 'Procesando',   dot: 'var(--warning)' },
+  completed:  { label: 'Completado',   dot: 'var(--brand)' },
+  error:      { label: 'Error',        dot: 'var(--danger)' },
 };
 
 export function DocumentPage() {
@@ -239,11 +239,11 @@ export function DocumentPage() {
 
           {/* Filename */}
           <h1 style={{
-            fontSize: 'clamp(15px, 2vw, 20px)',
-            fontWeight: 800,
+            fontSize: 'clamp(14px, 2vw, 18px)',
+            fontWeight: 700,
             letterSpacing: '-0.02em',
-            color: '#fff',
-            margin: '0 0 10px',
+            color: 'var(--text-1)',
+            margin: '0 0 8px',
             lineHeight: 1.2,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -263,18 +263,12 @@ export function DocumentPage() {
             {document.doc_date && (
               <span className="doc-hero-chip">{document.doc_date}</span>
             )}
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              background: 'rgba(255,255,255,0.18)', borderRadius: '99px',
-              padding: '2px 10px', fontSize: '11px', fontWeight: 700,
-              color: '#fff', letterSpacing: '0.02em',
-            }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: st.dot, display: 'inline-block', flexShrink: 0 }} />
+            <span className="doc-hero-chip">
               {st.label}
             </span>
             {polling && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', opacity: 0.85, color: '#fff' }}>
-                <span className="spinner spinner-sm spinner-white" />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-3)' }}>
+                <span className="spinner spinner-sm" />
                 Extrayendo artículos…
               </span>
             )}
@@ -283,9 +277,9 @@ export function DocumentPage() {
                 onClick={() => setShowValidation(v => !v)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '4px',
-                  background: validBadge.color, borderRadius: '99px',
-                  padding: '2px 10px', fontSize: '11px', fontWeight: 700,
-                  color: validBadge.text, letterSpacing: '0.01em',
+                  background: validBadge.color, borderRadius: '4px',
+                  padding: '2px 10px', fontSize: '11px', fontWeight: 600,
+                  color: validBadge.text, letterSpacing: '0',
                   border: 'none', cursor: 'pointer',
                 }}
                 title="Ver detalle de validación"
@@ -296,34 +290,36 @@ export function DocumentPage() {
           </div>
         </div>
 
-        {/* Right: article count + preview toggle */}
-        <div style={{ textAlign: 'right', flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
-          <div>
-            <div style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: '#fff' }}>
+        {/* Right: article count + actions */}
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--text-1)' }}>
               {articles.length}
             </div>
-            <div style={{ fontSize: '10px', opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
               artículos
             </div>
           </div>
-          <button
-            className="doc-hero-nav-btn"
-            onClick={() => setShowPreview(p => !p)}
-            title={showPreview ? 'Ocultar imagen original' : 'Ver imagen original'}
-            style={{ fontSize: '14px', width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center' }}
-          >
-            📄 {showPreview ? 'Ocultar' : 'Ver doc'}
-          </button>
-          {document.status === 'completed' && articles.length > 0 && (
+          <div style={{ display: 'flex', gap: 6 }}>
             <button
               className="doc-hero-nav-btn"
-              onClick={() => { setVerificationMode(v => !v); setVerifiedIds(new Set()); setScanInput(''); setScanFeedback(null); }}
-              title="Verificar artículos escaneando códigos de barras"
-              style={{ fontSize: '14px', width: 'auto', padding: '4px 10px', gap: '4px', display: 'flex', alignItems: 'center', background: verificationMode ? '#16a34a' : undefined }}
+              onClick={() => setShowPreview(p => !p)}
+              title={showPreview ? 'Ocultar imagen original' : 'Ver imagen original'}
+              style={{ fontSize: '13px', width: 'auto', padding: '4px 10px' }}
             >
-              {verificationMode ? '✕ Salir' : '📦 Verificar'}
+              {showPreview ? 'Ocultar' : 'Ver doc'}
             </button>
-          )}
+            {document.status === 'completed' && articles.length > 0 && (
+              <button
+                className="doc-hero-nav-btn"
+                onClick={() => { setVerificationMode(v => !v); setVerifiedIds(new Set()); setScanInput(''); setScanFeedback(null); }}
+                title="Verificar artículos escaneando códigos de barras"
+                style={{ fontSize: '13px', width: 'auto', padding: '4px 10px', background: verificationMode ? 'var(--brand-pale)' : undefined, borderColor: verificationMode ? 'var(--brand-light)' : undefined, color: verificationMode ? 'var(--brand-dark)' : undefined }}
+              >
+                {verificationMode ? 'Salir' : 'Verificar'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

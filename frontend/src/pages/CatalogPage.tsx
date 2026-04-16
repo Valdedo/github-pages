@@ -78,33 +78,27 @@ export function CatalogPage() {
     <div className="page-wide">
       <ToastContainer />
       {/* Header */}
-      <div className="doc-page-hero" style={{ marginBottom: '14px' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: 'clamp(16px, 2.5vw, 22px)', fontWeight: 800, color: '#fff', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
-            📚 Catálogo de artículos
-          </h1>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>
-            Vista unificada · precio más reciente de cada artículo
-          </div>
+      <div className="hero-card" style={{ marginBottom: '20px' }}>
+        <div>
+          <div className="hero-card-title">Catálogo de artículos</div>
+          <div className="hero-card-meta">Vista unificada · precio más reciente de cada artículo</div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button
-            className="doc-hero-nav-btn"
+            className="btn btn-ghost btn-sm"
             disabled={dlTF}
             onClick={() => handleDl(setDlTF, () => downloadCatalogTreyFact({ familia: familia || undefined, q: q || undefined }))}
-            style={{ fontSize: '12px', padding: '5px 10px', width: 'auto' }}
             title="Exportar catálogo para TreyFact"
           >
-            {dlTF ? <span className="spinner spinner-sm spinner-white" /> : '📥 TreyFact'}
+            {dlTF ? <span className="spinner spinner-sm" /> : '↓ TreyFact'}
           </button>
           <button
-            className="doc-hero-nav-btn"
+            className="btn btn-ghost btn-sm"
             disabled={dlPL}
             onClick={() => handleDl(setDlPL, () => downloadCatalogPriceList({ familia: familia || undefined, q: q || undefined }))}
-            style={{ fontSize: '12px', padding: '5px 10px', width: 'auto' }}
             title="Exportar listín de precios PDF"
           >
-            {dlPL ? <span className="spinner spinner-sm spinner-white" /> : '💶 Listín PDF'}
+            {dlPL ? <span className="spinner spinner-sm" /> : '↓ Listín PDF'}
           </button>
         </div>
       </div>

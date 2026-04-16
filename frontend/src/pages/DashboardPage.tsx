@@ -95,16 +95,14 @@ export function DashboardPage() {
   return (
     <div className="page">
 
-      {/* ── Hero (mobile-only gradient header) ── */}
+      {/* ── Mobile header (greeting + date, no gradient) ── */}
       <div className="dashboard-hero">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span className="dashboard-hero-greeting">{greeting()}</span>
-          <span className="dashboard-hero-date">{fmtToday()}</span>
-        </div>
+        <span className="dashboard-hero-greeting">{greeting()}</span>
         <div className="dashboard-hero-brand">Casa Fonso</div>
+        <span className="dashboard-hero-date" style={{ marginTop: 2 }}>{fmtToday()}</span>
         {s.repairs.reparada > 0 && (
           <button className="dashboard-hero-alert" onClick={() => navigate('/reparaciones?status=reparada')}>
-            ✓ {s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar →
+            ✓ {s.repairs.reparada} listas para entregar →
           </button>
         )}
       </div>
