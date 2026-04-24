@@ -9,7 +9,6 @@ const STATUSES: { value: RepairStatus | ''; label: string }[] = [
   { value: 'recibida', label: 'Recibida' },
   { value: 'en_taller', label: 'En taller' },
   { value: 'reparada', label: 'Reparada' },
-  { value: 'entregada', label: 'Entregada' },
 ];
 
 const STATUS_STEPS: RepairStatus[] = ['recibida', 'en_taller', 'reparada', 'entregada'];
@@ -281,31 +280,101 @@ function RepairModal({
   );
 }
 
+function RepairCard({
+  repair, onNavigate, onAdvance, muted = false,
+}: {
+  repair: Repair;
+  onNavigate: () => void;
+  onAdvance: (r: Repair) => void;
+  muted?: boolean;
+}) {
+  return (
+    <div
+      className="card"
+      style={{ padding: '14px 18px', cursor: 'pointer', opacity: muted ? 0.6 : 1 }}
+      onClick={onNavigate}
+    >
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{repair.client_name}</span>
+            {repair.client_phone && (
+              <a href={`tel:${repair.client_phone}`} style={{ color: 'var(--text-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+                onClick={e => e.stopPropagation()}>
+                <Phone size={12} /> {repair.client_phone}
+              </a>
+            )}
+            <StatusChip status={repair.status} />
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 3 }}>
+            <strong>{repair.tool_description}</strong>
+            {(repair.tool_brand || repair.tool_model) && (
+              <span style={{ color: 'var(--text-3)' }}> · {[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repair.problem_description}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Recibida {relativeDate(repair.date_received)}</span>
+            {repair.date_estimated_return && !repair.date_returned && (
+              <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>· entrega est. {fmtDate(repair.date_estimated_return)}</span>
+            )}
+            {repair.date_returned && (
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· entregada {fmtDate(repair.date_returned)}</span>
+            )}
+            {repair.final_price != null && (
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· {repair.final_price.toFixed(2)} €</span>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}
+          onClick={e => e.stopPropagation()}>
+          {STATUS_NEXT[repair.status] && (
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={() => onAdvance(repair)}
+              title={STATUS_NEXT_LABEL[repair.status]}
+            >
+              {STATUS_NEXT_LABEL[repair.status]} <ChevronRight size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RepairsPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<RepairStatus | ''>((searchParams.get('status') as RepairStatus) ?? '');
+  const [filter, setFilter] = useState<RepairStatus | ''>('');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('new') === '1');
+  const [showHistory, setShowHistory] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    listRepairs(filter || undefined)
+    listRepairs()  // always load all — split active/history client-side
       .then(({ data }) => setRepairs(data))
       .finally(() => setLoading(false));
-  }, [filter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = search
-    ? repairs.filter(r =>
-        r.client_name.toLowerCase().includes(search.toLowerCase()) ||
-        r.tool_description.toLowerCase().includes(search.toLowerCase()) ||
-        (r.tool_brand ?? '').toLowerCase().includes(search.toLowerCase())
-      )
-    : repairs;
+  // Active = not yet delivered; history = delivered
+  const active  = repairs.filter(r => r.status !== 'entregada');
+  const history = repairs.filter(r => r.status === 'entregada');
+
+  // Filter + search apply only to active items
+  const filtered = active.filter(r => {
+    const matchStatus = !filter || r.status === filter;
+    const matchSearch = !search ||
+      r.client_name.toLowerCase().includes(search.toLowerCase()) ||
+      r.tool_description.toLowerCase().includes(search.toLowerCase()) ||
+      (r.tool_brand ?? '').toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
 
   const handleSaved = (r: Repair) => {
     setRepairs(prev => {
@@ -358,7 +427,7 @@ export function RepairsPage() {
               {s.label}
               {s.value && (
                 <span style={{ marginLeft: 4, fontSize: 11, opacity: 0.8 }}>
-                  {repairs.filter(r => r.status === s.value).length}
+                  {active.filter(r => r.status === s.value).length}
                 </span>
               )}
             </button>
@@ -366,76 +435,51 @@ export function RepairsPage() {
         </div>
       </div>
 
-      {/* List */}
+      {/* Active list */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && active.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Wrench size={36} style={{ opacity: 0.3 }} /></div>
-          <div className="empty-state-text">No hay reparaciones</div>
+          <div className="empty-state-text">No hay reparaciones activas</div>
           <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowModal(true)}>
             <Plus size={14} /> Crear primera reparación
           </button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state" style={{ padding: '28px 0' }}>
+          <div className="empty-state-text">Sin resultados para este filtro</div>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(repair => (
-            <div key={repair.id} className="card" style={{ padding: '16px 20px', cursor: 'pointer' }}
-              onClick={() => navigate(`/reparaciones/${repair.id}`)}>
-              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                {/* Left */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: 15 }}>{repair.client_name}</span>
-                    {repair.client_phone && (
-                      <a href={`tel:${repair.client_phone}`} style={{ color: 'var(--text-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
-                        <Phone size={12} /> {repair.client_phone}
-                      </a>
-                    )}
-                    <StatusChip status={repair.status} />
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4 }}>
-                    <strong>{repair.tool_description}</strong>
-                    {(repair.tool_brand || repair.tool_model) && (
-                      <span style={{ color: 'var(--text-3)' }}> · {[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-3)' }}>{repair.problem_description}</div>
-
-                  {/* Date summary */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                      Recibida {relativeDate(repair.date_received)}
-                    </span>
-                    {repair.date_estimated_return && !repair.date_returned && (
-                      <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>
-                        · entrega est. {fmtDate(repair.date_estimated_return)}
-                      </span>
-                    )}
-                    {repair.estimated_price != null && (
-                      <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                        · {repair.estimated_price.toFixed(2)} €
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Quick advance button — stopPropagation so card click doesn't fire */}
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}
-                  onClick={e => e.stopPropagation()}>
-                  {STATUS_NEXT[repair.status] && (
-                    <button
-                      className="btn btn-sm btn-primary"
-                      onClick={() => advanceStatus(repair)}
-                      title={STATUS_NEXT_LABEL[repair.status]}
-                    >
-                      {STATUS_NEXT_LABEL[repair.status]} <ChevronRight size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={advanceStatus} />
           ))}
+        </div>
+      )}
+
+      {/* Historial — entregadas */}
+      {!loading && history.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0',
+              color: 'var(--text-3)', fontSize: 13, fontWeight: 500, fontFamily: 'var(--font)',
+              borderTop: '1px solid var(--border)',
+            }}
+          >
+            <ChevronRight size={14} style={{ transform: showHistory ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+            Historial — {history.length} entregada{history.length !== 1 ? 's' : ''}
+          </button>
+          {showHistory && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+              {history.map(repair => (
+                <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={advanceStatus} muted />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

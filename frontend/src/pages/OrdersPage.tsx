@@ -7,13 +7,12 @@ import { useToast } from '../components/Toast';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 
 // Status flow: pendiente → pedido → recibido → entregado
-const STATUSES: { value: OrderStatus | ''; label: string; color: string }[] = [
-  { value: '', label: 'Todos', color: '' },
-  { value: 'pendiente', label: 'Por pedir', color: 'pendiente' },
-  { value: 'pedido', label: 'Pedido', color: 'pedido' },
-  { value: 'recibido', label: 'Recibido', color: 'recibido' },
-  { value: 'entregado', label: 'Entregado', color: 'entregado' },
-  { value: 'cancelado', label: 'Cancelado', color: 'cancelado' },
+// entregado + cancelado are "done" → go to history
+const ACTIVE_STATUSES: { value: OrderStatus | ''; label: string }[] = [
+  { value: '', label: 'Todos' },
+  { value: 'pendiente', label: 'Por pedir' },
+  { value: 'pedido', label: 'Pedido' },
+  { value: 'recibido', label: 'Recibido' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -238,6 +237,92 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
   );
 }
 
+function OrderCard({ order, overdue, onNavigate, onDelete, muted = false }: {
+  order: SupplierOrderListItem;
+  overdue: boolean;
+  onNavigate: () => void;
+  onDelete: () => void;
+  muted?: boolean;
+}) {
+  return (
+    <div
+      className="card"
+      style={{
+        padding: '16px 20px',
+        cursor: 'pointer',
+        opacity: muted ? 0.6 : 1,
+        borderColor: overdue ? '#fca5a5' : undefined,
+        background: overdue ? '#fff5f5' : undefined,
+      }}
+      onClick={onNavigate}
+    >
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>{order.client_name || '—'}</span>
+            {order.client_phone && (
+              <a
+                href={`tel:${order.client_phone}`}
+                style={{ color: 'var(--text-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <Phone size={12} /> {order.client_phone}
+              </a>
+            )}
+            <StatusChip status={order.status} />
+            {overdue && <span style={{ fontSize: 11, color: '#b91c1c', fontWeight: 600 }}>⚠ Retrasado</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap', alignItems: 'center' }}>
+            {order.supplier_name && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <ShoppingCart size={11} /> {order.supplier_name}
+              </span>
+            )}
+            {order.reference && (
+              <span style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>
+                {order.reference}
+              </span>
+            )}
+            <span>Pedido: {fmtDate(order.order_date)}</span>
+            {order.expected_date && (
+              <span style={{ color: overdue ? '#b91c1c' : undefined }}>
+                Est. llegada: {fmtDate(order.expected_date)}
+              </span>
+            )}
+            <span>{order.line_count} artículo{order.line_count !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+        {order.line_count > 0 && (
+          <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 110 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+              {order.lines_received}/{order.line_count} recibidos
+            </div>
+            <div className="progress-bar" style={{ width: 90 }}>
+              <div
+                className="progress-fill"
+                style={{
+                  width: `${(order.lines_received / order.line_count) * 100}%`,
+                  background: order.status === 'recibido' || order.status === 'entregado' ? 'var(--success)' : 'var(--brand)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            style={{ color: 'var(--danger)' }}
+          >
+            <Trash2 size={14} />
+          </button>
+          <ChevronRight size={16} style={{ color: 'var(--text-3)', alignSelf: 'center' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function OrdersPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -249,23 +334,29 @@ export function OrdersPage() {
   const [filter, setFilter] = useState<OrderStatus | ''>('');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('new') === '1');
+  const [showHistory, setShowHistory] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([listOrders(filter || undefined), listSuppliers()])
+    Promise.all([listOrders(), listSuppliers()])  // load all — split active/history client-side
       .then(([ordRes, supRes]) => { setOrders(ordRes.data); setSuppliers(supRes.data); })
       .finally(() => setLoading(false));
-  }, [filter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = search
-    ? orders.filter(o =>
-        o.client_name.toLowerCase().includes(search.toLowerCase()) ||
-        (o.supplier_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
-        (o.reference ?? '').toLowerCase().includes(search.toLowerCase())
-      )
-    : orders;
+  const isDone = (o: SupplierOrderListItem) => o.status === 'entregado' || o.status === 'cancelado';
+  const active  = orders.filter(o => !isDone(o));
+  const history = orders.filter(o => isDone(o));
+
+  const filtered = active.filter(o => {
+    const matchStatus = !filter || o.status === filter;
+    const matchSearch = !search ||
+      o.client_name.toLowerCase().includes(search.toLowerCase()) ||
+      (o.supplier_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (o.reference ?? '').toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
 
   const handleDelete = async (id: number) => {
     const ok = await confirm({ title: 'Eliminar pedido', message: '¿Eliminar este pedido?', confirmLabel: 'Eliminar', danger: true });
@@ -311,7 +402,7 @@ export function OrdersPage() {
           />
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {STATUSES.map(s => (
+          {ACTIVE_STATUSES.map(s => (
             <button
               key={s.value}
               onClick={() => setFilter(s.value as OrderStatus | '')}
@@ -320,7 +411,7 @@ export function OrdersPage() {
               {s.label}
               {s.value && (
                 <span style={{ marginLeft: 4, fontSize: 11, opacity: 0.8 }}>
-                  {orders.filter(o => o.status === s.value).length}
+                  {active.filter(o => o.status === s.value).length}
                 </span>
               )}
             </button>
@@ -330,102 +421,70 @@ export function OrdersPage() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : filtered.length === 0 ? (
+      ) : active.length === 0 && !filter && !search ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Package size={36} style={{ opacity: 0.3 }} /></div>
-          <div className="empty-state-text">No hay pedidos</div>
+          <div className="empty-state-text">No hay pedidos activos</div>
           <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowModal(true)}>
             <Plus size={14} /> Crear primer pedido
           </button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Package size={36} style={{ opacity: 0.3 }} /></div>
+          <div className="empty-state-text">Sin resultados para este filtro</div>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(order => (
-            <div
+            <OrderCard
               key={order.id}
-              className="card"
-              style={{
-                padding: '16px 20px',
-                cursor: 'pointer',
-                borderColor: isOverdue(order) ? '#fca5a5' : undefined,
-                background: isOverdue(order) ? '#fff5f5' : undefined,
-              }}
-              onClick={() => navigate(`/pedidos/${order.id}`)}
-            >
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-
-                  {/* CLIENT — primary */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, fontSize: 15 }}>{order.client_name || '—'}</span>
-                    {order.client_phone && (
-                      <a
-                        href={`tel:${order.client_phone}`}
-                        style={{ color: 'var(--text-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <Phone size={12} /> {order.client_phone}
-                      </a>
-                    )}
-                    <StatusChip status={order.status} />
-                    {isOverdue(order) && (
-                      <span style={{ fontSize: 11, color: '#b91c1c', fontWeight: 600 }}>⚠ Retrasado</span>
-                    )}
-                  </div>
-
-                  {/* SUPPLIER + meta — secondary */}
-                  <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {order.supplier_name && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <ShoppingCart size={11} /> {order.supplier_name}
-                      </span>
-                    )}
-                    {order.reference && (
-                      <span style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>
-                        {order.reference}
-                      </span>
-                    )}
-                    <span>Pedido: {fmtDate(order.order_date)}</span>
-                    {order.expected_date && (
-                      <span style={{ color: isOverdue(order) ? '#b91c1c' : undefined }}>
-                        Est. llegada: {fmtDate(order.expected_date)}
-                      </span>
-                    )}
-                    <span>{order.line_count} artículo{order.line_count !== 1 ? 's' : ''}</span>
-                  </div>
-                </div>
-
-                {/* Receipt progress */}
-                {order.line_count > 0 && (
-                  <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 110 }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
-                      {order.lines_received}/{order.line_count} recibidos
-                    </div>
-                    <div className="progress-bar" style={{ width: 90 }}>
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${(order.lines_received / order.line_count) * 100}%`,
-                          background: order.status === 'recibido' || order.status === 'entregado' ? 'var(--success)' : 'var(--brand)',
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={e => { e.stopPropagation(); handleDelete(order.id); }}
-                    style={{ color: 'var(--danger)' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                  <ChevronRight size={16} style={{ color: 'var(--text-3)', alignSelf: 'center' }} />
-                </div>
-              </div>
-            </div>
+              order={order}
+              overdue={!!isOverdue(order)}
+              onNavigate={() => navigate(`/pedidos/${order.id}`)}
+              onDelete={() => handleDelete(order.id)}
+            />
           ))}
+        </div>
+      )}
+
+      {/* History — collapsible */}
+      {!loading && history.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 0',
+              background: 'none',
+              border: 'none',
+              borderTop: '1px solid var(--border)',
+              cursor: 'pointer',
+              color: 'var(--text-3)',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            <ChevronRight size={15} style={{ transform: showHistory ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+            Historial — {history.length} pedido{history.length !== 1 ? 's' : ''} completado{history.length !== 1 ? 's' : ''}
+          </button>
+          {showHistory && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+              {history.map(order => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  overdue={false}
+                  onNavigate={() => navigate(`/pedidos/${order.id}`)}
+                  onDelete={() => handleDelete(order.id)}
+                  muted
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
