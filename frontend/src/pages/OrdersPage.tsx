@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, ShoppingCart, Search, Trash2, ChevronRight, Package, Phone } from 'lucide-react';
-import { listOrders, createOrder, deleteOrder, listSuppliers } from '../api/client';
+import { listOrders, createOrder, deleteOrder, listSuppliers, describeApiError } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
+import { ConnectionError } from '../components/ConnectionError';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 
 // Status flow: pendiente → pedido → recibido → entregado
@@ -335,11 +336,14 @@ export function OrdersPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('new') === '1');
   const [showHistory, setShowHistory] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([listOrders(), listSuppliers()])  // load all — split active/history client-side
       .then(([ordRes, supRes]) => { setOrders(ordRes.data); setSuppliers(supRes.data); })
+      .catch(err => setLoadError(describeApiError(err)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -379,6 +383,9 @@ export function OrdersPage() {
     <div className="page">
       {ConfirmDialog}
       <ToastContainer />
+      {loadError && (
+        <ConnectionError message={loadError} onRetry={load} />
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Pedidos especiales</h1>
@@ -421,7 +428,7 @@ export function OrdersPage() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : active.length === 0 && !filter && !search ? (
+      ) : loadError ? null : active.length === 0 && !filter && !search ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Package size={36} style={{ opacity: 0.3 }} /></div>
           <div className="empty-state-text">No hay pedidos activos</div>

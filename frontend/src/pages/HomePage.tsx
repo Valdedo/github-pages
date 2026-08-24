@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { FileUpload } from '../components/FileUpload';
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
-import { listDocuments, deleteDocument } from '../api/client';
+import { listDocuments, deleteDocument, describeApiError } from '../api/client';
+import { ConnectionError } from '../components/ConnectionError';
 import type { Document, DocumentListItem } from '../types';
 
 export function HomePage() {
@@ -12,6 +13,7 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [search, setSearch] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
   const { showToast, ToastContainer } = useToast();
   const uploadRef = useRef<HTMLDivElement>(null);
@@ -20,8 +22,10 @@ export function HomePage() {
     try {
       const { data } = await listDocuments();
       setDocuments(data);
+      setLoadError(null);
     } catch (e) {
       console.error('Error loading documents', e);
+      setLoadError(describeApiError(e));
     } finally {
       setLoading(false);
     }
@@ -88,12 +92,17 @@ export function HomePage() {
       <ToastContainer />
       <button id="upload-trigger" style={{ display: 'none' }} />
 
+      {loadError && (
+        <ConnectionError message={loadError} onRetry={loadDocuments} />
+      )}
+
       {/* ── Page header ── */}
       <div className="hero-card">
         <div>
           <div className="hero-card-title">Albaranes</div>
           <div className="hero-card-meta">
             {loading ? 'Cargando…'
+              : loadError ? '—'
               : documents.length === 0 ? 'Sin albaranes todavía'
               : processing > 0
                 ? `${completed} completados · ${processing} procesando`
@@ -134,7 +143,7 @@ export function HomePage() {
             </div>
           ))}
         </div>
-      ) : documents.length === 0 ? (
+      ) : documents.length === 0 && !loadError ? (
         <div className="empty-state" style={{ padding: '48px 0' }}>
           <div className="empty-state-icon">📭</div>
           <div className="empty-state-text">Aún no hay albaranes</div>
@@ -145,7 +154,7 @@ export function HomePage() {
             + Subir albarán
           </button>
         </div>
-      ) : (
+      ) : documents.length === 0 ? null : (
         <>
           {/* Search bar + count */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' }}>

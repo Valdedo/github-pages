@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -7,6 +7,23 @@ const api = axios.create({
   baseURL: BASE,
   timeout: 60000,
 });
+
+// Turn an axios/fetch error into a short user-facing message that
+// distinguishes "no puedo hablar con el servidor" from other errors.
+export function describeApiError(err: unknown): string {
+  const ax = err as AxiosError | undefined;
+  if (!ax) return 'Error desconocido';
+  if (ax.code === 'ECONNABORTED') return 'El servidor tardó demasiado en responder';
+  if (ax.code === 'ERR_NETWORK' || ax.message === 'Network Error') {
+    return 'No se puede conectar con el servidor';
+  }
+  const status = ax.response?.status;
+  if (status === 404) return 'La API no responde en esta URL (404). Comprueba que el backend está desplegado.';
+  if (status === 401 || status === 403) return 'Sin permiso para acceder a los datos';
+  if (status && status >= 500) return `Error en el servidor (${status})`;
+  if (status) return `Error ${status} al pedir los datos`;
+  return ax.message || 'Error al pedir los datos';
+}
 
 // Documents
 export const uploadDocument = (file: File, supplierId?: number) => {

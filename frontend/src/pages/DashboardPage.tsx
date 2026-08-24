@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle } from 'lucide-react';
-import { getDashboardStats, listDocuments } from '../api/client';
+import { getDashboardStats, listDocuments, describeApiError } from '../api/client';
+import { ConnectionError } from '../components/ConnectionError';
 import type { DashboardStats, DocumentListItem } from '../types';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -44,34 +45,46 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fallbackDocs, setFallbackDocs] = useState<DocumentListItem[]>([]);
+  const [, setFallbackDocs] = useState<DocumentListItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getDashboardStats()
-      .then(({ data }) => setStats(data))
-      .catch(() => {
-        listDocuments()
-          .then(({ data: docs }) => {
-            setFallbackDocs(docs);
-            setStats({
-              ...EMPTY_STATS,
-              documents: {
-                total: docs.length,
-                processing: docs.filter(d => d.status === 'processing').length,
-              },
-              recent_documents: docs.slice(0, 5).map(d => ({
-                id: d.id,
-                original_filename: d.original_filename,
-                status: d.status,
-                supplier_name: d.supplier_name ?? null,
-                created_at: d.created_at,
-              })),
-            });
-          })
-          .catch(() => setStats(EMPTY_STATS));
-      })
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const { data } = await getDashboardStats();
+      setStats(data);
+    } catch (primaryErr) {
+      // Fallback: try /api/documents. If that also fails, surface the error.
+      try {
+        const { data: docs } = await listDocuments();
+        setFallbackDocs(docs);
+        setStats({
+          ...EMPTY_STATS,
+          documents: {
+            total: docs.length,
+            processing: docs.filter(d => d.status === 'processing').length,
+          },
+          recent_documents: docs.slice(0, 5).map(d => ({
+            id: d.id,
+            original_filename: d.original_filename,
+            status: d.status,
+            supplier_name: d.supplier_name ?? null,
+            created_at: d.created_at,
+          })),
+        });
+        // Partial fallback worked but the main endpoint failed — flag it lightly.
+        setLoadError(describeApiError(primaryErr) + ' — mostrando solo albaranes');
+      } catch (fallbackErr) {
+        setStats(null);
+        setLoadError(describeApiError(fallbackErr));
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
@@ -91,9 +104,14 @@ export function DashboardPage() {
   }
 
   const s = stats ?? EMPTY_STATS;
+  const hasData = stats !== null;
 
   return (
     <div className="page">
+
+      {loadError && (
+        <ConnectionError message={loadError} onRetry={load} />
+      )}
 
       {/* ── Mobile header (greeting + date, no gradient) ── */}
       <div className="dashboard-hero">
@@ -114,6 +132,15 @@ export function DashboardPage() {
       </div>
 
       {/* ── Stat cards ── */}
+      {!hasData ? (
+        <div className="empty-state" style={{ padding: '32px 16px' }}>
+          <div className="empty-state-icon">⚠️</div>
+          <div className="empty-state-text">No hay datos disponibles</div>
+          <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>
+            No se pudo cargar la información. Comprueba la conexión con el servidor y pulsa Reintentar.
+          </p>
+        </div>
+      ) : (<>
       <div className="stat-grid">
         <div className="stat-card stat-card--clickable" onClick={() => navigate('/albaranes')}>
           <div className="stat-card-icon blue"><FileText size={20} /></div>
@@ -295,6 +322,7 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+      </>)}
     </div>
   );
 }

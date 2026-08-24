@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Wrench, Search, Phone, ChevronRight } from 'lucide-react';
-import { listRepairs, createRepair, updateRepair } from '../api/client';
+import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
+import { ConnectionError } from '../components/ConnectionError';
 import type { Repair, RepairStatus } from '../types';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
@@ -352,11 +353,14 @@ export function RepairsPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(searchParams.get('new') === '1');
   const [showHistory, setShowHistory] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     listRepairs()  // always load all — split active/history client-side
       .then(({ data }) => setRepairs(data))
+      .catch(err => setLoadError(describeApiError(err)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -394,6 +398,9 @@ export function RepairsPage() {
 
   return (
     <div className="page">
+      {loadError && (
+        <ConnectionError message={loadError} onRetry={load} />
+      )}
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div>
@@ -438,7 +445,7 @@ export function RepairsPage() {
       {/* Active list */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : filtered.length === 0 && active.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 && active.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Wrench size={36} style={{ opacity: 0.3 }} /></div>
           <div className="empty-state-text">No hay reparaciones activas</div>
