@@ -266,3 +266,11 @@ export const firmasZipUrl = (codigo?: string, mes?: string) => {
   const qs = p.toString();
   return `${BASE}/api/firmas/export.zip${qs ? `?${qs}` : ''}`;
 };
+
+export const getFirmaContacto = (id: number) =>
+  api.get<{ email?: string | null; telefono?: string | null }>(`/api/firmas/${id}/contacto`);
+export const putFirmaContacto = (id: number, data: { email?: string; telefono?: string }) =>
+  api.put<{ email?: string | null; telefono?: string | null }>(`/api/firmas/${id}/contacto`, data);
+export const emailFirma = (id: number, to: string) =>
+  api.post<ClientDeliveryNote>(`/api/firmas/${id}/email`, { to });
+export const enlaceFirma = (id: number) => api.post<{ path: string }>(`/api/firmas/${id}/enlace`);

@@ -267,5 +267,7 @@ export interface ClientDeliveryNote {
   signed_by?: string | null;
   signer_dni?: string | null;
   nota?: string | null;
+  emailed_to?: string | null;
+  emailed_at?: string | null;
   created_at: string;
 }

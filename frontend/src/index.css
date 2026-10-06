@@ -1611,3 +1611,6 @@ select.form-input { cursor: pointer; }
 }
 .firma-topaz { position: relative; border: 2px solid var(--text-1); border-radius: var(--r-lg); background: #fcfcfa; overflow: hidden; }
 .firma-topaz canvas { display: block; width: 100%; height: auto; aspect-ratio: 5 / 1; }
+.firma-envio { display: flex; gap: 8px; }
+.firma-envio .form-input { flex: 1; min-width: 0; margin: 0; font-size: 15px; }
+.firma-envio .btn { flex-shrink: 0; width: 120px; justify-content: center; }

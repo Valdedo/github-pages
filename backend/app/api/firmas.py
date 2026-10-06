@@ -7,6 +7,8 @@ queda guardado y se puede imprimir, compartir o descargar en ZIP por cliente y m
 """
 import io
 import logging
+import re
+import secrets
 import uuid
 import zipfile
 from datetime import datetime
@@ -21,8 +23,11 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models.client_delivery_note import ClientDeliveryNote
-from app.schemas.client_delivery_note import ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate
+from app.models.client_delivery_note import ClientContact, ClientDeliveryNote
+from app.schemas.client_delivery_note import (
+    ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate, ContactoCliente, EnviarEmail,
+)
+from app.services.mail_service import MailNotConfigured, send_pdf
 from app.services.firma_service import AlbaranMeta, parse_albaran, stamp_signature
 
 logger = logging.getLogger(__name__)
@@ -153,6 +158,16 @@ def export_zip(codigo_cliente: Optional[str] = None, mes: Optional[str] = None,
                              headers={"Content-Disposition": f'attachment; filename="{nombre}.zip"'})
 
 
+@router.get("/compartir/{token}/{filename}")
+def shared_pdf(token: str, filename: str, db: Session = Depends(get_db)):
+    """Enlace para el cliente (WhatsApp): solo funciona con el código secreto del albarán."""
+    n = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.share_token == token).first()
+    if not n or not n.signed_path or not Path(n.signed_path).exists():
+        raise HTTPException(404, "Enlace no válido")
+    return FileResponse(n.signed_path, media_type="application/pdf", filename=f"{n.numero} firmado.pdf",
+                        content_disposition_type="inline")
+
+
 @router.get("/{note_id}", response_model=ClientDeliveryNoteResponse)
 def get_note(note_id: int, db: Session = Depends(get_db)):
     return _get(db, note_id)
@@ -242,3 +257,82 @@ def delete_note(note_id: int, db: Session = Depends(get_db)):
     db.delete(n)
     db.commit()
     return {"ok": True}
+
+
+# ---------- Envío al cliente ----------
+
+def _contacto(db: Session, n: ClientDeliveryNote) -> Optional[ClientContact]:
+    if not n.codigo_cliente:
+        return None
+    return db.query(ClientContact).filter(ClientContact.codigo_cliente == n.codigo_cliente).first()
+
+
+def _guardar_contacto(db: Session, n: ClientDeliveryNote, email: Optional[str] = None, telefono: Optional[str] = None):
+    if not n.codigo_cliente:
+        return
+    c = _contacto(db, n)
+    if not c:
+        c = ClientContact(codigo_cliente=n.codigo_cliente)
+        db.add(c)
+    if email is not None:
+        c.email = email or None
+    if telefono is not None:
+        c.telefono = telefono or None
+
+
+@router.get("/{note_id}/contacto", response_model=ContactoCliente)
+def get_contacto(note_id: int, db: Session = Depends(get_db)):
+    c = _contacto(db, _get(db, note_id))
+    return ContactoCliente(email=c.email if c else None, telefono=c.telefono if c else None)
+
+
+@router.put("/{note_id}/contacto", response_model=ContactoCliente)
+def put_contacto(note_id: int, data: ContactoCliente, db: Session = Depends(get_db)):
+    n = _get(db, note_id)
+    tel = re.sub(r"[^\d+]", "", data.telefono) if data.telefono is not None else None
+    _guardar_contacto(db, n, data.email.strip() if data.email is not None else None, tel)
+    db.commit()
+    return get_contacto(note_id, db)
+
+
+@router.post("/{note_id}/email", response_model=ClientDeliveryNoteResponse)
+def email_note(note_id: int, data: EnviarEmail, db: Session = Depends(get_db)):
+    n = _get(db, note_id)
+    if n.status != "firmado" or not n.signed_path:
+        raise HTTPException(400, "El albarán todavía no está firmado")
+    to = data.to.strip()
+    if not re.fullmatch(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+", to):
+        raise HTTPException(400, "El correo no es válido")
+    body = (
+        "Buenas,\n\n"
+        f"Le adjuntamos el albarán {n.numero} firmado"
+        + (f" por {n.signed_by}" if n.signed_by else "")
+        + (f" el {n.signed_at.strftime('%d/%m/%Y a las %H:%M')}" if n.signed_at else "")
+        + ".\n\nUn saludo,\n\nCasa Fonso · Materiales de construcción\nTel./WhatsApp 985 62 04 81\ncasafonsomc@gmail.com"
+    )
+    try:
+        send_pdf(to, f"Albarán {n.numero} firmado · Casa Fonso", body,
+                 f"{n.numero} firmado.pdf", Path(n.signed_path).read_bytes())
+    except MailNotConfigured as e:
+        raise HTTPException(503, str(e))
+    except Exception as e:
+        logger.exception("Error enviando %s a %s", n.numero, to)
+        raise HTTPException(502, f"No se pudo enviar el correo: {e}")
+    n.emailed_to = to
+    n.emailed_at = datetime.now(TZ).replace(tzinfo=None)
+    _guardar_contacto(db, n, email=to)
+    db.commit()
+    db.refresh(n)
+    return n
+
+
+@router.post("/{note_id}/enlace")
+def share_link(note_id: int, db: Session = Depends(get_db)):
+    """Crea (una vez) el enlace secreto al PDF firmado para mandarlo por WhatsApp."""
+    n = _get(db, note_id)
+    if n.status != "firmado":
+        raise HTTPException(400, "El albarán todavía no está firmado")
+    if not n.share_token:
+        n.share_token = secrets.token_urlsafe(16)
+        db.commit()
+    return {"path": f"/api/firmas/compartir/{n.share_token}/{n.numero}.pdf"}

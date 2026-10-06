@@ -73,6 +73,10 @@ def _run_migrations():
         ("articles", "familia",                  "TEXT"),
         # Per-line supplier (v2.4.0)
         ("supplier_order_lines", "supplier_name", "TEXT"),
+        # Envío de albaranes firmados (v2.6.0)
+        ("client_delivery_notes", "share_token", "TEXT"),
+        ("client_delivery_notes", "emailed_to",  "TEXT"),
+        ("client_delivery_notes", "emailed_at",  "DATETIME"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

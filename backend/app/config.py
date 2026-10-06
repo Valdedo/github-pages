@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     base_url: str = Field(default="http://localhost:3000", env="BASE_URL")
     allowed_extensions: str = Field(default="pdf,jpg,jpeg,png", env="ALLOWED_EXTENSIONS")
 
+    # Envío de correos desde casafonsomc@gmail.com a través de un Apps Script
+    # (Railway Hobby bloquea SMTP, así que se envía por HTTPS)
+    mail_relay_url: str = Field(default="", env="MAIL_RELAY_URL")
+    mail_relay_key: str = Field(default="", env="MAIL_RELAY_KEY")
+
     # OCR
     tesseract_lang: str = Field(default="spa+eng", env="TESSERACT_LANG")
 

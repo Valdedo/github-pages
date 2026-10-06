@@ -31,5 +31,20 @@ class ClientDeliveryNote(Base):
 
     nota: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Envío al cliente
+    share_token: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)
+    emailed_to: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    emailed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClientContact(Base):
+    """Email y teléfono de cada cliente (por código de treyFACT), para no escribirlos cada vez."""
+    __tablename__ = "client_contacts"
+
+    codigo_cliente: Mapped[str] = mapped_column(String(30), primary_key=True)
+    email: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    telefono: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

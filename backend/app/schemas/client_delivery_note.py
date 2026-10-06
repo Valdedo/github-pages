@@ -17,9 +17,20 @@ class ClientDeliveryNoteResponse(BaseModel):
     signed_by: Optional[str] = None
     signer_dni: Optional[str] = None
     nota: Optional[str] = None
+    emailed_to: Optional[str] = None
+    emailed_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ContactoCliente(BaseModel):
+    email: Optional[str] = None
+    telefono: Optional[str] = None
+
+
+class EnviarEmail(BaseModel):
+    to: str
 
 
 class ClientDeliveryNoteUpdate(BaseModel):

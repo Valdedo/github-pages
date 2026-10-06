@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Printer, Share2, Download, Eraser, Trash2, CheckCircle } from 'lucide-react';
+import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle } from 'lucide-react';
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
+  getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma,
 } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
@@ -128,12 +129,27 @@ export function FirmaDetailPage() {
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
   const esPC = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
   const [modo, setModo] = useState<'pantalla' | 'tableta'>(() => {
-    try { return esPC && localStorage.getItem('modoFirma') === 'tableta' ? 'tableta' : 'pantalla'; } catch { return 'pantalla'; }
+    // En el PC, la tableta Topaz por defecto (salvo que se haya elegido Pantalla)
+    if (!esPC) return 'pantalla';
+    try { return localStorage.getItem('modoFirma') === 'pantalla' ? 'pantalla' : 'tableta'; } catch { return 'tableta'; }
   });
   const cambiarModo = (m: 'pantalla' | 'tableta') => {
     setModo(m); setHasInk(false);
     try { localStorage.setItem('modoFirma', m); } catch { /* nada */ }
   };
+
+  // Envío al cliente: email y teléfono recordados por cliente
+  const [email, setEmail] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [envioMsg, setEnvioMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    if (!note || note.status !== 'firmado') return;
+    getFirmaContacto(note.id).then(({ data }) => {
+      setEmail(e => e || data.email || '');
+      setTelefono(t => t || data.telefono || '');
+    }).catch(() => {});
+  }, [note?.id, note?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(() => {
     setLoadError(null);
@@ -178,18 +194,41 @@ export function FirmaDetailPage() {
       .then(() => { window.print(); setPrinting(false); });
   }, [printing, printPages]);
 
-  const onShare = async () => {
+  const onEmail = async () => {
     if (!note) return;
+    const to = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { setEnvioMsg({ ok: false, text: 'Escribe un correo válido.' }); return; }
+    setEnviando(true); setEnvioMsg(null);
     try {
-      const res = await fetch(firmaPdfUrl(note.id));
-      const file = new File([await res.blob()], `${note.numero} firmado.pdf`, { type: 'application/pdf' });
-      const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
-      if (nav.share && nav.canShare?.({ files: [file] })) {
-        await nav.share({ files: [file], title: `Albarán ${note.numero}` });
-      } else {
-        window.location.href = firmaPdfUrl(note.id, true);
-      }
-    } catch { /* el usuario canceló */ }
+      const { data } = await emailFirma(note.id, to);
+      setNote(data);
+      setEnvioMsg({ ok: true, text: `Enviado a ${to}` });
+    } catch (err) {
+      const ax = err as { response?: { data?: { detail?: string } } };
+      setEnvioMsg({ ok: false, text: ax.response?.data?.detail || describeApiError(err) });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  // WhatsApp: abre el chat del cliente con el mensaje y el enlace al PDF firmado
+  const onWhatsApp = async () => {
+    if (!note) return;
+    let tel = telefono.replace(/[^\d+]/g, '').replace(/^\+/, '').replace(/^00/, '');
+    if (tel.length === 9) tel = `34${tel}`;
+    if (tel.length < 11) { setEnvioMsg({ ok: false, text: 'Escribe el móvil del cliente.' }); return; }
+    const win = window.open('', '_blank'); // se abre ya para que el navegador no lo bloquee
+    try {
+      await putFirmaContacto(note.id, { telefono });
+      const { data } = await enlaceFirma(note.id);
+      const url = `${window.location.origin}${data.path}`;
+      const text = `Buenas, le enviamos el albarán ${note.numero} firmado:\n${url}\n\nCasa Fonso · Materiales de construcción`;
+      const wa = `https://wa.me/${tel}?text=${encodeURIComponent(text)}`;
+      if (win) win.location.href = wa; else window.location.href = wa;
+    } catch (err) {
+      win?.close();
+      setEnvioMsg({ ok: false, text: describeApiError(err) });
+    }
   };
 
   const onDelete = async () => {
@@ -237,9 +276,24 @@ export function FirmaDetailPage() {
               <button className="btn btn-primary firma-big" onClick={onPrint} disabled={printing}>
                 <Printer size={18} /> {printing ? 'Preparando…' : 'Imprimir copia firmada'}
               </button>
-              <button className="btn btn-ghost firma-big" onClick={onShare}>
-                <Share2 size={18} /> Enviar por WhatsApp o email
-              </button>
+              <div className="firma-envio">
+                <input className="form-input" type="email" placeholder="Correo del cliente" value={email}
+                  onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onEmail(); }} />
+                <button className="btn btn-ghost" onClick={onEmail} disabled={enviando}>
+                  <Mail size={16} /> {enviando ? 'Enviando…' : 'Enviar'}
+                </button>
+              </div>
+              <div className="firma-envio">
+                <input className="form-input" type="tel" placeholder="Móvil del cliente" value={telefono}
+                  onChange={e => setTelefono(e.target.value)} />
+                <button className="btn btn-ghost" onClick={onWhatsApp}>
+                  <MessageCircle size={16} /> WhatsApp
+                </button>
+              </div>
+              {envioMsg && <div style={{ fontSize: 13, color: envioMsg.ok ? 'var(--success)' : 'var(--danger)' }}>{envioMsg.text}</div>}
+              {note.emailed_to && !envioMsg && (
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Enviado por correo a {note.emailed_to} el {fmtFirmado(note.emailed_at)}</div>
+              )}
               <a className="btn btn-ghost firma-big" href={firmaPdfUrl(note.id, true)}>
                 <Download size={18} /> Descargar PDF
               </a>

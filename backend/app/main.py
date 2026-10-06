@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.6.0"
 
 
 @asynccontextmanager
