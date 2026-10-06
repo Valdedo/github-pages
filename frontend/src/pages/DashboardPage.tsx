@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle } from 'lucide-react';
 import { getDashboardStats, listDocuments, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
+import { FirmasAvisos } from '../components/FirmasAvisos';
 import type { DashboardStats, DocumentListItem } from '../types';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -177,6 +178,7 @@ export function DashboardPage() {
       </div>
 
       {/* ── Alerts (desktop) ── */}
+      <div className="firmas-avisos"><FirmasAvisos /></div>
       <div className="dashboard-alerts">
         {s.repairs.reparada > 0 && (
           <div className="dashboard-alert dashboard-alert--green" onClick={() => navigate('/reparaciones?status=reparada')}>

@@ -274,5 +274,6 @@ export interface ClientDeliveryNote {
   whatsapp_at?: string | null;
   facturado_at?: string | null;
   factura_ref?: string | null;
+  backup_at?: string | null;
   created_at: string;
 }

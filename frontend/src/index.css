@@ -1637,3 +1637,20 @@ select.form-input { cursor: pointer; }
 .firma-toggle.on .box { background: var(--brand); border-color: var(--brand); }
 .firma-toggle small { margin-left: auto; color: var(--text-3); font-size: 12px; }
 @media (max-width: 640px) { .firma-selbar { bottom: 76px; } }
+/* Avisos de albaranes (visibles en PC y móvil) */
+.firmas-avisos { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.firmas-avisos:empty { display: none; }
+.firmas-avisos .dashboard-alert { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid; }
+.firmas-avisos .dashboard-alert--amber { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
+.firmas-avisos .dashboard-alert-link { margin-left: auto; font-weight: 700; white-space: nowrap; }
+.firma-auto { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.firma-auto input { width: 18px; height: 18px; accent-color: var(--brand); }
+/* Modo reparto (camionero) */
+.reparto-layout { min-height: 100vh; min-height: 100dvh; background: var(--bg); display: flex; flex-direction: column; }
+.reparto-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.reparto-main { flex: 1; overflow: auto; }
+.reparto .page, .reparto-main .page, .reparto-main .page-wide { padding-bottom: 32px; }
+.reparto-card { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; border: 1px solid var(--border); cursor: pointer; font: inherit; color: inherit; background: var(--surface); }
+.reparto-card:active { background: var(--brand-pale); }
+.reparto-card.hecho { padding: 12px 14px; }
+.reparto-firmar { display: inline-flex; align-items: center; gap: 6px; padding: 12px 16px; border-radius: var(--r-lg); background: var(--brand); color: #fff; font-weight: 700; font-size: 16px; flex-shrink: 0; }

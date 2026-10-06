@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
-from pypdf import PdfReader
+from pypdf import PdfReader, PdfWriter
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -27,6 +27,7 @@ from app.models.client_delivery_note import ClientContact, ClientDeliveryNote
 from app.schemas.client_delivery_note import (
     ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate, ContactoCliente, EnviarEmail, Marcas, MarcasLote,
 )
+from app.services.backup_service import backup_en_segundo_plano
 from app.services.mail_service import MailNotConfigured, send_pdf
 from app.services.firma_service import AlbaranMeta, parse_albaran, stamp_signature
 
@@ -91,6 +92,14 @@ def stats(db: Session = Depends(get_db)):
     return {"pendiente": pend, "firmado": total - pend, "sin_facturar": sin_facturar, "total": total}
 
 
+def _mismo_pdf(path: Optional[str], data: bytes) -> bool:
+    try:
+        p = Path(path or "")
+        return p.exists() and p.stat().st_size == len(data) and p.read_bytes() == data
+    except Exception:
+        return False
+
+
 @router.post("/upload", response_model=List[ClientDeliveryNoteResponse])
 async def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
     out = []
@@ -106,10 +115,15 @@ async def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_
             logger.warning("No se pudo leer %s: %s", f.filename, e)
             meta = AlbaranMeta(numero=(f.filename or "albaran").rsplit(".", 1)[0])
 
+        existentes = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.numero == meta.numero).all()
+        identico = next((e for e in existentes if _mismo_pdf(e.original_path, data)), None)
+        if identico:  # el mismo PDF otra vez: no se duplica ni se avisa
+            out.append(identico)
+            continue
+
         path = _dir() / f"{uuid.uuid4().hex}.pdf"
         path.write_bytes(data)
 
-        existentes = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.numero == meta.numero).all()
         pendiente = next((e for e in existentes if e.status == "pendiente"), None)
         ya_firmado = any(e.status == "firmado" for e in existentes)
         nota = None
@@ -171,6 +185,61 @@ def marcas_lote(data: MarcasLote, db: Session = Depends(get_db)):
     for n in notes:
         db.refresh(n)
     return notes
+
+
+@router.get("/combinado.pdf")
+def combinado(ids: str = Query(..., description="ids separados por comas"), db: Session = Depends(get_db)):
+    """Un único PDF con los albaranes firmados indicados (para adjuntar a la factura)."""
+    try:
+        lista = [int(x) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        raise HTTPException(400, "Lista de albaranes no válida")
+    notes = (db.query(ClientDeliveryNote)
+             .filter(ClientDeliveryNote.id.in_(lista), ClientDeliveryNote.status == "firmado")
+             .order_by(ClientDeliveryNote.fecha, ClientDeliveryNote.numero).all())
+    notes = [n for n in notes if n.signed_path and Path(n.signed_path).exists()]
+    if not notes:
+        raise HTTPException(404, "No hay albaranes firmados en la selección")
+    writer = PdfWriter()
+    for n in notes:
+        writer.append(PdfReader(n.signed_path))
+    buf = io.BytesIO()
+    writer.write(buf)
+    clientes = {n.cliente or n.codigo_cliente or "" for n in notes}
+    meses = sorted({(n.fecha or "")[:7] for n in notes if n.fecha})
+    nombre = "Albaranes " + (clientes.pop() if len(clientes) == 1 else "varios clientes")
+    if meses:
+        nombre += f" {meses[0]}" + (f" a {meses[-1]}" if len(meses) > 1 else "")
+    nombre = re.sub(r'[\\/:*?"<>|]+', "-", nombre).strip()
+    from urllib.parse import quote
+    return Response(buf.getvalue(), media_type="application/pdf", headers={
+        "Content-Disposition": f"attachment; filename*=utf-8''{quote(nombre + '.pdf')}"})
+
+
+@router.get("/avisos")
+def avisos(db: Session = Depends(get_db)):
+    """Lo que se está quedando atrás: sin firmar más de 2 días y meses anteriores sin facturar."""
+    ahora = datetime.now(TZ).replace(tzinfo=None)
+    sin_firmar = []
+    for n in db.query(ClientDeliveryNote).filter(ClientDeliveryNote.status == "pendiente").all():
+        dias = (ahora - n.created_at).days if n.created_at else 0
+        if dias >= 2:
+            sin_firmar.append({"id": n.id, "numero": n.numero, "cliente": n.cliente, "dias": dias})
+    sin_firmar.sort(key=lambda x: -x["dias"])
+
+    inicio_mes = ahora.strftime("%Y-%m-01")
+    grupos: dict = {}
+    for n in (db.query(ClientDeliveryNote)
+              .filter(ClientDeliveryNote.status == "firmado", ClientDeliveryNote.facturado_at.is_(None),
+                      ClientDeliveryNote.fecha < inicio_mes).all()):
+        k = n.codigo_cliente or "—"
+        g = grupos.setdefault(k, {"codigo_cliente": n.codigo_cliente, "cliente": n.cliente, "albaranes": 0, "importe": 0.0})
+        g["albaranes"] += 1
+        g["importe"] = round(g["importe"] + (n.importe or 0), 2)
+    return {
+        "sin_firmar": sin_firmar,
+        "sin_facturar": sorted(grupos.values(), key=lambda g: -g["albaranes"]),
+    }
 
 
 @router.get("/compartir/{token}/{filename}")
@@ -260,6 +329,16 @@ async def sign(
     db.commit()
     db.refresh(n)
     logger.info("Albarán %s firmado por %s", n.numero, nombre)
+
+    c = _contacto(db, n)
+    if c and c.auto_email and c.email:
+        try:
+            _enviar_email(db, n, c.email)
+        except Exception as e:  # la firma ya está guardada; solo se avisa
+            n.nota = f"No se pudo enviar el correo automático: {e}"
+            db.commit()
+            db.refresh(n)
+    backup_en_segundo_plano()
     return n
 
 
@@ -282,7 +361,8 @@ def _contacto(db: Session, n: ClientDeliveryNote) -> Optional[ClientContact]:
     return db.query(ClientContact).filter(ClientContact.codigo_cliente == n.codigo_cliente).first()
 
 
-def _guardar_contacto(db: Session, n: ClientDeliveryNote, email: Optional[str] = None, telefono: Optional[str] = None):
+def _guardar_contacto(db: Session, n: ClientDeliveryNote, email: Optional[str] = None,
+                      telefono: Optional[str] = None, auto_email: Optional[bool] = None):
     if not n.codigo_cliente:
         return
     c = _contacto(db, n)
@@ -293,21 +373,41 @@ def _guardar_contacto(db: Session, n: ClientDeliveryNote, email: Optional[str] =
         c.email = email or None
     if telefono is not None:
         c.telefono = telefono or None
+    if auto_email is not None:
+        c.auto_email = auto_email
 
 
 @router.get("/{note_id}/contacto", response_model=ContactoCliente)
 def get_contacto(note_id: int, db: Session = Depends(get_db)):
     c = _contacto(db, _get(db, note_id))
-    return ContactoCliente(email=c.email if c else None, telefono=c.telefono if c else None)
+    return ContactoCliente(email=c.email if c else None, telefono=c.telefono if c else None,
+                           auto_email=bool(c.auto_email) if c else False)
 
 
 @router.put("/{note_id}/contacto", response_model=ContactoCliente)
 def put_contacto(note_id: int, data: ContactoCliente, db: Session = Depends(get_db)):
     n = _get(db, note_id)
     tel = re.sub(r"[^\d+]", "", data.telefono) if data.telefono is not None else None
-    _guardar_contacto(db, n, data.email.strip() if data.email is not None else None, tel)
+    _guardar_contacto(db, n, data.email.strip() if data.email is not None else None, tel, data.auto_email)
     db.commit()
     return get_contacto(note_id, db)
+
+
+def _enviar_email(db: Session, n: ClientDeliveryNote, to: str) -> None:
+    body = (
+        "Buenas,\n\n"
+        f"Le adjuntamos el albarán {n.numero} firmado"
+        + (f" por {n.signed_by}" if n.signed_by else "")
+        + (f" el {n.signed_at.strftime('%d/%m/%Y a las %H:%M')}" if n.signed_at else "")
+        + ".\n\nUn saludo,\n\nCasa Fonso · Materiales de construcción\nTel./WhatsApp 985 62 04 81\ncasafonsomc@gmail.com"
+    )
+    send_pdf(to, f"Albarán {n.numero} firmado · Casa Fonso", body,
+             f"{n.numero} firmado.pdf", Path(n.signed_path).read_bytes())
+    n.emailed_to = to
+    n.emailed_at = datetime.now(TZ).replace(tzinfo=None)
+    _guardar_contacto(db, n, email=to)
+    db.commit()
+    db.refresh(n)
 
 
 @router.post("/{note_id}/email", response_model=ClientDeliveryNoteResponse)
@@ -318,26 +418,13 @@ def email_note(note_id: int, data: EnviarEmail, db: Session = Depends(get_db)):
     to = data.to.strip()
     if not re.fullmatch(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+", to):
         raise HTTPException(400, "El correo no es válido")
-    body = (
-        "Buenas,\n\n"
-        f"Le adjuntamos el albarán {n.numero} firmado"
-        + (f" por {n.signed_by}" if n.signed_by else "")
-        + (f" el {n.signed_at.strftime('%d/%m/%Y a las %H:%M')}" if n.signed_at else "")
-        + ".\n\nUn saludo,\n\nCasa Fonso · Materiales de construcción\nTel./WhatsApp 985 62 04 81\ncasafonsomc@gmail.com"
-    )
     try:
-        send_pdf(to, f"Albarán {n.numero} firmado · Casa Fonso", body,
-                 f"{n.numero} firmado.pdf", Path(n.signed_path).read_bytes())
+        _enviar_email(db, n, to)
     except MailNotConfigured as e:
         raise HTTPException(503, str(e))
     except Exception as e:
         logger.exception("Error enviando %s a %s", n.numero, to)
         raise HTTPException(502, f"No se pudo enviar el correo: {e}")
-    n.emailed_to = to
-    n.emailed_at = datetime.now(TZ).replace(tzinfo=None)
-    _guardar_contacto(db, n, email=to)
-    db.commit()
-    db.refresh(n)
     return n
 
 

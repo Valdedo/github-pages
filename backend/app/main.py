@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "2.7.0"
+APP_VERSION = "2.8.0"
 
 
 @asynccontextmanager
@@ -41,6 +41,8 @@ async def lifespan(app: FastAPI):
         rellenar_importes()
     except Exception as e:  # nunca debe impedir arrancar
         logger.warning(f"No se pudieron rellenar importes de albaranes: {e}")
+    from app.services.backup_service import arrancar_repaso
+    arrancar_repaso()
     logger.info(f"App version: {APP_VERSION} — routers: dashboard, documents, articles, export, settings, products, analytics, repairs, orders")
     yield
     logger.info("Shutting down...")

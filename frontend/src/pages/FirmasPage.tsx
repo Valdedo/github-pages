@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Upload, Search, PenLine, ChevronRight, Download, Mail, MessageCircle, HandHelping, Receipt, Check, X,
+  Upload, Search, PenLine, ChevronRight, FileDown, Mail, MessageCircle, HandHelping, Receipt, Check, X, Truck,
 } from 'lucide-react';
-import { listFirmas, uploadFirmas, firmasZipUrl, marcarFirmas, describeApiError } from '../api/client';
+import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, describeApiError } from '../api/client';
+import { FirmasAvisos } from '../components/FirmasAvisos';
 import { ConnectionError } from '../components/ConnectionError';
 import type { ClientDeliveryNote } from '../types';
 
@@ -125,6 +126,7 @@ function FacturarModal({ notes, onClose, onDone }: {
 
 export function FirmasPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState<ClientDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,11 +134,13 @@ export function FirmasPage() {
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [vista, setVista] = useState<Vista>(() => {
+    const v = params.get('vista') as Vista | null;
+    if (v && VISTAS.some(x => x.value === v)) return v;
     try { return (sessionStorage.getItem('firmasVista') as Vista) || 'firmar'; } catch { return 'firmar'; }
   });
   const [envio, setEnvio] = useState<Envio>('');
   const [search, setSearch] = useState('');
-  const [cliente, setCliente] = useState('');
+  const [cliente, setCliente] = useState(() => params.get('cliente') || '');
   const [mes, setMes] = useState('');
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [facturar, setFacturar] = useState<ClientDeliveryNote[] | null>(null);
@@ -201,6 +205,7 @@ export function FirmasPage() {
   }, [vista, filtered]);
 
   const selectable = vista !== 'firmar';
+  const firmadosFiltro = filtered.filter(n => n.status === 'firmado');
   const toggle = (id: number) => setSel(s => { const c = new Set(s); if (c.has(id)) c.delete(id); else c.add(id); return c; });
   const selNotes = notes.filter(n => sel.has(n.id));
   const selTotal = selNotes.reduce((s, n) => s + (n.importe ?? 0), 0);
@@ -262,6 +267,8 @@ export function FirmasPage() {
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden
           onChange={e => onFiles(e.target.files)} />
       </div>
+
+      <div className="firmas-avisos"><FirmasAvisos /></div>
 
       {uploadMsg && (
         <div className="card" style={{ padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{uploadMsg}</div>
@@ -338,9 +345,15 @@ export function FirmasPage() {
                       {total > 0 && <> · <strong style={{ color: 'var(--text-1)' }}>{fmtEuros(total)}</strong></>}
                     </div>
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => setFacturar(g.list)}>
-                    <Receipt size={14} /> Facturar los {g.list.length}
-                  </button>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <a className="btn btn-ghost btn-sm" href={firmasCombinadoUrl(g.list.map(n => n.id))}
+                      title="Un solo PDF con todos estos albaranes, para adjuntar a la factura">
+                      <FileDown size={14} /> PDF
+                    </a>
+                    <button className="btn btn-primary btn-sm" onClick={() => setFacturar(g.list)}>
+                      <Receipt size={14} /> Facturar los {g.list.length}
+                    </button>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{g.list.map(row)}</div>
               </section>
@@ -351,13 +364,17 @@ export function FirmasPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{filtered.map(row)}</div>
       )}
 
-      {vista !== 'firmar' && notes.some(n => n.status === 'firmado') && (
-        <div style={{ marginTop: 20 }}>
-          <a className="btn btn-ghost" href={firmasZipUrl(cliente, mes)}>
-            <Download size={15} /> Descargar firmados {cliente ? 'de este cliente' : ''}{mes ? ' de este mes' : ''} (ZIP)
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
+        {vista !== 'firmar' && firmadosFiltro.length > 0 && (
+          <a className="btn btn-ghost" href={firmasCombinadoUrl(firmadosFiltro.map(n => n.id))}>
+            <FileDown size={15} /> Descargar en un PDF los {firmadosFiltro.length} firmados de esta lista
           </a>
-        </div>
-      )}
+        )}
+        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--text-3)' }}
+          onClick={() => { if (window.confirm('¿Activar el modo reparto en este dispositivo? Es la vista sencilla para el camionero.')) navigate('/reparto'); }}>
+          <Truck size={14} /> Modo reparto en este dispositivo
+        </button>
+      </div>
 
       {sel.size > 0 && (
         <div className="firma-selbar">
@@ -367,6 +384,11 @@ export function FirmasPage() {
               <button className="btn btn-primary btn-sm" onClick={() => setFacturar(selNotes.filter(n => !n.facturado_at && n.status === 'firmado'))}>
                 <Receipt size={14} /> Marcar facturados
               </button>
+            )}
+            {selNotes.some(n => n.status === 'firmado') && (
+              <a className="btn btn-ghost btn-sm" href={firmasCombinadoUrl(selNotes.filter(n => n.status === 'firmado').map(n => n.id))}>
+                <FileDown size={14} /> PDF
+              </a>
             )}
             {selNotes.some(n => n.facturado_at) && (
               <button className="btn btn-ghost btn-sm" onClick={quitarFacturado}>Quitar facturado</button>

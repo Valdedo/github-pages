@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -40,6 +40,9 @@ class ClientDeliveryNote(Base):
     facturado_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     factura_ref: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
+    # Copia de seguridad en Google Drive
+    backup_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     # Envío al cliente
     share_token: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)
     emailed_to: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
@@ -56,4 +59,6 @@ class ClientContact(Base):
     codigo_cliente: Mapped[str] = mapped_column(String(30), primary_key=True)
     email: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     telefono: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    # Enviar el albarán por correo automáticamente al firmarlo
+    auto_email: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

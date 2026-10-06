@@ -83,6 +83,9 @@ def _run_migrations():
         ("client_delivery_notes", "whatsapp_at",  "DATETIME"),
         ("client_delivery_notes", "facturado_at", "DATETIME"),
         ("client_delivery_notes", "factura_ref",  "TEXT"),
+        # Copia en Drive y envío automático (v2.8.0)
+        ("client_delivery_notes", "backup_at",    "DATETIME"),
+        ("client_contacts",       "auto_email",   "INTEGER DEFAULT 0"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

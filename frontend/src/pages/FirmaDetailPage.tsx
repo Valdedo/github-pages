@@ -8,6 +8,7 @@ import {
 } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
+import { isReparto } from '../reparto';
 import { fmtFecha, fmtFirmado, fmtEuros, Marcas } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
 
@@ -115,6 +116,8 @@ export function FirmaDetailPage() {
   const { id } = useParams();
   const noteId = Number(id);
   const navigate = useNavigate();
+  const reparto = isReparto();
+  const volver = reparto ? '/reparto' : '/firmas';
   const padRef = useRef<{ clear: () => void; toBlob: () => Promise<Blob | null>; isEmpty: () => boolean } | null>(null);
 
   const [note, setNote] = useState<ClientDeliveryNote | null>(null);
@@ -143,13 +146,26 @@ export function FirmaDetailPage() {
   const [telefono, setTelefono] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [envioMsg, setEnvioMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [auto, setAuto] = useState<{ email: string; on: boolean }>({ email: '', on: false });
   useEffect(() => {
-    if (!note || note.status !== 'firmado') return;
+    if (!note) return;
     getFirmaContacto(note.id).then(({ data }) => {
       setEmail(e => e || data.email || '');
       setTelefono(t => t || data.telefono || '');
+      setAuto({ email: data.email || '', on: !!data.auto_email });
     }).catch(() => {});
   }, [note?.id, note?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cambiarAuto = async (on: boolean) => {
+    if (!note) return;
+    const to = email.trim();
+    if (on && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { setEnvioMsg({ ok: false, text: 'Escribe primero el correo del cliente.' }); return; }
+    try {
+      const { data } = await putFirmaContacto(note.id, on ? { email: to, auto_email: true } : { auto_email: false });
+      setAuto({ email: data.email || '', on: !!data.auto_email });
+      setEnvioMsg(null);
+    } catch (err) { setEnvioMsg({ ok: false, text: describeApiError(err) }); }
+  };
 
   const load = useCallback(() => {
     setLoadError(null);
@@ -242,7 +258,7 @@ export function FirmaDetailPage() {
   const onDelete = async () => {
     if (!note || !window.confirm(`¿Borrar el albarán ${note.numero}${firmado ? ' FIRMADO' : ''}? No se puede deshacer.`)) return;
     await deleteFirma(note.id);
-    navigate('/firmas');
+    navigate(volver);
   };
 
   if (loadError) return <div className="page"><ConnectionError message={loadError} onRetry={load} /></div>;
@@ -304,7 +320,13 @@ export function FirmaDetailPage() {
               <a className="btn btn-ghost firma-big" href={firmaPdfUrl(note.id, true)}>
                 <Download size={18} /> Descargar PDF
               </a>
-              <div className="firma-seguimiento">
+              {note.codigo_cliente && (
+                <label className="firma-auto">
+                  <input type="checkbox" checked={auto.on} onChange={e => cambiarAuto(e.target.checked)} />
+                  Enviar siempre por correo a este cliente al firmar
+                </label>
+              )}
+              {!reparto && <div className="firma-seguimiento">
                 <div style={{ fontWeight: 600, fontSize: 14 }}>Seguimiento</div>
                 {([
                   { key: 'copia', label: 'Copia entregada al cliente', at: note.copia_at },
@@ -323,8 +345,8 @@ export function FirmaDetailPage() {
                   {note.emailed_at ? `Enviado por correo a ${note.emailed_to}` : 'Enviado por correo'}
                   {note.emailed_at && <small>{fmtFirmado(note.emailed_at).replace(' a las', ',')}</small>}
                 </div>
-              </div>
-              <button className="btn btn-ghost firma-big" onClick={() => navigate('/firmas')}>Volver a la lista</button>
+              </div>}
+              <button className="btn btn-ghost firma-big" onClick={() => navigate(volver)}>Volver a la lista</button>
             </>
           ) : (
             <>
@@ -346,6 +368,11 @@ export function FirmaDetailPage() {
               <label className="form-label">DNI (opcional)
                 <input className="form-input" value={dni} onChange={e => setDni(e.target.value)} autoComplete="off" />
               </label>
+              {auto.on && auto.email && (
+                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                  <Mail size={13} style={{ verticalAlign: -2 }} /> Al firmar se enviará solo a {auto.email}
+                </div>
+              )}
               {error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-ghost" onClick={() => padRef.current?.clear()} disabled={!hasInk}>
@@ -358,9 +385,9 @@ export function FirmaDetailPage() {
             </>
           )}
           {note.nota && <div style={{ fontSize: 12, color: 'var(--warning)' }}>{note.nota}</div>}
-          <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start', color: 'var(--text-3)' }} onClick={onDelete}>
+          {!reparto && <button className="btn btn-danger btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onDelete}>
             <Trash2 size={13} /> Borrar albarán
-          </button>
+          </button>}
         </div>
       </div>
 

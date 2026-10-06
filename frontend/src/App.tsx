@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, Link, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
@@ -20,6 +20,8 @@ import { CustomLabelsPage } from './pages/CustomLabelsPage';
 import { RepairDetailPage } from './pages/RepairDetailPage';
 import { FirmasPage } from './pages/FirmasPage';
 import { FirmaDetailPage } from './pages/FirmaDetailPage';
+import { RepartoPage } from './pages/RepartoPage';
+import { isReparto } from './reparto';
 import { getDashboardStats, getFirmasStats } from './api/client';
 
 interface NavBadge {
@@ -252,7 +254,42 @@ function BottomNav({ badges }: { badges: NavBadge }) {
   );
 }
 
+/** Vista reducida para el móvil del camionero (modo reparto). */
+function RepartoShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const enLista = location.pathname === '/reparto';
+  return (
+    <div className="reparto-layout">
+      <header className="reparto-header">
+        {enLista ? (
+          <div className="sidebar-logo-icon" style={{ width: 30, height: 30, fontSize: 11 }}>CF</div>
+        ) : (
+          <button className="mobile-back-btn" onClick={() => navigate('/reparto')}>
+            <ChevronLeft size={20} /> Volver
+          </button>
+        )}
+        <span style={{ fontWeight: 700 }}>Reparto · Casa Fonso</span>
+      </header>
+      <main id="app-main" className="reparto-main">
+        <ScrollRestoration />
+        <Routes>
+          <Route path="/reparto" element={<RepartoPage />} />
+          <Route path="/firmas/:id" element={<FirmaDetailPage />} />
+          <Route path="*" element={<Navigate to="/reparto" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
 function AppShell() {
+  const location = useLocation();
+  if (location.pathname === '/reparto' || isReparto()) return <RepartoShell />;
+  return <FullShell />;
+}
+
+function FullShell() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
   const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0 });
 

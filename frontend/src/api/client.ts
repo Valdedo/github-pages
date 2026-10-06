@@ -267,10 +267,10 @@ export const firmasZipUrl = (codigo?: string, mes?: string) => {
   return `${BASE}/api/firmas/export.zip${qs ? `?${qs}` : ''}`;
 };
 
-export const getFirmaContacto = (id: number) =>
-  api.get<{ email?: string | null; telefono?: string | null }>(`/api/firmas/${id}/contacto`);
-export const putFirmaContacto = (id: number, data: { email?: string; telefono?: string }) =>
-  api.put<{ email?: string | null; telefono?: string | null }>(`/api/firmas/${id}/contacto`, data);
+export type ContactoFirma = { email?: string | null; telefono?: string | null; auto_email?: boolean | null };
+export const getFirmaContacto = (id: number) => api.get<ContactoFirma>(`/api/firmas/${id}/contacto`);
+export const putFirmaContacto = (id: number, data: { email?: string; telefono?: string; auto_email?: boolean }) =>
+  api.put<ContactoFirma>(`/api/firmas/${id}/contacto`, data);
 export const emailFirma = (id: number, to: string) =>
   api.post<ClientDeliveryNote>(`/api/firmas/${id}/email`, { to });
 export const enlaceFirma = (id: number) => api.post<{ path: string }>(`/api/firmas/${id}/enlace`);
@@ -280,3 +280,10 @@ export const marcarFirma = (id: number, m: MarcasFirma) =>
   api.put<ClientDeliveryNote>(`/api/firmas/${id}/marcas`, m);
 export const marcarFirmas = (ids: number[], m: MarcasFirma) =>
   api.post<ClientDeliveryNote[]>('/api/firmas/marcas', { ids, ...m });
+
+export const firmasCombinadoUrl = (ids: number[]) => `${BASE}/api/firmas/combinado.pdf?ids=${ids.join(',')}`;
+export interface FirmasAvisos {
+  sin_firmar: { id: number; numero: string; cliente?: string | null; dias: number }[];
+  sin_facturar: { codigo_cliente?: string | null; cliente?: string | null; albaranes: number; importe: number }[];
+}
+export const getFirmasAvisos = () => api.get<FirmasAvisos>('/api/firmas/avisos');

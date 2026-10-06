@@ -24,6 +24,7 @@ class ClientDeliveryNoteResponse(BaseModel):
     whatsapp_at: Optional[datetime] = None
     facturado_at: Optional[datetime] = None
     factura_ref: Optional[str] = None
+    backup_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -44,6 +45,7 @@ class MarcasLote(Marcas):
 class ContactoCliente(BaseModel):
     email: Optional[str] = None
     telefono: Optional[str] = None
+    auto_email: Optional[bool] = None
 
 
 class EnviarEmail(BaseModel):
