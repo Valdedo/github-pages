@@ -1,6 +1,7 @@
 /**
  * Apps Script de Casa Fonso (cuenta casafonsomc@gmail.com)
  * - Envía los albaranes firmados por correo desde este Gmail.
+ * - Avisa en la pantalla de Inicio de los correos sin leer y sin contestar.
  * - Guarda una copia de cada albarán firmado en Drive:
  *   Mi unidad / Albaranes firmados / <código> - <cliente> / <AAAA-MM> / <nº> firmado.pdf
  *
@@ -23,6 +24,11 @@ function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
     if (CLAVE === 'PON_AQUI_LA_CLAVE' || d.key !== CLAVE) throw new Error('Clave incorrecta');
+    if (d.action === 'inbox') {
+      var b = bandeja_();
+      out.ok = true; out.sin_leer = b.sin_leer; out.sin_contestar = b.sin_contestar;
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (!d.pdf) throw new Error('Falta el PDF');
     var pdf = Utilities.newBlob(Utilities.base64Decode(d.pdf), 'application/pdf', d.filename || 'albaran.pdf');
 
@@ -43,6 +49,34 @@ function doPost(e) {
     out.error = String(err && err.message || err);
   }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Correos de la última semana: sin leer y sin contestar (último mensaje de otra persona). */
+function bandeja_() {
+  var yo = Session.getEffectiveUser().getEmail().toLowerCase();
+  var filtro = ' newer_than:7d -category:promotions -category:social -category:updates -category:forums';
+  var dato = function (t) {
+    var msgs = t.getMessages(), m = msgs[msgs.length - 1];
+    var de = m.getFrom();
+    return {
+      id: t.getId(),
+      de: de.replace(/<.*>/, '').replace(/"/g, '').trim() || de,
+      email: (de.match(/<(.+)>/) || [null, de])[1].toLowerCase(),
+      asunto: t.getFirstMessageSubject(),
+      fecha: m.getDate().toISOString(),
+      texto: m.getPlainBody().replace(/\s+/g, ' ').slice(0, 700),
+      enlace: 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(yo) + '#all/' + t.getId()
+    };
+  };
+  var esAuto = function (x) { return /no-?reply|notificacion|notification|mailer-daemon/.test(x.email); };
+  var sinLeer = GmailApp.search('in:inbox is:unread' + filtro, 0, 20).map(dato).filter(function (x) { return !esAuto(x); });
+  var leidos = {}; sinLeer.forEach(function (x) { leidos[x.id] = 1; });
+  var dosHoras = Date.now() - 2 * 3600 * 1000;
+  var sinContestar = GmailApp.search('in:inbox is:read' + filtro, 0, 40).filter(function (t) {
+    var msgs = t.getMessages(), m = msgs[msgs.length - 1];
+    return m.getFrom().toLowerCase().indexOf(yo) < 0 && m.getDate().getTime() < dosHoras;
+  }).map(dato).filter(function (x) { return !esAuto(x) && !leidos[x.id]; }).slice(0, 15);
+  return { sin_leer: sinLeer, sin_contestar: sinContestar };
 }
 
 /** Crea (si hace falta) y devuelve la carpeta 'A/B/C' dentro de Mi unidad. */

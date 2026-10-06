@@ -6,6 +6,7 @@ import {
 import { getDashboardStats, listFirmas, uploadFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
+import { CorreoCard } from '../components/CorreoCard';
 import type { ClientDeliveryNote, DashboardStats } from '../types';
 
 const EMPTY_STATS: DashboardStats = {
@@ -151,7 +152,9 @@ export function DashboardPage() {
           )}
         </section>
 
-        <section className="card inicio-bloque" aria-label="Hoy">
+        <CorreoCard />
+
+        <section className="card inicio-bloque inicio-hoy-bloque" aria-label="Hoy">
           <h2>Hoy</h2>
           {actividad.length === 0 ? (
             <p style={{ color: 'var(--text-2)', fontSize: 15 }}>Todavía no se ha firmado ni enviado nada hoy.</p>

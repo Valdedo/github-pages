@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "2.8.0"
+APP_VERSION = "2.9.0"
 
 
 @asynccontextmanager
@@ -64,6 +64,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Acceso por código ────────────────────────────────────────────
+# Mientras no se hayan creado los códigos, la app está abierta (como antes).
+# Con códigos: /api/* pide sesión; «reparto» solo puede usar /api/firmas.
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from app.services import access_service as _acc
+
+_LIBRES = ("/api/acceso", "/api/firmas/compartir/")
+
+
+@app.middleware("http")
+async def control_de_acceso(request: Request, call_next):
+    path = request.url.path
+    if request.method == "OPTIONS" or not path.startswith("/api/") or path.startswith(_LIBRES):
+        return await call_next(request)
+    if not _acc.config():
+        return await call_next(request)
+    tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or request.query_params.get("t")
+    rol = _acc.verificar(tok)
+    if not rol:
+        return JSONResponse({"detail": "Hace falta el código de acceso"}, status_code=401)
+    if rol == "reparto" and not path.startswith("/api/firmas"):
+        return JSONResponse({"detail": "El código de reparto solo da acceso a las firmas"}, status_code=403)
+    return await call_next(request)
+
+
 # Register API routers
 app.include_router(dashboard.router)
 app.include_router(documents.router)
@@ -76,6 +102,8 @@ app.include_router(repairs.router)
 app.include_router(supplier_orders.router)
 app.include_router(catalog.router)
 app.include_router(firmas.router)
+app.include_router(acceso.router)
+app.include_router(correo.router)
 
 
 @app.get("/health")

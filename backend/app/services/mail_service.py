@@ -17,7 +17,7 @@ def configured() -> bool:
     return bool(settings.mail_relay_url and settings.mail_relay_key)
 
 
-def _post(payload: dict) -> None:
+def _post(payload: dict) -> dict:
     if not configured():
         raise MailNotConfigured("Falta configurar el envío de correo (MAIL_RELAY_URL y MAIL_RELAY_KEY en Railway)")
     payload = {"key": settings.mail_relay_key, **payload}
@@ -29,6 +29,7 @@ def _post(payload: dict) -> None:
         raise RuntimeError(f"El servicio de correo respondió de forma inesperada ({r.status_code})")
     if not data.get("ok"):
         raise RuntimeError(data.get("error") or "No se pudo completar la operación")
+    return data
 
 
 def send_pdf(to: str, subject: str, body: str, filename: str, pdf: bytes) -> None:
@@ -40,3 +41,8 @@ def backup_pdf(folder: str, filename: str, pdf: bytes) -> None:
     """Guarda el PDF en Drive dentro de 'folder' (ruta con /), sustituyendo si ya existe."""
     _post({"action": "backup", "folder": folder, "filename": filename,
            "pdf": base64.b64encode(pdf).decode()})
+
+
+def bandeja() -> dict:
+    """Correos sin leer y sin contestar de casafonsomc@gmail.com (lo devuelve el Apps Script)."""
+    return _post({"action": "inbox"})

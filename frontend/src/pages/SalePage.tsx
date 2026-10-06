@@ -183,7 +183,7 @@ export function SalePage() {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center', padding: '24px', color: '#fff',
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>💳</div>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}></div>
         <div style={{ fontSize: '13px', opacity: 0.75, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Total a cobrar</div>
         <div style={{ fontSize: '72px', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{fmt2(totalConIva)} €</div>
         <div style={{ fontSize: '14px', opacity: 0.6, marginTop: '8px' }}>IVA incluido ({fmt2(totalIva)} € IVA)</div>
@@ -215,7 +215,7 @@ export function SalePage() {
   return (
     <div className="page" style={{ maxWidth: '640px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em' }}>🛒 Punto de venta</h2>
+        <h1 style={{ margin: 0 }}>Punto de venta</h1>
         {cart.length > 0 && (
           <button className="btn btn-danger btn-sm" onClick={() => setCart([])}>Vaciar cesta</button>
         )}
@@ -255,7 +255,7 @@ export function SalePage() {
                   onClick={startScanner}
                   disabled={zxingAvailable === null}
                 >
-                  📷 {zxingAvailable === null ? 'Cargando…' : 'Escanear en directo'}
+                  {zxingAvailable === null ? 'Cargando…' : 'Escanear en directo'}
                 </button>
               )}
 
@@ -273,7 +273,7 @@ export function SalePage() {
                   fontFamily: 'inherit',
                 }}
               >
-                {photoLoading ? '⏳ Procesando…' : '📸 Foto de código'}
+                {photoLoading ? '⏳ Procesando…' : 'Foto de código'}
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -328,7 +328,7 @@ export function SalePage() {
       {/* Cart */}
       {cart.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🛒</div>
+          <div className="empty-state-icon"></div>
           <div className="empty-state-text">La cesta está vacía — escanea o introduce un código</div>
         </div>
       ) : (
@@ -385,7 +385,7 @@ export function SalePage() {
                 style={{ marginTop: '10px', width: '100%', padding: '14px', fontSize: '16px', fontWeight: 700 }}
                 onClick={() => setCheckout(true)}
               >
-                💳 Cobrar {fmt2(totalConIva)} €
+                Cobrar {fmt2(totalConIva)} €
               </button>
             </div>
           </div>

@@ -107,7 +107,7 @@ export function CatalogPage() {
       <div className="card" style={{ marginBottom: '14px' }}>
         <div className="card-body" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', padding: '12px 16px' }}>
           <div className="search-bar" style={{ flex: '1 1 220px', minWidth: 0 }}>
-            <span className="search-bar-icon">🔍</span>
+            <span className="search-bar-icon"></span>
             <input
               type="search"
               value={q}
@@ -251,7 +251,7 @@ export function CatalogPage() {
           ))
         ) : sorted.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📦</div>
+            <div className="empty-state-icon"></div>
             <div className="empty-state-text">
               {q || familia ? 'Sin resultados' : 'El catálogo está vacío'}
             </div>

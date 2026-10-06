@@ -4,6 +4,7 @@ import { PenLine, ChevronRight, CheckCircle, RefreshCw } from 'lucide-react';
 import { listFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { setReparto } from '../reparto';
+import { getRol, cerrarSesion } from '../auth';
 import { fmtFecha, fmtEuros } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
 
@@ -102,11 +103,16 @@ export function RepartoPage() {
       <div style={{ marginTop: 40, textAlign: 'center' }}>
         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }}
           onClick={() => {
+            if (getRol() === 'reparto') {
+              if (!window.confirm('¿Cerrar la sesión en este móvil? Habrá que volver a escribir el código.')) return;
+              cerrarSesion(); setReparto(false); window.location.href = '/';
+              return;
+            }
             if (!window.confirm('¿Salir del modo reparto en este móvil? Se verá la aplicación completa.')) return;
             setReparto(false);
             navigate('/');
           }}>
-          Salir del modo reparto
+          {getRol() === 'reparto' ? 'Cerrar sesión' : 'Salir del modo reparto'}
         </button>
       </div>
     </div>

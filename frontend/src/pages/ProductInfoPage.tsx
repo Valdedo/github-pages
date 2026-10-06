@@ -123,7 +123,7 @@ export function ProductInfoPage() {
   if (error || !product) {
     return (
       <div style={{ maxWidth: 600, margin: '60px auto', textAlign: 'center', padding: 24 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
+        <div style={{ fontSize: 48, marginBottom: 16 }}></div>
         <h2 style={{ color: '#1F4E79' }}>Producto no encontrado</h2>
         <p style={{ color: '#666' }}>No se encontró información para este código.</p>
       </div>
@@ -168,7 +168,7 @@ export function ProductInfoPage() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         }}>
           <h2 style={{ margin: '0 0 16px', fontSize: 15, color: '#1F4E79', display: 'flex', alignItems: 'center', gap: 8 }}>
-            🔧 Especificaciones técnicas
+            Especificaciones técnicas
           </h2>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <tbody>
@@ -227,7 +227,7 @@ export function ProductInfoPage() {
         <div style={{ marginBottom: 12 }}>
           <a href={product.source_url} target="_blank" rel="noopener noreferrer"
             style={{ color: '#2563eb', fontSize: 13, textDecoration: 'none' }}>
-            🔗 Ver ficha técnica →
+            Ver ficha técnica →
           </a>
         </div>
       )}
@@ -304,7 +304,7 @@ export function ProductInfoPage() {
             fontWeight: 600,
           }}
         >
-          {searching ? '🔍 Buscando...' : '🔍 Volver a buscar información técnica'}
+          {searching ? 'Buscando...' : 'Volver a buscar información técnica'}
         </button>
       )}
     </div>
@@ -322,7 +322,7 @@ function AISearchingBanner({ progress }: { progress: number }) {
       marginBottom: 16,
       textAlign: 'center',
     }}>
-      <div style={{ fontSize: 28, marginBottom: 8 }}>🤖</div>
+      <div style={{ fontSize: 28, marginBottom: 8 }}></div>
       <div style={{ fontWeight: 700, color: '#1e40af', marginBottom: 4, fontSize: 15 }}>
         Buscando información técnica…
       </div>

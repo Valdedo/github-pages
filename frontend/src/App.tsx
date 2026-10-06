@@ -23,6 +23,9 @@ import { FirmaDetailPage } from './pages/FirmaDetailPage';
 import { RepartoPage } from './pages/RepartoPage';
 import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
+import { AccessGate } from './components/AccessGate';
+import { CodigosModal } from './components/CodigosModal';
+import { getRol, cerrarSesion } from './auth';
 import { getDashboardStats, getFirmasStats } from './api/client';
 
 interface NavBadge {
@@ -85,6 +88,17 @@ function SidebarNavGroup({ items, badges, collapsed }: {
   );
 }
 
+function SesionLinks() {
+  const [codigos, setCodigos] = useState(false);
+  return (
+    <div className="sesion-links">
+      <button onClick={() => setCodigos(true)}>Cambiar códigos</button>
+      <button onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); window.location.href = '/'; } }}>Cerrar sesión</button>
+      {codigos && <CodigosModal onClose={() => setCodigos(false)} />}
+    </div>
+  );
+}
+
 function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed: boolean; onToggle: () => void }) {
   return (
     <aside className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
@@ -123,7 +137,10 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
           <Menu size={18} />
         </button>
       ) : (
-        <div className="sidebar-1950"><b>1950</b><span>Materiales de construcción en Boal y Villayón</span></div>
+        <>
+          <div className="sidebar-1950"><b>1950</b><span>Materiales de construcción en Boal y Villayón</span></div>
+          <SesionLinks />
+        </>
       )}
     </aside>
   );
@@ -176,7 +193,7 @@ function MobileHeader() {
         </button>
       ) : (
         <Link to="/" style={{ textDecoration: 'none' }} aria-label="Inicio">
-          <Logo size={26} compact={location.pathname !== '/'} />
+          <Logo size={location.pathname === "/" ? 24 : 30} compact={location.pathname !== "/"} />
         </Link>
       )}
       {/* Title is a link to section root — tapping it resets filters/scroll */}
@@ -226,6 +243,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
             </NavLink>
           ))}
         </div>
+        <SesionLinks />
       </div>
 
       {/* Bottom nav */}
@@ -271,7 +289,7 @@ function RepartoShell() {
     <div className="reparto-layout">
       <header className="reparto-header">
         {enLista ? (
-          <Logo size={24} />
+          <Logo size={22} onDark />
         ) : (
           <button className="mobile-back-btn" onClick={() => navigate('/reparto')}>
             <ChevronLeft size={20} /> Volver
@@ -293,7 +311,7 @@ function RepartoShell() {
 
 function AppShell() {
   const location = useLocation();
-  if (location.pathname === '/reparto' || isReparto()) return <RepartoShell />;
+  if (getRol() === 'reparto' || location.pathname === '/reparto' || isReparto()) return <RepartoShell />;
   return <FullShell />;
 }
 
@@ -352,7 +370,9 @@ function FullShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <AccessGate>
+        <AppShell />
+      </AccessGate>
     </BrowserRouter>
   );
 }

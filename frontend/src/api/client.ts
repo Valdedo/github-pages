@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { getToken, withToken, cerrarSesion } from '../auth';
 import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert, ClientDeliveryNote } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -6,6 +7,20 @@ const BASE = import.meta.env.VITE_API_URL || '';
 const api = axios.create({
   baseURL: BASE,
   timeout: 60000,
+});
+
+// Código de acceso en todas las peticiones; si caduca, se vuelve a pedir
+api.interceptors.request.use(cfg => {
+  const t = getToken();
+  if (t) cfg.headers.Authorization = `Bearer ${t}`;
+  return cfg;
+});
+api.interceptors.response.use(r => r, (err: AxiosError) => {
+  if (err.response?.status === 401 && !String(err.config?.url || '').includes('/api/acceso')) {
+    cerrarSesion();
+    window.dispatchEvent(new Event('cf-sin-sesion'));
+  }
+  return Promise.reject(err);
 });
 
 // Turn an axios/fetch error into a short user-facing message that
@@ -56,7 +71,7 @@ export const deleteDocument = (id: number) => api.delete(`/api/documents/${id}`)
 export const reprocessDocument = (id: number, supplierId?: number) =>
   api.post(`/api/documents/${id}/reprocess`, { supplier_id: supplierId });
 
-export const getDocumentFileUrl = (id: number) => `${BASE}/api/documents/${id}/file`;
+export const getDocumentFileUrl = (id: number) => withToken(`${BASE}/api/documents/${id}/file`);
 
 // Articles
 export const listArticles = (documentId: number) =>
@@ -80,13 +95,13 @@ export const bulkUpdateMargin = (ids: number[], margen_pct: number) =>
   api.put(`/api/articles/bulk-margin?margen_pct=${margen_pct}`, ids);
 
 // Export
-export const getExcelUrl = (documentId: number) => `${BASE}/api/export/excel/${documentId}`;
+export const getExcelUrl = (documentId: number) => withToken(`${BASE}/api/export/excel/${documentId}`);
 export const getLabelsUrl = (documentId: number, articleIds?: number[], copies = 1) => {
   const params = new URLSearchParams();
   if (articleIds && articleIds.length > 0) params.set('ids', articleIds.join(','));
   if (copies > 1) params.set('copies', String(copies));
   const qs = params.toString();
-  return `${BASE}/api/export/labels/${documentId}${qs ? '?' + qs : ''}`;
+  return withToken(`${BASE}/api/export/labels/${documentId}${qs ? '?' + qs : ''}`);
 };
 
 export const downloadExcel = (documentId: number) => {
@@ -97,18 +112,18 @@ export const downloadLabels = (documentId: number, articleIds?: number[], copies
   window.open(getLabelsUrl(documentId, articleIds, copies), '_blank');
 };
 
-export const getPdfReportUrl = (documentId: number) => `${BASE}/api/export/pdf/${documentId}`;
+export const getPdfReportUrl = (documentId: number) => withToken(`${BASE}/api/export/pdf/${documentId}`);
 export const downloadPdfReport = (documentId: number) => {
   window.open(getPdfReportUrl(documentId), '_blank');
 };
 
 
 export const downloadTreyFact = (documentId: number) => {
-  window.open(`${BASE}/api/export/treyfact/${documentId}`, '_blank');
+  window.open(withToken(`${BASE}/api/export/treyfact/${documentId}`), '_blank');
 };
 
 export const downloadPriceList = (documentId: number) => {
-  window.open(`${BASE}/api/export/pricelist/${documentId}`, '_blank');
+  window.open(withToken(`${BASE}/api/export/pricelist/${documentId}`), '_blank');
 };
 
 // Catalog
@@ -125,7 +140,7 @@ export const downloadCatalogTreyFact = (params?: { familia?: string; q?: string 
   if (params?.familia) qs.set('familia', params.familia);
   if (params?.q) qs.set('q', params.q);
   const query = qs.toString();
-  window.open(`${BASE}/api/catalog/export-treyfact${query ? '?' + query : ''}`, '_blank');
+  window.open(withToken(`${BASE}/api/catalog/export-treyfact${query ? '?' + query : ''}`), '_blank');
 };
 
 export const downloadCatalogPriceList = (params?: { familia?: string; q?: string }) => {
@@ -133,7 +148,7 @@ export const downloadCatalogPriceList = (params?: { familia?: string; q?: string
   if (params?.familia) qs.set('familia', params.familia);
   if (params?.q) qs.set('q', params.q);
   const query = qs.toString();
-  window.open(`${BASE}/api/catalog/export-pricelist${query ? '?' + query : ''}`, '_blank');
+  window.open(withToken(`${BASE}/api/catalog/export-pricelist${query ? '?' + query : ''}`), '_blank');
 };
 
 
@@ -256,15 +271,15 @@ export const signFirma = (id: number, firma: Blob, nombre: string, dni: string) 
   });
 };
 export const firmaPageUrl = (id: number, page: number, dpi = 110, v = '') =>
-  `${BASE}/api/firmas/${id}/page/${page}.png?dpi=${dpi}${v ? `&v=${v}` : ''}`;
+  withToken(`${BASE}/api/firmas/${id}/page/${page}.png?dpi=${dpi}${v ? `&v=${v}` : ''}`);
 export const firmaPdfUrl = (id: number, download = false) =>
-  `${BASE}/api/firmas/${id}/pdf${download ? '?download=true' : ''}`;
+  withToken(`${BASE}/api/firmas/${id}/pdf${download ? '?download=true' : ''}`);
 export const firmasZipUrl = (codigo?: string, mes?: string) => {
   const p = new URLSearchParams();
   if (codigo) p.set('codigo_cliente', codigo);
   if (mes) p.set('mes', mes);
   const qs = p.toString();
-  return `${BASE}/api/firmas/export.zip${qs ? `?${qs}` : ''}`;
+  return withToken(`${BASE}/api/firmas/export.zip${qs ? `?${qs}` : ''}`);
 };
 
 export type ContactoFirma = { email?: string | null; telefono?: string | null; auto_email?: boolean | null };
@@ -281,9 +296,20 @@ export const marcarFirma = (id: number, m: MarcasFirma) =>
 export const marcarFirmas = (ids: number[], m: MarcasFirma) =>
   api.post<ClientDeliveryNote[]>('/api/firmas/marcas', { ids, ...m });
 
-export const firmasCombinadoUrl = (ids: number[]) => `${BASE}/api/firmas/combinado.pdf?ids=${ids.join(',')}`;
+export const firmasCombinadoUrl = (ids: number[]) => withToken(`${BASE}/api/firmas/combinado.pdf?ids=${ids.join(',')}`);
 export interface FirmasAvisos {
   sin_firmar: { id: number; numero: string; cliente?: string | null; dias: number }[];
   sin_facturar: { codigo_cliente?: string | null; cliente?: string | null; albaranes: number; importe: number }[];
 }
 export const getFirmasAvisos = () => api.get<FirmasAvisos>('/api/firmas/avisos');
+
+// Acceso
+export const accesoEstado = () => api.get<{ configurado: boolean; rol: 'tienda' | 'reparto' | null; reparto: boolean }>('/api/acceso/estado');
+export const accesoEntrar = (codigo: string) => api.post<{ token: string; rol: 'tienda' | 'reparto' }>('/api/acceso/entrar', { codigo });
+export const accesoConfigurar = (tienda: string, reparto: string) =>
+  api.post<{ token: string; rol: 'tienda' }>('/api/acceso/configurar', { tienda, reparto: reparto || null });
+
+// Correo de casafonsomc@gmail.com (resumen para Inicio)
+export interface CorreoItem { id: string; de?: string; asunto?: string; fecha?: string; enlace?: string; resumen?: string; tipo?: string }
+export interface CorreoResumen { configurado: boolean; error?: string; sin_leer: CorreoItem[]; sin_contestar: CorreoItem[]; actualizado?: string }
+export const getCorreo = (refrescar = false) => api.get<CorreoResumen>(`/api/correo/resumen${refrescar ? '?refrescar=true' : ''}`, { timeout: 90000 });
