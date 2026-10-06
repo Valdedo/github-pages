@@ -1,14 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FileText, Wrench, ShoppingCart, CheckCircle, AlertCircle } from 'lucide-react';
-import { getDashboardStats, listDocuments, describeApiError } from '../api/client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  ArrowUpRight, Upload, PenLine, Search, Wrench, Plus, Check, Mail, Receipt, MessageCircle, FileText,
+} from 'lucide-react';
+import { getDashboardStats, listFirmas, uploadFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
-import type { DashboardStats, DocumentListItem } from '../types';
-
-const STATUS_LABEL: Record<string, string> = {
-  uploaded: 'Subido', processing: 'Analizando', completed: 'Completado', error: 'Error',
-};
+import type { ClientDeliveryNote, DashboardStats } from '../types';
 
 const EMPTY_STATS: DashboardStats = {
   documents: { total: 0, processing: 0 },
@@ -17,314 +15,170 @@ const EMPTY_STATS: DashboardStats = {
   recent_documents: [],
 };
 
-function greeting(): string {
+const euros = (v: number) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+function saludo() {
   const h = new Date().getHours();
-  if (h < 12) return 'Buenos días';
-  if (h < 20) return 'Buenas tardes';
-  return 'Buenas noches';
+  return h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
 }
-
-function relativeDate(dt?: string | null): string {
-  if (!dt) return '';
-  const date = new Date(dt.replace('T', ' ').split(' ')[0]); // parse date part only
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 86400000);
-  if (diff === 0) return 'hoy';
-  if (diff === 1) return 'ayer';
-  if (diff < 7)  return `hace ${diff} días`;
-  if (diff < 30) return `hace ${Math.floor(diff / 7)} sem.`;
-  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+function hoyTexto() {
+  const t = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
+function hoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+const hora = (iso?: string | null) => (iso ? iso.split('T')[1]?.slice(0, 5) ?? '' : '');
 
-function fmtToday(): string {
-  return new Date().toLocaleDateString('es-ES', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  });
+interface Actividad { key: string; at: string; titulo: string; detalle: string; tipo: 'firma' | 'correo' | 'whatsapp' | 'factura' | 'proveedor'; to: string }
+
+function Tile({ to, titulo, valor, detalle, destacado }: { to: string; titulo: string; valor: number; detalle: string; destacado?: boolean }) {
+  return (
+    <Link to={to} className={`inicio-tile${destacado ? ' destacado' : ''}`}>
+      <span className="inicio-tile-top">
+        {titulo}
+        <span className="inicio-tile-go"><ArrowUpRight size={18} strokeWidth={2.6} /></span>
+      </span>
+      <span className="inicio-tile-num">{valor}</span>
+      <span className="inicio-tile-sub">{detalle}</span>
+    </Link>
+  );
 }
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [notes, setNotes] = useState<ClientDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [, setFallbackDocs] = useState<DocumentListItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     setLoadError(null);
-    try {
-      const { data } = await getDashboardStats();
-      setStats(data);
-    } catch (primaryErr) {
-      // Fallback: try /api/documents. If that also fails, surface the error.
-      try {
-        const { data: docs } = await listDocuments();
-        setFallbackDocs(docs);
-        setStats({
-          ...EMPTY_STATS,
-          documents: {
-            total: docs.length,
-            processing: docs.filter(d => d.status === 'processing').length,
-          },
-          recent_documents: docs.slice(0, 5).map(d => ({
-            id: d.id,
-            original_filename: d.original_filename,
-            status: d.status,
-            supplier_name: d.supplier_name ?? null,
-            created_at: d.created_at,
-          })),
-        });
-        // Partial fallback worked but the main endpoint failed — flag it lightly.
-        setLoadError(describeApiError(primaryErr) + ' — mostrando solo albaranes');
-      } catch (fallbackErr) {
-        setStats(null);
-        setLoadError(describeApiError(fallbackErr));
-      }
-    } finally {
-      setLoading(false);
-    }
+    const [st, fi] = await Promise.allSettled([getDashboardStats(), listFirmas()]);
+    if (st.status === 'fulfilled') setStats(st.value.data);
+    if (fi.status === 'fulfilled') setNotes(fi.value.data);
+    if (st.status === 'rejected' && fi.status === 'rejected') setLoadError(describeApiError(st.reason));
+    setLoading(false);
   }, []);
-
   useEffect(() => { load(); }, [load]);
-
-  if (loading) {
-    return (
-      <div className="page">
-        <div className="dashboard-hero-skeleton" />
-        <div className="stat-grid" style={{ marginTop: 16 }}>
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="stat-card" style={{ minHeight: 110 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--border)', marginBottom: 8 }} />
-              <div style={{ width: 60, height: 28, borderRadius: 6, background: 'var(--border)' }} />
-              <div style={{ width: 100, height: 14, borderRadius: 4, background: 'var(--border)' }} />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, [load]);
 
   const s = stats ?? EMPTY_STATS;
-  const hasData = stats !== null;
+  const porFirmar = notes.filter(n => n.status === 'pendiente');
+  const porFacturar = notes.filter(n => n.status === 'firmado' && !n.facturado_at);
+  const importeFacturar = porFacturar.reduce((t, n) => t + (n.importe ?? 0), 0);
+  const empresasFacturar = new Set(porFacturar.map(n => n.codigo_cliente || n.cliente || '—')).size;
+  const viejo = porFirmar.reduce((m, n) => Math.max(m, Math.floor((Date.now() - new Date(n.created_at).getTime()) / 86400000)), 0);
+
+  // Lo que se ha hecho hoy, lo más reciente arriba
+  const actividad = useMemo<Actividad[]>(() => {
+    const hoy = hoyISO();
+    const a: Actividad[] = [];
+    notes.forEach(n => {
+      const cli = n.cliente || 'Cliente sin identificar';
+      if (n.signed_at?.startsWith(hoy)) a.push({ key: `f${n.id}`, at: n.signed_at, titulo: `Firmado ${n.numero}`, detalle: `${cli}${n.signed_by ? ` · firmó ${n.signed_by}` : ''}`, tipo: 'firma', to: `/firmas/${n.id}` });
+      if (n.emailed_at?.startsWith(hoy)) a.push({ key: `e${n.id}`, at: n.emailed_at, titulo: `Enviado por correo ${n.numero}`, detalle: n.emailed_to || cli, tipo: 'correo', to: `/firmas/${n.id}` });
+      if (n.whatsapp_at?.startsWith(hoy)) a.push({ key: `w${n.id}`, at: n.whatsapp_at, titulo: `Enviado por WhatsApp ${n.numero}`, detalle: cli, tipo: 'whatsapp', to: `/firmas/${n.id}` });
+      if (n.facturado_at?.startsWith(hoy)) a.push({ key: `b${n.id}`, at: n.facturado_at, titulo: `Facturado ${n.numero}`, detalle: cli, tipo: 'factura', to: `/firmas/${n.id}` });
+    });
+    s.recent_documents.forEach(d => {
+      if (d.created_at?.startsWith(hoy)) a.push({ key: `d${d.id}`, at: d.created_at, titulo: 'Albarán de proveedor procesado', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
+    });
+    return a.sort((x, y) => (y.at > x.at ? 1 : -1)).slice(0, 7);
+  }, [notes, s.recent_documents]);
+
+  const onFiles = async (list: FileList | null) => {
+    const files = Array.from(list || []).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf');
+    if (!files.length) return;
+    setSubiendo(true);
+    try {
+      await uploadFirmas(files);
+      navigate('/firmas?vista=firmar');
+    } catch (err) {
+      setLoadError(`No se pudieron subir: ${describeApiError(err)}`);
+      setSubiendo(false);
+    }
+  };
+
+  const iconos = { firma: PenLine, correo: Mail, whatsapp: MessageCircle, factura: Receipt, proveedor: FileText };
 
   return (
-    <div className="page">
+    <div className="page inicio">
+      {loadError && <ConnectionError message={loadError} onRetry={load} />}
 
-      {loadError && (
-        <ConnectionError message={loadError} onRetry={load} />
-      )}
-
-      {/* ── Mobile header (greeting + date, no gradient) ── */}
-      <div className="dashboard-hero">
-        <span className="dashboard-hero-greeting">{greeting()}</span>
-        <div className="dashboard-hero-brand">Casa Fonso</div>
-        <span className="dashboard-hero-date" style={{ marginTop: 2 }}>{fmtToday()}</span>
-        {s.repairs.reparada > 0 && (
-          <button className="dashboard-hero-alert" onClick={() => navigate('/reparaciones?status=reparada')}>
-            ✓ {s.repairs.reparada} listas para entregar →
-          </button>
-        )}
-      </div>
-
-      {/* ── Desktop header (hidden on mobile) ── */}
-      <div className="dashboard-desktop-header">
-        <h1 className="dashboard-desktop-greeting">{greeting()}</h1>
-        <p className="dashboard-desktop-date">{fmtToday()}</p>
-      </div>
-
-      {/* ── Stat cards ── */}
-      {!hasData ? (
-        <div className="empty-state" style={{ padding: '32px 16px' }}>
-          <div className="empty-state-icon">⚠️</div>
-          <div className="empty-state-text">No hay datos disponibles</div>
-          <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>
-            No se pudo cargar la información. Comprueba la conexión con el servidor y pulsa Reintentar.
-          </p>
+      <header className="inicio-head">
+        <div>
+          <h1>{saludo()}</h1>
+          <p>{hoyTexto()}. Esto es lo que tenéis pendiente.</p>
         </div>
-      ) : (<>
-      <div className="stat-grid">
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/albaranes')}>
-          <div className="stat-card-icon blue"><FileText size={20} /></div>
-          <div className="stat-card-value">{s.documents.total}</div>
-          <div className="stat-card-label">Albaranes totales</div>
-          {s.documents.processing > 0 && (
-            <div className="stat-card-sub" style={{ color: 'var(--warning)' }}>⏳ {s.documents.processing} procesando…</div>
-          )}
-        </div>
+        <button className="btn btn-primary btn-lg" onClick={() => fileRef.current?.click()} disabled={subiendo}>
+          <Upload size={19} /> {subiendo ? 'Subiendo…' : 'Subir albaranes para firmar'}
+        </button>
+        <input ref={fileRef} type="file" accept="application/pdf" multiple hidden onChange={e => onFiles(e.target.files)} />
+      </header>
 
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/reparaciones')}>
-          <div className="stat-card-icon orange"><Wrench size={20} /></div>
-          <div className="stat-card-value">{s.repairs.pending}</div>
-          <div className="stat-card-label">Reparaciones activas</div>
+      <section className="inicio-tiles" aria-label="Pendiente">
+        <Tile to="/firmas?vista=firmar" destacado titulo="Por firmar" valor={loading ? 0 : porFirmar.length}
+          detalle={porFirmar.length === 0 ? 'Todo firmado' : viejo >= 2 ? `Uno lleva ${viejo} días esperando` : 'Albaranes de hoy'} />
+        <Tile to="/firmas?vista=facturar" titulo="Por facturar" valor={loading ? 0 : porFacturar.length}
+          detalle={porFacturar.length === 0 ? 'Nada pendiente' : `De ${empresasFacturar} empresa${empresasFacturar !== 1 ? 's' : ''}${importeFacturar > 0 ? ` · ${euros(importeFacturar)}` : ''}`} />
+        <Tile to="/reparaciones" titulo="Reparaciones listas" valor={s.repairs.reparada}
+          detalle={s.repairs.reparada ? 'Para avisar al cliente' : `${s.repairs.pending} en curso`} />
+        <Tile to="/pedidos" titulo="Pedidos sin completar" valor={s.orders.pending}
+          detalle={s.orders.pending ? 'Esperando al proveedor' : 'Todo recibido'} />
+      </section>
+
+      <div className="inicio-cols">
+        <section className="card inicio-bloque" aria-label="Para no olvidar">
+          <h2>Para no olvidar</h2>
+          <div className="firmas-avisos inicio-avisos"><FirmasAvisos /></div>
+          {s.repairs.reparada === 0 && <p className="inicio-aldia">Todo al día. Aquí saldrá lo que se esté quedando atrás.</p>}
           {s.repairs.reparada > 0 && (
-            <div className="stat-card-sub" style={{ color: 'var(--success)', fontWeight: 600 }}>✓ {s.repairs.reparada} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar</div>
+            <Link to="/reparaciones" className="inicio-aviso">
+              <span className="inicio-aviso-ico"><Wrench size={20} /></span>
+              <span className="inicio-aviso-txt">
+                <b>{s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar</b>
+                <small>Llama al cliente para que pase a recogerla</small>
+              </span>
+              <span className="btn btn-primary btn-sm">Ver</span>
+            </Link>
           )}
-        </div>
+        </section>
 
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/pedidos')}>
-          <div className="stat-card-icon green"><ShoppingCart size={20} /></div>
-          <div className="stat-card-value">{s.orders.pending}</div>
-          <div className="stat-card-label">Pedidos pendientes</div>
-          {s.orders.parcial > 0 && (
-            <div className="stat-card-sub" style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.orders.parcial} con recepción parcial</div>
+        <section className="card inicio-bloque" aria-label="Hoy">
+          <h2>Hoy</h2>
+          {actividad.length === 0 ? (
+            <p style={{ color: 'var(--text-2)', fontSize: 15 }}>Todavía no se ha firmado ni enviado nada hoy.</p>
+          ) : (
+            <ul className="inicio-hoy cf-enter">
+              {actividad.map(a => {
+                const Icon = iconos[a.tipo];
+                return (
+                  <li key={a.key}>
+                    <Link to={a.to}>
+                      <span className={`inicio-hoy-ico ${a.tipo}`}>{a.tipo === 'firma' ? <Check size={16} strokeWidth={3} /> : <Icon size={16} />}</span>
+                      <span className="inicio-hoy-txt"><b>{a.titulo}</b><small>{a.detalle} · {hora(a.at)}</small></span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
-
-        <div className="stat-card stat-card--clickable" onClick={() => navigate('/reparaciones')}>
-          <div className="stat-card-icon purple"><CheckCircle size={20} /></div>
-          <div className="stat-card-value">{s.repairs.entregada}</div>
-          <div className="stat-card-label">Reparaciones entregadas</div>
-        </div>
+        </section>
       </div>
 
-      {/* ── Alerts (desktop) ── */}
-      <div className="firmas-avisos"><FirmasAvisos /></div>
-      <div className="dashboard-alerts">
-        {s.repairs.reparada > 0 && (
-          <div className="dashboard-alert dashboard-alert--green" onClick={() => navigate('/reparaciones?status=reparada')}>
-            <CheckCircle size={15} />
-            <span>{s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar</span>
-            <span className="dashboard-alert-link">Ver →</span>
-          </div>
-        )}
-        {s.orders.pending > 0 && (
-          <div className="dashboard-alert dashboard-alert--amber" onClick={() => navigate('/pedidos')}>
-            <AlertCircle size={15} />
-            <span>{s.orders.pending} pedido{s.orders.pending > 1 ? 's' : ''} sin completar</span>
-            <span className="dashboard-alert-link">Ver →</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── Content grid ── */}
-      <div className="dashboard-grid">
-
-        {/* Recent documents */}
-        <div className="card">
-          <div className="card-header"><FileText size={15} />Últimos albaranes</div>
-          <div style={{ padding: '8px 0' }}>
-            {s.recent_documents.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
-                No hay albaranes todavía
-              </div>
-            ) : s.recent_documents.map(doc => (
-              <div
-                key={doc.id}
-                onClick={() => navigate(`/documento/${doc.id}`)}
-                style={{
-                  padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12,
-                  cursor: 'pointer', borderBottom: '1px solid var(--border)', transition: 'background 0.12s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
-                onMouseLeave={e => (e.currentTarget.style.background = '')}
-              >
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                  background: doc.status === 'completed' ? 'var(--success)'
-                    : doc.status === 'processing' ? 'var(--warning)'
-                    : doc.status === 'error' ? 'var(--danger)' : 'var(--text-3)',
-                }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {doc.supplier_name || doc.original_filename}
-                  </div>
-                  {doc.supplier_name && (
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.original_filename}</div>
-                  )}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, textAlign: 'right' }}>
-                  <div>{STATUS_LABEL[doc.status] ?? doc.status}</div>
-                  <div>{relativeDate(doc.created_at)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)' }}>
-            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => navigate('/albaranes')}>
-              Ver todos los albaranes →
-            </button>
-          </div>
-        </div>
-
-        {/* Activity cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Reparaciones activity card */}
-          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/reparaciones')}>
-            <div className="card-header">
-              <Wrench size={15} />
-              Reparaciones
-              <span style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>{s.repairs.pending}</span>
-            </div>
-            {s.repairs.pending === 0 ? (
-              <div style={{ padding: '16px 20px', color: 'var(--text-3)', fontSize: 13 }}>
-                Sin reparaciones activas
-              </div>
-            ) : (
-              <div style={{ padding: '8px 20px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {s.repairs.recibida > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-2)' }}>Recibidas</span>
-                    <span className="status-chip recibida">{s.repairs.recibida}</span>
-                  </div>
-                )}
-                {s.repairs.en_taller > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-2)' }}>En taller</span>
-                    <span className="status-chip en_taller">{s.repairs.en_taller}</span>
-                  </div>
-                )}
-                {s.repairs.reparada > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-                    <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Listas para entregar</span>
-                    <span className="status-chip reparada">{s.repairs.reparada}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)' }}>
-              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
-                Ver reparaciones →
-              </button>
-            </div>
-          </div>
-
-          {/* Pedidos activity card */}
-          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/pedidos')}>
-            <div className="card-header">
-              <ShoppingCart size={15} />
-              Pedidos pendientes
-              <span style={{ marginLeft: 'auto', fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>{s.orders.pending}</span>
-            </div>
-            {s.orders.pending === 0 ? (
-              <div style={{ padding: '16px 20px', color: 'var(--text-3)', fontSize: 13 }}>
-                Sin pedidos pendientes
-              </div>
-            ) : (
-              <div style={{ padding: '8px 20px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {s.orders.pendiente > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-2)' }}>Por pedir</span>
-                    <span className="status-chip pendiente">{s.orders.pendiente}</span>
-                  </div>
-                )}
-                {s.orders.parcial > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-2)' }}>Recepción parcial</span>
-                    <span className="status-chip parcial">{s.orders.parcial}</span>
-                  </div>
-                )}
-              </div>
-            )}
-            <div style={{ padding: '10px 20px', borderTop: '1px solid var(--border)' }}>
-              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }}>
-                Ver pedidos →
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      </>)}
+      <section className="inicio-rapidos" aria-label="Accesos rápidos">
+        <Link to="/firmas" className="inicio-rapido"><span><PenLine size={22} /></span>Firmar un albarán</Link>
+        <Link to="/consulta" className="inicio-rapido"><span><Search size={22} /></span>Consultar un precio</Link>
+        <Link to="/reparaciones?new=1" className="inicio-rapido"><span><Wrench size={22} /></span>Nueva reparación</Link>
+        <Link to="/pedidos?new=1" className="inicio-rapido"><span><Plus size={22} /></span>Nuevo pedido</Link>
+      </section>
     </div>
   );
 }

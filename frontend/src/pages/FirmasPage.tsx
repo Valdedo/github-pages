@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, describeApiError } from '../api/client';
 import { FirmasAvisos } from '../components/FirmasAvisos';
+import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import type { ClientDeliveryNote } from '../types';
 
@@ -48,7 +49,7 @@ export function Marcas({ n }: { n: ClientDeliveryNote }) {
     <div className="marcas">
       {items.map(({ on, label, icon: Icon, cls }) => (
         <span key={cls} className={`marca ${on ? `on ${cls}` : ''}`} title={on ? label : `${label}: no`}>
-          <Icon size={12} /> {label}
+          {on ? <Check size={13} strokeWidth={3} /> : <Icon size={13} />} {label}
         </span>
       ))}
     </div>
@@ -105,7 +106,7 @@ function FacturarModal({ notes, onClose, onDone }: {
       <div className="modal" style={{ maxWidth: 420, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h3 style={{ fontSize: 17, fontWeight: 700 }}>Marcar como facturados</h3>
         <p style={{ fontSize: 14, color: 'var(--text-2)' }}>
-          {notes.length} albarán{notes.length !== 1 ? 'es' : ''} de {clientes.join(', ')}
+          {notes.length} {notes.length !== 1 ? 'albaranes' : 'albarán'} de {clientes.join(', ')}
           {total > 0 && <> · <strong>{fmtEuros(total)}</strong></>}
         </p>
         <label className="form-label">Nº de factura (opcional)
@@ -144,6 +145,7 @@ export function FirmasPage() {
   const [mes, setMes] = useState('');
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [facturar, setFacturar] = useState<ClientDeliveryNote[] | null>(null);
+  const { toast, show } = useCfToast();
 
   const cambiarVista = (v: Vista) => {
     setVista(v); setSel(new Set());
@@ -216,11 +218,30 @@ export function FirmasPage() {
     setSel(new Set());
   };
 
-  const quitarFacturado = async () => {
-    if (!window.confirm(`¿Quitar la marca de facturado a ${selNotes.length} albarán(es)?`)) return;
-    const { data } = await marcarFirmas([...sel], { facturado: false });
-    applyUpdated(data);
+  const quien = (list: ClientDeliveryNote[]) => {
+    const cl = [...new Set(list.map(n => n.cliente || n.codigo_cliente || ''))].filter(Boolean);
+    return cl.length === 1 ? ` de ${cl[0]}` : '';
   };
+
+  // Se marca al momento y se ofrece «Deshacer» (sin preguntar «¿seguro?»)
+  const marcarFacturados = async (list: ClientDeliveryNote[], facturado: boolean) => {
+    const ids = list.filter(n => n.status === 'firmado').map(n => n.id);
+    if (!ids.length) return;
+    try {
+      const { data } = await marcarFirmas(ids, { facturado });
+      applyUpdated(data);
+      const n = ids.length;
+      show(`${n} ${n !== 1 ? 'albaranes' : 'albarán'}${quien(list)} ${facturado ? `marcado${n !== 1 ? 's' : ''} como facturado${n !== 1 ? 's' : ''}` : `vuelve${n !== 1 ? 'n' : ''} a «Por facturar»`}`, {
+        undo: async () => {
+          const { data: back } = await marcarFirmas(ids, { facturado: !facturado });
+          applyUpdated(back);
+        },
+      });
+    } catch (err) {
+      show(`No se pudo guardar: ${describeApiError(err)}`, { error: true });
+    }
+  };
+  const quitarFacturado = () => marcarFacturados(selNotes, false);
 
   const onFiles = async (list: FileList | null) => {
     const files = Array.from(list || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
@@ -253,16 +274,14 @@ export function FirmasPage() {
       onDrop={e => { e.preventDefault(); onFiles(e.dataTransfer.files); }}>
       {loadError && <ConnectionError message={loadError} onRetry={() => load()} />}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div className="inicio-head firmas-head">
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Firmas de albaranes</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
-            {count.firmar} por firmar · {count.facturar} por facturar
-          </p>
+          <h1>Firmar albaranes</h1>
+          <p>Arrastra aquí los PDF de treyFACT o pulsa el botón.</p>
         </div>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={uploading}
+        <button className="btn btn-primary btn-lg" disabled={uploading}
           onClick={() => fileRef.current?.click()}>
-          <Upload size={15} /> {uploading ? 'Subiendo…' : 'Subir albaranes'}
+          <Upload size={19} /> {uploading ? 'Subiendo…' : 'Subir albaranes'}
         </button>
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden
           onChange={e => onFiles(e.target.files)} />
@@ -271,15 +290,15 @@ export function FirmasPage() {
       <div className="firmas-avisos"><FirmasAvisos /></div>
 
       {uploadMsg && (
-        <div className="card" style={{ padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{uploadMsg}</div>
+        <div className="firmas-msg" role="status">{uploadMsg}</div>
       )}
 
-      <div className="firma-vistas">
+      <div className="firma-vistas" role="tablist" aria-label="Qué albaranes ver">
         {VISTAS.map(v => (
-          <button key={v.value} onClick={() => cambiarVista(v.value)}
-            className={`btn ${vista === v.value ? 'btn-primary' : 'btn-ghost'}`}>
+          <button key={v.value} role="tab" aria-selected={vista === v.value} onClick={() => cambiarVista(v.value)}
+            className={`firma-vista${vista === v.value ? ' on' : ''}`}>
             {v.label}
-            {(v.value === 'firmar' || v.value === 'facturar') && count[v.value] > 0 && (
+            {(v.value === 'firmar' || v.value === 'facturar') && (
               <span className="firma-vista-n">{count[v.value]}</span>
             )}
           </button>
@@ -336,12 +355,12 @@ export function FirmasPage() {
           {grupos.map(g => {
             const total = g.list.reduce((s, n) => s + (n.importe ?? 0), 0);
             return (
-              <section key={g.cod}>
+              <section key={g.cod} className="card firma-empresa">
                 <div className="firma-grupo">
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700 }}>{g.nombre}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      {g.cod !== '—' && <>Cód. {g.cod} · </>}{g.list.length} albarán{g.list.length !== 1 ? 'es' : ''}
+                      {g.cod !== '—' && <>Cód. {g.cod} · </>}{g.list.length} {g.list.length !== 1 ? 'albaranes' : 'albarán'}
                       {total > 0 && <> · <strong style={{ color: 'var(--text-1)' }}>{fmtEuros(total)}</strong></>}
                     </div>
                   </div>
@@ -350,18 +369,18 @@ export function FirmasPage() {
                       title="Un solo PDF con todos estos albaranes, para adjuntar a la factura">
                       <FileDown size={14} /> PDF
                     </a>
-                    <button className="btn btn-primary btn-sm" onClick={() => setFacturar(g.list)}>
-                      <Receipt size={14} /> Facturar los {g.list.length}
+                    <button className="btn btn-primary" onClick={() => marcarFacturados(g.list, true)}>
+                      <Receipt size={16} /> Marcar {g.list.length === 1 ? 'como facturado' : `los ${g.list.length} como facturados`}
                     </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{g.list.map(row)}</div>
+                <div className="firma-lista cf-enter">{g.list.map(row)}</div>
               </section>
             );
           })}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{filtered.map(row)}</div>
+        <div className="firma-lista cf-enter">{filtered.map(row)}</div>
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
@@ -381,7 +400,7 @@ export function FirmasPage() {
           <span><strong>{sel.size}</strong> seleccionado{sel.size !== 1 ? 's' : ''}{selTotal > 0 && <> · {fmtEuros(selTotal)}</>}</span>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
             {selNotes.some(n => !n.facturado_at) && (
-              <button className="btn btn-primary btn-sm" onClick={() => setFacturar(selNotes.filter(n => !n.facturado_at && n.status === 'firmado'))}>
+              <button className="btn btn-primary btn-sm" onClick={() => marcarFacturados(selNotes.filter(n => !n.facturado_at), true)}>
                 <Receipt size={14} /> Marcar facturados
               </button>
             )}
@@ -398,6 +417,7 @@ export function FirmasPage() {
         </div>
       )}
 
+      {toast}
       {facturar && facturar.length > 0 && (
         <FacturarModal notes={facturar} onClose={() => setFacturar(null)}
           onDone={d => { applyUpdated(d); setFacturar(null); }} />

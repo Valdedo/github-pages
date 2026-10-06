@@ -22,6 +22,7 @@ import { FirmasPage } from './pages/FirmasPage';
 import { FirmaDetailPage } from './pages/FirmaDetailPage';
 import { RepartoPage } from './pages/RepartoPage';
 import { isReparto } from './reparto';
+import { Logo } from './components/Logo';
 import { getDashboardStats, getFirmasStats } from './api/client';
 
 interface NavBadge {
@@ -31,16 +32,18 @@ interface NavBadge {
 }
 
 // Primary items → shown in sidebar AND mobile bottom nav (no Inicio — CF logo is the home link)
-const primaryNavItems = [
-  { to: '/albaranes', label: 'Albaranes', icon: FileText },
-  { to: '/firmas', label: 'Firmas', icon: PenLine, badge: 'firmas' as const },
-  { to: '/consulta', label: 'Consulta', icon: Search },
-  { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' as const },
-  { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' as const },
+// label: menú lateral · short: barra inferior del móvil
+type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean };
+const primaryNavItems: NavItem[] = [
+  { to: '/firmas', label: 'Firmar albaranes', short: 'Firmas', icon: PenLine, badge: 'firmas' },
+  { to: '/albaranes', label: 'Albaranes de proveedor', short: 'Proveedor', icon: FileText },
+  { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
+  { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' },
+  { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' },
 ];
 
 // Secondary items → sidebar only (desktop)
-const secondaryNavItems = [
+const secondaryNavItems: NavItem[] = [
   { to: '/catalogo',  label: 'Catálogo',  icon: BookOpen },
   { to: '/analisis',  label: 'Análisis',  icon: BarChart2 },
   { to: '/venta',     label: 'Venta',     icon: Store },
@@ -48,6 +51,9 @@ const secondaryNavItems = [
 ];
 
 const navItems = [...primaryNavItems, ...secondaryNavItems];
+// Móvil: 4 accesos abajo + «Más» (Precios y herramientas en el cajón)
+const bottomItems = primaryNavItems.filter(n => n.to !== '/consulta');
+const drawerItems = [...primaryNavItems.filter(n => n.to === '/consulta'), ...secondaryNavItems];
 
 function SidebarNavGroup({ items, badges, collapsed }: {
   items: typeof navItems;
@@ -67,10 +73,11 @@ function SidebarNavGroup({ items, badges, collapsed }: {
             title={collapsed ? label : undefined}
           >
             <span className="sidebar-item-icon">
-              <Icon size={18} />
-              {count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
+              <Icon size={20} />
+              {collapsed && count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
             </span>
             {!collapsed && <span className="sidebar-item-label">{label}</span>}
+            {!collapsed && count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
           </NavLink>
         );
       })}
@@ -83,20 +90,14 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
     <aside className={`sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
       {/* Logo — also acts as Home link */}
       <div className="sidebar-logo">
-        <NavLink to="/" end className={({ isActive }) => `sidebar-logo-icon${isActive ? ' active' : ''}`}
-          style={{ textDecoration: 'none', color: 'inherit' }}>
-          CF
+        <NavLink to="/" end style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }} aria-label="Inicio">
+          <Logo compact={collapsed} size={collapsed ? 32 : 30} />
         </NavLink>
         {!collapsed && (
-          <div className="sidebar-logo-text">
-            <NavLink to="/" end style={{ textDecoration: 'none', color: 'inherit' }}>
-              <span className="sidebar-logo-name">Casa Fonso</span>
-            </NavLink>
-          </div>
+          <button className="sidebar-collapse-btn" onClick={onToggle} title="Hacer el menú más estrecho" aria-label="Hacer el menú más estrecho">
+            <ChevronLeft size={18} />
+          </button>
         )}
-        <button className="sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expandir' : 'Colapsar'}>
-          {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
-        </button>
       </div>
 
       {/* Primary nav */}
@@ -104,7 +105,7 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
         {/* Inicio only in sidebar, not in bottom nav */}
         <NavLink to="/" end className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
           title={collapsed ? 'Inicio' : undefined}>
-          <span className="sidebar-item-icon"><LayoutDashboard size={18} /></span>
+          <span className="sidebar-item-icon"><LayoutDashboard size={20} /></span>
           {!collapsed && <span className="sidebar-item-label">Inicio</span>}
         </NavLink>
         <SidebarNavGroup items={primaryNavItems} badges={badges} collapsed={collapsed} />
@@ -117,6 +118,13 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
         )}
         <SidebarNavGroup items={secondaryNavItems} badges={badges} collapsed={collapsed} />
       </nav>
+      {collapsed ? (
+        <button className="sidebar-collapse-btn" style={{ margin: '8px auto 16px' }} onClick={onToggle} title="Ampliar el menú" aria-label="Ampliar el menú">
+          <Menu size={18} />
+        </button>
+      ) : (
+        <div className="sidebar-1950"><b>1950</b><span>Materiales de construcción en Boal y Villayón</span></div>
+      )}
     </aside>
   );
 }
@@ -158,7 +166,7 @@ function MobileHeader() {
 
   // Find current section (for title + clickable root link)
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
-  const title = location.pathname === '/' ? 'Casa Fonso' : (section?.label ?? 'Casa Fonso');
+  const title = location.pathname === '/' ? '' : (section?.label ?? '');
 
   return (
     <header className="mobile-header">
@@ -167,8 +175,8 @@ function MobileHeader() {
           <ChevronLeft size={20} /> Volver
         </button>
       ) : (
-        <Link to="/" style={{ textDecoration: 'none' }}>
-          <div className="sidebar-logo-icon" style={{ width: 28, height: 28, fontSize: 10 }}>CF</div>
+        <Link to="/" style={{ textDecoration: 'none' }} aria-label="Inicio">
+          <Logo size={26} compact={location.pathname !== '/'} />
         </Link>
       )}
       {/* Title is a link to section root — tapping it resets filters/scroll */}
@@ -191,7 +199,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
   // Close drawer on navigation
   useEffect(() => setDrawerOpen(false), [location.pathname]);
 
-  const isSecondaryActive = secondaryNavItems.some(
+  const isSecondaryActive = drawerItems.some(
     n => location.pathname === n.to || location.pathname.startsWith(n.to + '/')
   );
 
@@ -205,9 +213,9 @@ function BottomNav({ badges }: { badges: NavBadge }) {
       {/* Tools drawer */}
       <div className={`more-drawer${drawerOpen ? ' more-drawer-open' : ''}`}>
         <div className="more-drawer-handle" onClick={() => setDrawerOpen(false)} />
-        <div className="more-drawer-title">Herramientas</div>
+        <div className="more-drawer-title">Más opciones</div>
         <div className="more-drawer-grid">
-          {secondaryNavItems.map(({ to, label, icon: Icon }) => (
+          {drawerItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -222,7 +230,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
 
       {/* Bottom nav */}
       <nav className="bottom-nav">
-        {primaryNavItems.map(({ to, label, icon: Icon, badge, exact }) => {
+        {bottomItems.map(({ to, label, short, icon: Icon, badge, exact }) => {
           const count = badge ? badges[badge as keyof NavBadge] : 0;
           return (
             <NavLink
@@ -231,13 +239,13 @@ function BottomNav({ badges }: { badges: NavBadge }) {
               end={exact}
               className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
             >
-              <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <span className="bn-icon">
                 <Icon size={22} />
                 {count > 0 && (
                   <span className="bottom-badge">{count > 9 ? '9+' : count}</span>
                 )}
               </span>
-              <span>{label}</span>
+              <span>{short ?? label}</span>
             </NavLink>
           );
         })}
@@ -263,7 +271,7 @@ function RepartoShell() {
     <div className="reparto-layout">
       <header className="reparto-header">
         {enLista ? (
-          <div className="sidebar-logo-icon" style={{ width: 30, height: 30, fontSize: 11 }}>CF</div>
+          <Logo size={24} />
         ) : (
           <button className="mobile-back-btn" onClick={() => navigate('/reparto')}>
             <ChevronLeft size={20} /> Volver

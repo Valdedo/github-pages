@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PenLine, Receipt } from 'lucide-react';
 import { getFirmasAvisos, type FirmasAvisos as Avisos } from '../api/client';
 
@@ -7,7 +7,6 @@ const euros = (v: number) => v.toLocaleString('es-ES', { style: 'currency', curr
 
 /** Avisos de albaranes que se están quedando atrás (en Inicio y en Firmas). */
 export function FirmasAvisos() {
-  const navigate = useNavigate();
   const [a, setA] = useState<Avisos | null>(null);
   useEffect(() => { getFirmasAvisos().then(({ data }) => setA(data)).catch(() => {}); }, []);
   if (!a || (!a.sin_firmar.length && !a.sin_facturar.length)) return null;
@@ -16,26 +15,27 @@ export function FirmasAvisos() {
   return (
     <>
       {n > 0 && (
-        <div className="dashboard-alert dashboard-alert--amber" onClick={() => navigate('/firmas?vista=firmar')}>
-          <PenLine size={15} />
-          <span>
-            {n === 1
+        <Link to="/firmas?vista=firmar" className="inicio-aviso">
+          <span className="inicio-aviso-ico verde"><PenLine size={20} /></span>
+          <span className="inicio-aviso-txt">
+            <b>{n === 1
               ? `El albarán ${a.sin_firmar[0].numero} lleva ${a.sin_firmar[0].dias} días sin firmar`
-              : `${n} albaranes llevan más de 2 días sin firmar`}
+              : `${n} albaranes llevan más de 2 días sin firmar`}</b>
+            <small>{n === 1 ? (a.sin_firmar[0].cliente || '') : a.sin_firmar.slice(0, 3).map(x => x.cliente).filter(Boolean).join(', ')}</small>
           </span>
-          <span className="dashboard-alert-link">Ver →</span>
-        </div>
+          <span className="btn btn-primary btn-sm">Firmar</span>
+        </Link>
       )}
       {a.sin_facturar.map(g => (
-        <div key={g.codigo_cliente ?? '—'} className="dashboard-alert dashboard-alert--amber"
-          onClick={() => navigate(`/firmas?vista=facturar${g.codigo_cliente ? `&cliente=${g.codigo_cliente}` : ''}`)}>
-          <Receipt size={15} />
-          <span>
-            {g.cliente || 'Sin cliente'} tiene {g.albaranes} albarán{g.albaranes !== 1 ? 'es' : ''} de meses anteriores sin facturar
-            {g.importe > 0 && ` (${euros(g.importe)})`}
+        <Link key={g.codigo_cliente ?? '—'} className="inicio-aviso ambar"
+          to={`/firmas?vista=facturar${g.codigo_cliente ? `&cliente=${g.codigo_cliente}` : ''}`}>
+          <span className="inicio-aviso-ico"><Receipt size={20} /></span>
+          <span className="inicio-aviso-txt">
+            <b>{g.cliente || 'Sin cliente'} tiene {g.albaranes} {g.albaranes !== 1 ? 'albaranes' : 'albarán'} sin facturar del mes pasado</b>
+            <small>{g.importe > 0 ? euros(g.importe) : 'De meses anteriores'}</small>
           </span>
-          <span className="dashboard-alert-link">Facturar →</span>
-        </div>
+          <span className="btn btn-sm btn-negro">Facturar</span>
+        </Link>
       ))}
     </>
   );

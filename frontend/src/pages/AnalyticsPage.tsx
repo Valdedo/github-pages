@@ -189,7 +189,7 @@ export function AnalyticsPage() {
                   {productName}
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '2px' }}>
-                  Código: {searchCode} · {history.length} aparición{history.length !== 1 ? 'es' : ''} en {new Set(history.map(h => h.document_id)).size} albarán{new Set(history.map(h => h.document_id)).size !== 1 ? 'es' : ''}
+                  Código: {searchCode} · {history.length} aparición{history.length !== 1 ? 'es' : ''} en {new Set(history.map(h => h.document_id)).size} {new Set(history.map(h => h.document_id)).size !== 1 ? 'albaranes' : 'albarán'}
                 </p>
               </div>
 

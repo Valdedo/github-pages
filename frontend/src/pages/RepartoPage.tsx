@@ -20,6 +20,7 @@ export function RepartoPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { setReparto(true); }, []);
+  const nombre = (() => { try { return localStorage.getItem('repartoNombre') || 'Melchor'; } catch { return 'Melchor'; } })();
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setLoading(true);
@@ -41,13 +42,16 @@ export function RepartoPage() {
     <div className="page reparto">
       {error && <ConnectionError message={error} onRetry={() => load()} />}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>
-          {pendientes.length ? `${pendientes.length} por firmar` : 'Nada por firmar'}
-        </h1>
-        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => load()} aria-label="Actualizar">
-          <RefreshCw size={15} />
-        </button>
+      <div className="reparto-hero">
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+          <div>
+            <span>Hola, {nombre}</span>
+            <h1>{pendientes.length ? `${pendientes.length} por firmar` : 'Nada por firmar'}</h1>
+          </div>
+          <button className="btn btn-sm" style={{ marginLeft: 'auto', background: 'rgb(255 255 255 / .14)', color: '#fff' }} onClick={() => load()} aria-label="Actualizar">
+            <RefreshCw size={16} /> Actualizar
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -58,19 +62,19 @@ export function RepartoPage() {
           <div className="empty-state-text">Todos los albaranes están firmados.</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="cf-enter" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {pendientes.map(n => (
             <button key={n.id} className="card reparto-card" onClick={() => navigate(`/firmas/${n.id}`)}>
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{n.cliente || 'Cliente sin identificar'}</div>
-                <div style={{ fontSize: 14, color: 'var(--text-2)', marginTop: 2 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25 }}>{n.cliente || 'Cliente sin identificar'}</div>
+                <div style={{ fontSize: 16, color: 'var(--text-2)', marginTop: 4 }}>
                   {n.numero}{n.obra ? ` · ${n.obra}` : ''}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
                   {fmtFecha(n.fecha)}{n.importe != null ? ` · ${fmtEuros(n.importe)}` : ''}
                 </div>
               </div>
-              <span className="reparto-firmar"><PenLine size={18} /> Firmar</span>
+              <span className="reparto-firmar"><PenLine size={20} /> Firmar</span>
             </button>
           ))}
         </div>

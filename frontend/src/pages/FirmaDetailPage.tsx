@@ -128,6 +128,8 @@ export function FirmaDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [hecho, setHecho] = useState(false);
+  const [factRef, setFactRef] = useState('');
   const [printPages, setPrintPages] = useState<string[]>([]);
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
   const esPC = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
@@ -188,6 +190,8 @@ export function FirmaDetailPage() {
       if (!blob) throw new Error('No se pudo leer la firma');
       const { data } = await signFirma(note.id, blob, nombre.trim(), dni.trim());
       setNote(data);
+      setHecho(true);
+      setTimeout(() => setHecho(false), 1500);
       window.scrollTo?.(0, 0);
       document.getElementById('app-main')?.scrollTo?.(0, 0);
     } catch (err) {
@@ -340,6 +344,13 @@ export function FirmaDetailPage() {
                     {t.at && <small>{fmtFirmado(t.at).replace(' a las', ',')}</small>}
                   </button>
                 ))}
+                {note.facturado_at && (
+                  <label className="form-label" style={{ margin: '2px 0 0' }}>Nº de factura (opcional)
+                    <input className="form-input" value={factRef || note.factura_ref || ''} placeholder="Por ejemplo, F-2026/0145"
+                      onChange={e => setFactRef(e.target.value)}
+                      onBlur={() => { if (factRef && factRef !== note.factura_ref) marcar({ factura_ref: factRef }); }} />
+                  </label>
+                )}
                 <div className={`firma-toggle${note.emailed_at ? ' on' : ''}`} style={{ cursor: 'default' }}>
                   <span className="box">{note.emailed_at && <Check size={14} />}</span>
                   {note.emailed_at ? `Enviado por correo a ${note.emailed_to}` : 'Enviado por correo'}
@@ -391,6 +402,16 @@ export function FirmaDetailPage() {
         </div>
       </div>
 
+      {hecho && (
+        <div className="cf-done" role="status" aria-live="polite">
+          <div className="cf-done-box">
+            <div className="cf-done-circle">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
+            </div>
+            <div className="cf-done-text">Albarán firmado</div>
+          </div>
+        </div>
+      )}
       {printing && createPortal(
         <div id="firma-print">{printPages.map(src => <img key={src} src={src} alt="" />)}</div>,
         document.body,
