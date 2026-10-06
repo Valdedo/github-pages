@@ -26,6 +26,7 @@ class AlbaranMeta:
     codigo_cliente: str = ""
     cliente: str = ""
     obra: str = ""
+    importe: Optional[float] = None
     page_count: int = 1
 
     def dict(self):
@@ -52,6 +53,17 @@ def _find_seq(words, seq):
     return None
 
 
+def parse_importe(text: str) -> Optional[float]:
+    """Total del albarán: 'TOTAL 1.234,56 €' en el pie de la última página."""
+    found = re.findall(r"\bTOTAL\s+(-?[\d.]+,\d{2})\s*€", text)
+    if not found:
+        return None
+    try:
+        return float(found[-1].replace(".", "").replace(",", "."))
+    except ValueError:
+        return None
+
+
 def parse_albaran(pdf_bytes: bytes, filename: str = "") -> AlbaranMeta:
     meta = AlbaranMeta()
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
@@ -59,6 +71,8 @@ def parse_albaran(pdf_bytes: bytes, filename: str = "") -> AlbaranMeta:
         page = pdf.pages[0]
         words = page.extract_words(keep_blank_chars=False, use_text_flow=False)
         text = page.extract_text() or ""
+        last_text = pdf.pages[-1].extract_text() or ""
+    meta.importe = parse_importe(last_text)
 
     m = re.search(r"ALBAR[ÁA]N\s+([A-Z]{1,3})\s*-\s*(\d+)", text, re.I)
     if m:

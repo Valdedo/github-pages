@@ -25,7 +25,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.client_delivery_note import ClientContact, ClientDeliveryNote
 from app.schemas.client_delivery_note import (
-    ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate, ContactoCliente, EnviarEmail,
+    ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate, ContactoCliente, EnviarEmail, Marcas, MarcasLote,
 )
 from app.services.mail_service import MailNotConfigured, send_pdf
 from app.services.firma_service import AlbaranMeta, parse_albaran, stamp_signature
@@ -84,9 +84,11 @@ def list_notes(
 
 @router.get("/stats")
 def stats(db: Session = Depends(get_db)):
-    pend = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.status == "pendiente").count()
-    total = db.query(ClientDeliveryNote).count()
-    return {"pendiente": pend, "firmado": total - pend, "total": total}
+    q = db.query(ClientDeliveryNote)
+    pend = q.filter(ClientDeliveryNote.status == "pendiente").count()
+    total = q.count()
+    sin_facturar = q.filter(ClientDeliveryNote.status == "firmado", ClientDeliveryNote.facturado_at.is_(None)).count()
+    return {"pendiente": pend, "firmado": total - pend, "sin_facturar": sin_facturar, "total": total}
 
 
 @router.post("/upload", response_model=List[ClientDeliveryNoteResponse])
@@ -128,6 +130,7 @@ async def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_
         note.cliente = meta.cliente or None
         note.obra = meta.obra or None
         note.page_count = meta.page_count
+        note.importe = meta.importe
         note.original_path = str(path)
         db.commit()
         db.refresh(note)
@@ -156,6 +159,18 @@ def export_zip(codigo_cliente: Optional[str] = None, mes: Optional[str] = None,
     nombre = "Albaranes firmados" + (f" {codigo_cliente}" if codigo_cliente else "") + (f" {mes}" if mes else "")
     return StreamingResponse(buf, media_type="application/zip",
                              headers={"Content-Disposition": f'attachment; filename="{nombre}.zip"'})
+
+
+@router.post("/marcas", response_model=List[ClientDeliveryNoteResponse])
+def marcas_lote(data: MarcasLote, db: Session = Depends(get_db)):
+    """Marcar varios a la vez (p. ej. todos los de una empresa como facturados)."""
+    notes = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.id.in_(data.ids)).all()
+    for n in notes:
+        _aplicar_marcas(n, data)
+    db.commit()
+    for n in notes:
+        db.refresh(n)
+    return notes
 
 
 @router.get("/compartir/{token}/{filename}")
@@ -334,5 +349,47 @@ def share_link(note_id: int, db: Session = Depends(get_db)):
         raise HTTPException(400, "El albarán todavía no está firmado")
     if not n.share_token:
         n.share_token = secrets.token_urlsafe(16)
-        db.commit()
+    n.whatsapp_at = datetime.now(TZ).replace(tzinfo=None)
+    db.commit()
     return {"path": f"/api/firmas/compartir/{n.share_token}/{n.numero}.pdf"}
+
+
+def _aplicar_marcas(n: ClientDeliveryNote, m: Marcas):
+    ahora = datetime.now(TZ).replace(tzinfo=None)
+    if m.copia is not None:
+        n.copia_at = (n.copia_at or ahora) if m.copia else None
+    if m.whatsapp is not None:
+        n.whatsapp_at = (n.whatsapp_at or ahora) if m.whatsapp else None
+    if m.facturado is not None:
+        n.facturado_at = (n.facturado_at or ahora) if m.facturado else None
+        if not m.facturado:
+            n.factura_ref = None
+    if m.factura_ref is not None:
+        n.factura_ref = m.factura_ref.strip() or None
+
+
+@router.put("/{note_id}/marcas", response_model=ClientDeliveryNoteResponse)
+def marcas(note_id: int, data: Marcas, db: Session = Depends(get_db)):
+    n = _get(db, note_id)
+    _aplicar_marcas(n, data)
+    db.commit()
+    db.refresh(n)
+    return n
+
+
+def rellenar_importes():
+    """Lee el importe de los albaranes subidos antes de que existiera este dato."""
+    from app.database import SessionLocal
+    from app.services.firma_service import parse_importe
+    import pdfplumber
+    db = SessionLocal()
+    try:
+        for n in db.query(ClientDeliveryNote).filter(ClientDeliveryNote.importe.is_(None)).all():
+            try:
+                with pdfplumber.open(n.original_path) as pdf:
+                    n.importe = parse_importe(pdf.pages[-1].extract_text() or "")
+            except Exception:
+                continue
+        db.commit()
+    finally:
+        db.close()

@@ -19,9 +19,26 @@ class ClientDeliveryNoteResponse(BaseModel):
     nota: Optional[str] = None
     emailed_to: Optional[str] = None
     emailed_at: Optional[datetime] = None
+    importe: Optional[float] = None
+    copia_at: Optional[datetime] = None
+    whatsapp_at: Optional[datetime] = None
+    facturado_at: Optional[datetime] = None
+    factura_ref: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class Marcas(BaseModel):
+    """Marcas manuales de seguimiento (True = marcar, False = quitar, ausente = no tocar)."""
+    copia: Optional[bool] = None
+    whatsapp: Optional[bool] = None
+    facturado: Optional[bool] = None
+    factura_ref: Optional[str] = None
+
+
+class MarcasLote(Marcas):
+    ids: list[int]
 
 
 class ContactoCliente(BaseModel):

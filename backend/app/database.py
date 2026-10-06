@@ -77,6 +77,12 @@ def _run_migrations():
         ("client_delivery_notes", "share_token", "TEXT"),
         ("client_delivery_notes", "emailed_to",  "TEXT"),
         ("client_delivery_notes", "emailed_at",  "DATETIME"),
+        # Seguimiento de albaranes (v2.7.0)
+        ("client_delivery_notes", "importe",      "REAL"),
+        ("client_delivery_notes", "copia_at",     "DATETIME"),
+        ("client_delivery_notes", "whatsapp_at",  "DATETIME"),
+        ("client_delivery_notes", "facturado_at", "DATETIME"),
+        ("client_delivery_notes", "factura_ref",  "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

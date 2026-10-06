@@ -274,3 +274,9 @@ export const putFirmaContacto = (id: number, data: { email?: string; telefono?: 
 export const emailFirma = (id: number, to: string) =>
   api.post<ClientDeliveryNote>(`/api/firmas/${id}/email`, { to });
 export const enlaceFirma = (id: number) => api.post<{ path: string }>(`/api/firmas/${id}/enlace`);
+
+export type MarcasFirma = { copia?: boolean; whatsapp?: boolean; facturado?: boolean; factura_ref?: string };
+export const marcarFirma = (id: number, m: MarcasFirma) =>
+  api.put<ClientDeliveryNote>(`/api/firmas/${id}/marcas`, m);
+export const marcarFirmas = (ids: number[], m: MarcasFirma) =>
+  api.post<ClientDeliveryNote[]>('/api/firmas/marcas', { ids, ...m });

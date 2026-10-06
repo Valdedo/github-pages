@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle } from 'lucide-react';
+import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check } from 'lucide-react';
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
-  getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma,
+  getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, type MarcasFirma,
 } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
-import { fmtFecha, fmtFirmado } from './FirmasPage';
+import { fmtFecha, fmtFirmado, fmtEuros, Marcas } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
 
 type Pt = { x: number; y: number; p: number };
@@ -182,8 +182,15 @@ export function FirmaDetailPage() {
   };
 
   // Imprimir: se cargan las páginas firmadas en alta resolución y se manda a la impresora
+  const marcar = async (m: MarcasFirma) => {
+    if (!note) return;
+    try { const { data } = await marcarFirma(note.id, m); setNote(data); }
+    catch (err) { setEnvioMsg({ ok: false, text: describeApiError(err) }); }
+  };
+
   const onPrint = () => {
     if (!note) return;
+    if (!note.copia_at) marcar({ copia: true }); // la copia impresa es para el cliente
     setPrinting(true);
     setPrintPages(Array.from({ length: note.page_count || 1 }, (_, i) => firmaPageUrl(note.id, i + 1, 200, version)));
   };
@@ -221,6 +228,7 @@ export function FirmaDetailPage() {
     try {
       await putFirmaContacto(note.id, { telefono });
       const { data } = await enlaceFirma(note.id);
+      setNote(n => n ? { ...n, whatsapp_at: n.whatsapp_at || new Date().toISOString() } : n);
       const url = `${window.location.origin}${data.path}`;
       const text = `Buenas, le enviamos el albarán ${note.numero} firmado:\n${url}\n\nCasa Fonso · Materiales de construcción`;
       const wa = `https://wa.me/${tel}?text=${encodeURIComponent(text)}`;
@@ -246,8 +254,9 @@ export function FirmaDetailPage() {
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Albarán {note.numero}</h1>
           <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
-            {[note.cliente, note.obra, fmtFecha(note.fecha)].filter(Boolean).join(' · ')}
+            {[note.cliente, note.obra, fmtFecha(note.fecha), fmtEuros(note.importe)].filter(Boolean).join(' · ')}
           </p>
+          <Marcas n={note} />
         </div>
         <span className={`status-chip ${firmado ? 'firmado' : 'pendiente'}`} style={{ marginLeft: 'auto' }}>
           {firmado ? 'Firmado' : 'Por firmar'}
@@ -291,12 +300,30 @@ export function FirmaDetailPage() {
                 </button>
               </div>
               {envioMsg && <div style={{ fontSize: 13, color: envioMsg.ok ? 'var(--success)' : 'var(--danger)' }}>{envioMsg.text}</div>}
-              {note.emailed_to && !envioMsg && (
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Enviado por correo a {note.emailed_to} el {fmtFirmado(note.emailed_at)}</div>
-              )}
+
               <a className="btn btn-ghost firma-big" href={firmaPdfUrl(note.id, true)}>
                 <Download size={18} /> Descargar PDF
               </a>
+              <div className="firma-seguimiento">
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Seguimiento</div>
+                {([
+                  { key: 'copia', label: 'Copia entregada al cliente', at: note.copia_at },
+                  { key: 'whatsapp', label: 'Enviado por WhatsApp', at: note.whatsapp_at },
+                  { key: 'facturado', label: note.factura_ref ? `Facturado (${note.factura_ref})` : 'Facturado', at: note.facturado_at },
+                ] as const).map(t => (
+                  <button key={t.key} className={`firma-toggle${t.at ? ' on' : ''}`}
+                    onClick={() => marcar({ [t.key]: !t.at })}>
+                    <span className="box">{t.at && <Check size={14} />}</span>
+                    {t.label}
+                    {t.at && <small>{fmtFirmado(t.at).replace(' a las', ',')}</small>}
+                  </button>
+                ))}
+                <div className={`firma-toggle${note.emailed_at ? ' on' : ''}`} style={{ cursor: 'default' }}>
+                  <span className="box">{note.emailed_at && <Check size={14} />}</span>
+                  {note.emailed_at ? `Enviado por correo a ${note.emailed_to}` : 'Enviado por correo'}
+                  {note.emailed_at && <small>{fmtFirmado(note.emailed_at).replace(' a las', ',')}</small>}
+                </div>
+              </div>
               <button className="btn btn-ghost firma-big" onClick={() => navigate('/firmas')}>Volver a la lista</button>
             </>
           ) : (

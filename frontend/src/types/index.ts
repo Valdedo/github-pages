@@ -269,5 +269,10 @@ export interface ClientDeliveryNote {
   nota?: string | null;
   emailed_to?: string | null;
   emailed_at?: string | null;
+  importe?: number | null;
+  copia_at?: string | null;
+  whatsapp_at?: string | null;
+  facturado_at?: string | null;
+  factura_ref?: string | null;
   created_at: string;
 }

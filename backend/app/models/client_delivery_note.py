@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -30,6 +30,15 @@ class ClientDeliveryNote(Base):
     signer_dni: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
 
     nota: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Importe total del albarán (leído del PDF)
+    importe: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Seguimiento: copia entregada, WhatsApp, facturado
+    copia_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    whatsapp_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    facturado_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    factura_ref: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Envío al cliente
     share_token: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)
