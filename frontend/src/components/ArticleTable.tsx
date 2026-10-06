@@ -723,7 +723,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     <div className="card">
       <div className="card-header" style={{ justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>📋</span>
+          
           Artículos ({filtered.length}{filtered.length !== articles.length ? ` / ${articles.length}` : ''})
           {selectedIds.size > 0 && (
             <span className="badge badge-grey">{selectedIds.size} sel.</span>

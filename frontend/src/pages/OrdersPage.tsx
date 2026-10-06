@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, ShoppingCart, Search, Trash2, ChevronRight, Package, Phone } from 'lucide-react';
+import { Plus, ShoppingCart, Search, ChevronRight, Package, Phone } from 'lucide-react';
 import { listOrders, createOrder, deleteOrder, listSuppliers, describeApiError } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
@@ -247,13 +247,12 @@ function OrderCard({ order, overdue, onNavigate, onDelete, muted = false }: {
 }) {
   return (
     <div
-      className="card"
+      className="card firma-card rep-card"
       style={{
-        padding: '16px 20px',
         cursor: 'pointer',
-        opacity: muted ? 0.6 : 1,
-        borderColor: overdue ? '#fca5a5' : undefined,
-        background: overdue ? '#fff5f5' : undefined,
+        display: 'block',
+        opacity: muted ? 0.7 : 1,
+        boxShadow: overdue ? 'inset 4px 0 0 var(--danger)' : undefined,
       }}
       onClick={onNavigate}
     >
@@ -310,13 +309,6 @@ function OrderCard({ order, overdue, onNavigate, onDelete, muted = false }: {
           </div>
         )}
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            style={{ color: 'var(--danger)' }}
-          >
-            <Trash2 size={14} />
-          </button>
           <ChevronRight size={16} style={{ color: 'var(--text-3)', alignSelf: 'center' }} />
         </div>
       </div>
@@ -386,43 +378,38 @@ export function OrdersPage() {
       {loadError && (
         <ConnectionError message={loadError} onRetry={load} />
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div className="inicio-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Pedidos especiales</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Artículos pedidos para clientes concretos</p>
+          <h1>Pedidos de clientes</h1>
+          <p>Lo que hemos pedido al proveedor para un cliente concreto.</p>
         </div>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setShowModal(true)}>
-          <Plus size={15} /> Nuevo pedido
+        <button className="btn btn-primary btn-lg" onClick={() => setShowModal(true)}>
+          <Plus size={19} /> Nuevo pedido
         </button>
+      </div>
+
+      <div className="firma-vistas" role="tablist" aria-label="Estado" style={{ marginBottom: 12 }}>
+        {ACTIVE_STATUSES.map(st => (
+          <button key={st.value} role="tab" aria-selected={filter === st.value}
+            onClick={() => setFilter(st.value as OrderStatus | '')}
+            className={`firma-vista${filter === st.value ? ' on' : ''}`}>
+            {st.label}
+            <span className="firma-vista-n">{st.value ? active.filter(o => o.status === st.value).length : active.length}</span>
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 280 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+        <div style={{ position: 'relative', flex: '1 1 260px' }}>
+          <Search size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input
             className="form-input"
             placeholder="Buscar cliente o proveedor…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ paddingLeft: 32, margin: 0 }}
+            style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }}
           />
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {ACTIVE_STATUSES.map(s => (
-            <button
-              key={s.value}
-              onClick={() => setFilter(s.value as OrderStatus | '')}
-              className={`btn btn-sm ${filter === s.value ? 'btn-primary' : 'btn-ghost'}`}
-            >
-              {s.label}
-              {s.value && (
-                <span style={{ marginLeft: 4, fontSize: 11, opacity: 0.8 }}>
-                  {active.filter(o => o.status === s.value).length}
-                </span>
-              )}
-            </button>
-          ))}
         </div>
       </div>
 

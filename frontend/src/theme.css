@@ -388,3 +388,41 @@ textarea.form-input { min-height: 90px; }
   .firma-grupo > div:last-child .btn { white-space: normal; text-align: center; }
   .firma-grupo > div:last-child .btn-primary { flex: 1 1 auto; }
 }
+
+/* ── Albaranes de proveedor ───────────────────────────────────── */
+.doc-fila { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.doc-fila-dot { width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; }
+.doc-fila-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.doc-fila-tit { font-family: var(--font-display); font-size: 19px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-fila-sub { font-size: 14px; color: var(--text-2); }
+.search-bar { min-height: 50px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface); padding: 0 16px; }
+.search-bar input { font-size: 16px; }
+.mas-opciones { border-top: 1.5px dashed var(--border-strong); padding-top: 12px; }
+.mas-opciones summary { cursor: pointer; font-weight: 600; font-size: 15px; color: var(--text-2); list-style: revert; min-height: 36px; display: list-item; }
+.doc-page-hero h1 { font-size: 30px !important; }
+.doc-hero-chip { border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+@media (max-width: 768px) {
+  .doc-fila .badge { display: none; }
+  .doc-page-hero h1 { font-size: 24px !important; }
+}
+
+/* ── Pedidos y reparaciones ───────────────────────────────────── */
+.rep-card { padding: 18px 20px; }
+.rep-card > div > div:first-child > div:first-child > span:first-child { font-family: var(--font-display); font-size: 20px !important; font-weight: 500 !important; }
+.rep-card div[style*="font-size: 13"], .rep-card div[style*="fontSize: 13"] { font-size: 15px !important; }
+.pedido-head { display: flex; flex-wrap: wrap; gap: 14px; background: var(--surface); border-radius: var(--r-xl); padding: 22px 26px; margin-top: 10px; }
+.pedido-head h1 { margin: 0; }
+.pedido-acciones { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pedido-mas { border-top: 0; padding-top: 0; margin-left: auto; }
+.pedido-mas summary { min-height: 44px; display: flex; align-items: center; padding: 0 6px; }
+@media (max-width: 768px) {
+  .pedido-head { padding: 18px; border-radius: 20px; }
+  .pedido-acciones .btn-lg { width: 100%; }
+  .pedido-mas { margin-left: 0; width: 100%; }
+}
+@media (max-width: 768px) {
+  .rep-card > div { flex-wrap: wrap; }
+  .rep-card > div > div:last-child { width: 100%; }
+  .rep-card > div > div:last-child .btn { flex: 1 1 auto; }
+  .page[style*="760px"] { padding-top: 18px; }
+}

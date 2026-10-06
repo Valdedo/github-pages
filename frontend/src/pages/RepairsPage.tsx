@@ -3,13 +3,14 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Wrench, Search, Phone, ChevronRight } from 'lucide-react';
 import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
+import { useCfToast } from '../components/CfToast';
 import type { Repair, RepairStatus } from '../types';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
   { value: '', label: 'Todas' },
   { value: 'recibida', label: 'Recibida' },
-  { value: 'en_taller', label: 'En taller' },
-  { value: 'reparada', label: 'Reparada' },
+  { value: 'en_taller', label: 'En el taller' },
+  { value: 'reparada', label: 'Listas' },
 ];
 
 const STATUS_STEPS: RepairStatus[] = ['recibida', 'en_taller', 'reparada', 'entregada'];
@@ -228,24 +229,24 @@ function RepairModal({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label className="form-label">📥 Fecha recibida</label>
+                  <label className="form-label">Fecha recibida</label>
                   <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
                 </div>
                 <div>
-                  <label className="form-label">🔧 Enviada al taller</label>
+                  <label className="form-label">Enviada al taller</label>
                   <input className="form-input" type="date" value={form.date_sent_to_repair} onChange={set('date_sent_to_repair')} placeholder="Auto al cambiar estado" />
                 </div>
                 <div>
-                  <label className="form-label">✅ Llegó reparada</label>
+                  <label className="form-label">Llegó reparada</label>
                   <input className="form-input" type="date" value={form.date_repaired} onChange={set('date_repaired')} placeholder="Auto al cambiar estado" />
                 </div>
                 <div>
-                  <label className="form-label">🏠 Entregada al cliente</label>
+                  <label className="form-label">Entregada al cliente</label>
                   <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} placeholder="Auto al cambiar estado" />
                 </div>
               </div>
               <div style={{ marginTop: 8 }}>
-                <label className="form-label">📅 Entrega estimada</label>
+                <label className="form-label">Entrega estimada</label>
                 <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} style={{ maxWidth: 200 }} />
               </div>
             </div>
@@ -291,8 +292,8 @@ function RepairCard({
 }) {
   return (
     <div
-      className="card"
-      style={{ padding: '14px 18px', cursor: 'pointer', opacity: muted ? 0.6 : 1 }}
+      className="card firma-card rep-card"
+      style={{ cursor: 'pointer', opacity: muted ? 0.7 : 1, display: 'block' }}
       onClick={onNavigate}
     >
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -331,7 +332,7 @@ function RepairCard({
           onClick={e => e.stopPropagation()}>
           {STATUS_NEXT[repair.status] && (
             <button
-              className="btn btn-sm btn-primary"
+              className="btn btn-primary"
               onClick={() => onAdvance(repair)}
               title={STATUS_NEXT_LABEL[repair.status]}
             >
@@ -389,11 +390,23 @@ export function RepairsPage() {
     setShowModal(false);
   };
 
+  const { toast, show } = useCfToast();
+  const NOMBRE: Record<RepairStatus, string> = { recibida: 'recibida', en_taller: 'en el taller', reparada: 'reparada', entregada: 'entregada' };
   const advanceStatus = async (repair: Repair) => {
     const next = STATUS_NEXT[repair.status];
     if (!next) return;
-    const { data } = await updateRepair(repair.id, { status: next });
-    setRepairs(prev => prev.map(r => r.id === data.id ? data : r));
+    try {
+      const { data } = await updateRepair(repair.id, { status: next });
+      setRepairs(prev => prev.map(r => r.id === data.id ? data : r));
+      show(`${repair.tool_description} de ${repair.client_name}: ${NOMBRE[next]}`, {
+        undo: async () => {
+          const { data: back } = await updateRepair(repair.id, { status: repair.status });
+          setRepairs(prev => prev.map(r => r.id === back.id ? back : r));
+        },
+      });
+    } catch (err) {
+      show(`No se pudo guardar: ${describeApiError(err)}`, { error: true });
+    }
   };
 
   return (
@@ -402,43 +415,37 @@ export function RepairsPage() {
         <ConnectionError message={loadError} onRetry={load} />
       )}
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div className="inicio-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Reparaciones</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-3)' }}>Seguimiento de herramientas en servicio técnico</p>
+          <h1>Reparaciones</h1>
+          <p>Herramientas de clientes que están en el servicio técnico.</p>
         </div>
-        <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => setShowModal(true)}>
-          <Plus size={15} /> Nueva reparación
+        <button className="btn btn-primary btn-lg" onClick={() => setShowModal(true)}>
+          <Plus size={19} /> Nueva reparación
         </button>
       </div>
 
       {/* Filters */}
+      <div className="firma-vistas" role="tablist" aria-label="Estado" style={{ marginBottom: 12 }}>
+        {STATUSES.map(st => (
+          <button key={st.value} role="tab" aria-selected={filter === st.value}
+            onClick={() => setFilter(st.value as RepairStatus | '')}
+            className={`firma-vista${filter === st.value ? ' on' : ''}`}>
+            {st.value === '' ? 'Todas' : st.label}
+            <span className="firma-vista-n">{st.value ? active.filter(r => r.status === st.value).length : active.length}</span>
+          </button>
+        ))}
+      </div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 280 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+        <div style={{ position: 'relative', flex: '1 1 260px' }}>
+          <Search size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input
             className="form-input"
             placeholder="Buscar cliente o herramienta…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ paddingLeft: 32, margin: 0 }}
+            style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }}
           />
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {STATUSES.map(s => (
-            <button
-              key={s.value}
-              onClick={() => setFilter(s.value as RepairStatus | '')}
-              className={`btn btn-sm ${filter === s.value ? 'btn-primary' : 'btn-ghost'}`}
-            >
-              {s.label}
-              {s.value && (
-                <span style={{ marginLeft: 4, fontSize: 11, opacity: 0.8 }}>
-                  {active.filter(r => r.status === s.value).length}
-                </span>
-              )}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -490,6 +497,7 @@ export function RepairsPage() {
         </div>
       )}
 
+      {toast}
       {showModal && (
         <RepairModal
           repair={null}

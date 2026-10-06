@@ -52,15 +52,13 @@ export function PriceLookupPage() {
   const fmt = (v: number) => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
   return (
-    <div style={{ maxWidth: '640px', margin: '0 auto', padding: '16px' }}>
+    <div className="page" style={{ maxWidth: '760px' }}>
 
       {/* Page header */}
-      <div style={{ marginBottom: '20px', paddingBottom: '18px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 4 }}>
-          Consulta de precios
-        </div>
-        <div style={{ fontSize: '13px', color: 'var(--text-3)' }}>
-          Escanea o escribe código EAN, referencia, o descripción
+      <div className="inicio-head" style={{ marginBottom: 16 }}>
+        <div>
+          <h1>Consultar precio</h1>
+          <p>Pasa el lector por el código de barras o escribe la referencia o el nombre.</p>
         </div>
       </div>
 
@@ -73,15 +71,16 @@ export function PriceLookupPage() {
           onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={e => e.target.select()}
-          placeholder="Código / EAN / descripción…"
+          placeholder="Código de barras, referencia o nombre…"
           autoComplete="off"
           style={{
             width: '100%',
-            padding: '12px 44px 12px 16px',
-            fontSize: '16px',
+            padding: '16px 52px 16px 22px',
+            fontSize: '18px',
+            minHeight: '60px',
             fontFamily: 'var(--font)',
-            border: '1.5px solid var(--border)',
-            borderRadius: 'var(--r-lg)',
+            border: '2px solid var(--border-strong)',
+            borderRadius: '999px',
             background: 'var(--surface)',
             outline: 'none',
             color: 'var(--text-1)',
@@ -93,8 +92,9 @@ export function PriceLookupPage() {
             style={{
               position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
               background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px',
-              color: 'var(--text-3)', padding: '4px',
+              color: 'var(--text-3)', padding: '8px',
             }}
+            aria-label="Borrar búsqueda"
           >✕</button>
         )}
       </div>
@@ -111,7 +111,7 @@ export function PriceLookupPage() {
           background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px',
           padding: '20px', textAlign: 'center',
         }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>🔎</div>
+          
           <div style={{ fontWeight: 700, color: '#c2410c', marginBottom: '4px' }}>Artículo no encontrado</div>
           <div style={{ fontSize: '13px', color: '#9a3412' }}>
             No hay ningún artículo con ese código o descripción en el catálogo.
@@ -211,7 +211,7 @@ export function PriceLookupPage() {
 
       {!loading && !searched && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-3)' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>📦</div>
+          
           <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>Lista para escanear</div>
           <div style={{ fontSize: '13px' }}>Escanea un código de barras con la PDA o escribe en el campo de arriba.</div>
         </div>

@@ -74,7 +74,7 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
         }}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>⚙️</span> Configuración de márgenes y precios
+          Configuración de márgenes y precios
         </span>
         <span style={{ fontSize: '16px', color: 'var(--grey-500)' }}>{open ? '▲' : '▼'}</span>
       </button>

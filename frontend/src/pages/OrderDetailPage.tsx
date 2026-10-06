@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw, Phone } from 'lucide-react';
 import { getOrder, updateOrder, addOrderLine, updateOrderLine, deleteOrderLine, deleteOrder, listDocuments } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
@@ -450,14 +450,14 @@ export function OrderDetailPage() {
         <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => navigate('/pedidos')}>
           <ArrowLeft size={14} /> Volver a pedidos
         </button>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1 }}>
+        <div className="pedido-head">
+          <div style={{ flex: '1 1 100%' }}>
             {/* CLIENT — primary */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>{order.client_name || '—'}</h1>
+              <h1>{order.client_name || '—'}</h1>
               {order.client_phone && (
                 <a href={`tel:${order.client_phone}`} style={{ fontSize: 13, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-                  📞 {order.client_phone}
+                  <Phone size={15} /> {order.client_phone}
                 </a>
               )}
               {order.reference && (
@@ -468,7 +468,7 @@ export function OrderDetailPage() {
               <StatusChip status={order.status} />
             </div>
             {/* SUPPLIER — secondary */}
-            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 16, fontSize: 15, color: 'var(--text-2)', flexWrap: 'wrap', marginTop: 4 }}>
               {order.supplier_name && <span>Proveedor: <strong style={{ color: 'var(--text-2)' }}>{order.supplier_name}</strong></span>}
               <span>Pedido el {new Date(order.order_date).toLocaleDateString('es-ES')}</span>
               {order.expected_date && <span>Est. llegada: {new Date(order.expected_date).toLocaleDateString('es-ES')}</span>}
@@ -477,17 +477,17 @@ export function OrderDetailPage() {
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="pedido-acciones">
             {/* Advance status */}
             {STATUS_NEXT[order.status] && (
-              <button className="btn btn-primary btn-sm" onClick={handleAdvanceStatus}>
-                <Check size={14} /> {STATUS_NEXT[order.status]!.label}
+              <button className="btn btn-primary btn-lg" onClick={handleAdvanceStatus}>
+                <Check size={18} /> {STATUS_NEXT[order.status]!.label}
               </button>
             )}
             {/* Revert status */}
             {STATUS_PREV[order.status] && (
               <button
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost"
                 onClick={handleRevertStatus}
                 title={STATUS_PREV[order.status]!.label}
                 style={{ color: 'var(--text-3)' }}
@@ -496,21 +496,24 @@ export function OrderDetailPage() {
               </button>
             )}
             {totalPending > 0 && canEdit && (
-              <button className="btn btn-ghost btn-sm" onClick={handleReceiveAll}>
+              <button className="btn btn-ghost" onClick={handleReceiveAll}>
                 Recibir todo
               </button>
             )}
-            <button className="btn btn-ghost btn-sm" onClick={openLinkModal} title="Vincular albarán">
-              <Link size={14} /> Vincular albarán
+            <button className="btn btn-ghost" onClick={openLinkModal} title="Vincular el albarán del proveedor">
+              <Link size={16} /> Vincular albarán
             </button>
-            {order.status !== 'cancelado' && order.status !== 'entregado' && (
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--warning)' }} onClick={handleCancelOrder}>
-                Cancelar
-              </button>
-            )}
-            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={handleDeleteOrder}>
-              <Trash2 size={14} />
-            </button>
+            <details className="mas-opciones pedido-mas">
+              <summary>Más opciones</summary>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                {order.status !== 'cancelado' && order.status !== 'entregado' && (
+                  <button className="btn btn-ghost" onClick={handleCancelOrder}>Cancelar el pedido</button>
+                )}
+                <button className="btn btn-danger" onClick={handleDeleteOrder}>
+                  <Trash2 size={15} /> Borrar pedido
+                </button>
+              </div>
+            </details>
           </div>
         </div>
       </div>

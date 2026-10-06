@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts, downloadExcel, downloadTreyFact, downloadLabels, downloadPriceList } from '../api/client';
+import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts, downloadExcel, downloadTreyFact, downloadLabels, downloadPriceList, deleteDocument } from '../api/client';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
@@ -182,7 +182,7 @@ export function DocumentPage() {
       <div className="empty-state" style={{ paddingTop: '80px' }}>
         {loadFailed ? (
           <>
-            <div className="empty-state-icon">❌</div>
+            
             <div className="empty-state-text">Documento no encontrado.</div>
             <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/albaranes')}>← Volver a albaranes</button>
           </>
@@ -239,23 +239,19 @@ export function DocumentPage() {
 
           {/* Filename */}
           <h1 style={{
-            fontSize: 'clamp(14px, 2vw, 18px)',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            color: 'var(--text-1)',
             margin: '0 0 8px',
-            lineHeight: 1.2,
+            lineHeight: 1.15,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}>
-            {document.original_filename}
+            {document.supplier_name || document.original_filename}
           </h1>
 
           {/* Chips row */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
             {document.supplier_name && (
-              <span className="doc-hero-chip doc-hero-chip-brand">{document.supplier_name}</span>
+              <span className="doc-hero-chip" title={document.original_filename}>{document.original_filename}</span>
             )}
             {document.doc_number && (
               <span className="doc-hero-chip">Nº {document.doc_number}</span>
@@ -456,7 +452,7 @@ export function DocumentPage() {
             style={{ cursor: 'pointer', userSelect: 'none' }}
             onClick={() => setShowPreview(false)}
           >
-            <span>📄 {document.original_filename}</span>
+            <span>{document.original_filename}</span>
             <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-3)', fontWeight: 400 }}>▲ Ocultar</span>
           </div>
           <div style={{ height: '500px' }}>
@@ -474,7 +470,7 @@ export function DocumentPage() {
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontSize: '14px', color: '#166534' }}>
-              📦 Verificando recepción
+              Verificando recepción
             </span>
             <span style={{
               background: verifiedIds.size === articles.length && articles.length > 0 ? '#22c55e' : '#bbf7d0',
@@ -605,20 +601,20 @@ export function DocumentPage() {
             <span className="quick-actions-label">Exportar</span>
             <button className="btn btn-success btn-sm" disabled={!!dlBusy}
               onClick={() => dl('xl', () => downloadExcel(docId), 'Descargando Excel…')}>
-              {dlBusy === 'xl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : '📊 Excel'}
+              {dlBusy === 'xl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : 'Excel'}
             </button>
             <button className="btn btn-success btn-sm" disabled={!!dlBusy}
               title="Para importar en TreyFact"
               onClick={() => dl('tf', () => downloadTreyFact(docId), 'Generando TreyFact…')}>
-              {dlBusy === 'tf' ? <><span className="spinner spinner-sm spinner-white"/>…</> : '📥 TreyFact'}
+              {dlBusy === 'tf' ? <><span className="spinner spinner-sm spinner-white"/>…</> : 'TreyFact'}
             </button>
             <button className="btn btn-primary btn-sm" disabled={!!dlBusy}
               onClick={() => dl('pl', () => downloadPriceList(docId), 'Generando listín…')}>
-              {dlBusy === 'pl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : '💶 Listín PDF'}
+              {dlBusy === 'pl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : 'Listín PDF'}
             </button>
             <button className="btn btn-ghost btn-sm" disabled={!!dlBusy}
               onClick={() => dl('lb', () => downloadLabels(docId), 'Generando etiquetas…')}>
-              {dlBusy === 'lb' ? <><span className="spinner spinner-sm"/>…</> : '🏷️ Etiquetas'}
+              {dlBusy === 'lb' ? <><span className="spinner spinner-sm"/>…</> : 'Etiquetas'}
             </button>
           </div>
         );
@@ -652,6 +648,11 @@ export function DocumentPage() {
             suppliers={suppliers}
             selectedArticleIds={selectedIds}
             onReprocessed={() => { setArticles([]); loadDocument(); }}
+            onDelete={async () => {
+              if (!window.confirm('¿Borrar este albarán y todos sus artículos? No se puede deshacer.')) return;
+              try { await deleteDocument(docId); navigate('/albaranes'); }
+              catch { showToast('No se pudo borrar el albarán', 'error'); }
+            }}
             onToast={showToast}
           />
           {settings && (

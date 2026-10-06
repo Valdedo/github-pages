@@ -305,8 +305,8 @@ export function RepairDetailPage() {
           {!isMobile && saved && !dirty && (
             <span style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600 }}>✓ Guardado</span>
           )}
-          <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={handleDelete} title="Eliminar reparación">
-            <Trash2 size={14} />
+          <button className="btn btn-danger btn-sm" onClick={handleDelete} title="Borrar reparación">
+            <Trash2 size={14} /> Borrar
           </button>
         </div>
       </div>
@@ -341,7 +341,7 @@ export function RepairDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
 
         {/* Cliente */}
-        <SectionCard title="👤 Datos del cliente">
+        <SectionCard title="Datos del cliente">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Field label="Nombre del cliente *">
               <input className="form-input" value={form.client_name} onChange={set('client_name')} placeholder="Nombre completo" />
@@ -353,7 +353,7 @@ export function RepairDetailPage() {
         </SectionCard>
 
         {/* Herramienta */}
-        <SectionCard title="🔧 Herramienta">
+        <SectionCard title="Herramienta">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Field label="Descripción *">
               <input className="form-input" value={form.tool_description} onChange={set('tool_description')} placeholder="Ej: Taladro percutor" />
@@ -372,7 +372,7 @@ export function RepairDetailPage() {
 
       {/* Problema */}
       <div style={{ marginTop: 12 }}>
-        <SectionCard title="📝 Problema">
+        <SectionCard title="Problema">
           <textarea
             className="form-input"
             value={form.problem_description}
@@ -388,23 +388,23 @@ export function RepairDetailPage() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
 
         {/* Fechas */}
-        <SectionCard title="📅 Fechas">
+        <SectionCard title="Fechas">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field label="📥 Recibida">
+            <Field label="Recibida">
               <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
             </Field>
-            <Field label="🔧 Al taller">
+            <Field label="Al taller">
               <input className="form-input" type="date" value={form.date_sent_to_repair} onChange={set('date_sent_to_repair')} />
             </Field>
-            <Field label="✅ Reparada">
+            <Field label="Reparada">
               <input className="form-input" type="date" value={form.date_repaired} onChange={set('date_repaired')} />
             </Field>
-            <Field label="🏠 Entregada">
+            <Field label="Entregada">
               <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} />
             </Field>
           </div>
           <div style={{ marginTop: 10 }}>
-            <Field label="📆 Entrega estimada">
+            <Field label="Entrega estimada">
               <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
             </Field>
           </div>
@@ -412,7 +412,7 @@ export function RepairDetailPage() {
 
         {/* Precios + Notas */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SectionCard title="💰 Precios">
+          <SectionCard title="Precios">
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field label="Estimado (€)">
                 <input className="form-input" type="number" step="0.01" min="0"
@@ -425,7 +425,7 @@ export function RepairDetailPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="📌 Notas">
+          <SectionCard title="Notas">
             <textarea
               className="form-input"
               value={form.notes}

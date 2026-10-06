@@ -307,9 +307,9 @@ export function FirmasPage() {
 
       <div style={{ display: 'flex', gap: 8, margin: '12px 0 16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px' }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+          <Search size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input className="form-input" placeholder="Buscar nº, cliente, obra o factura…" value={search}
-            onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32, margin: 0 }} />
+            onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }} />
         </div>
         <select className="form-input" value={cliente} onChange={e => { setCliente(e.target.value); setSel(new Set()); }}
           style={{ margin: 0, flex: '1 1 180px', maxWidth: 260 }} aria-label="Cliente">

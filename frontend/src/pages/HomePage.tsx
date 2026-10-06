@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Upload, Search, X, ChevronRight, FileText } from 'lucide-react';
 import { FileUpload } from '../components/FileUpload';
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
@@ -97,21 +98,21 @@ export function HomePage() {
       )}
 
       {/* ── Page header ── */}
-      <div className="hero-card">
+      <div className="inicio-head" style={{ marginBottom: 16 }}>
         <div>
-          <div className="hero-card-title">Albaranes</div>
-          <div className="hero-card-meta">
+          <h1>Albaranes de proveedor</h1>
+          <p>
             {loading ? 'Cargando…'
               : loadError ? '—'
               : documents.length === 0 ? 'Sin albaranes todavía'
               : processing > 0
                 ? `${completed} completados · ${processing} procesando`
-                : `${documents.length} albaranes · ${completed} completados`
-            }
-          </div>
+                : `${documents.length} albaranes · ${completed} leídos`
+            }. Sube el albarán del proveedor y la app saca los artículos y precios.
+          </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
-          + Subir albarán
+        <button className="btn btn-primary btn-lg" onClick={() => setShowUpload(true)}>
+          <Upload size={19} /> Subir albarán
         </button>
       </div>
 
@@ -121,7 +122,7 @@ export function HomePage() {
           <div className="card" style={{ marginBottom: '20px' }}>
             <div className="card-header" style={{ justifyContent: 'space-between' }}>
               <span>Subir nuevo albarán</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowUpload(false)}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowUpload(false)}>Cerrar</button>
             </div>
             <div className="card-body">
               <FileUpload onUploaded={handleUploaded} />
@@ -145,13 +146,10 @@ export function HomePage() {
         </div>
       ) : documents.length === 0 && !loadError ? (
         <div className="empty-state" style={{ padding: '48px 0' }}>
-          <div className="empty-state-icon">📭</div>
-          <div className="empty-state-text">Aún no hay albaranes</div>
-          <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>
-            Usa el botón verde para subir el primero.
-          </p>
+          <div className="empty-state-icon"><FileText size={40} style={{ opacity: 0.35 }} /></div>
+          <div className="empty-state-text">Aún no hay albaranes de proveedor</div>
           <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => setShowUpload(true)}>
-            + Subir albarán
+            <Upload size={17} /> Subir el primero
           </button>
         </div>
       ) : documents.length === 0 ? null : (
@@ -159,7 +157,7 @@ export function HomePage() {
           {/* Search bar + count */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' }}>
             <div className="search-bar" style={{ flex: '1 1 220px', minWidth: 0 }}>
-              <span className="search-bar-icon">🔍</span>
+              <span className="search-bar-icon"><Search size={17} /></span>
               <input
                 type="search"
                 value={search}
@@ -168,7 +166,7 @@ export function HomePage() {
                 autoComplete="off"
               />
               {search && (
-                <button className="search-bar-clear" onClick={() => setSearch('')}>✕</button>
+                <button className="search-bar-clear" onClick={() => setSearch('')} aria-label="Borrar búsqueda"><X size={16} /></button>
               )}
             </div>
             <span style={{ fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 500 }}>
@@ -181,7 +179,7 @@ export function HomePage() {
 
           {filtered.length === 0 ? (
             <div className="empty-state" style={{ padding: '32px 0' }}>
-              <div className="empty-state-icon">🔎</div>
+              <div className="empty-state-icon"><Search size={36} style={{ opacity: 0.35 }} /></div>
               <div className="empty-state-text">Sin resultados</div>
               <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>
                 No hay albaranes que coincidan con «{search}».
@@ -191,14 +189,9 @@ export function HomePage() {
               </button>
             </div>
           ) : (
-            <div className="doc-grid-list">
+            <div className="firma-lista cf-enter">
               {filtered.map(doc => (
-                <DocCard
-                  key={doc.id}
-                  doc={doc}
-                  onOpen={() => navigate(`/documento/${doc.id}`)}
-                  onDelete={() => handleDelete(doc.id)}
-                />
+                <DocCard key={doc.id} doc={doc} onOpen={() => navigate(`/documento/${doc.id}`)} />
               ))}
             </div>
           )}
@@ -206,7 +199,7 @@ export function HomePage() {
       )}
 
       {/* ── FAB (mobile) ── */}
-      <button className="fab" onClick={() => setShowUpload(true)} aria-label="Subir albarán">+</button>
+
 
       {/* ── Upload bottom sheet (mobile) ── */}
       {showUpload && (
@@ -227,8 +220,8 @@ export function HomePage() {
 /* ── Document card ── */
 const statusConfig: Record<string, { label: string; cls: string }> = {
   uploaded:   { label: 'Subido',      cls: 'badge badge-grey'    },
-  processing: { label: 'Procesando…', cls: 'badge badge-warning' },
-  completed:  { label: 'Completado',  cls: 'badge badge-success' },
+  processing: { label: 'Leyendo…',    cls: 'badge badge-warning' },
+  completed:  { label: 'Leído',       cls: 'badge badge-success' },
   error:      { label: 'Error',       cls: 'badge badge-danger'  },
 };
 
@@ -239,54 +232,24 @@ const DOT_COLOR: Record<string, string> = {
   error:      'var(--danger)',
 };
 
-function DocCard({ doc, onOpen, onDelete }: {
-  doc: DocumentListItem;
-  onOpen: () => void;
-  onDelete: () => void;
-}) {
+function DocCard({ doc, onOpen }: { doc: DocumentListItem; onOpen: () => void }) {
   const st = statusConfig[doc.status] || statusConfig.uploaded;
   const isProcessing = doc.status === 'processing' || doc.status === 'uploaded';
-  const dateStr = doc.doc_date
-    ? new Date(doc.doc_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-    : new Date(doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
-
+  const dateStr = new Date(doc.doc_date || doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
   return (
-    <div className="doc-card" onClick={onOpen}>
-      {/* Status dot */}
-      <div className="doc-card-status" style={{ background: DOT_COLOR[doc.status] ?? 'var(--text-3)' }} />
-
-      {/* Title + filename */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="doc-card-title">{doc.supplier_name || doc.original_filename}</div>
-        {doc.supplier_name && (
-          <div className="doc-card-subtitle">{doc.original_filename}</div>
-        )}
-      </div>
-
-      {/* Meta chips — hidden on very small screens */}
-      <div className="doc-card-meta" style={{ display: 'flex' }}>
-        {doc.doc_number && <span className="doc-card-chip">Nº {doc.doc_number}</span>}
-        <span className="doc-card-chip">{doc.article_count} art.</span>
-      </div>
-
-      {/* Date */}
-      <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0, whiteSpace: 'nowrap' }}>{dateStr}</span>
-
-      {/* Status badge */}
-      <span className={st.cls} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+    <button className="card firma-card doc-fila" onClick={onOpen}>
+      <span className="doc-fila-dot" style={{ background: DOT_COLOR[doc.status] ?? 'var(--text-3)' }} />
+      <span className="doc-fila-main">
+        <span className="doc-fila-tit">{doc.supplier_name || doc.original_filename}</span>
+        <span className="doc-fila-sub">
+          {[doc.doc_number && `Nº ${doc.doc_number}`, dateStr, `${doc.article_count} artículo${doc.article_count !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+        </span>
+      </span>
+      <span className={st.cls} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {isProcessing && <span className="spinner spinner-sm" />}
         {st.label}
       </span>
-
-      {/* Actions — stop propagation */}
-      <div className="doc-card-footer" onClick={e => e.stopPropagation()}>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onDelete}
-          title="Eliminar albarán"
-          style={{ color: 'var(--danger)', borderColor: 'transparent', padding: '4px 8px' }}
-        >✕</button>
-      </div>
-    </div>
+      <ChevronRight size={18} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+    </button>
   );
 }

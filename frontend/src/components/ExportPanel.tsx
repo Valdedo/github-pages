@@ -11,6 +11,7 @@ interface Props {
   suppliers: Supplier[];
   selectedArticleIds: number[];
   onReprocessed: () => void;
+  onDelete?: () => void;
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -21,7 +22,7 @@ const DOWNLOAD_ITEMS = (documentId: number) => [
   { key: 'pricelist', icon: '💶', label: 'Listín precios', desc: 'Para clientes',        fn: () => downloadPriceList(documentId),   msg: 'Generando listín…' },
 ];
 
-export function ExportPanel({ documentId, suppliers, selectedArticleIds, onReprocessed, onToast }: Props) {
+export function ExportPanel({ documentId, suppliers, selectedArticleIds, onReprocessed, onToast, onDelete }: Props) {
   const { confirm, ConfirmDialog } = useConfirm();
   const [supplierId, setSupplierId] = useState<string>('');
   const [reprocessing, setReprocessing] = useState(false);
@@ -72,7 +73,7 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
     <div className="card">
       {ConfirmDialog}
       <div className="card-header">
-        <span>📤</span> Exportar y acciones
+        Exportar y acciones
       </div>
       <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -89,7 +90,7 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
             >
               {busy && ['excel','treyfact','pdf','pricelist'].includes(busy)
                 ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
-                : <>📥 Descargar <span style={{ fontSize: '10px', marginLeft: '2px' }}>{dlOpen ? '▲' : '▼'}</span></>
+                : <>Descargar <span style={{ fontSize: '10px', marginLeft: '2px' }}>{dlOpen ? '▲' : '▼'}</span></>
               }
             </button>
 
@@ -147,7 +148,7 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
               disabled={!!busy}
               onClick={() => dl('labels-all', () => downloadLabels(documentId, undefined, copies), 'Generando etiquetas…')}
             >
-              {isLoading('labels-all') ? <><span className="spinner spinner-sm" /> Generando…</> : '🏷️ Etiquetas'}
+              {isLoading('labels-all') ? <><span className="spinner spinner-sm" /> Generando…</> : 'Etiquetas'}
             </button>
             {hasSelection && (
               <button
@@ -155,24 +156,18 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
                 disabled={!!busy}
                 onClick={() => dl('labels-sel', () => downloadLabels(documentId, selectedArticleIds, copies), 'Etiquetas seleccionadas…')}
               >
-                {isLoading('labels-sel') ? <><span className="spinner spinner-sm" /> Generando…</> : `🏷️ Sel. (${selectedArticleIds.length})`}
+                {isLoading('labels-sel') ? <><span className="spinner spinner-sm" /> Generando…</> : `Sel. (${selectedArticleIds.length})`}
               </button>
             )}
           </div>
         </div>
 
         {/* Zona de peligro: reprocesar */}
-        <div style={{
-          borderTop: '1.5px dashed var(--grey-300)',
-          paddingTop: '12px',
-        }}>
-          <div style={{
-            fontSize: '11px', fontWeight: 700, color: 'var(--danger)',
-            textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px',
-            display: 'flex', alignItems: 'center', gap: '5px',
-          }}>
-            ⚠️ Zona de peligro
-          </div>
+        <details className="mas-opciones">
+          <summary>Más opciones</summary>
+          <p style={{ fontSize: '14px', color: 'var(--text-2)', margin: '10px 0 8px' }}>
+            Volver a leer el albarán con la IA. Se pierden los cambios hechos a mano en los artículos.
+          </p>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             {suppliers.length > 0 && (
               <select
@@ -185,17 +180,17 @@ export function ExportPanel({ documentId, suppliers, selectedArticleIds, onRepro
               </select>
             )}
             <button
-              className="btn btn-warning"
+              className="btn btn-ghost"
               onClick={handleReprocess}
               disabled={reprocessing}
             >
-              {reprocessing ? <><span className="spinner spinner-sm spinner-white" /> Procesando…</> : '🔄 Reprocesar extracción'}
+              {reprocessing ? <><span className="spinner spinner-sm spinner-white" /> Procesando…</> : 'Volver a leer el albarán'}
             </button>
           </div>
-          <p style={{ fontSize: '11px', color: 'var(--text-3)', margin: '6px 0 0' }}>
-            Sobreescribe los cambios manuales en artículos.
-          </p>
-        </div>
+          {onDelete && (
+            <button className="btn btn-danger" style={{ marginTop: 14 }} onClick={onDelete}>Borrar albarán</button>
+          )}
+        </details>
 
       </div>
     </div>
