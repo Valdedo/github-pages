@@ -1609,3 +1609,5 @@ select.form-input { cursor: pointer; }
   #firma-print img { display: block; width: 100%; page-break-after: always; }
   @page { size: A4; margin: 0; }
 }
+.firma-topaz { position: relative; border: 2px solid var(--text-1); border-radius: var(--r-lg); background: #fcfcfa; overflow: hidden; }
+.firma-topaz canvas { display: block; width: 100%; height: auto; aspect-ratio: 5 / 1; }

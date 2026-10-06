@@ -6,6 +6,7 @@ import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
 } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
+import { TopazPad, type TopazHandle } from '../components/TopazPad';
 import { fmtFecha, fmtFirmado } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
 
@@ -124,6 +125,15 @@ export function FirmaDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [printPages, setPrintPages] = useState<string[]>([]);
+  // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
+  const esPC = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
+  const [modo, setModo] = useState<'pantalla' | 'tableta'>(() => {
+    try { return esPC && localStorage.getItem('modoFirma') === 'tableta' ? 'tableta' : 'pantalla'; } catch { return 'pantalla'; }
+  });
+  const cambiarModo = (m: 'pantalla' | 'tableta') => {
+    setModo(m); setHasInk(false);
+    try { localStorage.setItem('modoFirma', m); } catch { /* nada */ }
+  };
 
   const load = useCallback(() => {
     setLoadError(null);
@@ -237,8 +247,18 @@ export function FirmaDetailPage() {
             </>
           ) : (
             <>
-              <div style={{ fontWeight: 600 }}>Recibí conforme</div>
-              <SignaturePad padRef={padRef} onChange={setHasInk} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontWeight: 600 }}>Recibí conforme</div>
+                {esPC && (
+                  <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                    <button className={`btn btn-sm ${modo === 'tableta' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => cambiarModo('tableta')}>Tableta</button>
+                    <button className={`btn btn-sm ${modo === 'pantalla' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => cambiarModo('pantalla')}>Pantalla</button>
+                  </div>
+                )}
+              </div>
+              {modo === 'tableta'
+                ? <TopazPad ref={padRef as React.MutableRefObject<TopazHandle | null>} onChange={setHasInk} />
+                : <SignaturePad padRef={padRef} onChange={setHasInk} />}
               <label className="form-label">Nombre de quien recibe
                 <input className="form-input" value={nombre} onChange={e => setNombre(e.target.value)} autoComplete="off" />
               </label>
