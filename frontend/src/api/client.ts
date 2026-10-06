@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert } from '../types';
+import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert, ClientDeliveryNote } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -231,3 +231,38 @@ export const updateOrderLine = (orderId: number, lineId: number, data: Partial<S
   api.put<SupplierOrderLine>(`/api/orders/${orderId}/lines/${lineId}`, data);
 export const deleteOrderLine = (orderId: number, lineId: number) =>
   api.delete(`/api/orders/${orderId}/lines/${lineId}`);
+
+// Firma de albaranes de venta
+export const listFirmas = () => api.get<ClientDeliveryNote[]>('/api/firmas');
+export const getFirma = (id: number) => api.get<ClientDeliveryNote>(`/api/firmas/${id}`);
+export const getFirmasStats = () => api.get<{ pendiente: number; firmado: number; total: number }>('/api/firmas/stats');
+export const uploadFirmas = (files: File[]) => {
+  const form = new FormData();
+  files.forEach(f => form.append('files', f));
+  return api.post<ClientDeliveryNote[]>('/api/firmas/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+export const updateFirma = (id: number, data: Partial<ClientDeliveryNote>) =>
+  api.put<ClientDeliveryNote>(`/api/firmas/${id}`, data);
+export const deleteFirma = (id: number) => api.delete(`/api/firmas/${id}`);
+export const signFirma = (id: number, firma: Blob, nombre: string, dni: string) => {
+  const form = new FormData();
+  form.append('firma', firma, 'firma.png');
+  form.append('nombre', nombre);
+  form.append('dni', dni);
+  return api.post<ClientDeliveryNote>(`/api/firmas/${id}/sign`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+export const firmaPageUrl = (id: number, page: number, dpi = 110, v = '') =>
+  `${BASE}/api/firmas/${id}/page/${page}.png?dpi=${dpi}${v ? `&v=${v}` : ''}`;
+export const firmaPdfUrl = (id: number, download = false) =>
+  `${BASE}/api/firmas/${id}/pdf${download ? '?download=true' : ''}`;
+export const firmasZipUrl = (codigo?: string, mes?: string) => {
+  const p = new URLSearchParams();
+  if (codigo) p.set('codigo_cliente', codigo);
+  if (mes) p.set('mes', mes);
+  const qs = p.toString();
+  return `${BASE}/api/firmas/export.zip${qs ? `?${qs}` : ''}`;
+};

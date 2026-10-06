@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Link, useNavigate, useLocation, 
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal
+  BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
@@ -18,16 +18,20 @@ import { CatalogPage } from './pages/CatalogPage';
 import { PriceLookupPage } from './pages/PriceLookupPage';
 import { CustomLabelsPage } from './pages/CustomLabelsPage';
 import { RepairDetailPage } from './pages/RepairDetailPage';
-import { getDashboardStats } from './api/client';
+import { FirmasPage } from './pages/FirmasPage';
+import { FirmaDetailPage } from './pages/FirmaDetailPage';
+import { getDashboardStats, getFirmasStats } from './api/client';
 
 interface NavBadge {
   repairs: number;
   orders: number;
+  firmas: number;
 }
 
 // Primary items → shown in sidebar AND mobile bottom nav (no Inicio — CF logo is the home link)
 const primaryNavItems = [
   { to: '/albaranes', label: 'Albaranes', icon: FileText },
+  { to: '/firmas', label: 'Firmas', icon: PenLine, badge: 'firmas' as const },
   { to: '/consulta', label: 'Consulta', icon: Search },
   { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' as const },
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' as const },
@@ -148,7 +152,7 @@ function ScrollRestoration() {
 function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/') || location.pathname.startsWith('/reparaciones/');
+  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/') || location.pathname.startsWith('/reparaciones/') || location.pathname.startsWith('/firmas/');
 
   // Find current section (for title + clickable root link)
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
@@ -250,17 +254,19 @@ function BottomNav({ badges }: { badges: NavBadge }) {
 
 function AppShell() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
-  const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0 });
+  const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0 });
 
   // Load badge counts (pending repairs + pending orders)
   useEffect(() => {
     const load = () => {
       getDashboardStats().then(({ data }) => {
-        setBadges({
+        setBadges(b => ({
+          ...b,
           repairs: data.repairs.pending,
           orders: data.orders.pending,
-        });
+        }));
       }).catch(() => {});
+      getFirmasStats().then(({ data }) => setBadges(b => ({ ...b, firmas: data.pendiente }))).catch(() => {});
     };
     load();
     const interval = setInterval(load, 60000); // refresh every minute
@@ -288,6 +294,8 @@ function AppShell() {
             <Route path="/catalogo" element={<CatalogPage />} />
             <Route path="/consulta" element={<PriceLookupPage />} />
             <Route path="/etiquetas" element={<CustomLabelsPage />} />
+            <Route path="/firmas" element={<FirmasPage />} />
+            <Route path="/firmas/:id" element={<FirmaDetailPage />} />
           </Routes>
         </main>
         <BottomNav badges={badges} />

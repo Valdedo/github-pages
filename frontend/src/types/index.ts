@@ -250,3 +250,22 @@ export interface DashboardStats {
   orders: { pendiente: number; parcial: number; recibido: number; pending: number };
   recent_documents: Array<{ id: number; original_filename: string; status: string; supplier_name?: string; created_at: string }>;
 }
+
+// Firma de albaranes de venta (treyFACT)
+export type FirmaStatus = 'pendiente' | 'firmado';
+
+export interface ClientDeliveryNote {
+  id: number;
+  numero: string;
+  fecha?: string | null;          // YYYY-MM-DD
+  codigo_cliente?: string | null;
+  cliente?: string | null;
+  obra?: string | null;
+  status: FirmaStatus;
+  page_count: number;
+  signed_at?: string | null;
+  signed_by?: string | null;
+  signer_dni?: string | null;
+  nota?: string | null;
+  created_at: string;
+}

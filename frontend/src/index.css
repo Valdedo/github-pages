@@ -1581,3 +1581,31 @@ select.form-input { cursor: pointer; }
   .totals-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+
+/* ── Firma de albaranes ─────────────────────────────────────── */
+.status-chip.firmado { background: #d1fae5; color: #065f46; }
+.firma-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; }
+.firma-card:hover { border-color: var(--border-strong); }
+.firma-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 20px; align-items: start; }
+.firma-preview { display: flex; flex-direction: column; gap: 12px; }
+.firma-preview img { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--border); border-radius: var(--r); }
+.firma-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px; position: sticky; top: 16px; }
+.firma-panel .form-label { display: flex; flex-direction: column; gap: 4px; }
+.firma-panel .form-input { font-size: 16px; }
+.firma-big { justify-content: center; padding: 12px 16px; font-size: 15px; }
+.firma-pad { position: relative; height: 220px; border: 2px solid var(--text-1); border-radius: var(--r-lg); background: #fcfcfa; touch-action: none; }
+.firma-pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: var(--r-lg); touch-action: none; }
+.firma-pad-line { position: absolute; left: 20px; right: 20px; bottom: 48px; border-top: 1px dashed var(--border-strong); pointer-events: none; }
+.firma-pad-hint { position: absolute; left: 22px; bottom: 24px; font-size: 13px; color: var(--text-3); pointer-events: none; }
+#firma-print { display: none; }
+@media (max-width: 900px) {
+  .firma-layout { grid-template-columns: 1fr; }
+  .firma-panel { position: static; }
+  .firma-preview { max-height: 40vh; overflow: auto; border-radius: var(--r); }
+}
+@media print {
+  body > *:not(#firma-print) { display: none !important; }
+  #firma-print { display: block; }
+  #firma-print img { display: block; width: 100%; page-break-after: always; }
+  @page { size: A4; margin: 0; }
+}
