@@ -272,6 +272,7 @@ export const signFirma = (id: number, firma: Blob, nombre: string, dni: string, 
   if (firmadoEl) form.append('firmado_el', firmadoEl);
   return api.post<ClientDeliveryNote>(`/api/firmas/${id}/sign`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 25000, // con poca cobertura no se espera más: la firma se guarda en el móvil
   });
 };
 export const firmaPageUrl = (id: number, page: number, dpi = 110, v = '') =>

@@ -131,6 +131,7 @@ export function FirmaDetailPage() {
   const [printing, setPrinting] = useState(false);
   const [hecho, setHecho] = useState(false);
   const [guardadaSinRed, setGuardadaSinRed] = useState(() => enCola(noteId));
+  useEffect(() => { setGuardadaSinRed(enCola(noteId)); }, [noteId]);
   const [factRef, setFactRef] = useState('');
   const [printPages, setPrintPages] = useState<string[]>([]);
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
@@ -205,6 +206,7 @@ export function FirmaDetailPage() {
       if (!blob) throw new Error('No se pudo leer la firma');
       const { data } = await signFirma(note.id, blob, nombre.trim(), dni.trim());
       setNote(data);
+      if (auto.on) { setTimeout(load, 8000); setTimeout(load, 25000); } // el correo sale en segundo plano
       setHecho(true);
       setTimeout(() => setHecho(false), 1500);
       window.scrollTo?.(0, 0);
@@ -214,7 +216,8 @@ export function FirmaDetailPage() {
         // Sin cobertura: se guarda en el móvil y se envía sola al volver la señal
         const blob = await padRef.current.toBlob();
         if (blob) {
-          await ponerEnCola(note, blob, nombre.trim(), dni.trim());
+          try { await ponerEnCola(note, blob, nombre.trim(), dni.trim()); }
+          catch (e) { setError(`${(e as Error).message}. No hay cobertura: vuelve a intentarlo cuando haya señal.`); return; }
           setGuardadaSinRed(true);
           setHecho(true);
           setTimeout(() => setHecho(false), 1500);

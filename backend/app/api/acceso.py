@@ -53,6 +53,8 @@ def configurar(data: Configurar, request: Request):
         raise HTTPException(400, "Los dos códigos tienen que ser distintos")
     if cfg and cfg.get("admin") and acc.rol_para(data.tienda) == "admin":
         raise HTTPException(400, "El código de la tienda no puede ser el mismo que el tuyo")
+    if cfg and cfg.get("admin") and data.reparto and acc.rol_para(data.reparto) == "admin":
+        raise HTTPException(400, "El código de reparto no puede ser el mismo que el tuyo")
     acc.guardar(data.tienda, data.reparto or None)
     rol = "admin" if cfg and cfg.get("admin") else "tienda"
     return {"token": acc.emitir(rol), "rol": rol}

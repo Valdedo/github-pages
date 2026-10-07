@@ -9,6 +9,7 @@ import io
 import logging
 import re
 import secrets
+import threading
 import uuid
 import zipfile
 from datetime import datetime, timedelta
@@ -177,6 +178,18 @@ def export_zip(codigo_cliente: Optional[str] = None, mes: Optional[str] = None,
                              headers={"Content-Disposition": f'attachment; filename="{nombre}.zip"'})
 
 
+def liberar_firmas_a_medias():
+    """Al arrancar: si el servidor se cayó a mitad de firmar, el albarán vuelve a «pendiente»."""
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        db.query(ClientDeliveryNote).filter(ClientDeliveryNote.status == "firmando") \
+            .update({ClientDeliveryNote.status: "pendiente"}, synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
+
+
 @router.post("/reparto", response_model=List[ClientDeliveryNoteResponse])
 def reparto(data: Reparto, db: Session = Depends(get_db)):
     """Meter o sacar albaranes del camión de Melchor (le llega un aviso al móvil)."""
@@ -335,7 +348,7 @@ def sign(
     db: Session = Depends(get_db),
 ):
     n = _get(db, note_id)
-    if n.status == "firmado":
+    if n.status != "pendiente":
         raise HTTPException(409, f"El albarán {n.numero} ya está firmado")
     nombre = nombre.strip()
     if not nombre:
@@ -344,8 +357,30 @@ def sign(
     if png[:8] != b"\x89PNG\r\n\x1a\n":
         raise HTTPException(400, "La firma no es válida")
 
+    # Se «reserva» el albarán: si llegan dos firmas a la vez, solo vale la primera
+    tomado = (db.query(ClientDeliveryNote)
+              .filter(ClientDeliveryNote.id == note_id, ClientDeliveryNote.status == "pendiente")
+              .update({ClientDeliveryNote.status: "firmando"}, synchronize_session=False))
+    db.commit()
+    if tomado != 1:
+        raise HTTPException(409, f"El albarán {n.numero} ya está firmado")
+    try:
+        return _firmar(db, request, n, png, nombre, dni, firmado_el)
+    except Exception:
+        db.rollback()
+        db.query(ClientDeliveryNote).filter(ClientDeliveryNote.id == note_id,
+                                            ClientDeliveryNote.status == "firmando") \
+            .update({ClientDeliveryNote.status: "pendiente"}, synchronize_session=False)
+        db.commit()
+        raise
+
+
+def _firmar(db: Session, request: Request, n: ClientDeliveryNote, png: bytes, nombre: str, dni: str,
+            firmado_el: Optional[str]) -> ClientDeliveryNote:
+    db.refresh(n)
     ahora = datetime.now(TZ)
-    if firmado_el:
+    # La hora real de una firma hecha sin cobertura solo se acepta desde el móvil de reparto
+    if firmado_el and getattr(request.state, "rol", None) in ("reparto", None):
         try:
             cuando = datetime.fromisoformat(firmado_el.replace("Z", "+00:00")).astimezone(TZ)
             if (ahora - cuando).total_seconds() < 7 * 86400 and cuando <= ahora + timedelta(minutes=5):
@@ -370,12 +405,8 @@ def sign(
 
     c = _contacto(db, n)
     if c and c.auto_email and c.email:
-        try:
-            _enviar_email(db, n, c.email)
-        except Exception as e:  # la firma ya está guardada; solo se avisa
-            n.nota = f"No se pudo enviar el correo automático: {e}"
-            db.commit()
-            db.refresh(n)
+        # En segundo plano: la firma queda guardada al momento aunque Gmail tarde
+        threading.Thread(target=_correo_automatico, args=(n.id, c.email), daemon=True).start()
     backup_en_segundo_plano()
     if getattr(request.state, "rol", None) == "reparto":
         push_service.avisar(push_service.a_tienda, f"Firmado en el reparto: {n.numero}",
@@ -432,6 +463,24 @@ def put_contacto(note_id: int, data: ContactoCliente, db: Session = Depends(get_
     _guardar_contacto(db, n, data.email.strip() if data.email is not None else None, tel, data.auto_email)
     db.commit()
     return get_contacto(note_id, db)
+
+
+def _correo_automatico(note_id: int, to: str) -> None:
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        n = db.get(ClientDeliveryNote, note_id)
+        if not n:
+            return
+        try:
+            _enviar_email(db, n, to)
+        except Exception as e:  # la firma ya está guardada; solo se avisa
+            db.rollback()
+            n = db.get(ClientDeliveryNote, note_id)
+            n.nota = f"No se pudo enviar el correo automático: {e}"
+            db.commit()
+    finally:
+        db.close()
 
 
 def _enviar_email(db: Session, n: ClientDeliveryNote, to: str) -> None:

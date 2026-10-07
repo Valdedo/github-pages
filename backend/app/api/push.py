@@ -1,5 +1,6 @@
 """Activar y desactivar los avisos en el móvil."""
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -10,6 +11,10 @@ from app.models.push import PushSub
 from app.services import push_service as ps
 
 router = APIRouter(prefix="/api/push", tags=["avisos"])
+
+# Servicios de avisos de los navegadores (Chrome/Android, Firefox, Safari/iPhone, Edge)
+_SERVICIOS = ("fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com",
+              "push.apple.com", "notify.windows.com")
 
 
 class Claves(BaseModel):
@@ -34,9 +39,12 @@ def clave():
 
 @router.post("/suscribir")
 def suscribir(data: Suscripcion, request: Request, db: Session = Depends(get_db)):
-    if not data.endpoint.startswith("https://"):
+    host = urlparse(data.endpoint).hostname or ""
+    if not data.endpoint.startswith("https://") or not host.endswith(_SERVICIOS):
         raise HTTPException(400, "Suscripción no válida")
     rol = getattr(request.state, "rol", None)
+    if rol == "reparto":
+        data.persona = "melchor"
     s = db.query(PushSub).filter_by(endpoint=data.endpoint).first() or PushSub(endpoint=data.endpoint)
     s.p256dh, s.auth = data.keys.p256dh, data.keys.auth
     s.rol = rol

@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.turnos import Festivo, TurnoAjustes, TurnoCambio, Vacacion
@@ -76,12 +77,16 @@ FESTIVOS_2026 = [
 def ajustes(db: Session) -> dict:
     row = db.get(TurnoAjustes, 1)
     if not row:
-        row = TurnoAjustes(id=1, datos=json.dumps(DEFAULT, ensure_ascii=False))
-        db.add(row)
-        if not db.query(Festivo).first():
-            for f, n in FESTIVOS_2026:
-                db.add(Festivo(fecha=f, nombre=n))
-        db.commit()
+        try:
+            row = TurnoAjustes(id=1, datos=json.dumps(DEFAULT, ensure_ascii=False))
+            db.add(row)
+            if not db.query(Festivo).first():
+                for f, n in FESTIVOS_2026:
+                    db.add(Festivo(fecha=f, nombre=n))
+            db.commit()
+        except IntegrityError:  # otra petición lo creó a la vez
+            db.rollback()
+            row = db.get(TurnoAjustes, 1)
     datos = json.loads(row.datos)
     if datos.get("v", 1) < 2 and datos.get("semanas") == _SEMANAS_V1:
         # Rotación real (7/10/2026): sustituye a la provisional si nadie la había tocado

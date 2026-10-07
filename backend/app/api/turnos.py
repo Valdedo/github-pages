@@ -118,6 +118,10 @@ def put_esta_semana(data: EstaSemana, db: Session = Depends(get_db)):
     """Cambia qué semana tipo le toca a alguien esta semana (y con ello toda su rotación)."""
     cfg = ts.ajustes(db)
     n = len(cfg["semanas"])
+    if not ts.nombre_empleado(cfg, data.empleado):
+        raise HTTPException(404, "Empleado no encontrado")
+    if not 0 <= data.semana < n:
+        raise HTTPException(400, "Semana no válida")
     actual = ts.semana_tipo(cfg, data.empleado, ts.hoy())
     cfg["inicio"][data.empleado] = (cfg["inicio"].get(data.empleado, 0) + data.semana - actual) % n
     return ts.guardar_ajustes(db, cfg)
@@ -136,7 +140,7 @@ def get_hoy(db: Session = Depends(get_db)):
 
 @router.put("/cambio", dependencies=[Depends(solo_encargado)])
 def put_cambio(data: Cambio, db: Session = Depends(get_db)):
-    _fecha(data.fecha)
+    data.fecha = _fecha(data.fecha).isoformat()
     cfg = ts.ajustes(db)
     if not ts.nombre_empleado(cfg, data.empleado):
         raise HTTPException(404, "Empleado no encontrado")
@@ -166,6 +170,7 @@ def put_cambio(data: Cambio, db: Session = Depends(get_db)):
 @router.post("/vacaciones", dependencies=[Depends(solo_encargado)])
 def post_vacaciones(data: NuevaVacacion, db: Session = Depends(get_db)):
     a, b = _fecha(data.inicio), _fecha(data.fin)
+    data.inicio, data.fin = a.isoformat(), b.isoformat()
     if b < a:
         raise HTTPException(400, "La fecha de fin es anterior a la de inicio")
     if (b - a).days > 62:
@@ -197,7 +202,7 @@ def delete_vacaciones(vid: int, db: Session = Depends(get_db)):
 
 @router.post("/festivos", dependencies=[Depends(solo_encargado)])
 def post_festivo(data: NuevoFestivo, db: Session = Depends(get_db)):
-    _fecha(data.fecha)
+    data.fecha = _fecha(data.fecha).isoformat()
     nombre = data.nombre.strip()[:120] or "Festivo"
     f = db.query(Festivo).filter_by(fecha=data.fecha).first()
     if f:

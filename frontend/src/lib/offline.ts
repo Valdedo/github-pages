@@ -10,9 +10,11 @@ const KEY = 'cfColaFirmas';
 export interface FirmaEnCola { id: number; numero: string; cliente?: string | null; nombre: string; dni: string; png: string; at: string }
 
 export const cola = (): FirmaEnCola[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
+/** Guarda la cola. Si el móvil no tiene sitio, lanza un error (nunca se pierde una firma en silencio). */
 const guardar = (c: FirmaEnCola[]) => {
-  try { localStorage.setItem(KEY, JSON.stringify(c)); } catch { /* sin espacio */ }
-  window.dispatchEvent(new Event('cf-cola'));
+  try { localStorage.setItem(KEY, JSON.stringify(c)); }
+  catch { throw new Error('El móvil no tiene sitio para guardar la firma'); }
+  finally { window.dispatchEvent(new Event('cf-cola')); }
 };
 export const enCola = (id: number) => cola().some(f => f.id === id);
 
@@ -26,6 +28,7 @@ const aDataUrl = (b: Blob) => new Promise<string>((ok, ko) => {
 export async function ponerEnCola(n: ClientDeliveryNote, png: Blob, nombre: string, dni: string) {
   const f: FirmaEnCola = { id: n.id, numero: n.numero, cliente: n.cliente, nombre, dni, png: await aDataUrl(png), at: new Date().toISOString() };
   guardar([...cola().filter(x => x.id !== n.id), f]);
+  if (!enCola(n.id)) throw new Error('No se pudo guardar la firma en el móvil');
 }
 
 let enviando = false;

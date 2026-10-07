@@ -95,7 +95,10 @@ def rol_para(code: str) -> Optional[str]:
 
 def emitir(rol: str) -> str:
     cfg = config()
-    body = base64.urlsafe_b64encode(json.dumps({"r": rol, "v": cfg["version"]}).encode()).decode().rstrip("=")
+    datos = {"r": rol, "v": cfg["version"]}
+    if rol == "admin":  # al cambiar el código del encargado, sus sesiones antiguas dejan de valer
+        datos["a"] = _huella_admin(cfg)
+    body = base64.urlsafe_b64encode(json.dumps(datos).encode()).decode().rstrip("=")
     sig = hmac.new(cfg["secret"].encode(), body.encode(), hashlib.sha256).hexdigest()[:32]
     return f"{body}.{sig}"
 
@@ -115,4 +118,10 @@ def verificar(token: Optional[str]) -> Optional[str]:
         return None
     if data.get("v") != cfg["version"]:
         return None
+    if data.get("r") == "admin" and data.get("a") != _huella_admin(cfg):
+        return None
     return data.get("r")
+
+
+def _huella_admin(cfg: dict) -> str:
+    return hashlib.sha256((cfg.get("admin") or "").encode()).hexdigest()[:12]

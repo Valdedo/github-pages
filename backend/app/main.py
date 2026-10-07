@@ -37,10 +37,21 @@ async def lifespan(app: FastAPI):
     create_tables()
     logger.info("Database tables created/verified.")
     try:
-        from app.api.firmas import rellenar_importes
+        from app.api.firmas import rellenar_importes, liberar_firmas_a_medias
         rellenar_importes()
+        liberar_firmas_a_medias()
     except Exception as e:  # nunca debe impedir arrancar
         logger.warning(f"No se pudieron rellenar importes de albaranes: {e}")
+    try:
+        from app.database import SessionLocal
+        from app.services.turnos_service import ajustes as _ajustes_turnos
+        _db = SessionLocal()
+        try:
+            _ajustes_turnos(_db)  # crea los ajustes de turnos y los festivos antes de la primera visita
+        finally:
+            _db.close()
+    except Exception as e:
+        logger.warning(f"No se pudieron preparar los turnos: {e}")
     from app.services.backup_service import arrancar_repaso
     arrancar_repaso()
     logger.info(f"App version: {APP_VERSION} — routers: dashboard, documents, articles, export, settings, products, analytics, repairs, orders")

@@ -4,12 +4,12 @@
  *   cada albarán y sus páginas para poder abrirlos y firmarlos sin señal.
  * Lo demás va siempre a la red (nada de datos viejos en la tienda).
  */
-const VERSION = 'cf-v1';
+const VERSION = 'cf-v2';
 const APP = `${VERSION}-app`;
 const DATOS = `${VERSION}-datos`;
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(APP).then(c => c.addAll(['/', '/manifest.webmanifest', '/brand/icon-192.png'])).catch(() => {}));
+  e.waitUntil(guardarApp().catch(() => {}));
   self.skipWaiting();
 });
 
@@ -20,10 +20,34 @@ self.addEventListener('activate', e => {
   })());
 });
 
+const esHTML = res => res.ok && (res.headers.get('content-type') || '').includes('text/html');
+
+/** Guarda la portada y los archivos que usa (y borra los de versiones anteriores). */
+async function guardarApp(res) {
+  const c = await caches.open(APP);
+  const r = res || await fetch('/', { cache: 'no-store' });
+  if (!esHTML(r)) return;
+  const html = await r.clone().text();
+  const assets = [...new Set(html.match(/\/assets\/[^"'\s)]+/g) || [])];
+  await c.put('/', r.clone());
+  for (const a of assets) {
+    if (!(await c.match(a))) {
+      try { const x = await fetch(a); if (x.ok && !esHTML(x)) await c.put(a, x); } catch { /* sin red */ }
+    }
+  }
+  for (const k of await c.keys()) {
+    const p = new URL(k.url).pathname;
+    if (p.startsWith('/assets/') && !assets.includes(p)) await c.delete(k);
+  }
+  for (const extra of ['/manifest.webmanifest', '/brand/icon-192.png']) {
+    if (!(await c.match(extra))) { try { await c.add(extra); } catch { /* nada */ } }
+  }
+}
+
 // Qué peticiones de datos se guardan para usarlas sin cobertura
 const GUARDAR = [
-  /^\/api\/firmas$/,                    // lista
-  /^\/api\/firmas\/\d+$/,               // un albarán
+  /^\/api\/firmas$/,                      // lista
+  /^\/api\/firmas\/\d+$/,                 // un albarán
   /^\/api\/firmas\/\d+\/page\/\d+\.png$/, // páginas
   /^\/api\/firmas\/\d+\/contacto$/,
   /^\/api\/turnos\/hoy$/,
@@ -39,16 +63,21 @@ function clave(url) {
   return u.toString();
 }
 
-async function redPrimero(req, cache) {
-  const c = await caches.open(cache);
-  try {
-    const res = await fetch(req);
+/** Red primero; si no hay red o tarda más de 5 s y hay copia guardada, la copia. */
+async function redPrimero(req) {
+  const c = await caches.open(DATOS);
+  const red = fetch(req).then(res => {
     if (res.ok) c.put(clave(req.url), res.clone());
     return res;
-  } catch (err) {
-    const guardada = await c.match(clave(req.url));
-    if (guardada) return guardada;
-    throw err;
+  });
+  const guardada = await c.match(clave(req.url));
+  if (!guardada) return red;
+  const espera = new Promise(ok => setTimeout(() => ok(null), 5000));
+  try {
+    const res = await Promise.race([red, espera]);
+    return res || guardada;
+  } catch {
+    return guardada;
   }
 }
 
@@ -58,19 +87,24 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Páginas de la app: red primero; sin red, la app guardada
+  // Abrir la app: red primero; sin red, la app guardada. (Los PDF y descargas no se tocan.)
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(res => {
-      const copia = res.clone();
-      caches.open(APP).then(c => c.put('/', copia));
-      return res;
-    }).catch(() => caches.match('/')));
+    if (url.pathname.startsWith('/api/')) return;
+    e.respondWith((async () => {
+      try {
+        const res = await fetch(req);
+        if (esHTML(res)) e.waitUntil(guardarApp(res.clone()).catch(() => {}));
+        return res;
+      } catch {
+        return (await caches.match('/')) || Response.error();
+      }
+    })());
     return;
   }
   // Archivos de la app con huella en el nombre: no cambian nunca
   if (url.pathname.startsWith('/assets/')) {
     e.respondWith(caches.match(req).then(r => r || fetch(req).then(res => {
-      if (res.ok) { const copia = res.clone(); caches.open(APP).then(c => c.put(req, copia)); }
+      if (res.ok && !esHTML(res)) { const copia = res.clone(); caches.open(APP).then(c => c.put(req, copia)); }
       return res;
     })));
     return;
@@ -80,7 +114,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (GUARDAR.some(rx => rx.test(url.pathname))) {
-    e.respondWith(redPrimero(req, DATOS));
+    e.respondWith(redPrimero(req));
   }
 });
 
