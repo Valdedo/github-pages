@@ -38,6 +38,7 @@ def estado(request: Request):
     cfg = acc.config()
     s = _sesion(request) if cfg else None
     out = {"configurado": bool(cfg), "rol": s["rol"] if s else None, "persona": s["persona"] if s else None,
+           "codigo_propio": bool(s and cfg["codigos"].get(s["persona"], {}).get("propio")),
            "reparto": bool(cfg and "melchor" in cfg["codigos"]), "encargado": acc.hay_encargado()}
     if s and s["rol"] == "admin":
         out["personas"] = [{"id": p, "nombre": n, "rol": r, "tiene_codigo": p in cfg["codigos"]}
@@ -100,4 +101,25 @@ def entrar(data: Codigo, request: Request):
     if not persona:
         acc.fallo(ip)
         raise HTTPException(401, "Código incorrecto")
-    return {"token": acc.emitir(persona), "rol": acc.PERSONAS[persona][0], "persona": persona}
+    propio = bool(acc.config()["codigos"][persona].get("propio"))
+    return {"token": acc.emitir(persona), "rol": acc.PERSONAS[persona][0], "persona": persona,
+            "codigo_propio": propio or persona == "tienda"}
+
+
+class MiCodigo(BaseModel):
+    nuevo: str
+
+
+@router.post("/mi-codigo")
+def mi_codigo(data: MiCodigo, request: Request):
+    """Cada persona puede poner su propio código (mínimo 4 números)."""
+    s = _sesion(request)
+    if not s or s["persona"] == "tienda":
+        raise HTTPException(403, "El código de la tienda solo lo cambia Andrés")
+    nuevo = data.nuevo.strip()
+    if not re.fullmatch(r"\d{4,8}", nuevo):
+        raise HTTPException(400, "El código tiene que ser de 4 a 8 números")
+    if acc.en_uso(nuevo, excepto=s["persona"]):
+        raise HTTPException(400, "Ese código no se puede usar. Prueba con otro")
+    acc.poner_codigo(s["persona"], nuevo, propio=True)
+    return {"token": acc.emitir(s["persona"]), "rol": s["rol"], "persona": s["persona"]}

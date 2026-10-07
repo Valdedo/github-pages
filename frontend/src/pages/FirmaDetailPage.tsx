@@ -426,7 +426,7 @@ export function FirmaDetailPage() {
               {!reparto && (
                 <button className={`firma-toggle${note.reparto_at ? ' on' : ''}`} onClick={camion}>
                   <span className="box">{note.reparto_at && <Check size={14} />}</span>
-                  <Truck size={16} /> {note.reparto_at ? 'En el camión de Melchor' : 'Mandar al camión de Melchor'}
+                  <Truck size={16} /> {note.reparto_at ? 'En el camión de reparto' : 'Mandar al camión de reparto'}
                 </button>
               )}
               <div style={{ display: 'flex', gap: 8 }}>

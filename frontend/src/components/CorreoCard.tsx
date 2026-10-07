@@ -42,35 +42,49 @@ export function CorreoCard() {
   }, [cargar]);
 
   if (d && !d.configurado) return null;
-  const nada = d && !d.error && d.sin_leer.length === 0 && d.sin_contestar.length === 0;
+  const nLeer = d?.sin_leer.length ?? 0, nResp = d?.sin_contestar.length ?? 0;
+  const nada = d && !d.error && nLeer === 0 && nResp === 0;
+
+  // Sin nada pendiente: una línea discreta
+  if (!d || d.error || nada) {
+    return (
+      <section className="card correo-card correo-tranquilo" aria-label="Correo">
+        <span className="correo-ico"><Mail size={20} /></span>
+        <span className="correo-estado">{!d ? 'Mirando el correo…' : d.error ? `${d.error}.` : 'Correo al día: nada sin leer ni por contestar.'}</span>
+        <button className="btn btn-ghost btn-sm" onClick={() => cargar(true)} disabled={cargando} aria-label="Actualizar el correo">
+          <RefreshCw size={15} className={cargando ? 'girando' : ''} />
+        </button>
+      </section>
+    );
+  }
 
   return (
-    <section className="card inicio-bloque" aria-label="Correo">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <h2 style={{ margin: 0 }}><Mail size={22} style={{ verticalAlign: -3 }} /> Correo</h2>
-        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => cargar(true)} disabled={cargando}>
-          <RefreshCw size={15} className={cargando ? 'girando' : ''} /> {cargando ? 'Mirando…' : 'Actualizar'}
+    <section className="card correo-card correo-pendiente" aria-label="Correo pendiente">
+      <div className="correo-cab">
+        <span className="correo-ico grande"><Mail size={24} /></span>
+        <div className="correo-titulos">
+          <h2>Correo pendiente</h2>
+          <div className="correo-cuentas">
+            {nLeer > 0 && <span className="correo-cuenta leer"><b>{nLeer}</b> sin leer</span>}
+            {nResp > 0 && <span className="correo-cuenta resp"><b>{nResp}</b> esperan respuesta</span>}
+          </div>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => cargar(true)} disabled={cargando}>
+          <RefreshCw size={15} className={cargando ? 'girando' : ''} /> <span className="correo-act-txt">{cargando ? 'Mirando…' : 'Actualizar'}</span>
         </button>
       </div>
-      {!d ? <p className="inicio-aldia">Mirando el correo…</p>
-        : d.error ? <p className="inicio-aldia">{d.error}.</p>
-        : nada ? <p className="inicio-aldia">No hay correos pendientes. Todo contestado.</p>
-        : (
-          <>
-            {d.sin_leer.length > 0 && (
-              <div>
-                <div className="correo-grupo">Sin leer · {d.sin_leer.length}</div>
-                <ul className="correo-lista">{d.sin_leer.map(c => <Fila key={c.id} c={c} />)}</ul>
-              </div>
-            )}
-            {d.sin_contestar.length > 0 && (
-              <div>
-                <div className="correo-grupo">Esperan respuesta · {d.sin_contestar.length}</div>
-                <ul className="correo-lista">{d.sin_contestar.map(c => <Fila key={c.id} c={c} />)}</ul>
-              </div>
-            )}
-          </>
-        )}
+      {nLeer > 0 && (
+        <div>
+          <div className="correo-grupo">Sin leer</div>
+          <ul className="correo-lista">{d.sin_leer.map(c => <Fila key={c.id} c={c} />)}</ul>
+        </div>
+      )}
+      {nResp > 0 && (
+        <div>
+          <div className="correo-grupo">Esperan respuesta</div>
+          <ul className="correo-lista">{d.sin_contestar.map(c => <Fila key={c.id} c={c} />)}</ul>
+        </div>
+      )}
     </section>
   );
 }

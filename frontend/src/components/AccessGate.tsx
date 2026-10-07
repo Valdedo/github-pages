@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Lock } from 'lucide-react';
-import { accesoEstado, accesoEntrar, accesoConfigurar, describeApiError } from '../api/client';
+import { accesoEstado, accesoEntrar, accesoConfigurar, accesoMiCodigo, describeApiError } from '../api/client';
+import { CodigoInput } from './CodigoInput';
 import { getToken, setSesion, cerrarSesion, type Rol } from '../auth';
 import { setReparto } from '../reparto';
 import { Logo } from './Logo';
 
-type Fase = 'cargando' | 'crear' | 'entrar' | 'dentro' | 'sin-conexion';
+type Fase = 'cargando' | 'crear' | 'entrar' | 'propio' | 'dentro' | 'sin-conexion';
 
 function errorDe(err: unknown): string {
   const ax = err as { response?: { data?: { detail?: string } } };
@@ -60,8 +61,22 @@ export function AccessGate({ children }: { children: ReactNode }) {
     try {
       const { data } = await accesoEntrar(codigo.trim());
       entrarCon(data.token, data.rol, data.persona);
+      // Primera vez con el código que le dieron: se le ofrece poner el suyo
+      if (!data.codigo_propio && data.persona !== 'tienda') { setCodigo(''); setFase('propio'); }
     } catch (err) {
       setError(errorDe(err)); setCodigo('');
+    } finally { setEnviando(false); }
+  };
+
+  const onPropio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnviando(true); setError(null);
+    try {
+      const { data } = await accesoMiCodigo(codigo);
+      setSesion(data.token, data.rol, data.persona);
+      setCodigo(''); setFase('dentro');
+    } catch (err) {
+      setError(errorDe(err));
     } finally { setEnviando(false); }
   };
 
@@ -96,12 +111,24 @@ export function AccessGate({ children }: { children: ReactNode }) {
           <form onSubmit={onEntrar} className="acceso-form">
             <h1><Lock size={26} style={{ verticalAlign: -3 }} /> Código de acceso</h1>
             <p className="acceso-txt">Escribe tu código. Este dispositivo lo recordará.</p>
-            <input className="form-input acceso-codigo" type="password" inputMode="numeric" autoComplete="current-password"
-              autoFocus value={codigo} onChange={e => setCodigo(e.target.value)} aria-label="Código de acceso" />
+            <CodigoInput value={codigo} onChange={setCodigo} autoFocus label="Código de acceso" />
             {error && <p className="acceso-error" role="alert">{error}</p>}
             <button className="btn btn-primary btn-lg" disabled={enviando || !codigo.trim()}>
               {enviando ? 'Comprobando…' : 'Entrar'}
             </button>
+          </form>
+        )}
+
+        {fase === 'propio' && (
+          <form onSubmit={onPropio} className="acceso-form">
+            <h1>Pon tu propio código</h1>
+            <p className="acceso-txt">Si quieres, cambia el código que te dieron por uno tuyo de 4 números, fácil de recordar. Solo lo sabrás tú.</p>
+            <CodigoInput value={codigo} onChange={v => setCodigo(v.replace(/\D/g, '').slice(0, 8))} autoFocus nuevo label="Tu código nuevo" />
+            {error && <p className="acceso-error" role="alert">{error}</p>}
+            <button className="btn btn-primary btn-lg" disabled={enviando || codigo.length < 4}>
+              {enviando ? 'Guardando…' : 'Guardar mi código'}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => { setError(null); setCodigo(''); setFase('dentro'); }}>Ahora no, seguir con el que tengo</button>
           </form>
         )}
 

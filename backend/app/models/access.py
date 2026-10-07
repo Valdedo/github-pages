@@ -31,3 +31,5 @@ class AccessCodigo(Base):
     persona: Mapped[str] = mapped_column(String(40), primary_key=True)  # andres, patricia, oscar, melchor, tienda
     rol: Mapped[str] = mapped_column(String(20))                         # admin | tienda | reparto
     hash: Mapped[str] = mapped_column(String(200))
+    # True si la persona ha puesto su propio código (si no, se le ofrece cambiarlo al entrar)
+    propio: Mapped[Optional[bool]] = mapped_column(nullable=True, default=False)

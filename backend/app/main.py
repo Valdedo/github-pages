@@ -62,6 +62,8 @@ async def lifespan(app: FastAPI):
             _db.close()
     except Exception as e:
         logger.warning(f"No se pudieron preparar los turnos: {e}")
+    from app.api.correo import arrancar_vigilancia
+    arrancar_vigilancia()
     from app.services.backup_service import arrancar_repaso
     arrancar_repaso()
     logger.info(f"App version: {APP_VERSION} — routers: dashboard, documents, articles, export, settings, products, analytics, repairs, orders")

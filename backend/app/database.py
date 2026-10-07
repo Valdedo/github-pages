@@ -88,6 +88,7 @@ def _run_migrations():
         # Código del encargado (v3.0.0)
         ("access_config",         "admin_hash",   "TEXT"),
         ("access_config",         "codigos_env",  "TEXT"),
+        ("access_codigos",        "propio",       "INTEGER DEFAULT 0"),
         # Albaranes de proveedor en Drive (v3.2.0)
         ("documents", "drive_file_id",    "TEXT"),
         ("documents", "drive_url",        "TEXT"),

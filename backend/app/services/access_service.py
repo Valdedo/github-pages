@@ -67,7 +67,8 @@ def config(fresh: bool = False) -> Optional[dict]:
     db = SessionLocal()
     try:
         c = db.query(AccessConfig).first()
-        codigos = {x.persona: {"rol": x.rol, "hash": x.hash} for x in db.query(AccessCodigo).all()}
+        codigos = {x.persona: {"rol": x.rol, "hash": x.hash, "propio": bool(x.propio)}
+                   for x in db.query(AccessCodigo).all()}
         cfg = {"secret": c.secret, "version": c.version, "codigos": codigos} if c and codigos else {}
     finally:
         db.close()
@@ -130,13 +131,14 @@ def en_uso(codigo: str, excepto: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def poner_codigo(persona: str, codigo: str) -> None:
+def poner_codigo(persona: str, codigo: str, propio: bool = False) -> None:
     """Cambia el código de una persona; solo se cierran las sesiones de esa persona."""
     db = SessionLocal()
     try:
         _base(db)
         x = db.get(AccessCodigo, persona) or AccessCodigo(persona=persona, rol=PERSONAS[persona][0])
         x.hash = _hash(codigo)
+        x.propio = propio
         db.merge(x)
         db.commit()
     finally:

@@ -88,3 +88,47 @@ def resumen(refrescar: bool = False):
            "actualizado": time.strftime("%H:%M")}
     _cache.update(at=time.time(), data=out)
     return out
+
+
+# ── Aviso en el móvil cuando entra un correo nuevo ────────────────
+_vistos: set = set()
+
+
+def _revisar(primera: bool) -> None:
+    from app.services import push_service
+    data = resumen(refrescar=True)
+    if not data.get("configurado") or data.get("error"):
+        return
+    nuevos = [c for c in data.get("sin_leer", []) if c["id"] not in _vistos]
+    _vistos.update(c["id"] for c in data.get("sin_leer", []) + data.get("sin_contestar", []))
+    if primera or not nuevos:
+        return
+    if len(nuevos) == 1:
+        c = nuevos[0]
+        titulo = f"Correo nuevo de {c.get('de') or 'alguien'}"
+        texto = c.get("resumen") or c.get("asunto") or ""
+    else:
+        titulo = f"{len(nuevos)} correos nuevos"
+        texto = " · ".join((c.get("de") or "") for c in nuevos[:4])
+    push_service.avisar(push_service.a_tienda, titulo, texto, "/", "correo")
+
+
+def arrancar_vigilancia(cada: int = 600) -> None:
+    """Cada 10 min en horario de tienda mira si hay correos nuevos y avisa a la tienda."""
+    import threading
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    def bucle():
+        time.sleep(60)
+        primera = True
+        while True:
+            try:
+                ahora = datetime.now(ZoneInfo("Europe/Madrid"))
+                if mail_service.configured() and ahora.weekday() < 6 and 8 <= ahora.hour < 20:
+                    _revisar(primera)
+                    primera = False
+            except Exception as e:
+                logger.warning("Error mirando el correo: %s", e)
+            time.sleep(cada)
+    threading.Thread(target=bucle, daemon=True, name="correo").start()

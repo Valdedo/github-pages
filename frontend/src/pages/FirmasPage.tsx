@@ -82,7 +82,7 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion }: {
       </div>
       {onCamion && (
         <button className={`camion-btn${n.reparto_at ? ' on' : ''}`} onClick={e => { e.stopPropagation(); onCamion(); }}
-          title={n.reparto_at ? 'Sacar del camión de Melchor' : 'Mandar al camión de Melchor'}
+          title={n.reparto_at ? 'Sacar del camión de reparto' : 'Mandar al camión de reparto'}
           aria-label={n.reparto_at ? `Sacar ${n.numero} del camión` : `Mandar ${n.numero} al camión`}>
           <Truck size={17} /> <span>{n.reparto_at ? 'En el camión' : 'Al camión'}</span>
         </button>
@@ -284,7 +284,7 @@ export function FirmasPage() {
     try {
       const { data } = await repartoFirmas([n.id], en);
       applyUpdated(data);
-      show(en ? `${n.numero} va en el camión. Melchor recibirá un aviso` : `${n.numero} sale del camión`, {
+      show(en ? `${n.numero} va en el camión. Al repartidor le llegará un aviso` : `${n.numero} sale del camión`, {
         undo: async () => { const { data: d } = await repartoFirmas([n.id], !en); applyUpdated(d); },
       });
     } catch (err) { show(describeApiError(err), { error: true }); }
@@ -412,8 +412,8 @@ export function FirmasPage() {
         <>
           {vista === 'firmar' && filtered.length > 0 && (
             <p className="camion-resumen"><Truck size={16} /> {enCamion
-              ? <>En el camión de Melchor: <b>{enCamion}</b>. Él los ve en su móvil y puede firmarlos en la obra.</>
-              : <>Pulsa «Al camión» en los que salen con Melchor: le llegará un aviso y solo verá esos.</>}</p>
+              ? <>En el camión de reparto: <b>{enCamion}</b>. Se ven en el móvil de reparto y se pueden firmar en la obra.</>
+              : <>Pulsa «Al camión» en los que salen a reparto: al repartidor le llega un aviso y solo verá esos.</>}</p>
           )}
           <div className="firma-lista cf-enter">{filtered.map(row)}</div>
         </>

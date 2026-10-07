@@ -26,15 +26,17 @@ import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
 import { CodigosModal } from './components/CodigosModal';
+import { MiCodigoModal } from './components/MiCodigoModal';
 import { AvisosLink } from './components/AvisosCard';
 import { arrancarCola } from './lib/offline';
-import { getRol, cerrarSesion } from './auth';
-import { getDashboardStats, getFirmasStats } from './api/client';
+import { getRol, cerrarSesion, sesionPersonal } from './auth';
+import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
 
 interface NavBadge {
   repairs: number;
   orders: number;
   firmas: number;
+  correo: number;
 }
 
 // Menú agrupado por áreas del negocio (igual para la tienda y el encargado)
@@ -60,7 +62,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   ] },
 ];
 const navItems = navGroups.flatMap(g => g.items);
-const INICIO: NavItem = { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true };
+const INICIO: NavItem = { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true, badge: 'correo' };
 // Móvil: lo más usado abajo; el resto, en «Más» por grupos
 const BOTTOM = ['/firmas', '/consulta', '/turnos'];
 const bottomItems = [INICIO, ...BOTTOM.map(t => navItems.find(n => n.to === t)!)];
@@ -99,12 +101,15 @@ function SidebarNavGroup({ items, badges, collapsed }: {
 
 function SesionLinks() {
   const [codigos, setCodigos] = useState(false);
+  const [mio, setMio] = useState(false);
   return (
     <div className="sesion-links">
       <AvisosLink />
+      {sesionPersonal() && <button onClick={() => setMio(true)}>Mi código</button>}
       {getRol() === 'admin' && <button onClick={() => setCodigos(true)}>Códigos</button>}
       <button onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); window.location.href = '/'; } }}>Cerrar sesión</button>
       {codigos && <CodigosModal onClose={() => setCodigos(false)} />}
+      {mio && <MiCodigoModal onClose={() => setMio(false)} />}
     </div>
   );
 }
@@ -321,7 +326,7 @@ function AppShell() {
 
 function FullShell() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
-  const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0 });
+  const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0, correo: 0 });
 
   // Load badge counts (pending repairs + pending orders)
   useEffect(() => {
@@ -334,6 +339,8 @@ function FullShell() {
         }));
       }).catch(() => {});
       getFirmasStats().then(({ data }) => setBadges(b => ({ ...b, firmas: data.pendiente }))).catch(() => {});
+      // Correos sin leer (en Inicio): para que se vean desde cualquier pantalla
+      getCorreo().then(({ data }) => setBadges(b => ({ ...b, correo: data.configurado ? data.sin_leer.length : 0 }))).catch(() => {});
     };
     load();
     const interval = setInterval(load, 60000); // refresh every minute

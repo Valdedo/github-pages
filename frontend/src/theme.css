@@ -816,3 +816,26 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .drive-elegir .form-input { margin: 0; flex: 1; }
 .girando { animation: cf-girar 1s linear infinite; }
 @keyframes cf-girar { to { transform: rotate(360deg); } }
+.codigo-input { position: relative; width: 100%; }
+.codigo-input .form-input { padding-right: 52px; margin: 0; width: 100%; }
+.codigo-ojo { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: none; color: var(--text-3); cursor: pointer; }
+.codigo-ojo:hover { color: var(--text-1); background: var(--surface-2); }
+
+/* ── Correo en Inicio (bien visible) ──────────────────────────── */
+.correo-card { border: 0; border-radius: var(--r-xl); }
+.correo-tranquilo { display: flex; align-items: center; gap: 12px; padding: 12px 18px; color: var(--text-2); font-size: 14.5px; }
+.correo-tranquilo .correo-estado { flex: 1; }
+.correo-ico { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; background: var(--brand-pale); color: var(--cf-bosque); }
+.correo-ico.grande { width: 50px; height: 50px; border-radius: 16px; background: #1D4E89; color: #fff; }
+.correo-pendiente { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; border-left: 6px solid #1D4E89; box-shadow: 0 10px 30px rgb(29 78 137 / .12); }
+.correo-cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.correo-titulos { flex: 1; min-width: 0; }
+.correo-titulos h2 { margin: 0; font-size: 26px; font-weight: 500; }
+.correo-cuentas { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.correo-cuenta { font-size: 14px; padding: 4px 12px; border-radius: 999px; }
+.correo-cuenta b { font-size: 16px; }
+.correo-cuenta.leer { background: #1D4E89; color: #fff; }
+.correo-cuenta.resp { background: #FDE9C2; color: #6B4100; }
+.correo-pendiente .correo-lista a { background: #F1F6FC; }
+.correo-pendiente .correo-lista a:hover { background: #E3EDF9; }
+@media (max-width: 768px) { .correo-pendiente { padding: 16px; } .correo-titulos h2 { font-size: 22px; } .correo-act-txt { display: none; } .correo-cab .btn { min-width: 42px; padding: 0; justify-content: center; } }

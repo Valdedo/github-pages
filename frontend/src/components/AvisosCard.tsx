@@ -4,8 +4,8 @@ import { activarAvisos, desactivarAvisos, estadoAvisos, type EstadoAvisos } from
 import { getRol } from '../auth';
 
 const QUE = {
-  reparto: 'Te avisará cuando te pongan albaranes en el camión y si te cambian el turno.',
-  tienda: 'Te avisará cuando Melchor firme un albarán en el reparto y si te cambian el turno.',
+  reparto: 'Te avisará cuando haya albaranes nuevos para repartir y de los cambios en tu turno.',
+  tienda: 'Te avisará de los correos nuevos, de los albaranes firmados en el reparto y de los cambios en tu turno.',
 };
 
 /** Tarjeta para activar los avisos en este móvil u ordenador. Desaparece cuando ya están activados. */

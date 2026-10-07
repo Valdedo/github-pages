@@ -126,6 +126,7 @@ export function DashboardPage() {
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden onChange={e => onFiles(e.target.files)} />
       </header>
 
+      <CorreoCard />
       <TurnoHoy />
       <AvisosCard />
 
@@ -157,7 +158,6 @@ export function DashboardPage() {
           )}
         </section>
 
-        <CorreoCard />
 
         <section className="card inicio-bloque inicio-hoy-bloque" aria-label="Hoy">
           <h2>Hoy</h2>

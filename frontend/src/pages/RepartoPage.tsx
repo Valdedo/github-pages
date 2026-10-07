@@ -5,7 +5,8 @@ import { listFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
 import { setReparto } from '../reparto';
-import { getRol, cerrarSesion, getYo } from '../auth';
+import { getRol, cerrarSesion, getYo, sesionPersonal } from '../auth';
+import { MiCodigoModal } from '../components/MiCodigoModal';
 import { fmtFecha, fmtEuros } from './FirmasPage';
 import { TurnoHoy } from '../components/TurnoHoy';
 import { cola, enviarCola, prepararSinCobertura, type FirmaEnCola } from '../lib/offline';
@@ -25,6 +26,7 @@ export function RepartoPage() {
   const [verTodos, setVerTodos] = useState(false);
   const [guardadas, setGuardadas] = useState<FirmaEnCola[]>(cola);
   const [online, setOnline] = useState(navigator.onLine);
+  const [mio, setMio] = useState(false);
 
   useEffect(() => { setReparto(true); }, []);
   const nombre = (() => { try { return localStorage.getItem('repartoNombre') || 'Melchor'; } catch { return 'Melchor'; } })();
@@ -158,7 +160,9 @@ export function RepartoPage() {
       <div style={{ marginTop: 24 }}><AvisosCard grande /></div>
       <div style={{ marginTop: 16 }}><TurnoHoy fijo={getYo() || 'melchor'} /></div>
 
-      <div style={{ marginTop: 40, textAlign: 'center' }}>
+      <div style={{ marginTop: 40, textAlign: 'center', display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+        {sesionPersonal() && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => setMio(true)}>Mi código</button>}
+        {mio && <MiCodigoModal onClose={() => setMio(false)} />}
         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }}
           onClick={() => {
             if (getRol() === 'reparto') {
