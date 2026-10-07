@@ -1,4 +1,4 @@
-"""Códigos de acceso a la app."""
+"""Códigos de acceso a la app (uno por persona)."""
 import re
 from typing import Optional
 
@@ -19,70 +19,76 @@ class Configurar(BaseModel):
     reparto: Optional[str] = None
 
 
+class NuevoCodigo(BaseModel):
+    persona: str
+    codigo: str
+
+
 def _valido(c: Optional[str]) -> bool:
     return bool(c) and bool(re.fullmatch(r"\S{4,32}", c))
 
 
-def _rol(request: Request):
+def _sesion(request: Request) -> Optional[dict]:
     tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or request.query_params.get("t")
-    return acc.verificar(tok)
+    return acc.sesion(tok)
 
 
 @router.get("/estado")
 def estado(request: Request):
     cfg = acc.config()
-    return {"configurado": bool(cfg), "rol": _rol(request) if cfg else None,
-            "reparto": bool(cfg and cfg.get("reparto")), "encargado": bool(cfg and cfg.get("admin"))}
+    s = _sesion(request) if cfg else None
+    out = {"configurado": bool(cfg), "rol": s["rol"] if s else None, "persona": s["persona"] if s else None,
+           "reparto": bool(cfg and "melchor" in cfg["codigos"]), "encargado": acc.hay_encargado()}
+    if s and s["rol"] == "admin":
+        out["personas"] = [{"id": p, "nombre": n, "rol": r, "tiene_codigo": p in cfg["codigos"]}
+                           for p, (r, n) in acc.PERSONAS.items()]
+    return out
 
 
 @router.post("/configurar")
-def configurar(data: Configurar, request: Request):
-    """Primera vez: crea los códigos. Después solo se pueden cambiar con sesión de tienda."""
-    cfg = acc.config(fresh=True)
-    if cfg:
-        rol = _rol(request)
-        if cfg.get("admin") and rol != "admin":
-            raise HTTPException(403, "Solo Andrés puede cambiar los códigos")
-        if rol not in ("tienda", "admin"):
-            raise HTTPException(403, "Solo se pueden cambiar los códigos desde una sesión de la tienda")
+def configurar(data: Configurar):
+    """Solo la primera vez, con la app sin ningún código."""
+    if acc.config(fresh=True):
+        raise HTTPException(403, "Los códigos ya están creados. Solo Andrés puede cambiarlos.")
     if not _valido(data.tienda):
         raise HTTPException(400, "El código de la tienda debe tener al menos 4 caracteres, sin espacios")
     if data.reparto and not _valido(data.reparto):
         raise HTTPException(400, "El código de reparto debe tener al menos 4 caracteres, sin espacios")
     if data.reparto and data.reparto == data.tienda:
         raise HTTPException(400, "Los dos códigos tienen que ser distintos")
-    if cfg and cfg.get("admin") and acc.rol_para(data.tienda) == "admin":
-        raise HTTPException(400, "El código de la tienda no puede ser el mismo que el tuyo")
-    if cfg and cfg.get("admin") and data.reparto and acc.rol_para(data.reparto) == "admin":
-        raise HTTPException(400, "El código de reparto no puede ser el mismo que el tuyo")
-    acc.guardar(data.tienda, data.reparto or None)
-    rol = "admin" if cfg and cfg.get("admin") else "tienda"
-    return {"token": acc.emitir(rol), "rol": rol}
+    acc.crear_inicial(data.tienda, data.reparto or None)
+    return {"token": acc.emitir("tienda"), "rol": "tienda", "persona": "tienda"}
 
 
-class Encargado(BaseModel):
-    codigo: str
-
-
-@router.post("/encargado")
-def encargado(data: Encargado, request: Request):
-    """Crea o cambia el código del encargado. La primera vez basta la sesión de la tienda."""
-    cfg = acc.config(fresh=True)
-    if not cfg:
-        raise HTTPException(400, "Primero hay que crear los códigos de la tienda")
-    rol = _rol(request)
-    if cfg.get("admin") and rol != "admin":
-        raise HTTPException(403, "Solo Andrés puede cambiar su código")
-    if rol not in ("tienda", "admin"):
-        raise HTTPException(403, "Hace falta la sesión de la tienda")
+@router.post("/codigo")
+def poner_codigo(data: NuevoCodigo, request: Request):
+    """Poner o cambiar el código de una persona. Solo el encargado; la primera vez que
+    se crea el código del encargado vale una sesión de la tienda."""
+    s = _sesion(request)
+    persona = data.persona.strip().lower()
+    if persona not in acc.PERSONAS:
+        raise HTTPException(404, "Persona no válida")
+    primera_vez = persona == "andres" and not acc.hay_encargado() and s and s["rol"] == "tienda"
+    if not (s and s["rol"] == "admin") and not primera_vez:
+        raise HTTPException(403, "Solo Andrés puede cambiar los códigos")
     codigo = data.codigo.strip()
     if not _valido(codigo):
         raise HTTPException(400, "El código debe tener al menos 4 caracteres, sin espacios")
-    otro = acc.rol_para(codigo)
-    if otro in ("tienda", "reparto"):
-        raise HTTPException(400, "Ese código ya lo usa la tienda o el reparto; elige otro")
-    acc.guardar_admin(codigo)
-    return {"token": acc.emitir("admin"), "rol": "admin"}
+    if acc.en_uso(codigo, excepto=persona):
+        raise HTTPException(400, "Ese código ya lo usa otra persona; elige otro")
+    acc.poner_codigo(persona, codigo)
+    propio = persona == (s or {}).get("persona") or primera_vez
+    return {"ok": True, **({"token": acc.emitir(persona), "rol": acc.PERSONAS[persona][0], "persona": persona} if propio else {})}
+
+
+@router.post("/cerrar-todas")
+def cerrar_todas(request: Request):
+    """Cierra la sesión en todos los dispositivos (todos tendrán que volver a escribir su código)."""
+    s = _sesion(request)
+    if not (s and s["rol"] == "admin"):
+        raise HTTPException(403, "Solo Andrés puede hacerlo")
+    acc.cerrar_todas()
+    return {"token": acc.emitir(s["persona"]), "rol": "admin", "persona": s["persona"]}
 
 
 @router.post("/entrar")
@@ -90,8 +96,8 @@ def entrar(data: Codigo, request: Request):
     ip = request.client.host if request.client else "?"
     if acc.demasiados_intentos(ip):
         raise HTTPException(429, "Demasiados intentos. Espera 10 minutos y vuelve a probar.")
-    rol = acc.rol_para(data.codigo.strip())
-    if not rol:
+    persona = acc.persona_para(data.codigo.strip())
+    if not persona:
         acc.fallo(ip)
         raise HTTPException(401, "Código incorrecto")
-    return {"token": acc.emitir(rol), "rol": rol}
+    return {"token": acc.emitir(persona), "rol": acc.PERSONAS[persona][0], "persona": persona}

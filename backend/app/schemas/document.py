@@ -36,6 +36,12 @@ class DocumentResponse(DocumentBase):
     total_calculado: Optional[float] = None
     validacion_ok: Optional[bool] = None
     validacion_notas: Optional[str] = None
+    drive_file_id: Optional[str] = None
+    drive_url: Optional[str] = None
+    drive_carpeta: Optional[str] = None
+    drive_pendiente: Optional[bool] = None
+    drive_error: Optional[str] = None
+    drive_at: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

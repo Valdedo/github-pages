@@ -6,6 +6,7 @@ import { MetadataPanel } from '../components/MetadataPanel';
 import { MarginSettings } from '../components/MarginSettings';
 import { ArticleTable } from '../components/ArticleTable';
 import { ExportPanel } from '../components/ExportPanel';
+import { DriveEstado } from '../components/DriveEstado';
 import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
 import type { Document, Article, AppSettings, Supplier, PriceAlert } from '../types/index';
@@ -318,6 +319,8 @@ export function DocumentPage() {
           </div>
         </div>
       </div>
+
+      <DriveEstado doc={document} />
 
       {/* ── Error banner ─────────────────────────────────────────── */}
       {document.status === 'error' && (

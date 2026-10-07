@@ -39,7 +39,7 @@ def get_db():
 
 
 def create_tables():
-    from app.models import document, article, supplier, product_info, app_settings, repair, supplier_order, client_delivery_note, access, turnos, push  # noqa
+    from app.models import document, article, supplier, product_info, app_settings, repair, supplier_order, client_delivery_note, access, turnos, push, drive  # noqa
     Base.metadata.create_all(bind=engine)
     _run_migrations()
 
@@ -87,6 +87,15 @@ def _run_migrations():
         ("client_contacts",       "auto_email",   "INTEGER DEFAULT 0"),
         # Código del encargado (v3.0.0)
         ("access_config",         "admin_hash",   "TEXT"),
+        ("access_config",         "codigos_env",  "TEXT"),
+        # Albaranes de proveedor en Drive (v3.2.0)
+        ("documents", "drive_file_id",    "TEXT"),
+        ("documents", "drive_url",        "TEXT"),
+        ("documents", "drive_carpeta_id", "TEXT"),
+        ("documents", "drive_carpeta",    "TEXT"),
+        ("documents", "drive_pendiente",  "INTEGER"),
+        ("documents", "drive_error",      "TEXT"),
+        ("documents", "drive_at",         "DATETIME"),
         # Reparto en el camión (v3.1.0)
         ("client_delivery_notes", "reparto_at",   "DATETIME"),
         ("client_delivery_notes", "reparto_orden", "INTEGER"),

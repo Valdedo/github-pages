@@ -46,3 +46,22 @@ def backup_pdf(folder: str, filename: str, pdf: bytes) -> None:
 def bandeja() -> dict:
     """Correos sin leer y sin contestar de casafonsomc@gmail.com (lo devuelve el Apps Script)."""
     return _post({"action": "inbox"})
+
+
+# ── Carpetas de Drive (albaranes de proveedor) ──────────────────
+def drive_carpetas(folder_id: str) -> list:
+    return _post({"action": "carpetas", "folderId": folder_id}).get("carpetas", [])
+
+
+def drive_guardar(folder_id: str, filename: str, pdf: bytes) -> dict:
+    """Guarda el PDF en la carpeta (sustituye si ya hay uno con ese nombre). Devuelve {id, url}."""
+    return _post({"action": "backup", "folderId": folder_id, "filename": filename,
+                  "pdf": base64.b64encode(pdf).decode()})
+
+
+def drive_mover(file_id: str, folder_id: str) -> None:
+    _post({"action": "mover", "fileId": file_id, "folderId": folder_id})
+
+
+def drive_borrar(file_id: str) -> None:
+    _post({"action": "borrar", "fileId": file_id})

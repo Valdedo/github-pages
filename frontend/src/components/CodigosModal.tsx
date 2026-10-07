@@ -1,42 +1,47 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
-import { accesoConfigurar, accesoEncargado, accesoEstado, describeApiError } from '../api/client';
+import { X, LogOut } from 'lucide-react';
+import { accesoCodigo, accesoCerrarTodas, accesoEstado, describeApiError, type PersonaAcceso } from '../api/client';
 import { setSesion, getRol } from '../auth';
+import { useCfToast } from './CfToast';
 
 const errorDe = (err: unknown) => {
   const ax = err as { response?: { data?: { detail?: string } } };
   return ax.response?.data?.detail || describeApiError(err);
 };
 
-/** Códigos de acceso: el del encargado (Andrés) y los de tienda y reparto. */
+/** Códigos de acceso: uno por persona. Solo el encargado (Andrés) los cambia. */
 export function CodigosModal({ onClose }: { onClose: () => void }) {
-  const [hayEncargado, setHayEncargado] = useState<boolean | null>(null);
-  const [mio, setMio] = useState('');
-  const [tienda, setTienda] = useState('');
-  const [reparto, setReparto] = useState('');
+  const [personas, setPersonas] = useState<PersonaAcceso[] | null>(null);
+  const [nuevo, setNuevo] = useState<Record<string, string>>({});
+  const [guardando, setGuardando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const soyEncargado = getRol() === 'admin';
+  const { toast, show } = useCfToast();
+  const admin = getRol() === 'admin';
 
-  useEffect(() => { accesoEstado().then(r => setHayEncargado(r.data.encargado)).catch(() => setHayEncargado(false)); }, []);
-  const puedeTienda = !hayEncargado || soyEncargado;
+  useEffect(() => {
+    if (!admin) return;
+    accesoEstado().then(r => setPersonas(r.data.personas ?? [])).catch(e => setError(errorDe(e)));
+  }, [admin]);
 
-  const guardarMio = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true); setError(null);
+  const guardar = async (p: PersonaAcceso) => {
+    const codigo = (nuevo[p.id] || '').trim();
+    setGuardando(p.id); setError(null);
     try {
-      const { data } = await accesoEncargado(mio.trim());
-      setSesion(data.token, data.rol);
-      setOk('Tu código de encargado está guardado. Con él puedes cambiar turnos y códigos.');
-    } catch (err) { setError(errorDe(err)); } finally { setSaving(false); }
+      const { data } = await accesoCodigo(p.id, codigo);
+      if (data.token && data.rol) setSesion(data.token, data.rol, data.persona);
+      setNuevo(n => ({ ...n, [p.id]: '' }));
+      setPersonas(ps => ps?.map(x => x.id === p.id ? { ...x, tiene_codigo: true } : x) ?? null);
+      show(`Código de ${p.nombre} cambiado. Tendrá que escribir el nuevo la próxima vez.`);
+    } catch (err) { setError(errorDe(err)); } finally { setGuardando(null); }
   };
-  const guardarTienda = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true); setError(null);
+
+  const cerrarTodas = async () => {
+    if (!window.confirm('¿Cerrar la sesión en todos los móviles y ordenadores? Cada uno tendrá que volver a escribir su código. Tú sigues dentro en este.')) return;
     try {
-      const { data } = await accesoConfigurar(tienda.trim(), reparto.trim());
-      setSesion(data.token, data.rol);
-      setOk('Códigos cambiados. Los demás ordenadores y móviles tendrán que escribir el código nuevo la próxima vez.');
-    } catch (err) { setError(errorDe(err)); } finally { setSaving(false); }
+      const { data } = await accesoCerrarTodas();
+      setSesion(data.token, data.rol, data.persona);
+      show('Sesiones cerradas en todos los demás dispositivos');
+    } catch (err) { setError(errorDe(err)); }
   };
 
   return (
@@ -46,42 +51,32 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
           <div><h3>Códigos de acceso</h3></div>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
         </div>
-        {ok ? (
+        {!admin ? (
+          <p className="turnos-ayuda">Solo Andrés puede cambiar los códigos. Si has olvidado el tuyo, pídeselo a él.</p>
+        ) : personas === null ? <p>Cargando…</p> : (
           <>
-            <p style={{ fontSize: 15 }}>{ok}</p>
-            <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>Hecho</button>
-          </>
-        ) : hayEncargado === null ? <p>Cargando…</p> : (
-          <>
-            {(soyEncargado || !hayEncargado) && (
-              <form className="codigos-bloque" onSubmit={guardarMio}>
-                <b>{hayEncargado ? 'Cambiar tu código (Andrés)' : 'Tu código de encargado (Andrés)'}</b>
-                <small>Es el único que puede cambiar turnos, vacaciones, festivos y estos códigos. Úsalo solo en tus dispositivos.</small>
-                <div className="codigos-fila">
-                  <input className="form-input" type="password" autoComplete="new-password" placeholder="Mínimo 4" value={mio} onChange={e => setMio(e.target.value)} aria-label="Tu código" />
-                  <button className="btn btn-primary" disabled={saving || mio.trim().length < 4}>Guardar</button>
+            <p className="turnos-ayuda">Cada persona tiene su código. Al cambiar uno, solo esa persona tendrá que volver a escribirlo.</p>
+            <div className="codigos-lista">
+              {personas.map(p => (
+                <div key={p.id} className="codigos-persona">
+                  <div className="codigos-quien">
+                    <b>{p.nombre}</b>
+                    <small>{p.rol === 'admin' ? 'Encargado' : p.rol === 'reparto' ? 'Reparto' : p.id === 'tienda' ? 'Para los dispositivos compartidos' : 'Tienda'}{!p.tiene_codigo && ' · sin código'}</small>
+                  </div>
+                  <input className="form-input" inputMode="numeric" autoComplete="off" placeholder="Nuevo"
+                    value={nuevo[p.id] || ''} onChange={e => setNuevo(n => ({ ...n, [p.id]: e.target.value }))} aria-label={`Código nuevo de ${p.nombre}`} />
+                  <button className="btn btn-primary btn-sm" disabled={guardando === p.id || (nuevo[p.id] || '').trim().length < 4} onClick={() => guardar(p)}>
+                    {guardando === p.id ? '…' : 'Cambiar'}
+                  </button>
                 </div>
-              </form>
-            )}
-            {puedeTienda ? (
-              <form className="codigos-bloque" onSubmit={guardarTienda}>
-                <b>Códigos de la tienda y de reparto</b>
-                <small>Al cambiarlos, todos los dispositivos tendrán que escribir el código nuevo.</small>
-                <label className="form-label">Código de la tienda (Patricia, Oscar)
-                  <input className="form-input" value={tienda} onChange={e => setTienda(e.target.value)} autoComplete="off" />
-                </label>
-                <label className="form-label">Código de reparto (Melchor)
-                  <input className="form-input" value={reparto} onChange={e => setReparto(e.target.value)} autoComplete="off" />
-                </label>
-                <button className="btn btn-ghost" disabled={saving || tienda.trim().length < 4}>{saving ? 'Guardando…' : 'Cambiar códigos'}</button>
-              </form>
-            ) : (
-              <p className="turnos-ayuda">Solo Andrés puede cambiar los códigos.</p>
-            )}
-            {error && <p className="acceso-error" role="alert">{error}</p>}
+              ))}
+            </div>
+            <button className="btn btn-ghost" onClick={cerrarTodas}><LogOut size={16} /> Cerrar sesión en todos los dispositivos</button>
           </>
         )}
+        {error && <p className="acceso-error" role="alert">{error}</p>}
       </div>
+      {toast}
     </div>
   );
 }

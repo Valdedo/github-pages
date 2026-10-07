@@ -2,6 +2,7 @@
  * Apps Script de Casa Fonso (cuenta casafonsomc@gmail.com)
  * - Envía los albaranes firmados por correo desde este Gmail.
  * - Avisa en la pantalla de Inicio de los correos sin leer y sin contestar.
+ * - Guarda los albaranes de proveedor en ALBARANES/<proveedor> en cuanto la app los lee.
  * - Guarda una copia de cada albarán firmado en Drive:
  *   Mi unidad / Albaranes firmados / <código> - <cliente> / <AAAA-MM> / <nº> firmado.pdf
  *
@@ -29,14 +30,31 @@ function doPost(e) {
       out.ok = true; out.sin_leer = b.sin_leer; out.sin_contestar = b.sin_contestar;
       return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
     }
+    if (d.action === 'carpetas') {          // subcarpetas de una carpeta (proveedores)
+      var lista = [], it = DriveApp.getFolderById(d.folderId).getFolders();
+      while (it.hasNext()) { var f = it.next(); lista.push({ id: f.getId(), name: f.getName() }); }
+      out.ok = true; out.carpetas = lista;
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (d.action === 'mover') {             // mover un archivo a otra carpeta
+      DriveApp.getFileById(d.fileId).moveTo(DriveApp.getFolderById(d.folderId));
+      out.ok = true;
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (d.action === 'borrar') {            // a la papelera
+      DriveApp.getFileById(d.fileId).setTrashed(true);
+      out.ok = true;
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (!d.pdf) throw new Error('Falta el PDF');
-    var pdf = Utilities.newBlob(Utilities.base64Decode(d.pdf), 'application/pdf', d.filename || 'albaran.pdf');
+    var pdf = Utilities.newBlob(Utilities.base64Decode(d.pdf), d.mime || 'application/pdf', d.filename || 'albaran.pdf');
 
     if (d.action === 'backup') {
-      var carpeta = carpetaRuta_(d.folder || 'Albaranes firmados');
+      var carpeta = d.folderId ? DriveApp.getFolderById(d.folderId) : carpetaRuta_(d.folder || 'Albaranes firmados');
       var repes = carpeta.getFilesByName(pdf.getName());
       while (repes.hasNext()) repes.next().setTrashed(true); // se sustituye si ya estaba
-      carpeta.createFile(pdf);
+      var nuevo = carpeta.createFile(pdf);
+      out.id = nuevo.getId(); out.url = nuevo.getUrl();
     } else {
       if (!d.to) throw new Error('Falta el destinatario');
       GmailApp.sendEmail(d.to, d.subject || 'Albarán · Casa Fonso', d.body || '', {

@@ -38,6 +38,14 @@ class Document(Base):
     validacion_ok: Mapped[Optional[bool]] = mapped_column(nullable=True)
     validacion_notas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of discrepancies
 
+    # Copia en Drive: ALBARANES/<proveedor> (casafonsomc@gmail.com)
+    drive_file_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    drive_url: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    drive_carpeta_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    drive_carpeta: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    drive_pendiente: Mapped[Optional[bool]] = mapped_column(nullable=True)  # en «_Pendientes de clasificar»
+    drive_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    drive_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

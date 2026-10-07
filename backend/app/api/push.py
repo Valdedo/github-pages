@@ -43,8 +43,9 @@ def suscribir(data: Suscripcion, request: Request, db: Session = Depends(get_db)
     if not data.endpoint.startswith("https://") or not host.endswith(_SERVICIOS):
         raise HTTPException(400, "Suscripción no válida")
     rol = getattr(request.state, "rol", None)
-    if rol == "reparto":
-        data.persona = "melchor"
+    persona = getattr(request.state, "persona", None)
+    if persona and persona != "tienda":  # código personal: los avisos son de esa persona
+        data.persona = persona
     s = db.query(PushSub).filter_by(endpoint=data.endpoint).first() or PushSub(endpoint=data.endpoint)
     s.p256dh, s.auth = data.keys.p256dh, data.keys.auth
     s.rol = rol

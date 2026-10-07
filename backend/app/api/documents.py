@@ -373,6 +373,15 @@ def _apply_validation(doc: Document, result: dict) -> None:
     }, ensure_ascii=False)
 
 
+def _guardar_en_drive(doc_id: int, paginas):
+    """Copia del albarán en ALBARANES/<proveedor> de Drive (nunca rompe el proceso)."""
+    try:
+        from app.services.drive_proveedor import guardar_en_segundo_plano
+        guardar_en_segundo_plano(doc_id, paginas)
+    except Exception as e:
+        logger.warning(f"No se pudo lanzar la copia en Drive de {doc_id}: {e}")
+
+
 async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Optional[int] = None):
     """Background task: extract multiple image pages as a single document."""
     from app.database import SessionLocal
@@ -487,6 +496,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
         _apply_validation(doc, result)
         doc.status = "completed"
         db.commit()
+        _guardar_en_drive(doc_id, file_paths)
 
     except Exception as e:
         logger.error(f"Error saving multi-doc results for {doc_id}: {e}", exc_info=True)
@@ -632,6 +642,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
 
         doc.status = "completed"
         db.commit()
+        _guardar_en_drive(doc_id, None)
 
     except Exception as e:
         logger.error(f"Error saving results for document {doc_id}: {e}", exc_info=True)

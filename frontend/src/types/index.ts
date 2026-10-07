@@ -19,6 +19,12 @@ export interface Document {
   total_calculado?: number;
   validacion_ok?: boolean | null;
   validacion_notas?: string; // JSON string with {notas, discrepancias[], diferencia}
+  drive_file_id?: string | null;
+  drive_url?: string | null;
+  drive_carpeta?: string | null;
+  drive_pendiente?: boolean | null;
+  drive_error?: string | null;
+  drive_at?: string | null;
   created_at: string;
   updated_at: string;
   articles?: Article[];

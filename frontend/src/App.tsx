@@ -102,7 +102,7 @@ function SesionLinks() {
   return (
     <div className="sesion-links">
       <AvisosLink />
-      <button onClick={() => setCodigos(true)}>Cambiar códigos</button>
+      {getRol() === 'admin' && <button onClick={() => setCodigos(true)}>Códigos</button>}
       <button onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); window.location.href = '/'; } }}>Cerrar sesión</button>
       {codigos && <CodigosModal onClose={() => setCodigos(false)} />}
     </div>

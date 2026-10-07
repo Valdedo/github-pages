@@ -796,3 +796,23 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .avisos-card.grande .avisos-botones { flex: 1 1 100%; }
 .avisos-card.grande .avisos-botones .btn { flex: 1; }
 @media (max-width: 768px) { .avisos-botones { flex: 1 1 100%; } .avisos-botones .btn-primary { flex: 1; } }
+.codigos-lista { display: flex; flex-direction: column; gap: 8px; }
+.codigos-persona { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); }
+.codigos-persona:first-child { border-top: 0; }
+.codigos-quien { display: flex; flex-direction: column; min-width: 0; }
+.codigos-quien small { color: var(--text-3); font-size: 12.5px; }
+.codigos-persona .form-input { margin: 0; }
+@media (max-width: 480px) { .codigos-persona { grid-template-columns: 1fr auto; } .codigos-quien { grid-column: 1 / -1; } }
+
+/* ── Albarán de proveedor en Drive ────────────────────────────── */
+.drive-estado { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 14px; padding: 10px 16px; border-radius: 14px; background: var(--surface); color: var(--text-2); font-size: 14px; }
+.drive-estado svg { flex-shrink: 0; }
+.drive-estado.ok { background: var(--brand-pale); color: var(--cf-bosque); }
+.drive-estado.pendiente { background: #FFF4E5; color: #7A4A00; }
+.drive-estado.error { background: #FDECEC; color: var(--danger); }
+.drive-estado > span { flex: 1 1 260px; }
+.drive-abrir { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--cf-bosque); }
+.drive-elegir { display: flex; gap: 8px; flex: 1 1 100%; }
+.drive-elegir .form-input { margin: 0; flex: 1; }
+.girando { animation: cf-girar 1s linear infinite; }
+@keyframes cf-girar { to { transform: rotate(360deg); } }

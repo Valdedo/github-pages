@@ -309,11 +309,17 @@ export interface FirmasAvisos {
 export const getFirmasAvisos = () => api.get<FirmasAvisos>('/api/firmas/avisos');
 
 // Acceso
-export const accesoEstado = () => api.get<{ configurado: boolean; rol: Rol | null; reparto: boolean; encargado: boolean }>('/api/acceso/estado');
-export const accesoEntrar = (codigo: string) => api.post<{ token: string; rol: Rol }>('/api/acceso/entrar', { codigo });
+export interface PersonaAcceso { id: string; nombre: string; rol: Rol; tiene_codigo: boolean }
+export interface EstadoAcceso { configurado: boolean; rol: Rol | null; persona: string | null; reparto: boolean; encargado: boolean; personas?: PersonaAcceso[] }
+export interface SesionAcceso { token: string; rol: Rol; persona: string }
+export const accesoEstado = () => api.get<EstadoAcceso>('/api/acceso/estado');
+export const accesoEntrar = (codigo: string) => api.post<SesionAcceso>('/api/acceso/entrar', { codigo });
 export const accesoConfigurar = (tienda: string, reparto: string) =>
-  api.post<{ token: string; rol: Rol }>('/api/acceso/configurar', { tienda, reparto: reparto || null });
-export const accesoEncargado = (codigo: string) => api.post<{ token: string; rol: Rol }>('/api/acceso/encargado', { codigo });
+  api.post<SesionAcceso>('/api/acceso/configurar', { tienda, reparto: reparto || null });
+export const accesoCodigo = (persona: string, codigo: string) =>
+  api.post<{ ok: boolean } & Partial<SesionAcceso>>('/api/acceso/codigo', { persona, codigo });
+export const accesoEncargado = (codigo: string) => accesoCodigo('andres', codigo);
+export const accesoCerrarTodas = () => api.post<SesionAcceso>('/api/acceso/cerrar-todas');
 
 // Turnos
 export interface TurnoTipo { id: string; nombre: string; horario: string; horas: number }

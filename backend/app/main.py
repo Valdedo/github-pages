@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "3.1.0"
+APP_VERSION = "3.2.0"
 
 
 @asynccontextmanager
@@ -36,6 +36,16 @@ async def lifespan(app: FastAPI):
 
     create_tables()
     logger.info("Database tables created/verified.")
+    try:
+        from app.services.drive_proveedor import preparar as _preparar_drive
+        _preparar_drive()
+    except Exception as e:
+        logger.warning(f"No se pudo preparar la copia en Drive: {e}")
+    try:
+        from app.services.access_service import preparar as _preparar_acceso
+        _preparar_acceso()
+    except Exception as e:
+        logger.error(f"No se pudieron preparar los códigos de acceso: {e}")
     try:
         from app.api.firmas import rellenar_importes, liberar_firmas_a_medias
         rellenar_importes()
@@ -93,10 +103,12 @@ async def control_de_acceso(request: Request, call_next):
     if not _acc.config():
         return await call_next(request)
     tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or request.query_params.get("t")
-    rol = _acc.verificar(tok)
+    ses = _acc.sesion(tok)
+    rol = ses["rol"] if ses else None
     if not rol:
         return JSONResponse({"detail": "Hace falta el código de acceso"}, status_code=401)
     request.state.rol = rol
+    request.state.persona = ses["persona"]
     if rol == "reparto" and not (path.startswith("/api/firmas") or path.startswith("/api/push")
                                  or (path.startswith("/api/turnos") and request.method == "GET")):
         return JSONResponse({"detail": "El código de reparto solo da acceso a las firmas"}, status_code=403)
@@ -119,6 +131,7 @@ app.include_router(acceso.router)
 app.include_router(correo.router)
 app.include_router(turnos.router)
 app.include_router(push.router)
+app.include_router(drive.router)
 
 
 @app.get("/health")

@@ -5,7 +5,7 @@ import {
   putTurnosAjustes, putEstaSemana, accesoEstado, accesoEncargado, describeApiError,
   type Cuadrante, type TurnoDia, type TurnosAjustes, type TurnoEmpleado,
 } from '../api/client';
-import { getYo, setYo, esEncargado, getRol, setSesion } from '../auth';
+import { getYo, setYo, esEncargado, getRol, setSesion, sesionPersonal } from '../auth';
 import { useCfToast } from '../components/CfToast';
 import { actualizarPersona } from '../lib/avisos';
 import { ConnectionError } from '../components/ConnectionError';
@@ -106,7 +106,7 @@ function CrearEncargado({ onHecho }: { onHecho: () => void }) {
     e.preventDefault(); setEnviando(true); setError(null);
     try {
       const { data } = await accesoEncargado(codigo.trim());
-      setSesion(data.token, data.rol);
+      if (data.token && data.rol) setSesion(data.token, data.rol, data.persona);
       onHecho();
     } catch (err) { setError(errorDe(err)); } finally { setEnviando(false); }
   };
@@ -550,7 +550,7 @@ export function TurnosPage() {
               <h2>{persona.nombre}</h2>
               <p>{estaSemana}</p>
             </div>
-            {quien !== yo && getRol() !== 'reparto' && (
+            {quien !== yo && getRol() !== 'reparto' && !sesionPersonal() && (
               <button className="turnos-link" onClick={() => { setYo(quien); setYoS(quien); actualizarPersona(); show(`Este dispositivo es de ${persona.nombre}`); }}>Soy {persona.nombre}</button>
             )}
           </div>

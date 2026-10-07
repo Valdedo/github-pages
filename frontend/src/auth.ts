@@ -6,12 +6,21 @@ export type Rol = 'tienda' | 'reparto' | 'admin';
 
 export const getToken = (): string => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } };
 export const getRol = (): Rol | null => { try { return (localStorage.getItem(ROL) as Rol) || null; } catch { return null; } };
-export const setSesion = (token: string, rol: Rol) => {
-  try { localStorage.setItem(KEY, token); localStorage.setItem(ROL, rol); } catch { /* nada */ }
+const PERSONA = 'cfPersona';
+/** Guarda la sesión. Con un código personal, el dispositivo queda como de esa persona. */
+export const setSesion = (token: string, rol: Rol, persona?: string | null) => {
+  try {
+    localStorage.setItem(KEY, token); localStorage.setItem(ROL, rol);
+    if (persona) localStorage.setItem(PERSONA, persona); else localStorage.removeItem(PERSONA);
+    if (persona && persona !== 'tienda') localStorage.setItem('cfYo', persona);
+  } catch { /* nada */ }
 };
 export const cerrarSesion = () => {
-  try { localStorage.removeItem(KEY); localStorage.removeItem(ROL); } catch { /* nada */ }
+  try { localStorage.removeItem(KEY); localStorage.removeItem(ROL); localStorage.removeItem(PERSONA); } catch { /* nada */ }
 };
+/** Persona del código con el que se entró ('tienda' si es el dispositivo compartido). */
+export const getPersona = (): string => { try { return localStorage.getItem(PERSONA) || ''; } catch { return ''; } };
+export const sesionPersonal = () => { const p = getPersona(); return !!p && p !== 'tienda'; };
 
 /** Añade el código de sesión a un enlace directo (imágenes, PDF, descargas). */
 export const withToken = (url: string) => {

@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # (Railway Hobby bloquea SMTP, así que se envía por HTTPS)
     mail_relay_url: str = Field(default="", env="MAIL_RELAY_URL")
     mail_relay_key: str = Field(default="", env="MAIL_RELAY_KEY")
+    # Códigos de acceso por persona: "andres:123456,patricia:...,oscar:...,melchor:...,tienda:..."
+    codigos: str = Field(default="", env="CODIGOS")
+    # Carpeta «ALBARANES» de Drive (casafonsomc@gmail.com) con una subcarpeta por proveedor
+    drive_albaranes_id: str = Field(default="1-1jmSwZz4ctHkMtP_4KWApb6X6Ey1_Jz", env="DRIVE_ALBARANES_ID")
 
     # OCR
     tesseract_lang: str = Field(default="spa+eng", env="TESSERACT_LANG")

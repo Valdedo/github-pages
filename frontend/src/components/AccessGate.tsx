@@ -31,7 +31,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
       .then(({ data }) => {
         if (!data.configurado) setFase('crear');
         else if (data.rol && getToken()) {
-          setSesion(getToken(), data.rol);
+          setSesion(getToken(), data.rol, data.persona);
           if (data.rol === 'reparto') setReparto(true);
           setFase('dentro');
         } else { cerrarSesion(); setFase('entrar'); }
@@ -46,8 +46,8 @@ export function AccessGate({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('cf-sin-sesion', salir);
   }, []);
 
-  const entrarCon = (token: string, rol: Rol) => {
-    setSesion(token, rol);
+  const entrarCon = (token: string, rol: Rol, persona?: string | null) => {
+    setSesion(token, rol, persona);
     setReparto(rol === 'reparto');
     if (rol === 'reparto') window.history.replaceState(null, '', '/reparto');
     setFase('dentro');
@@ -59,7 +59,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     setEnviando(true); setError(null);
     try {
       const { data } = await accesoEntrar(codigo.trim());
-      entrarCon(data.token, data.rol);
+      entrarCon(data.token, data.rol, data.persona);
     } catch (err) {
       setError(errorDe(err)); setCodigo('');
     } finally { setEnviando(false); }
@@ -70,7 +70,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     setEnviando(true); setError(null);
     try {
       const { data } = await accesoConfigurar(tienda.trim(), reparto.trim());
-      entrarCon(data.token, 'tienda');
+      entrarCon(data.token, data.rol, data.persona);
     } catch (err) {
       setError(errorDe(err));
     } finally { setEnviando(false); }
@@ -95,7 +95,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
         {fase === 'entrar' && (
           <form onSubmit={onEntrar} className="acceso-form">
             <h1><Lock size={26} style={{ verticalAlign: -3 }} /> Código de acceso</h1>
-            <p className="acceso-txt">Escríbelo una vez y este dispositivo lo recordará.</p>
+            <p className="acceso-txt">Escribe tu código. Este dispositivo lo recordará.</p>
             <input className="form-input acceso-codigo" type="password" inputMode="numeric" autoComplete="current-password"
               autoFocus value={codigo} onChange={e => setCodigo(e.target.value)} aria-label="Código de acceso" />
             {error && <p className="acceso-error" role="alert">{error}</p>}

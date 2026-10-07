@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, ArrowUpRight } from 'lucide-react';
 import { getTurnosHoy, type Cuadrante, type TurnoDia } from '../api/client';
-import { getYo, setYo } from '../auth';
+import { getYo, setYo, sesionPersonal } from '../auth';
 import { actualizarPersona } from '../lib/avisos';
 
 function Linea({ titulo, t }: { titulo: string; t?: TurnoDia }) {
@@ -64,7 +64,7 @@ export function TurnoHoy({ fijo, enlace = '/turnos' }: { fijo?: string; enlace?:
         <span className="turnohoy-avatar">{mio.nombre.charAt(0)}</span>
         <div>
           <span className="turnohoy-label">Tu turno, {mio.nombre}</span>
-          {!fijo && <button className="turnohoy-cambiar" onClick={() => elegir('')}>No soy {mio.nombre}</button>}
+          {!fijo && !sesionPersonal() && <button className="turnohoy-cambiar" onClick={() => elegir('')}>No soy {mio.nombre}</button>}
         </div>
       </div>
       <Linea titulo="Hoy" t={mio.dias[0]} />
