@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Tag, Download, Copy } from 'lucide-react';
+import { Plus, Trash2, Download, Copy } from 'lucide-react';
 import { downloadCustomLabels } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useIsMobile } from '../hooks';
@@ -43,15 +43,14 @@ interface TableProps {
 
 function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: TableProps) {
   const thStyle: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: 'var(--text-3)',
-    textTransform: 'uppercase', letterSpacing: '0.05em',
+    fontSize: 12.5, fontWeight: 600, color: 'var(--text-3)',
   };
   const inputStyle = (invalid?: boolean): React.CSSProperties => ({
     padding: '7px 8px',
-    border: `1.5px solid ${invalid ? '#fca5a5' : 'var(--grey-300)'}`,
+    border: `1.5px solid ${invalid ? 'var(--danger)' : 'var(--border-strong)'}`,
     borderRadius: 7, fontSize: 13, fontFamily: 'inherit',
     width: '100%', boxSizing: 'border-box',
-    background: invalid ? '#fff5f5' : undefined,
+    background: invalid ? '#FDF0F0' : 'var(--surface)',
   });
 
   return (
@@ -59,11 +58,11 @@ function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: Table
       {/* Header */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '2fr 90px 110px 130px 90px 70px 68px',
+        gridTemplateColumns: '2fr 96px 120px 140px 96px 76px 92px',
         gap: 8, padding: '10px 16px',
         borderBottom: '1px solid var(--border)', background: 'var(--bg)', minWidth: 680,
       }}>
-        {['Descripción *', 'PVP (€) *', 'Referencia', 'EAN / Código', 'Coste (€)', 'Copias', ''].map(h => (
+        {['Artículo *', 'PVP con IVA *', 'Referencia', 'EAN / código', 'Coste (€)', 'Copias', ''].map(h => (
           <span key={h} style={thStyle}>{h}</span>
         ))}
       </div>
@@ -71,11 +70,11 @@ function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: Table
       {/* Rows */}
       <div style={{ minWidth: 680 }}>
         {rows.map((row, idx) => {
-          const noDesc = !row.descripcion.trim();
+          const noDesc = !row.descripcion.trim() && !!(row.pvp_con_iva.trim() || row.ean.trim() || row.codigo_principal.trim());
           return (
             <div key={row._id} style={{
               display: 'grid',
-              gridTemplateColumns: '2fr 90px 110px 130px 90px 70px 68px',
+              gridTemplateColumns: '2fr 96px 120px 140px 96px 76px 92px',
               gap: 8, padding: '8px 16px',
               borderBottom: '1px solid var(--border)',
               background: idx % 2 === 0 ? undefined : 'var(--bg)',
@@ -120,14 +119,14 @@ function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: Table
 function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableProps) {
   const inputCls = (invalid?: boolean) => ({
     padding: '10px 12px',
-    border: `1.5px solid ${invalid ? '#fca5a5' : 'var(--grey-300)'}`,
+    border: `1.5px solid ${invalid ? 'var(--danger)' : 'var(--border-strong)'}`,
     borderRadius: 9, fontSize: 15, fontFamily: 'inherit',
     width: '100%', boxSizing: 'border-box' as const,
-    background: invalid ? '#fff5f5' : '#fff',
+    background: invalid ? '#FDF0F0' : 'var(--surface)',
     WebkitAppearance: 'none' as const,
   });
   const label = (text: string) => (
-    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+    <div className="form-label" style={{ marginBottom: 5 }}>
       {text}
     </div>
   );
@@ -135,7 +134,7 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
   return (
     <div>
       {rows.map((row, idx) => {
-        const noDesc = !row.descripcion.trim();
+        const noDesc = !row.descripcion.trim() && !!(row.pvp_con_iva.trim() || row.ean.trim() || row.codigo_principal.trim());
         return (
           <div key={row._id} className="card" style={{ marginBottom: 12, padding: 0, overflow: 'hidden' }}>
             {/* Card header */}
@@ -160,7 +159,7 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
             <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {/* Descripción */}
               <div>
-                {label('Descripción *')}
+                {label('Artículo *')}
                 <input style={inputCls(noDesc)} placeholder="Nombre del artículo"
                   value={row.descripcion} onChange={e => setField(row._id, 'descripcion', e.target.value)} />
               </div>
@@ -168,7 +167,7 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
               {/* PVP + Copias */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  {label('PVP (€) *')}
+                  {label('PVP con IVA (€) *')}
                   <input style={{ ...inputCls(), textAlign: 'right' }} type="text" inputMode="decimal"
                     placeholder="0,00" value={row.pvp_con_iva}
                     onChange={e => setField(row._id, 'pvp_con_iva', e.target.value)} />
@@ -281,64 +280,27 @@ export function CustomLabelsPage() {
     <div className="page">
       {ConfirmDialog}
       {/* Header — stacks vertically on mobile */}
-      {isMobile ? (
-        /* ── Mobile header ── */
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-            <Tag size={18} /> Etiquetas personalizadas
-          </h1>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
-              {validRows.length} art. · {totalLabels} etiq.
-            </span>
-            <button className="btn btn-ghost btn-sm"
-              onClick={async () => { const ok = await confirm({ title: 'Limpiar artículos', message: '¿Limpiar todos los artículos?', confirmLabel: 'Limpiar', danger: true }); if (ok) setRows([newRow()]); }}
-              style={{ color: 'var(--danger)' }}>
-              Limpiar
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={handleGenerate}
-              disabled={generating || validRows.length === 0}
-              style={{ marginLeft: 'auto', flexShrink: 0 }}>
-              {generating
-                ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
-                : <><Download size={14} /> Generar PDF</>}
-            </button>
-          </div>
+      <div className="inicio-head" style={{ marginBottom: 14 }}>
+        <div>
+          <h1>Etiquetas</h1>
+          <p>Escribe los artículos a mano y saca un PDF listo para imprimir.</p>
         </div>
-      ) : (
-        /* ── Desktop header ── */
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Tag size={20} /> Etiquetas personalizadas
-            </h1>
-            <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
-              Rellena los artículos a mano y genera un PDF listo para imprimir.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', background: 'var(--bg)', padding: '4px 10px', borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
-              {validRows.length} art. · {totalLabels} etiq.
-            </span>
-            <button className="btn btn-ghost btn-sm"
-              onClick={async () => { const ok = await confirm({ title: 'Limpiar artículos', message: '¿Limpiar todos los artículos?', confirmLabel: 'Limpiar', danger: true }); if (ok) setRows([newRow()]); }}
-              style={{ color: 'var(--danger)' }}>
-              Limpiar
+        <div className="cab-botones">
+          <span className="cat-cuenta">{validRows.length} artículo{validRows.length !== 1 ? 's' : ''} · {totalLabels} etiqueta{totalLabels !== 1 ? 's' : ''}</span>
+          {(rows.length > 1 || validRows.length > 0) && (
+            <button className="btn btn-ghost"
+              onClick={async () => { const ok = await confirm({ title: 'Empezar de cero', message: '¿Borrar todos los artículos de la lista?', confirmLabel: 'Borrar', danger: true }); if (ok) setRows([newRow()]); }}>
+              Empezar de cero
             </button>
-            <button className="btn btn-primary" onClick={handleGenerate}
-              disabled={generating || validRows.length === 0}>
-              {generating
-                ? <><span className="spinner spinner-sm spinner-white" /> Generando…</>
-                : <><Download size={15} /> Generar PDF</>}
-            </button>
-          </div>
+          )}
+          <button className="btn btn-primary btn-lg" onClick={handleGenerate} disabled={generating || validRows.length === 0}>
+            {generating ? <><span className="spinner spinner-sm spinner-white" /> Generando…</> : <><Download size={17} /> Sacar PDF</>}
+          </button>
         </div>
-      )}
+      </div>
 
       {error && (
-        <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
-          {error}
-        </div>
+        <div className="doc-aviso error">{error}</div>
       )}
 
       {/* Desktop table / Mobile cards — only one is mounted at a time */}
@@ -349,10 +311,9 @@ export function CustomLabelsPage() {
 
       {/* Help note — hidden on mobile to save space */}
       {!isMobile && (
-        <div style={{ marginTop: 16, padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
-          <strong style={{ color: 'var(--text-2)' }}>Descripción</strong> y <strong style={{ color: 'var(--text-2)' }}>PVP</strong> son obligatorios.{' '}
-          Los artículos se guardan en la base de datos al generar, por lo que el QR del móvil y el código de barras funcionan igual que en cualquier albarán.
-          El <strong style={{ color: 'var(--text-2)' }}>Coste</strong> se muestra cifrado en la etiqueta (solo uso interno).
+        <div style={{ marginTop: 14, padding: '12px 18px', background: 'var(--surface)', borderRadius: 16, fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
+          Hace falta el <b>artículo</b> y el <b>PVP</b>. Al sacar el PDF, los artículos se guardan para que luego salgan en «Consultar precio» al pasar el lector.
+          El <b>coste</b> sale cifrado en la etiqueta, para uso interno.
         </div>
       )}
     </div>

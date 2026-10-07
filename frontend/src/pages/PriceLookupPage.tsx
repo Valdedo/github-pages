@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Camera, Image as ImageIcon, X, Plus, Minus, ShoppingBasket, Trash2, FileText } from 'lucide-react';
 import { getCatalog, decodeBarcodeImage, describeApiError } from '../api/client';
 import { useCfToast } from '../components/CfToast';
+import { nombreProveedor } from '../lib/proveedor';
 import type { CatalogArticle } from '../types';
 
 /**
@@ -220,7 +221,7 @@ export function PriceLookupPage() {
                 <div className="consulta-chips">
                   {a.codigo_principal && <span className="mono">{a.codigo_principal}</span>}
                   {a.ean && a.ean !== a.codigo_principal && <span className="mono">{a.ean}</span>}
-                  {a.supplier_name && <span>{a.supplier_name}</span>}
+                  {a.supplier_name && <span>{nombreProveedor(a.supplier_name)}</span>}
                 </div>
                 <small>
                   Coste {eur(a.coste_neto_unitario)} · sin IVA {eur(a.pvp_sin_iva)} ({a.margen_pct.toFixed(0)} %)

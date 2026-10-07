@@ -1,20 +1,30 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, X, Download, FileText, BookOpen } from 'lucide-react';
 import {
   getCatalog, getCatalogFamilies,
-  downloadCatalogTreyFact, downloadCatalogPriceList,
+  downloadCatalogTreyFact, downloadCatalogPriceList, describeApiError,
 } from '../api/client';
-import { useToast } from '../components/Toast';
+import { ConnectionError } from '../components/ConnectionError';
+import { ES_MANUAL, nombreProveedor } from '../lib/proveedor';
 import type { CatalogArticle } from '../types';
 
 type SortKey = 'descripcion' | 'pvp_con_iva' | 'margen_pct' | 'supplier_name' | 'doc_date';
 
+const eur = (v: number) => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const fecha = (d?: string | null) => {
+  if (!d) return '';
+  const [y, m, dd] = d.split('T')[0].split('-');
+  return dd ? `${dd}/${m}/${y}` : d;
+};
+
 export function CatalogPage() {
   const navigate = useNavigate();
-  const { showToast, ToastContainer } = useToast();
   const [articles, setArticles] = useState<CatalogArticle[]>([]);
   const [families, setFamilies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [truncado, setTruncado] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [familia, setFamilia] = useState('');
   const [dlTF, setDlTF] = useState(false);
@@ -31,11 +41,10 @@ export function CatalogPage() {
       ]);
       setArticles(catRes.data);
       setFamilies(famRes.data);
-      // Warn if backend truncated the results
-      const truncatedCount = catRes.headers?.['x-truncated-count'];
-      if (truncatedCount) {
-        showToast(`Atención: solo se muestran ${catRes.data.length} artículos de ${truncatedCount} en total`, 'warning');
-      }
+      setTruncado(catRes.headers?.['x-truncated-count'] ?? null);
+      setError(null);
+    } catch (err) {
+      setError(describeApiError(err));
     } finally {
       setLoading(false);
     }
@@ -54,7 +63,7 @@ export function CatalogPage() {
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
+    else { setSortKey(key); setSortDir(key === 'doc_date' ? 'desc' : 'asc'); }
   };
 
   const sorted = [...articles].sort((a, b) => {
@@ -66,251 +75,133 @@ export function CatalogPage() {
     return sortDir === 'asc' ? cmp : -cmp;
   });
 
-  const fmt = (v: number) => v.toFixed(2).replace('.', ',') + ' €';
-
-  const SortIcon = ({ col }: { col: SortKey }) => (
-    <span className={`sort-icon ${sortKey === col ? sortDir : ''}`}>
-      {sortKey === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
+  const Th = ({ col, children, num }: { col?: SortKey; children: React.ReactNode; num?: boolean }) => (
+    <th className={`${num ? 'num' : ''}${col ? ' ordenable' : ''}${col && sortKey === col ? ' on' : ''}`}
+      onClick={col ? () => handleSort(col) : undefined}
+      aria-sort={col && sortKey === col ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      {children}{col && <span className="orden">{sortKey === col ? (sortDir === 'asc' ? '↑' : '↓') : ''}</span>}
+    </th>
   );
+
+  const codigo = (a: CatalogArticle) => a.codigo_principal || a.codigo_fabricante || a.codigo_proveedor || '';
 
   return (
     <div className="page-wide">
-      <ToastContainer />
-      {/* Header */}
-      <div className="hero-card" style={{ marginBottom: '20px' }}>
+      {error && <ConnectionError message={error} onRetry={load} />}
+
+      <div className="inicio-head" style={{ marginBottom: 14 }}>
         <div>
-          <div className="hero-card-title">Catálogo de artículos</div>
-          <div className="hero-card-meta">Vista unificada · precio más reciente de cada artículo</div>
+          <h1>Catálogo</h1>
+          <p>Todos los artículos de los albaranes de proveedor, con su precio más reciente.</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={dlTF}
-            onClick={() => handleDl(setDlTF, () => downloadCatalogTreyFact({ familia: familia || undefined, q: q || undefined }))}
-            title="Exportar catálogo para TreyFact"
-          >
-            {dlTF ? <span className="spinner spinner-sm" /> : '↓ TreyFact'}
+        <div className="cab-botones">
+          <button className="btn btn-ghost" disabled={dlPL}
+            onClick={() => handleDl(setDlPL, () => downloadCatalogPriceList({ familia: familia || undefined, q: q || undefined }))}>
+            {dlPL ? <span className="spinner spinner-sm" /> : <FileText size={17} />} Listín de precios
           </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={dlPL}
-            onClick={() => handleDl(setDlPL, () => downloadCatalogPriceList({ familia: familia || undefined, q: q || undefined }))}
-            title="Exportar listín de precios PDF"
-          >
-            {dlPL ? <span className="spinner spinner-sm" /> : '↓ Listín PDF'}
+          <button className="btn btn-ghost" disabled={dlTF}
+            onClick={() => handleDl(setDlTF, () => downloadCatalogTreyFact({ familia: familia || undefined, q: q || undefined }))}>
+            {dlTF ? <span className="spinner spinner-sm" /> : <Download size={17} />} Para TreyFACT
           </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card" style={{ marginBottom: '14px' }}>
-        <div className="card-body" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', padding: '12px 16px' }}>
-          <div className="search-bar" style={{ flex: '1 1 220px', minWidth: 0 }}>
-            <span className="search-bar-icon"></span>
-            <input
-              type="search"
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              placeholder="Descripción, código, EAN…"
-            />
-            {q && <button className="search-bar-clear" onClick={() => setQ('')}>✕</button>}
-          </div>
-          <select
-            value={familia}
-            onChange={e => setFamilia(e.target.value)}
-            style={{ flex: '0 1 180px', padding: '9px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: '#fff' }}
-          >
+      <div className="cat-filtros">
+        <div className="search-bar" style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <Search size={18} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+          <input type="text" enterKeyHint="search" value={q} onChange={e => setQ(e.target.value)}
+            placeholder="Buscar por nombre, código o EAN…" aria-label="Buscar en el catálogo" />
+          {q && <button className="search-bar-clear" onClick={() => setQ('')} aria-label="Borrar búsqueda"><X size={16} /></button>}
+        </div>
+        {families.length > 0 && (
+          <select className="form-input cat-familia" value={familia} onChange={e => setFamilia(e.target.value)} aria-label="Familia">
             <option value="">Todas las familias</option>
             {families.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
-          <span style={{ fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 500 }}>
-            {loading ? <><span className="spinner spinner-sm" /> Buscando…</> : `${articles.length} artículos`}
-          </span>
-        </div>
+        )}
+        <span className="cat-cuenta">{loading ? 'Buscando…' : `${articles.length} artículo${articles.length !== 1 ? 's' : ''}`}</span>
       </div>
 
-      {/* Desktop table */}
-      <div className="card catalog-table">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#1F4E79' }}>
-                {([
-                  ['descripcion',  'Descripción',    'left'],
-                  [null,           'Familia',         'left'],
-                  [null,           'Código',          'left'],
-                  [null,           'EAN',             'left'],
-                  ['supplier_name','Proveedor',       'left'],
-                  ['doc_date',     'Último albarán',  'left'],
-                  [null,           'Coste',           'right'],
-                  [null,           'PVP s/IVA',       'right'],
-                  ['pvp_con_iva',  'PVP c/IVA',       'right'],
-                  ['margen_pct',   'Margen',          'right'],
-                  [null,           '',                'center'],
-                ] as [SortKey | null, string, string][]).map(([col, label, align]) => (
-                  <th
-                    key={label}
-                    onClick={col ? () => handleSort(col) : undefined}
-                    className={col ? 'th-sortable' : undefined}
-                    style={{
-                      padding: '9px 10px', textAlign: align as 'left' | 'right' | 'center',
-                      color: '#fff', fontWeight: 700, fontSize: '11px',
-                      textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {label}{col && <SortIcon col={col} />}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} style={{ background: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
-                    {Array.from({ length: 11 }).map((_, j) => (
-                      <td key={j} style={{ padding: '10px' }}>
-                        <span className="skeleton skeleton-line" style={{ width: j === 0 ? '80%' : '60%' }} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : sorted.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-                  {q || familia ? 'No hay resultados para esta búsqueda.' : 'El catálogo está vacío. Procesa albaranes para poblar el catálogo.'}
-                </td></tr>
-              ) : sorted.map((art, i) => (
-                <tr
-                  key={art.id}
-                  style={{ background: i % 2 === 0 ? '#f8fafc' : '#fff', cursor: 'pointer' }}
-                  onClick={() => navigate(`/documento/${art.document_id}`)}
-                >
-                  <td style={{ padding: '9px 10px', maxWidth: '240px' }}>
-                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }} title={art.descripcion}>
-                      {art.descripcion}
-                    </span>
-                  </td>
-                  <td style={{ padding: '9px 10px' }}>
-                    {art.familia
-                      ? <span style={{ background: '#ede9fe', color: '#5b21b6', borderRadius: '99px', padding: '1px 8px', fontSize: '11px', fontWeight: 600, whiteSpace: 'nowrap' }}>{art.familia}</span>
-                      : <span style={{ color: 'var(--text-3)' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '9px 10px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
-                    {art.codigo_principal || art.codigo_fabricante || art.codigo_proveedor || '—'}
-                  </td>
-                  <td style={{ padding: '9px 10px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>
-                    {art.ean || '—'}
-                  </td>
-                  <td style={{ padding: '9px 10px', color: 'var(--text-2)', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                    {art.supplier_name || '—'}
-                  </td>
-                  <td style={{ padding: '9px 10px', color: 'var(--text-3)', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                    {art.doc_date || '—'}
-                    {art.doc_number && <span style={{ marginLeft: '4px' }}>#{art.doc_number}</span>}
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-2)', fontSize: '12px' }}>
-                    {fmt(art.coste_neto_unitario)}
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'monospace', fontSize: '12px' }}>
-                    {fmt(art.pvp_sin_iva)}
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#166534' }}>
-                    {fmt(art.pvp_con_iva)}
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'right', color: 'var(--text-2)', fontSize: '12px' }}>
-                    {art.margen_pct.toFixed(1)}%
-                  </td>
-                  <td style={{ padding: '9px 10px', textAlign: 'center' }}>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={e => { e.stopPropagation(); navigate(`/documento/${art.document_id}`); }}
-                    >Ver</button>
-                  </td>
+      {truncado && !loading && (
+        <div className="doc-aviso subidas">Solo se muestran {articles.length} de {truncado}. Afina la búsqueda para ver el resto.</div>
+      )}
+
+      {!loading && sorted.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><BookOpen size={38} style={{ color: 'var(--text-3)' }} /></div>
+          <div className="empty-state-text">
+            {q || familia ? 'No hay nada con esa búsqueda.' : 'El catálogo se llena solo al leer albaranes de proveedor.'}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* PC: tabla */}
+          <div className="card catalog-table cf-tabla-caja">
+            <table className="cf-tabla">
+              <thead>
+                <tr>
+                  <Th col="descripcion">Artículo</Th>
+                  <Th>Código</Th>
+                  <Th col="supplier_name">Proveedor</Th>
+                  <Th col="doc_date">Último albarán</Th>
+                  <Th num>Coste</Th>
+                  <Th num>PVP sin IVA</Th>
+                  <Th col="pvp_con_iva" num>PVP con IVA</Th>
+                  <Th col="margen_pct" num>Margen</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="catalog-cards">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="skeleton-card">
-              <span className="skeleton skeleton-line-lg" style={{ width: '75%' }} />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span className="skeleton skeleton-line-sm" style={{ width: '70px' }} />
-                <span className="skeleton skeleton-line-sm" style={{ width: '90px' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span className="skeleton skeleton-line" style={{ flex: 1, height: '40px' }} />
-                <span className="skeleton skeleton-line" style={{ flex: 1, height: '40px' }} />
-              </div>
-            </div>
-          ))
-        ) : sorted.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon"></div>
-            <div className="empty-state-text">
-              {q || familia ? 'Sin resultados' : 'El catálogo está vacío'}
-            </div>
+              </thead>
+              <tbody>
+                {loading ? Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>{Array.from({ length: 8 }).map((_, j) => (
+                    <td key={j}><span className="skeleton skeleton-line" style={{ width: j === 0 ? '80%' : '60%' }} /></td>
+                  ))}</tr>
+                )) : sorted.map(art => (
+                  <tr key={art.id} onClick={() => !ES_MANUAL(art.supplier_name) && navigate(`/documento/${art.document_id}`)} title={ES_MANUAL(art.supplier_name) ? undefined : 'Abrir el albarán'}>
+                    <td className="cat-nombre">
+                      <b title={art.descripcion}>{art.descripcion}</b>
+                      {art.familia && <span className="cat-chip">{art.familia}</span>}
+                    </td>
+                    <td className="cat-codigo">
+                      {codigo(art) || '—'}
+                      {art.ean && art.ean !== codigo(art) && <small>{art.ean}</small>}
+                    </td>
+                    <td className="cat-prov"><span title={nombreProveedor(art.supplier_name)}>{nombreProveedor(art.supplier_name) || '—'}</span></td>
+                    <td className="cat-fecha">{fecha(art.doc_date) || '—'}{art.doc_number && <small>N.º {art.doc_number}</small>}</td>
+                    <td className="num suave">{eur(art.coste_neto_unitario)}</td>
+                    <td className="num">{eur(art.pvp_sin_iva)}</td>
+                    <td className="num fuerte">{eur(art.pvp_con_iva)}</td>
+                    <td className="num suave">{art.margen_pct.toLocaleString('es-ES', { maximumFractionDigits: 1 })}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : sorted.map(art => (
-          <div
-            key={art.id}
-            onClick={() => navigate(`/documento/${art.document_id}`)}
-            style={{
-              background: '#fff', borderRadius: 'var(--r-xl)', border: '1px solid var(--border)',
-              padding: '14px 16px', cursor: 'pointer',
-              boxShadow: 'var(--shadow-xs)', display: 'flex', flexDirection: 'column', gap: '10px',
-            }}
-          >
-            {/* Title + chips */}
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.3, marginBottom: '6px' }}>
-                {art.descripcion}
-              </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {art.familia && (
-                  <span style={{ background: '#ede9fe', color: '#5b21b6', borderRadius: '99px', padding: '1px 8px', fontSize: '11px', fontWeight: 600 }}>
-                    {art.familia}
-                  </span>
-                )}
-                {(art.codigo_principal || art.codigo_fabricante) && (
-                  <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#f1f5f9', color: '#475569', borderRadius: '5px', padding: '1px 7px' }}>
-                    {art.codigo_principal || art.codigo_fabricante}
-                  </span>
-                )}
-                {art.supplier_name && (
-                  <span style={{ fontSize: '11px', color: 'var(--text-3)', background: 'var(--surface-2)', borderRadius: '5px', padding: '1px 7px' }}>
-                    {art.supplier_name}
-                  </span>
-                )}
-              </div>
-            </div>
 
-            {/* Price band */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '8px 10px' }}>
-                <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>PVP s/IVA</div>
-                <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '14px' }}>{fmt(art.pvp_sin_iva)}</div>
+          {/* Móvil: tarjetas */}
+          <div className="catalog-cards">
+            {loading ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton-card">
+                <span className="skeleton skeleton-line-lg" style={{ width: '75%' }} />
+                <span className="skeleton skeleton-line" style={{ height: 40 }} />
               </div>
-              <div style={{ background: '#f0fdf4', borderRadius: 'var(--r)', padding: '8px 10px', border: '1px solid #bbf7d0' }}>
-                <div style={{ fontSize: '10px', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>PVP c/IVA · {art.margen_pct.toFixed(0)}%</div>
-                <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '16px', color: '#166534' }}>{fmt(art.pvp_con_iva)}</div>
-              </div>
-            </div>
-
-            {/* Footer: date */}
-            {art.doc_date && (
-              <div style={{ fontSize: '11px', color: 'var(--text-3)', borderTop: '1px solid var(--border)', paddingTop: '8px' }}>
-                Último albarán: {art.doc_date}{art.doc_number ? ` · #${art.doc_number}` : ''}
-              </div>
-            )}
+            )) : sorted.map(art => (
+              <button key={art.id} className="card cat-tarjeta" onClick={() => !ES_MANUAL(art.supplier_name) && navigate(`/documento/${art.document_id}`)}>
+                <b>{art.descripcion}</b>
+                <span className="cat-tarjeta-meta">
+                  {codigo(art) && <span className="cat-chip gris">{codigo(art)}</span>}
+                  {art.familia && <span className="cat-chip">{art.familia}</span>}
+                  {art.supplier_name && <span>{nombreProveedor(art.supplier_name)}</span>}
+                </span>
+                <span className="cat-precios">
+                  <span><small>Sin IVA</small>{eur(art.pvp_sin_iva)}</span>
+                  <span className="fuerte"><small>Con IVA</small>{eur(art.pvp_con_iva)}</span>
+                </span>
+                {art.doc_date && <small className="cat-tarjeta-pie">Último albarán: {fecha(art.doc_date)}{art.doc_number ? ` · N.º ${art.doc_number}` : ''}</small>}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }
