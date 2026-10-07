@@ -8,19 +8,18 @@ from app.config import settings
 # SQLite needs special config for multi-thread access
 connect_args = {}
 if settings.database_url.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-    engine = create_engine(
-        settings.database_url,
-        connect_args=connect_args,
-        poolclass=StaticPool,
-    )
+    connect_args = {"check_same_thread": False, "timeout": 15}
+    # Una conexión por petición (no una compartida): con varias personas a la vez,
+    # una conexión compartida mezclaba las operaciones de unas y otras.
+    _pool = {"poolclass": StaticPool} if ":memory:" in settings.database_url else {}
+    engine = create_engine(settings.database_url, connect_args=connect_args, **_pool)
 
     # WAL mode: allows reads to proceed while a write transaction is open.
     # busy_timeout: wait up to 5 s instead of failing immediately on a locked DB.
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragmas(dbapi_conn, _):
         dbapi_conn.execute("PRAGMA journal_mode=WAL")
-        dbapi_conn.execute("PRAGMA busy_timeout=5000")
+        dbapi_conn.execute("PRAGMA busy_timeout=15000")
 else:
     engine = create_engine(settings.database_url)
 

@@ -245,15 +245,24 @@ export function FirmasPage() {
 
   const onFiles = async (list: FileList | null) => {
     const files = Array.from(list || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-    if (!files.length) return;
+    if (!files.length) {
+      if (list?.length) setUploadMsg('Solo se pueden subir archivos PDF');
+      return;
+    }
     setUploading(true);
     setUploadMsg(null);
     try {
       const { data } = await uploadFirmas(files);
-      setUploadMsg(data.length === 1
-        ? `Albarán ${data[0].numero} listo para firmar`
-        : `${data.length} albaranes listos para firmar`);
-      cambiarVista('firmar');
+      const pend = data.filter(d => d.status === 'pendiente');
+      const yaFirmados = data.filter(d => d.status === 'firmado');
+      const partes: string[] = [];
+      if (pend.length) partes.push(pend.length === 1 ? `Albarán ${pend[0].numero} listo para firmar` : `${pend.length} albaranes listos para firmar`);
+      if (yaFirmados.length) partes.push(yaFirmados.length === 1
+        ? `El ${yaFirmados[0].numero} ya estaba subido y firmado`
+        : `${yaFirmados.length} ya estaban subidos y firmados`);
+      setUploadMsg(partes.join(' · '));
+      cambiarVista(pend.length ? 'firmar' : 'todos');
+      if (pend.length) { setCliente(''); setMes(''); setSearch(''); setEnvio(''); }
       load(true);
     } catch (err) {
       setUploadMsg(`No se pudo subir: ${describeApiError(err)}`);
@@ -280,7 +289,7 @@ export function FirmasPage() {
           <p>Arrastra aquí los PDF de treyFACT o pulsa el botón.</p>
         </div>
         <button className="btn btn-primary btn-lg" disabled={uploading}
-          onClick={() => fileRef.current?.click()}>
+          onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } }}>
           <Upload size={19} /> {uploading ? 'Subiendo…' : 'Subir albaranes'}
         </button>
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden

@@ -96,11 +96,11 @@ export function DashboardPage() {
 
   const onFiles = async (list: FileList | null) => {
     const files = Array.from(list || []).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf');
-    if (!files.length) return;
+    if (!files.length) { if (list?.length) setLoadError('Solo se pueden subir archivos PDF'); return; }
     setSubiendo(true);
     try {
-      await uploadFirmas(files);
-      navigate('/firmas?vista=firmar');
+      const { data } = await uploadFirmas(files);
+      navigate(data.some(d => d.status === 'pendiente') ? '/firmas?vista=firmar' : '/firmas?vista=todos');
     } catch (err) {
       setLoadError(`No se pudieron subir: ${describeApiError(err)}`);
       setSubiendo(false);
@@ -118,7 +118,7 @@ export function DashboardPage() {
           <h1>{saludo()}</h1>
           <p>{hoyTexto()}. Esto es lo que tenéis pendiente.</p>
         </div>
-        <button className="btn btn-primary btn-lg" onClick={() => fileRef.current?.click()} disabled={subiendo}>
+        <button className="btn btn-primary btn-lg" onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } }} disabled={subiendo}>
           <Upload size={19} /> {subiendo ? 'Subiendo…' : 'Subir albaranes para firmar'}
         </button>
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden onChange={e => onFiles(e.target.files)} />

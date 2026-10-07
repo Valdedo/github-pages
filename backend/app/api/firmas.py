@@ -101,10 +101,11 @@ def _mismo_pdf(path: Optional[str], data: bytes) -> bool:
 
 
 @router.post("/upload", response_model=List[ClientDeliveryNoteResponse])
-async def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
+def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
+    # Síncrono a propósito: FastAPI lo ejecuta aparte y no bloquea al resto de la app
     out = []
     for f in files:
-        data = await f.read()
+        data = f.file.read()
         if data[:5] != b"%PDF-":
             raise HTTPException(400, f"{f.filename}: no es un PDF")
         if len(data) > settings.max_upload_size_bytes:
@@ -296,7 +297,7 @@ def page_png(note_id: int, page: int, dpi: int = Query(default=110, ge=50, le=22
 
 
 @router.post("/{note_id}/sign", response_model=ClientDeliveryNoteResponse)
-async def sign(
+def sign(
     note_id: int,
     firma: UploadFile = File(...),
     nombre: str = Form(...),
@@ -309,7 +310,7 @@ async def sign(
     nombre = nombre.strip()
     if not nombre:
         raise HTTPException(400, "Falta el nombre de quien recibe")
-    png = await firma.read()
+    png = firma.file.read()
     if png[:8] != b"\x89PNG\r\n\x1a\n":
         raise HTTPException(400, "La firma no es válida")
 
