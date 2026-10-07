@@ -11,12 +11,12 @@ import re
 import secrets
 import uuid
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pypdf import PdfReader, PdfWriter
 from sqlalchemy.orm import Session
@@ -25,9 +25,10 @@ from app.config import settings
 from app.database import get_db
 from app.models.client_delivery_note import ClientContact, ClientDeliveryNote
 from app.schemas.client_delivery_note import (
-    ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate, ContactoCliente, EnviarEmail, Marcas, MarcasLote,
+    ClientDeliveryNoteResponse, ClientDeliveryNoteUpdate, ContactoCliente, EnviarEmail, Marcas, MarcasLote, Reparto,
 )
 from app.services.backup_service import backup_en_segundo_plano
+from app.services import push_service
 from app.services.mail_service import MailNotConfigured, send_pdf
 from app.services.firma_service import AlbaranMeta, parse_albaran, stamp_signature
 
@@ -176,6 +177,33 @@ def export_zip(codigo_cliente: Optional[str] = None, mes: Optional[str] = None,
                              headers={"Content-Disposition": f'attachment; filename="{nombre}.zip"'})
 
 
+@router.post("/reparto", response_model=List[ClientDeliveryNoteResponse])
+def reparto(data: Reparto, db: Session = Depends(get_db)):
+    """Meter o sacar albaranes del camión de Melchor (le llega un aviso al móvil)."""
+    notes = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.id.in_(data.ids)).all()
+    nuevos = 0
+    if data.en_camion:
+        ultimo = db.query(ClientDeliveryNote.reparto_orden).filter(
+            ClientDeliveryNote.reparto_at.isnot(None)).order_by(ClientDeliveryNote.reparto_orden.desc()).first()
+        orden = (ultimo[0] or 0) if ultimo else 0
+        for n in sorted(notes, key=lambda x: data.ids.index(x.id)):
+            if n.status == "pendiente" and not n.reparto_at:
+                orden += 1
+                n.reparto_at = datetime.now(TZ).replace(tzinfo=None)
+                n.reparto_orden = orden
+                nuevos += 1
+    else:
+        for n in notes:
+            n.reparto_at = None
+            n.reparto_orden = None
+    db.commit()
+    for n in notes:
+        db.refresh(n)
+    if nuevos:
+        push_service.nuevos_en_reparto(nuevos)
+    return notes
+
+
 @router.post("/marcas", response_model=List[ClientDeliveryNoteResponse])
 def marcas_lote(data: MarcasLote, db: Session = Depends(get_db)):
     """Marcar varios a la vez (p. ej. todos los de una empresa como facturados)."""
@@ -299,9 +327,11 @@ def page_png(note_id: int, page: int, dpi: int = Query(default=110, ge=50, le=22
 @router.post("/{note_id}/sign", response_model=ClientDeliveryNoteResponse)
 def sign(
     note_id: int,
+    request: Request,
     firma: UploadFile = File(...),
     nombre: str = Form(...),
     dni: str = Form(default=""),
+    firmado_el: Optional[str] = Form(default=None),  # firmado sin cobertura: hora real de la firma
     db: Session = Depends(get_db),
 ):
     n = _get(db, note_id)
@@ -315,6 +345,13 @@ def sign(
         raise HTTPException(400, "La firma no es válida")
 
     ahora = datetime.now(TZ)
+    if firmado_el:
+        try:
+            cuando = datetime.fromisoformat(firmado_el.replace("Z", "+00:00")).astimezone(TZ)
+            if (ahora - cuando).total_seconds() < 7 * 86400 and cuando <= ahora + timedelta(minutes=5):
+                ahora = cuando
+        except Exception:
+            pass
     firmado_el = ahora.strftime("%d/%m/%Y a las %H:%M")
     original = Path(n.original_path).read_bytes()
     signed = stamp_signature(original, png, n.numero, n.cliente or "", nombre, dni.strip(), firmado_el)
@@ -340,6 +377,9 @@ def sign(
             db.commit()
             db.refresh(n)
     backup_en_segundo_plano()
+    if getattr(request.state, "rol", None) == "reparto":
+        push_service.avisar(push_service.a_tienda, f"Firmado en el reparto: {n.numero}",
+                            f"{n.cliente or 'Cliente'} · firmó {nombre}", f"/firmas/{n.id}", f"firma-{n.id}")
     return n
 
 

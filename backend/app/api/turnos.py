@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.turnos import Festivo, TurnoCambio, Vacacion
 from app.services import access_service as acc
 from app.services import turnos_service as ts
+from app.services import push_service
 
 router = APIRouter(prefix="/api/turnos", tags=["turnos"])
 
@@ -18,6 +19,16 @@ def _fecha(s: str) -> date:
         return date.fromisoformat(s)
     except Exception:
         raise HTTPException(400, "Fecha no válida")
+
+
+_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
+          "octubre", "noviembre", "diciembre"]
+
+
+def _cuando(f: str) -> str:
+    d = date.fromisoformat(f)
+    return f"{_DIAS[d.weekday()]} {d.day} de {_MESES[d.month - 1]}"
 
 
 def solo_encargado(request: Request):
@@ -142,7 +153,14 @@ def put_cambio(data: Cambio, db: Session = Depends(get_db)):
         c.tipo = data.tipo
         c.nota = (data.nota or "").strip()[:200] or None
     db.commit()
-    return ts.cuadrante(db, _fecha(data.fecha), 1)["empleados"]
+    res = ts.cuadrante(db, _fecha(data.fecha), 1)["empleados"]
+    if _fecha(data.fecha) >= ts.hoy():
+        t = next(e for e in res if e["id"] == data.empleado)["dias"][0]
+        que = f"{t['nombre']} · {t['horario']}" if t["clase"] == "trabajo" else t["nombre"]
+        push_service.avisar(push_service.a_persona(data.empleado), "Cambio en tu turno",
+                            f"{_cuando(data.fecha).capitalize()}: {que}{f' ({data.nota})' if data.nota else ''}",
+                            "/turnos", f"turno-{data.fecha}")
+    return res
 
 
 @router.post("/vacaciones", dependencies=[Depends(solo_encargado)])
@@ -162,6 +180,8 @@ def post_vacaciones(data: NuevaVacacion, db: Session = Depends(get_db)):
                  nota=(data.nota or "").strip()[:200] or None)
     db.add(v)
     db.commit()
+    push_service.avisar(push_service.a_persona(data.empleado), "Vacaciones apuntadas",
+                        f"Del {_cuando(data.inicio)} al {_cuando(data.fin)}", "/turnos", f"vac-{v.id}")
     return {"id": v.id}
 
 

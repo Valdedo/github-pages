@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PenLine, ChevronRight, CheckCircle, RefreshCw } from 'lucide-react';
+import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff, Truck } from 'lucide-react';
 import { listFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
+import { AvisosCard } from '../components/AvisosCard';
 import { setReparto } from '../reparto';
-import { getRol, cerrarSesion } from '../auth';
+import { getRol, cerrarSesion, getYo } from '../auth';
 import { fmtFecha, fmtEuros } from './FirmasPage';
 import { TurnoHoy } from '../components/TurnoHoy';
-import { getYo } from '../auth';
+import { cola, enviarCola, prepararSinCobertura, type FirmaEnCola } from '../lib/offline';
 import type { ClientDeliveryNote } from '../types';
 
 const hoy = () => {
@@ -15,31 +16,48 @@ const hoy = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-/** Vista sencilla para el camionero: albaranes por firmar y los firmados hoy. */
+/** Pantalla sencilla del camionero: lo que lleva en el camión, para firmar en la obra. */
 export function RepartoPage() {
   const navigate = useNavigate();
   const [notes, setNotes] = useState<ClientDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [verTodos, setVerTodos] = useState(false);
+  const [guardadas, setGuardadas] = useState<FirmaEnCola[]>(cola);
+  const [online, setOnline] = useState(navigator.onLine);
 
   useEffect(() => { setReparto(true); }, []);
   const nombre = (() => { try { return localStorage.getItem('repartoNombre') || 'Melchor'; } catch { return 'Melchor'; } })();
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setLoading(true);
-    listFirmas()
+    enviarCola().finally(() => listFirmas()
       .then(({ data }) => { setNotes(data); setError(null); })
       .catch(err => { if (!quiet) setError(describeApiError(err)); })
-      .finally(() => setLoading(false));
+      .finally(() => setLoading(false)));
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const t = setInterval(() => load(true), 30000);
-    return () => clearInterval(t);
+    const c = () => setGuardadas(cola());
+    const on = () => { setOnline(true); load(true); };
+    const off = () => setOnline(false);
+    window.addEventListener('cf-cola', c);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { clearInterval(t); window.removeEventListener('cf-cola', c); window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, [load]);
 
-  const pendientes = notes.filter(n => n.status === 'pendiente');
+  const enCola = new Set(guardadas.map(g => g.id));
+  const pendientes = notes.filter(n => n.status === 'pendiente' && !enCola.has(n.id));
+  const camion = pendientes.filter(n => n.reparto_at)
+    .sort((a, b) => (a.reparto_orden ?? 0) - (b.reparto_orden ?? 0));
+  const lista = verTodos ? pendientes : camion;
   const firmadosHoy = notes.filter(n => n.status === 'firmado' && (n.signed_at || '').startsWith(hoy()));
+
+  // Deja los del camión guardados en el móvil para abrirlos sin cobertura
+  const idsCamion = camion.map(n => n.id).join(',');
+  useEffect(() => { if (navigator.onLine && camion.length) prepararSinCobertura(camion); }, [idsCamion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="page reparto">
@@ -49,7 +67,7 @@ export function RepartoPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div>
             <span>Hola, {nombre}</span>
-            <h1>{pendientes.length ? `${pendientes.length} por firmar` : 'Nada por firmar'}</h1>
+            <h1>{camion.length ? `${camion.length} en el camión` : 'Camión vacío'}</h1>
           </div>
           <button className="btn btn-sm" style={{ marginLeft: 'auto', background: 'rgb(255 255 255 / .14)', color: '#fff' }} onClick={() => load()} aria-label="Actualizar">
             <RefreshCw size={16} /> Actualizar
@@ -57,33 +75,66 @@ export function RepartoPage() {
         </div>
       </div>
 
+      {!online && (
+        <div className="reparto-sinred"><CloudOff size={20} /> Sin cobertura. Puedes abrir y firmar los albaranes del camión igualmente.</div>
+      )}
+      {guardadas.length > 0 && (
+        <div className="reparto-cola">
+          <CloudOff size={20} />
+          <div>
+            <b>{guardadas.length} firma{guardadas.length !== 1 ? 's' : ''} esperando cobertura</b>
+            <small>{guardadas.map(g => g.cliente || g.numero).join(', ')}. Se enviarán solas.</small>
+          </div>
+        </div>
+      )}
+
+      {verTodos && (
+        <div className="reparto-todos">
+          Todos los pendientes de la tienda ({pendientes.length})
+          <button className="btn btn-ghost btn-sm" onClick={() => setVerTodos(false)}>Ver solo el camión</button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : pendientes.length === 0 ? (
+      ) : lista.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon"><CheckCircle size={40} style={{ color: 'var(--success)' }} /></div>
-          <div className="empty-state-text">Todos los albaranes están firmados.</div>
+          <div className="empty-state-icon">
+            {camion.length === 0 && pendientes.length > 0 ? <Truck size={40} style={{ color: 'var(--text-3)' }} /> : <CheckCircle size={40} style={{ color: 'var(--success)' }} />}
+          </div>
+          <div className="empty-state-text">
+            {pendientes.length === 0 ? 'Todo firmado.' : 'No te han puesto albaranes en el camión.'}
+          </div>
+          {!verTodos && pendientes.length > 0 && (
+            <button className="btn btn-ghost" style={{ marginTop: 14 }} onClick={() => setVerTodos(true)}>
+              Ver los {pendientes.length} pendientes de la tienda
+            </button>
+          )}
         </div>
       ) : (
         <div className="cf-enter" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {pendientes.map(n => (
+          {lista.map((n, i) => (
             <button key={n.id} className="card reparto-card" onClick={() => navigate(`/firmas/${n.id}`)}>
+              {!verTodos && <span className="reparto-n">{i + 1}</span>}
               <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.25 }}>{n.cliente || 'Cliente sin identificar'}</div>
                 <div style={{ fontSize: 16, color: 'var(--text-2)', marginTop: 4 }}>
-                  {n.numero}{n.obra ? ` · ${n.obra}` : ''}
+                  {n.obra || n.numero}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 2 }}>
-                  {fmtFecha(n.fecha)}{n.importe != null ? ` · ${fmtEuros(n.importe)}` : ''}
+                  {n.obra ? `${n.numero} · ` : ''}{fmtFecha(n.fecha)}{n.importe != null ? ` · ${fmtEuros(n.importe)}` : ''}
                 </div>
               </div>
               <span className="reparto-firmar"><PenLine size={20} /> Firmar</span>
             </button>
           ))}
+          {!verTodos && pendientes.length > camion.length && (
+            <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'center', color: 'var(--text-3)' }} onClick={() => setVerTodos(true)}>
+              Ver también los otros pendientes de la tienda
+            </button>
+          )}
         </div>
       )}
-
-      <div style={{ marginTop: 24 }}><TurnoHoy fijo={getYo() || 'melchor'} /></div>
 
       {firmadosHoy.length > 0 && (
         <div style={{ marginTop: 28 }}>
@@ -103,6 +154,9 @@ export function RepartoPage() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: 24 }}><AvisosCard grande /></div>
+      <div style={{ marginTop: 16 }}><TurnoHoy fijo={getYo() || 'melchor'} /></div>
 
       <div style={{ marginTop: 40, textAlign: 'center' }}>
         <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }}

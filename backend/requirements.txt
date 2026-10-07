@@ -31,6 +31,7 @@ qrcode[pil]==8.0
 
 # HTTP requests (for product search)
 httpx==0.28.1
+cryptography>=42  # avisos en el móvil (Web Push)
 beautifulsoup4==4.12.3
 
 # Utils

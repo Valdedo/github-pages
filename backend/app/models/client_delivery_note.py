@@ -42,6 +42,9 @@ class ClientDeliveryNote(Base):
 
     # Copia de seguridad en Google Drive
     backup_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Reparto: cuándo se mandó al camión de Melchor y en qué orden
+    reparto_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reparto_orden: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Envío al cliente
     share_token: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)

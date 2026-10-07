@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.1.0"
 
 
 @asynccontextmanager
@@ -86,7 +86,7 @@ async def control_de_acceso(request: Request, call_next):
     if not rol:
         return JSONResponse({"detail": "Hace falta el código de acceso"}, status_code=401)
     request.state.rol = rol
-    if rol == "reparto" and not (path.startswith("/api/firmas")
+    if rol == "reparto" and not (path.startswith("/api/firmas") or path.startswith("/api/push")
                                  or (path.startswith("/api/turnos") and request.method == "GET")):
         return JSONResponse({"detail": "El código de reparto solo da acceso a las firmas"}, status_code=403)
     return await call_next(request)
@@ -107,6 +107,7 @@ app.include_router(firmas.router)
 app.include_router(acceso.router)
 app.include_router(correo.router)
 app.include_router(turnos.router)
+app.include_router(push.router)
 
 
 @app.get("/health")

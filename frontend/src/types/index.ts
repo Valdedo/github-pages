@@ -275,5 +275,7 @@ export interface ClientDeliveryNote {
   facturado_at?: string | null;
   factura_ref?: string | null;
   backup_at?: string | null;
+  reparto_at?: string | null;
+  reparto_orden?: number | null;
   created_at: string;
 }

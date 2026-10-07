@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, ArrowUpRight } from 'lucide-react';
 import { getTurnosHoy, type Cuadrante, type TurnoDia } from '../api/client';
 import { getYo, setYo } from '../auth';
+import { actualizarPersona } from '../lib/avisos';
 
 function Linea({ titulo, t }: { titulo: string; t?: TurnoDia }) {
   if (!t) return null;
@@ -32,7 +33,7 @@ export function TurnoHoy({ fijo, enlace = '/turnos' }: { fijo?: string; enlace?:
   }, []);
 
   if (!c?.empleados.length) return null;
-  const elegir = (id: string) => { setYo(id); setYoState(id); };
+  const elegir = (id: string) => { setYo(id); setYoState(id); actualizarPersona(); };
   const mio = c.empleados.find(e => e.id === yo);
   const hoyTrabajan = c.empleados.filter(e => e.dias[0]?.clase === 'trabajo');
 

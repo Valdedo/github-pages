@@ -4,7 +4,7 @@ import type { Article, AppSettings, DocumentListItem, Document, Supplier, Produc
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: BASE,
   timeout: 60000,
 });
@@ -261,11 +261,15 @@ export const uploadFirmas = (files: File[]) => {
 export const updateFirma = (id: number, data: Partial<ClientDeliveryNote>) =>
   api.put<ClientDeliveryNote>(`/api/firmas/${id}`, data);
 export const deleteFirma = (id: number) => api.delete(`/api/firmas/${id}`);
-export const signFirma = (id: number, firma: Blob, nombre: string, dni: string) => {
+/** Meter o sacar albaranes del camión de Melchor. */
+export const repartoFirmas = (ids: number[], enCamion: boolean) =>
+  api.post<ClientDeliveryNote[]>('/api/firmas/reparto', { ids, en_camion: enCamion });
+export const signFirma = (id: number, firma: Blob, nombre: string, dni: string, firmadoEl?: string) => {
   const form = new FormData();
   form.append('firma', firma, 'firma.png');
   form.append('nombre', nombre);
   form.append('dni', dni);
+  if (firmadoEl) form.append('firmado_el', firmadoEl);
   return api.post<ClientDeliveryNote>(`/api/firmas/${id}/sign`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

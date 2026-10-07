@@ -25,6 +25,8 @@ class ClientDeliveryNoteResponse(BaseModel):
     facturado_at: Optional[datetime] = None
     factura_ref: Optional[str] = None
     backup_at: Optional[datetime] = None
+    reparto_at: Optional[datetime] = None
+    reparto_orden: Optional[int] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -40,6 +42,11 @@ class Marcas(BaseModel):
 
 class MarcasLote(Marcas):
     ids: list[int]
+
+
+class Reparto(BaseModel):
+    ids: list[int]
+    en_camion: bool = True
 
 
 class ContactoCliente(BaseModel):

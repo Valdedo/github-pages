@@ -756,3 +756,43 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .more-drawer-item { font-size: 12.5px !important; min-height: 78px; }
 }
 .sidebar-item { padding: 10px 14px; }
+
+/* ── Camión de Melchor ────────────────────────────────────────── */
+.camion-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 40px; padding: 6px 14px;
+  border-radius: 999px; border: 1.5px dashed var(--border-strong); background: var(--surface);
+  font: 600 13px var(--font); color: var(--text-2); cursor: pointer; transition: background .15s, border-color .15s, transform .1s;
+}
+.camion-btn:hover { border-color: var(--cf-verde); color: var(--cf-bosque); }
+.camion-btn:active { transform: scale(.96); }
+.camion-btn.on { border-style: solid; border-color: var(--cf-bosque); background: var(--cf-bosque); color: #fff; }
+.camion-resumen { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 10px 14px; border-radius: 12px; background: var(--brand-pale); color: var(--cf-bosque); font-size: 14px; }
+.camion-resumen svg { flex-shrink: 0; }
+@media (max-width: 768px) { .camion-btn span { display: none; } .camion-btn { padding: 6px 11px; } }
+
+.reparto-n { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: var(--brand-pale); color: var(--cf-bosque); font: 600 17px var(--font-display); }
+.reparto-sinred, .reparto-cola, .reparto-todos {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 14px 16px; border-radius: 16px; font-size: 15px;
+}
+.reparto-sinred { background: #FFF4E5; color: #7A4A00; font-weight: 600; }
+.reparto-cola { background: #E8F1FB; color: #1C4E80; }
+.reparto-cola b { display: block; }
+.reparto-cola small { font-size: 13px; }
+.reparto-todos { background: var(--surface); justify-content: space-between; font-weight: 600; }
+.reparto-sinred svg, .reparto-cola svg { flex-shrink: 0; }
+
+.firma-cola { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; border-radius: 16px; background: #E8F1FB; color: #1C4E80; }
+.firma-cola b { display: block; font-size: 17px; }
+.firma-cola small { color: #1C4E80; }
+.firma-cola .btn { width: 100%; }
+
+/* ── Avisos ───────────────────────────────────────────────────── */
+.avisos-card { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 16px 22px; border: 0; border-radius: var(--r-xl); }
+.avisos-txt { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.avisos-txt b { font-size: 16px; }
+.avisos-txt small { color: var(--text-2); font-size: 13.5px; }
+.avisos-botones { display: flex; gap: 6px; align-items: center; }
+.avisos-card.grande { border: 2px solid var(--cf-verde); }
+.avisos-card.grande .avisos-botones { flex: 1 1 100%; }
+.avisos-card.grande .avisos-botones .btn { flex: 1; }
+@media (max-width: 768px) { .avisos-botones { flex: 1 1 100%; } .avisos-botones .btn-primary { flex: 1; } }

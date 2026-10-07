@@ -26,6 +26,8 @@ import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
 import { CodigosModal } from './components/CodigosModal';
+import { AvisosLink } from './components/AvisosCard';
+import { arrancarCola } from './lib/offline';
 import { getRol, cerrarSesion } from './auth';
 import { getDashboardStats, getFirmasStats } from './api/client';
 
@@ -99,6 +101,7 @@ function SesionLinks() {
   const [codigos, setCodigos] = useState(false);
   return (
     <div className="sesion-links">
+      <AvisosLink />
       <button onClick={() => setCodigos(true)}>Cambiar códigos</button>
       <button onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); window.location.href = '/'; } }}>Cerrar sesión</button>
       {codigos && <CodigosModal onClose={() => setCodigos(false)} />}
@@ -311,6 +314,7 @@ function RepartoShell() {
 
 function AppShell() {
   const location = useLocation();
+  useEffect(() => { arrancarCola(); }, []);
   if (getRol() === 'reparto' || location.pathname === '/reparto' || isReparto()) return <RepartoShell />;
   return <FullShell />;
 }

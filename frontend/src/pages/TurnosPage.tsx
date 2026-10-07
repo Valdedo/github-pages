@@ -7,6 +7,7 @@ import {
 } from '../api/client';
 import { getYo, setYo, esEncargado, getRol, setSesion } from '../auth';
 import { useCfToast } from '../components/CfToast';
+import { actualizarPersona } from '../lib/avisos';
 import { ConnectionError } from '../components/ConnectionError';
 import {
   iso, deIso, sumar, lunes, hoyIso, diaCorto, diaLargo, cap, fechaLarga, fechaCorta, rangoSemana, mesNombre, textoWhatsApp,
@@ -550,7 +551,7 @@ export function TurnosPage() {
               <p>{estaSemana}</p>
             </div>
             {quien !== yo && getRol() !== 'reparto' && (
-              <button className="turnos-link" onClick={() => { setYo(quien); setYoS(quien); show(`Este dispositivo es de ${persona.nombre}`); }}>Soy {persona.nombre}</button>
+              <button className="turnos-link" onClick={() => { setYo(quien); setYoS(quien); actualizarPersona(); show(`Este dispositivo es de ${persona.nombre}`); }}>Soy {persona.nombre}</button>
             )}
           </div>
           <div className="turnos-cal" role="grid">

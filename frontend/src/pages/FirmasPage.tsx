@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Upload, Search, PenLine, ChevronRight, FileDown, Mail, MessageCircle, HandHelping, Receipt, Check, X, Truck,
 } from 'lucide-react';
-import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, describeApiError } from '../api/client';
+import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, repartoFirmas, describeApiError } from '../api/client';
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
@@ -56,9 +56,9 @@ export function Marcas({ n }: { n: ClientDeliveryNote }) {
   );
 }
 
-function NoteRow({ n, selectable, selected, onToggle, onOpen }: {
+function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion }: {
   n: ClientDeliveryNote; selectable: boolean; selected: boolean;
-  onToggle: () => void; onOpen: () => void;
+  onToggle: () => void; onOpen: () => void; onCamion?: () => void;
 }) {
   return (
     <div className={`card firma-card${selected ? ' selected' : ''}`} onClick={onOpen} role="button" tabIndex={0}
@@ -80,6 +80,13 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen }: {
         <Marcas n={n} />
         {n.nota && <div style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
       </div>
+      {onCamion && (
+        <button className={`camion-btn${n.reparto_at ? ' on' : ''}`} onClick={e => { e.stopPropagation(); onCamion(); }}
+          title={n.reparto_at ? 'Sacar del camión de Melchor' : 'Mandar al camión de Melchor'}
+          aria-label={n.reparto_at ? `Sacar ${n.numero} del camión` : `Mandar ${n.numero} al camión`}>
+          <Truck size={17} /> <span>{n.reparto_at ? 'En el camión' : 'Al camión'}</span>
+        </button>
+      )}
       <ChevronRight size={16} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
     </div>
   );
@@ -272,9 +279,22 @@ export function FirmasPage() {
     }
   };
 
+  const camion = async (n: ClientDeliveryNote) => {
+    const en = !n.reparto_at;
+    try {
+      const { data } = await repartoFirmas([n.id], en);
+      applyUpdated(data);
+      show(en ? `${n.numero} va en el camión. Melchor recibirá un aviso` : `${n.numero} sale del camión`, {
+        undo: async () => { const { data: d } = await repartoFirmas([n.id], !en); applyUpdated(d); },
+      });
+    } catch (err) { show(describeApiError(err), { error: true }); }
+  };
+  const enCamion = notes.filter(n => n.status === 'pendiente' && n.reparto_at).length;
+
   const row = (n: ClientDeliveryNote) => (
     <NoteRow key={n.id} n={n} selectable={selectable} selected={sel.has(n.id)}
-      onToggle={() => toggle(n.id)} onOpen={() => navigate(`/firmas/${n.id}`)} />
+      onToggle={() => toggle(n.id)} onOpen={() => navigate(`/firmas/${n.id}`)}
+      onCamion={n.status === 'pendiente' ? () => camion(n) : undefined} />
   );
 
   return (
@@ -389,7 +409,14 @@ export function FirmasPage() {
           })}
         </div>
       ) : (
-        <div className="firma-lista cf-enter">{filtered.map(row)}</div>
+        <>
+          {vista === 'firmar' && filtered.length > 0 && (
+            <p className="camion-resumen"><Truck size={16} /> {enCamion
+              ? <>En el camión de Melchor: <b>{enCamion}</b>. Él los ve en su móvil y puede firmarlos en la obra.</>
+              : <>Pulsa «Al camión» en los que salen con Melchor: le llegará un aviso y solo verá esos.</>}</p>
+          )}
+          <div className="firma-lista cf-enter">{filtered.map(row)}</div>
+        </>
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check } from 'lucide-react';
+import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff } from 'lucide-react';
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
-  getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, type MarcasFirma,
+  getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, repartoFirmas, type MarcasFirma,
 } from '../api/client';
+import { enCola, ponerEnCola, sinRed } from '../lib/offline';
 import { ConnectionError } from '../components/ConnectionError';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
 import { isReparto } from '../reparto';
@@ -129,10 +130,12 @@ export function FirmaDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [hecho, setHecho] = useState(false);
+  const [guardadaSinRed, setGuardadaSinRed] = useState(() => enCola(noteId));
   const [factRef, setFactRef] = useState('');
   const [printPages, setPrintPages] = useState<string[]>([]);
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
-  const esPC = typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
+  // En el reparto siempre se firma en la pantalla del móvil
+  const esPC = !isReparto() && typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
   const [modo, setModo] = useState<'pantalla' | 'tableta'>(() => {
     // En el PC, la tableta Topaz por defecto (salvo que se haya elegido Pantalla)
     if (!esPC) return 'pantalla';
@@ -174,6 +177,18 @@ export function FirmaDetailPage() {
     getFirma(noteId).then(({ data }) => setNote(data)).catch(err => setLoadError(describeApiError(err)));
   }, [noteId]);
   useEffect(() => { load(); }, [load]);
+  // Cuando se envía la firma guardada sin cobertura, se recarga
+  useEffect(() => {
+    const f = () => { if (!enCola(noteId)) { setGuardadaSinRed(false); load(); } };
+    window.addEventListener('cf-cola', f);
+    return () => window.removeEventListener('cf-cola', f);
+  }, [noteId, load]);
+
+  const camion = async () => {
+    if (!note) return;
+    try { const { data } = await repartoFirmas([note.id], !note.reparto_at); setNote(data[0] ?? note); }
+    catch (err) { setError(describeApiError(err)); }
+  };
 
   const version = note ? `${note.status}-${note.signed_at ?? ''}` : '';
   const pages = note ? Array.from({ length: Math.min(note.page_count || 1, 6) }, (_, i) => i + 1) : [];
@@ -195,6 +210,17 @@ export function FirmaDetailPage() {
       window.scrollTo?.(0, 0);
       document.getElementById('app-main')?.scrollTo?.(0, 0);
     } catch (err) {
+      if (sinRed(err) && padRef.current) {
+        // Sin cobertura: se guarda en el móvil y se envía sola al volver la señal
+        const blob = await padRef.current.toBlob();
+        if (blob) {
+          await ponerEnCola(note, blob, nombre.trim(), dni.trim());
+          setGuardadaSinRed(true);
+          setHecho(true);
+          setTimeout(() => setHecho(false), 1500);
+          return;
+        }
+      }
       setError(`No se pudo firmar: ${describeApiError(err)}`);
     } finally {
       setSaving(false);
@@ -291,7 +317,16 @@ export function FirmaDetailPage() {
         </div>
 
         <div className="card firma-panel">
-          {firmado ? (
+          {!firmado && guardadaSinRed ? (
+            <div className="firma-cola">
+              <CloudOff size={26} />
+              <div>
+                <b>Firmado. Se enviará al recuperar cobertura</b>
+                <small>La firma está guardada en este móvil. No hace falta hacer nada más.</small>
+              </div>
+              <button className="btn btn-primary firma-big" onClick={() => navigate(volver)}>Volver a la lista</button>
+            </div>
+          ) : firmado ? (
             <>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <CheckCircle size={22} style={{ color: 'var(--success)', flexShrink: 0 }} />
@@ -385,6 +420,12 @@ export function FirmaDetailPage() {
                 </div>
               )}
               {error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
+              {!reparto && (
+                <button className={`firma-toggle${note.reparto_at ? ' on' : ''}`} onClick={camion}>
+                  <span className="box">{note.reparto_at && <Check size={14} />}</span>
+                  <Truck size={16} /> {note.reparto_at ? 'En el camión de Melchor' : 'Mandar al camión de Melchor'}
+                </button>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-ghost" onClick={() => padRef.current?.clear()} disabled={!hasInk}>
                   <Eraser size={15} /> Borrar firma

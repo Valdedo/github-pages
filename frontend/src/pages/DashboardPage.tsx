@@ -8,6 +8,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { CorreoCard } from '../components/CorreoCard';
 import { TurnoHoy } from '../components/TurnoHoy';
+import { AvisosCard } from '../components/AvisosCard';
 import type { ClientDeliveryNote, DashboardStats } from '../types';
 
 const EMPTY_STATS: DashboardStats = {
@@ -126,6 +127,7 @@ export function DashboardPage() {
       </header>
 
       <TurnoHoy />
+      <AvisosCard />
 
       <section className="inicio-tiles" aria-label="Pendiente">
         <Tile to="/firmas?vista=firmar" destacado titulo="Por firmar" valor={loading ? 0 : porFirmar.length}

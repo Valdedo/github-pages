@@ -1,0 +1,16 @@
+{
+  "name": "Casa Fonso",
+  "short_name": "Casa Fonso",
+  "description": "Albaranes, firmas, turnos y más de Casa Fonso · Materiales de construcción",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F2F4F0",
+  "theme_color": "#123A26",
+  "icons": [
+    { "src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
