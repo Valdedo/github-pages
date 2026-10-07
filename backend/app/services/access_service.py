@@ -1,4 +1,4 @@
-"""Acceso por código: tienda (todo) y reparto (solo firmas). Sesiones firmadas con HMAC."""
+"""Acceso por código: encargado (todo), tienda (todo menos cambiar turnos y códigos) y reparto (firmas y ver turnos). Sesiones firmadas con HMAC."""
 import base64
 import hashlib
 import hmac
@@ -33,7 +33,7 @@ def config(fresh: bool = False) -> Optional[dict]:
     db = SessionLocal()
     try:
         c = db.query(AccessConfig).first()
-        cfg = {"tienda": c.tienda_hash, "reparto": c.reparto_hash, "secret": c.secret, "version": c.version} if c else {}
+        cfg = {"tienda": c.tienda_hash, "reparto": c.reparto_hash, "admin": c.admin_hash, "secret": c.secret, "version": c.version} if c else {}
     finally:
         db.close()
     _cache.update(cfg=cfg, at=time.time())
@@ -57,6 +57,18 @@ def guardar(tienda: str, reparto: Optional[str]) -> None:
     config(fresh=True)
 
 
+def guardar_admin(codigo: Optional[str]) -> None:
+    """Pone o cambia el código del encargado sin cerrar las sesiones de los demás."""
+    db = SessionLocal()
+    try:
+        c = db.query(AccessConfig).first()
+        c.admin_hash = _hash(codigo) if codigo else None
+        db.commit()
+    finally:
+        db.close()
+    config(fresh=True)
+
+
 def demasiados_intentos(ip: str) -> bool:
     ahora = time.time()
     lst = [t for t in _fails.get(ip, []) if ahora - t < 600]
@@ -72,6 +84,8 @@ def rol_para(code: str) -> Optional[str]:
     cfg = config(fresh=True)
     if not cfg:
         return None
+    if _check(code, cfg.get("admin")):
+        return "admin"
     if _check(code, cfg["tienda"]):
         return "tienda"
     if _check(code, cfg.get("reparto")):

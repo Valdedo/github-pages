@@ -469,3 +469,274 @@ textarea.form-input { min-height: 90px; }
   .hero-card { padding: 18px; border-radius: 20px; }
   .hero-card-title { font-size: 26px; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Turnos
+   ════════════════════════════════════════════════════════════════ */
+.turnos { display: flex; flex-direction: column; gap: 18px; }
+.turnos-head > .turnos-nav, .turnos-head > .turnos-compartir { flex-direction: row; margin-right: 0; gap: 6px; }
+.turnos-head .turnos-nav { display: flex; }
+.turnohoy-tramo { display: block; }
+.turnos-pasados { width: 100%; }
+.turnos-cal-dia.tc-festivo { background: #FFF1D6; border-color: #F2D49B; }
+.turnos-cal-dia.tc-festivo span { color: #7A4A00; }
+.turnos-cal-dia.tc-vacaciones { background: #FBE6F0; border-color: #F2C6DA; }
+.turnos-cal-dia.tc-vacaciones span { color: #8E2756; }
+.turnos-flecha { min-width: 46px; padding-left: 0; padding-right: 0; justify-content: center; }
+.turnos-compartir { display: flex; }
+
+/* Chips de persona */
+.turno-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.turnos-chips, .turnohoy-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.turno-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 18px;
+  border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface);
+  font: 600 15px var(--font); color: var(--text-1); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.turno-chip:hover { border-color: var(--text-3); }
+.turno-chip:active { transform: scale(.97); }
+.turno-chip.on { background: var(--cf-bosque-2); border-color: var(--cf-bosque-2); color: #fff; }
+.turno-chip.on .turno-dot { box-shadow: 0 0 0 2px #fff; }
+.turno-chip small { font-weight: 500; opacity: .75; }
+
+/* Celdas de turno */
+.tc {
+  position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  width: 100%; min-height: 58px; padding: 8px 10px; border-radius: 12px; border: 1.5px solid transparent;
+  text-align: left; font: inherit; color: var(--text-1); background: var(--surface-2);
+}
+button.tc { cursor: pointer; transition: transform .1s, box-shadow .15s, border-color .15s; }
+button.tc:hover { border-color: var(--cf-verde); box-shadow: 0 4px 12px rgb(18 58 38 / .1); }
+button.tc:active { transform: scale(.97); }
+.tc-nombre { font-weight: 700; font-size: 14px; line-height: 1.2; }
+.tc-horario { font-size: 12px; color: var(--text-2); line-height: 1.3; }
+.tc-lapiz { position: absolute; right: 7px; bottom: 7px; color: var(--text-3); opacity: 0; transition: opacity .15s; }
+button.tc:hover .tc-lapiz { opacity: 1; }
+.tc-trabajo { background: var(--brand-pale); border-color: #CFE7D8; }
+.tc-trabajo .tc-nombre { color: var(--cf-bosque); }
+.tc-sabado { background: #E7F4EC; }
+.tc-manana, .tc-tarde { background: #FFF5E3; border-color: #F3DDB2; }
+.tc-manana .tc-nombre, .tc-tarde .tc-nombre { color: #7A4A00; }
+.tc-libre { background: transparent; border: 1.5px dashed var(--border-strong); }
+.tc-libre .tc-nombre { color: var(--text-3); font-weight: 600; }
+.tc-vacaciones { background: #FBE6F0; border-color: #F2C6DA; }
+.tc-vacaciones .tc-nombre { color: #8E2756; }
+.tc-festivo { background: #FFF1D6; border-color: #F2D49B; }
+.tc-festivo .tc-nombre { color: #7A4A00; }
+.tc-festivo .tc-horario { color: #7A4A00; }
+.tc-cambio { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: #E08A1E; box-shadow: 0 0 0 2px var(--surface); }
+
+/* Cuadrante (PC) */
+.turnos-cuadro { padding: 10px 14px 6px; border: 0; border-radius: var(--r-xl); overflow-x: auto; }
+.turnos-cuadro table { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; min-width: 860px; }
+.turnos-cuadro thead th { font: 500 13px var(--font); color: var(--text-3); text-align: left; padding: 6px 4px; }
+.turnos-cuadro thead th b { font: 600 20px var(--font-display); color: var(--text-1); }
+.turnos-cuadro thead th em { font-style: normal; margin-left: 6px; font-size: 11px; font-weight: 700; color: #fff; background: var(--cf-verde); border-radius: 999px; padding: 2px 8px; vertical-align: 3px; }
+.turnos-cuadro thead th.fest b { color: #8A5300; }
+.turnos-cuadro-emp { width: 150px; }
+.turnos-cuadro-h { width: 64px; }
+.turnos-cuadro td { padding: 0; vertical-align: top; }
+.turnos-cuadro td.hoy .tc { box-shadow: 0 0 0 2px var(--cf-verde); }
+.turnos-cuadro tr.yo th .turnos-emp { background: var(--brand-pale); }
+.turnos-emp { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 12px; background: none; cursor: pointer; text-align: left; font: inherit; }
+.turnos-emp:hover { background: var(--surface-2); }
+.turnos-emp b { display: block; font-size: 15px; }
+.turnos-emp small { display: block; color: var(--text-3); font-size: 12px; }
+.turnos-horas { font: 600 15px var(--font); color: var(--text-2); text-align: center; vertical-align: middle !important; }
+.turnos-cobertura th small, .turnos-cobertura td small { color: var(--text-3); font-size: 12px; font-weight: 500; }
+.turnos-cobertura td { text-align: left; padding: 2px 10px !important; }
+.turnos-n { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; border-radius: 999px; background: var(--brand-light); color: var(--cf-bosque); font-weight: 700; font-size: 14px; }
+.turnos-n.poco { background: #FDE2E0; color: var(--danger); }
+
+/* Días (móvil) */
+.turnos-dias { display: none; flex-direction: column; gap: 12px; }
+.turnos-dia { padding: 14px 16px; border: 0; border-radius: var(--r-xl); }
+.turnos-dia.hoy { box-shadow: 0 0 0 2px var(--cf-verde); }
+.turnos-dia.pasado { opacity: .62; }
+.turnos-dia h3 { margin: 0 0 10px; font-size: 19px; font-weight: 500; }
+.turnos-dia h3 small { font-family: var(--font); font-size: 13px; color: #8A5300; }
+.turnos-dia ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.turnos-dia li { display: grid; grid-template-columns: 34px 82px 1fr; align-items: center; gap: 8px; }
+.turnos-dia li.yo .turnos-dia-nombre { color: var(--cf-bosque); }
+.turnos-dia-nombre { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; }
+.turnos-dia .tc { min-height: 48px; padding: 6px 10px; }
+
+.turnos-leyenda { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--text-2); padding: 0 6px; }
+.turnos-leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.turnos-leyenda i { display: inline-block; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid transparent; }
+.turnos-leyenda i.tc-libre { border: 1.5px dashed var(--border-strong); }
+.turnos-leyenda i.tc-cambio-l { width: 9px; height: 9px; border-radius: 50%; background: #E08A1E; }
+.turnos-leyenda-tip { margin-left: auto; color: var(--text-3); }
+
+/* Aviso */
+.turnos-aviso { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: #FFF4E5; color: #7A4A00; font-weight: 600; font-size: 14.5px; }
+.turnos-aviso svg { flex-shrink: 0; }
+
+/* Mes de una persona */
+.turnos-mes { padding: 20px 22px; border: 0; border-radius: var(--r-xl); display: flex; flex-direction: column; gap: 14px; }
+.turnos-mes-head { display: flex; align-items: center; gap: 14px; }
+.turnos-mes-head h2 { margin: 0; font-size: 26px; font-weight: 500; }
+.turnos-mes-head p { margin: 2px 0 0; color: var(--text-2); }
+.turnos-mes-head .turnos-link { margin-left: auto; }
+.turnos-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.turnos-cal-cab { text-align: center; font-size: 12px; font-weight: 700; color: var(--text-3); padding-bottom: 2px; }
+.turnos-cal-dia {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-height: 74px; padding: 8px 9px; border-radius: 12px; border: 1.5px solid transparent;
+  background: var(--surface-2); font: inherit; text-align: left; cursor: pointer; transition: transform .1s, border-color .15s;
+}
+.turnos-cal-dia:active { transform: scale(.96); }
+.turnos-cal-dia b { font: 600 18px var(--font-display); }
+.turnos-cal-dia span { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.turnos-cal-dia.tc-trabajo { background: var(--brand-pale); border-color: #CFE7D8; }
+.turnos-cal-dia.tc-libre { background: transparent; border: 1.5px dashed var(--border-strong); }
+.turnos-cal-dia.tc-libre span { color: var(--text-3); }
+.turnos-cal-dia.hoy { box-shadow: 0 0 0 2.5px var(--cf-verde); }
+.turnos-cal-dia.sel { border-color: var(--cf-bosque-2); border-style: solid; }
+.turnos-cal-dia.fuera { opacity: .4; }
+.turnos-mes-sel { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); }
+.turnos-mes-sel > div { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+.turnos-mes-sel span { color: var(--text-2); }
+.turnos-mes-sel small { color: #7A4A00; }
+
+/* Bloques de gestión */
+.turnos-gestion { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.turnos-bloque { flex: 1 1 380px; min-width: 0; padding: 20px 22px; border: 0; border-radius: var(--r-xl); display: flex; flex-direction: column; gap: 12px; }
+.turnos-bloque h2 { margin: 0; font-size: 22px; font-weight: 500; }
+.turnos-bloque h3 { margin: 8px 0 0; font-size: 17px; font-weight: 500; }
+.turnos-vacio, .turnos-ayuda { margin: 0; color: var(--text-3); font-size: 14px; }
+.turnos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.turnos-lista li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.turnos-lista li:first-child { border-top: 0; }
+.turnos-lista li.pasado { opacity: .5; }
+.turnos-lista-txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.turnos-lista-txt small { color: var(--text-3); font-size: 13px; }
+.turnos-ahora { margin-left: 8px; font-size: 11px; font-weight: 700; background: #FBE6F0; color: #8E2756; padding: 2px 8px; border-radius: 999px; }
+.turnos-quitar { color: var(--danger); min-width: 40px; padding: 0; justify-content: center; }
+.turnos-fest-fecha { display: flex; flex-direction: column; align-items: center; width: 44px; padding: 4px 0; border-radius: 10px; background: #FFF1D6; color: #7A4A00; line-height: 1.1; }
+.turnos-fest-fecha b { font: 600 18px var(--font-display); }
+.turnos-fest-fecha small { font-size: 11px; text-transform: uppercase; font-weight: 700; }
+.turnos-vac-resumen { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13.5px; color: var(--text-2); }
+.turnos-vac-resumen span { display: inline-flex; align-items: center; gap: 6px; }
+.turnos-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; padding-top: 12px; border-top: 1px solid var(--border); }
+.turnos-form .form-input { margin: 0; flex: 1 1 140px; }
+.turnos-form .acceso-error { flex-basis: 100%; margin: 0; }
+.turnos-fecha .form-input { flex: none; }
+.turnos-form-vac { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+.turnos-form-vac > select { grid-column: 1 / -1; }
+.turnos-form-vac .acceso-error { grid-column: 1 / -1; }
+.turnos-fecha { display: flex; flex-direction: column; gap: 4px; flex: 1 1 140px; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.turnos-link { background: none; border: 0; padding: 4px 0; color: var(--cf-bosque); font: 600 14px var(--font); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; }
+
+/* Rotación */
+.turnos-rotacion { flex: none; }
+.turnos-esta { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.turnos-esta label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.turnos-esta label > span { display: inline-flex; align-items: center; gap: 8px; }
+.turnos-esta .form-input { margin: 0; }
+.turnos-semtipo-wrap { overflow-x: auto; }
+.turnos-semtipo { border-collapse: separate; border-spacing: 6px; min-width: 720px; }
+.turnos-semtipo th { font-size: 13px; color: var(--text-3); text-align: left; }
+.turnos-semtipo tbody th { font: 600 20px var(--font-display); color: var(--text-1); width: 30px; }
+.turnos-semtipo .form-input { margin: 0; padding: 8px 10px; min-height: 42px; font-size: 14px; }
+.turnos-semtipo .sel-libre { color: var(--text-3); border-style: dashed; }
+.turnos-semtipo .sel-jornada { background: var(--brand-pale); }
+.turnos-tipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.turnos-tipos > div { display: grid; grid-template-columns: 70px 1fr 80px; align-items: center; gap: 8px; }
+.turnos-tipos .form-input { margin: 0; }
+.turnos-h { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-3); }
+.turnos-guardar { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Crear código del encargado */
+.turnos-encargado { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 18px 22px; border: 2px solid var(--cf-verde); border-radius: var(--r-xl); }
+.turnos-encargado-txt { display: flex; flex-direction: column; flex: 1 1 300px; }
+.turnos-encargado-txt small { color: var(--text-2); }
+.turnos-encargado .form-input { margin: 0; width: 180px; }
+
+/* Ventana de cambiar un día */
+.turno-modal, .codigos-modal { max-width: 480px; width: calc(100% - 24px); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.turno-modal-head { display: flex; align-items: center; gap: 12px; }
+.turno-modal-head h3 { margin: 0; font-size: 22px; }
+.turno-modal-head p { margin: 0; color: var(--text-2); }
+.turno-modal-head .modal-close { margin-left: auto; }
+.turno-modal-ahora { margin: 0; font-size: 14.5px; color: var(--text-2); }
+.turno-modal-tag { margin-left: 8px; font-size: 11px; font-weight: 700; color: #7A4A00; background: #FFF1D6; padding: 2px 8px; border-radius: 999px; }
+.turno-opciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.turno-opcion {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px; padding: 10px 14px;
+  border-radius: 14px; border: 1.5px solid var(--border-strong); background: var(--surface); text-align: left;
+  font: inherit; cursor: pointer; transition: border-color .15s, background .15s, transform .1s;
+}
+.turno-opcion:hover:not(:disabled) { border-color: var(--cf-verde); background: var(--brand-pale); }
+.turno-opcion:active { transform: scale(.97); }
+.turno-opcion b { font-size: 15px; }
+.turno-opcion small { color: var(--text-2); font-size: 12.5px; }
+.turno-opcion.libre { border-style: dashed; }
+.turno-opcion.on { border-color: var(--cf-bosque-2); background: var(--cf-bosque-2); color: #fff; }
+.turno-opcion.on small { color: #CFE7D8; }
+.turno-modal-pie { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.turno-modal-ayuda { margin-right: auto; font-size: 12.5px; color: var(--text-3); flex: 1 1 200px; }
+.codigos-bloque { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; border-top: 1px solid var(--border); }
+.codigos-bloque small { color: var(--text-2); }
+.codigos-bloque .form-input { margin: 0; }
+.codigos-fila { display: flex; gap: 8px; }
+.codigos-fila .form-input { flex: 1; }
+
+/* Tarjeta «Tu turno» (Inicio y reparto) */
+.turnohoy {
+  --emp: var(--cf-verde);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; padding: 18px 24px;
+  border: 0; border-radius: var(--r-xl); border-left: 6px solid var(--emp);
+}
+.turnohoy-quien { display: flex; align-items: center; gap: 14px; flex: 1 1 260px; }
+.turnohoy-quien b { display: block; font-size: 17px; }
+.turnohoy-quien small { color: var(--text-2); }
+.turnohoy-ico { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 14px; background: var(--brand-pale); color: var(--cf-bosque); }
+.turnohoy-yo { display: flex; align-items: center; gap: 12px; }
+.turnohoy-avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 46px; height: 46px; border-radius: 50%; background: var(--emp); color: #fff;
+  font: 600 20px var(--font-display);
+}
+.turnohoy-avatar.sm { width: 32px; height: 32px; font-size: 15px; }
+.turnohoy-label { display: block; font: 500 19px var(--font-display); }
+.turnohoy-cambiar { background: none; border: 0; padding: 0; color: var(--text-3); font: 500 12.5px var(--font); cursor: pointer; text-decoration: underline; }
+.turnohoy-dia, .turnohoy-equipo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.turnohoy-cuando { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
+.turnohoy-dia b { font-size: 17px; color: var(--cf-bosque); }
+.turnohoy-dia.libre b { color: var(--text-2); }
+.turnohoy-dia small, .turnohoy-equipo small { color: var(--text-2); font-size: 13px; }
+.turnohoy-caras { display: flex; }
+.turnohoy-cara { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; font: 600 13px var(--font-display); box-shadow: 0 0 0 2px var(--surface); margin-right: -4px; }
+.turnohoy-ver { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--cf-bosque); text-decoration: none; padding: 10px 16px; border-radius: 999px; background: var(--brand-pale); }
+.turnohoy-ver:hover { background: var(--brand-light); }
+
+@media (max-width: 900px) {
+  .turnos-cuadro { display: none; }
+  .turnos-dias { display: flex; }
+  .turnos-leyenda-tip { margin-left: 0; }
+}
+@media (max-width: 768px) {
+  .turnos-head { padding: 18px; }
+  .turnos-head .turnos-nav { flex: 1; }
+  .turnos-head .turnos-nav .btn:nth-child(2) { flex: 1; }
+  .turnos-compartir { flex: 1 1 100%; }
+  .turnos-compartir .btn-primary { flex: 1; }
+  .turnos-chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; scrollbar-width: none; }
+  .turnos-chips::-webkit-scrollbar { display: none; }
+  .turno-chip { flex-shrink: 0; }
+  .turnos-mes { padding: 16px 12px; }
+  .turnos-cal { gap: 4px; }
+  .turnos-cal-dia { min-height: 56px; padding: 6px 5px; border-radius: 10px; }
+  .turnos-cal-dia b { font-size: 16px; }
+  .turnos-cal-dia span { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .turnos-bloque { padding: 16px; }
+  .turnohoy { padding: 16px 18px; gap: 12px 20px; }
+  .turnohoy-yo { flex: 1 1 100%; }
+  .turnohoy-dia { flex: 1 1 40%; }
+  .turnohoy-equipo { flex: 1 1 100%; }
+  .turnohoy-ver { margin-left: 0; flex: 1 1 100%; justify-content: center; }
+  .turnos-encargado .form-input, .turnos-encargado .btn { flex: 1 1 100%; width: auto; }
+  .turnos-mes-head .turnos-link { display: none; }
+}

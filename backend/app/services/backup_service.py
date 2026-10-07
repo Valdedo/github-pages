@@ -1,4 +1,5 @@
-"""Copia de seguridad de los albaranes firmados en Google Drive (casafonsomc@gmail.com).
+"""Copias de seguridad en Google Drive (casafonsomc@gmail.com): albaranes firmados y,
+una vez al día, la base de datos entera.
 
 Cada PDF firmado se sube una vez a «Albaranes firmados/<código> - <cliente>/<AAAA-MM>/».
 Se intenta justo después de firmar y, por si falla, se repasa cada 30 minutos.
@@ -19,8 +20,7 @@ _Session = None
 
 
 def _session():
-    """Sesión con conexión propia: la app usa una única conexión compartida (StaticPool)
-    y un hilo en segundo plano no debe tocarla, o deshace las operaciones en curso."""
+    """Sesión con conexión propia para el hilo en segundo plano."""
     global _Session
     if _Session is None:
         from sqlalchemy import create_engine, event
@@ -80,6 +80,38 @@ def backup_pendientes() -> int:
     return hechos
 
 
+_ultima_copia_db = {"dia": None}
+
+
+def backup_base_de_datos() -> bool:
+    """Una copia al día de la base de datos (clientes, pedidos, turnos…) en Drive.
+    Carpeta «Copias de seguridad app», un archivo por día comprimido."""
+    from app.config import settings
+    hoy = datetime.now(TZ).date().isoformat()
+    if _ultima_copia_db["dia"] == hoy or not mail_service.configured():
+        return False
+    if not settings.database_url.startswith("sqlite:///"):
+        return False
+    import gzip
+    import sqlite3
+    import tempfile
+    origen = settings.database_url.removeprefix("sqlite:///")
+    with tempfile.TemporaryDirectory() as tmp:
+        copia = Path(tmp) / "app.db"
+        src = sqlite3.connect(origen, timeout=30)
+        dst = sqlite3.connect(copia)
+        try:
+            src.backup(dst)  # copia consistente aunque la app esté escribiendo
+        finally:
+            dst.close()
+            src.close()
+        datos = gzip.compress(copia.read_bytes())
+    mail_service.backup_pdf("Copias de seguridad app", f"casafonso-{hoy}.db.gz", datos)
+    _ultima_copia_db["dia"] = hoy
+    logger.info("Copia diaria de la base de datos en Drive (%d KB)", len(datos) // 1024)
+    return True
+
+
 def backup_en_segundo_plano():
     threading.Thread(target=backup_pendientes, daemon=True).start()
 
@@ -92,5 +124,9 @@ def arrancar_repaso(intervalo_s: int = 1800):
                 backup_pendientes()
             except Exception as e:
                 logger.warning("Error en el repaso de copias: %s", e)
+            try:
+                backup_base_de_datos()
+            except Exception as e:
+                logger.warning("Error en la copia diaria de la base de datos: %s", e)
             time.sleep(intervalo_s)
     threading.Thread(target=bucle, daemon=True, name="backup-drive").start()

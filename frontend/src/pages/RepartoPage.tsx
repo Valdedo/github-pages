@@ -6,6 +6,8 @@ import { ConnectionError } from '../components/ConnectionError';
 import { setReparto } from '../reparto';
 import { getRol, cerrarSesion } from '../auth';
 import { fmtFecha, fmtEuros } from './FirmasPage';
+import { TurnoHoy } from '../components/TurnoHoy';
+import { getYo } from '../auth';
 import type { ClientDeliveryNote } from '../types';
 
 const hoy = () => {
@@ -80,6 +82,8 @@ export function RepartoPage() {
           ))}
         </div>
       )}
+
+      <div style={{ marginTop: 24 }}><TurnoHoy fijo={getYo() || 'melchor'} /></div>
 
       {firmadosHoy.length > 0 && (
         <div style={{ marginTop: 28 }}>

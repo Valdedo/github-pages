@@ -7,6 +7,7 @@ import { getDashboardStats, listFirmas, uploadFirmas, describeApiError } from '.
 import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { CorreoCard } from '../components/CorreoCard';
+import { TurnoHoy } from '../components/TurnoHoy';
 import type { ClientDeliveryNote, DashboardStats } from '../types';
 
 const EMPTY_STATS: DashboardStats = {
@@ -123,6 +124,8 @@ export function DashboardPage() {
         </button>
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden onChange={e => onFiles(e.target.files)} />
       </header>
+
+      <TurnoHoy />
 
       <section className="inicio-tiles" aria-label="Pendiente">
         <Tile to="/firmas?vista=firmar" destacado titulo="Por firmar" valor={loading ? 0 : porFirmar.length}

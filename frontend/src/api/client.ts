@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { getToken, withToken, cerrarSesion } from '../auth';
+import { getToken, withToken, cerrarSesion, type Rol } from '../auth';
 import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert, ClientDeliveryNote } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -304,10 +304,38 @@ export interface FirmasAvisos {
 export const getFirmasAvisos = () => api.get<FirmasAvisos>('/api/firmas/avisos');
 
 // Acceso
-export const accesoEstado = () => api.get<{ configurado: boolean; rol: 'tienda' | 'reparto' | null; reparto: boolean }>('/api/acceso/estado');
-export const accesoEntrar = (codigo: string) => api.post<{ token: string; rol: 'tienda' | 'reparto' }>('/api/acceso/entrar', { codigo });
+export const accesoEstado = () => api.get<{ configurado: boolean; rol: Rol | null; reparto: boolean; encargado: boolean }>('/api/acceso/estado');
+export const accesoEntrar = (codigo: string) => api.post<{ token: string; rol: Rol }>('/api/acceso/entrar', { codigo });
 export const accesoConfigurar = (tienda: string, reparto: string) =>
-  api.post<{ token: string; rol: 'tienda' }>('/api/acceso/configurar', { tienda, reparto: reparto || null });
+  api.post<{ token: string; rol: Rol }>('/api/acceso/configurar', { tienda, reparto: reparto || null });
+export const accesoEncargado = (codigo: string) => api.post<{ token: string; rol: Rol }>('/api/acceso/encargado', { codigo });
+
+// Turnos
+export interface TurnoTipo { id: string; nombre: string; horario: string; horas: number }
+export interface TurnoEmpleado { id: string; nombre: string; color: string }
+export interface TurnoDia {
+  fecha: string; semana: string; cambio: boolean; nota?: string | null;
+  tipo?: string; clase: 'trabajo' | 'libre' | 'festivo' | 'vacaciones'; nombre: string; horario: string; horas: number;
+}
+export interface Cuadrante { desde: string; hasta: string; festivos: Record<string, string>; empleados: (TurnoEmpleado & { dias: TurnoDia[] })[] }
+export interface TurnosAjustes {
+  empleados: TurnoEmpleado[]; tipos: TurnoTipo[]; semanas: string[][]; ancla: string; inicio: Record<string, number>;
+  esta_semana: Record<string, number>;
+  festivos: { id: number; fecha: string; nombre: string }[];
+  vacaciones: { id: number; empleado: string; inicio: string; fin: string; nota?: string | null; dias: number }[];
+}
+export const getCuadrante = (desde: string, dias = 7) => api.get<Cuadrante>('/api/turnos/cuadrante', { params: { desde, dias } });
+export const getTurnosHoy = () => api.get<Cuadrante>('/api/turnos/hoy');
+export const getTurnosAjustes = () => api.get<TurnosAjustes>('/api/turnos/ajustes');
+export const putTurnosAjustes = (a: Pick<TurnosAjustes, 'empleados' | 'tipos' | 'semanas' | 'ancla' | 'inicio'>) => api.put('/api/turnos/ajustes', a);
+export const putEstaSemana = (empleado: string, semana: number) => api.put('/api/turnos/esta-semana', { empleado, semana });
+export const putTurnoCambio = (empleado: string, fecha: string, tipo: string | null, nota?: string) =>
+  api.put('/api/turnos/cambio', { empleado, fecha, tipo, nota });
+export const postVacaciones = (empleado: string, inicio: string, fin: string, nota?: string) =>
+  api.post('/api/turnos/vacaciones', { empleado, inicio, fin, nota });
+export const deleteVacaciones = (id: number) => api.delete(`/api/turnos/vacaciones/${id}`);
+export const postFestivo = (fecha: string, nombre: string) => api.post('/api/turnos/festivos', { fecha, nombre });
+export const deleteFestivo = (id: number) => api.delete(`/api/turnos/festivos/${id}`);
 
 // Correo de casafonsomc@gmail.com (resumen para Inicio)
 export interface CorreoItem { id: string; de?: string; asunto?: string; fecha?: string; enlace?: string; resumen?: string; tipo?: string }

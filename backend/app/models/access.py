@@ -14,6 +14,8 @@ class AccessConfig(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     tienda_hash: Mapped[str] = mapped_column(String(200))
     reparto_hash: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    # Código del encargado (Andrés): todo lo de la tienda + cambiar turnos y códigos
+    admin_hash: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     secret: Mapped[str] = mapped_column(String(100))
     # Se incrementa al cambiar los códigos: invalida las sesiones antiguas
     version: Mapped[int] = mapped_column(Integer, default=1)

@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, use
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine
+  BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
@@ -21,6 +21,7 @@ import { RepairDetailPage } from './pages/RepairDetailPage';
 import { FirmasPage } from './pages/FirmasPage';
 import { FirmaDetailPage } from './pages/FirmaDetailPage';
 import { RepartoPage } from './pages/RepartoPage';
+import { TurnosPage } from './pages/TurnosPage';
 import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
@@ -43,6 +44,7 @@ const primaryNavItems: NavItem[] = [
   { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
   { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' },
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' },
+  { to: '/turnos', label: 'Turnos', icon: CalendarDays },
 ];
 
 // Secondary items → sidebar only (desktop)
@@ -55,8 +57,9 @@ const secondaryNavItems: NavItem[] = [
 
 const navItems = [...primaryNavItems, ...secondaryNavItems];
 // Móvil: 4 accesos abajo + «Más» (Precios y herramientas en el cajón)
-const bottomItems = primaryNavItems.filter(n => n.to !== '/consulta');
-const drawerItems = [...primaryNavItems.filter(n => n.to === '/consulta'), ...secondaryNavItems];
+const enCajon = ['/consulta', '/turnos'];
+const bottomItems = primaryNavItems.filter(n => !enCajon.includes(n.to));
+const drawerItems = [...primaryNavItems.filter(n => enCajon.includes(n.to)), ...secondaryNavItems];
 
 function SidebarNavGroup({ items, badges, collapsed }: {
   items: typeof navItems;
@@ -302,6 +305,7 @@ function RepartoShell() {
         <Routes>
           <Route path="/reparto" element={<RepartoPage />} />
           <Route path="/firmas/:id" element={<FirmaDetailPage />} />
+          <Route path="/turnos" element={<TurnosPage />} />
           <Route path="*" element={<Navigate to="/reparto" replace />} />
         </Routes>
       </main>
@@ -359,6 +363,7 @@ function FullShell() {
             <Route path="/etiquetas" element={<CustomLabelsPage />} />
             <Route path="/firmas" element={<FirmasPage />} />
             <Route path="/firmas/:id" element={<FirmaDetailPage />} />
+            <Route path="/turnos" element={<TurnosPage />} />
           </Routes>
         </main>
         <BottomNav badges={badges} />

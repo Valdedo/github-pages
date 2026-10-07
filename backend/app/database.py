@@ -39,7 +39,7 @@ def get_db():
 
 
 def create_tables():
-    from app.models import document, article, supplier, product_info, app_settings, repair, supplier_order, client_delivery_note, access  # noqa
+    from app.models import document, article, supplier, product_info, app_settings, repair, supplier_order, client_delivery_note, access, turnos  # noqa
     Base.metadata.create_all(bind=engine)
     _run_migrations()
 
@@ -85,6 +85,8 @@ def _run_migrations():
         # Copia en Drive y envío automático (v2.8.0)
         ("client_delivery_notes", "backup_at",    "DATETIME"),
         ("client_contacts",       "auto_email",   "INTEGER DEFAULT 0"),
+        # Código del encargado (v3.0.0)
+        ("access_config",         "admin_hash",   "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

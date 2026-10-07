@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Version tag — bump this to confirm new build is running
-APP_VERSION = "2.9.0"
+APP_VERSION = "3.0.0"
 
 
 @asynccontextmanager
@@ -66,7 +66,7 @@ app.add_middleware(
 
 # ── Acceso por código ────────────────────────────────────────────
 # Mientras no se hayan creado los códigos, la app está abierta (como antes).
-# Con códigos: /api/* pide sesión; «reparto» solo puede usar /api/firmas.
+# Con códigos: /api/* pide sesión; «reparto» solo puede usar /api/firmas y ver los turnos.
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from app.services import access_service as _acc
@@ -85,7 +85,9 @@ async def control_de_acceso(request: Request, call_next):
     rol = _acc.verificar(tok)
     if not rol:
         return JSONResponse({"detail": "Hace falta el código de acceso"}, status_code=401)
-    if rol == "reparto" and not path.startswith("/api/firmas"):
+    request.state.rol = rol
+    if rol == "reparto" and not (path.startswith("/api/firmas")
+                                 or (path.startswith("/api/turnos") and request.method == "GET")):
         return JSONResponse({"detail": "El código de reparto solo da acceso a las firmas"}, status_code=403)
     return await call_next(request)
 
@@ -104,6 +106,7 @@ app.include_router(catalog.router)
 app.include_router(firmas.router)
 app.include_router(acceso.router)
 app.include_router(correo.router)
+app.include_router(turnos.router)
 
 
 @app.get("/health")
