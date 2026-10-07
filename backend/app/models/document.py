@@ -38,6 +38,8 @@ class Document(Base):
     validacion_ok: Mapped[Optional[bool]] = mapped_column(nullable=True)
     validacion_notas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of discrepancies
 
+    # Revisado y pasado a TreyFACT (se marca solo al descargar TreyFACT, o a mano)
+    terminado_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     # Copia en Drive: ALBARANES/<proveedor> (casafonsomc@gmail.com)
     drive_file_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     drive_url: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)

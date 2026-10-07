@@ -2,15 +2,13 @@ import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, use
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, Store, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays
+  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { DocumentPage } from './pages/DocumentPage';
-import { ProductInfoPage } from './pages/ProductInfoPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
-import { SalePage } from './pages/SalePage';
 import { RepairsPage } from './pages/RepairsPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
@@ -22,6 +20,7 @@ import { FirmasPage } from './pages/FirmasPage';
 import { FirmaDetailPage } from './pages/FirmaDetailPage';
 import { RepartoPage } from './pages/RepartoPage';
 import { TurnosPage } from './pages/TurnosPage';
+import { AjustesPage } from './pages/AjustesPage';
 import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
@@ -40,7 +39,7 @@ interface NavBadge {
 }
 
 // Menú agrupado por áreas del negocio (igual para la tienda y el encargado)
-type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean };
+type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean; soloEncargado?: boolean };
 const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'Clientes', items: [
     { to: '/firmas', label: 'Firmar albaranes', short: 'Firmas', icon: PenLine, badge: 'firmas' },
@@ -49,13 +48,13 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   ] },
   { titulo: 'Mostrador', items: [
     { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
-    { to: '/venta', label: 'Venta', icon: Store },
     { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
   ] },
   { titulo: 'Proveedores', items: [
-    { to: '/albaranes', label: 'Albaranes de proveedor', short: 'Proveedor', icon: FileText },
+    { to: '/albaranes', label: 'Albaranes de proveedor', short: 'Albaranes', icon: FileText },
     { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
     { to: '/analisis', label: 'Análisis de compras', icon: BarChart2 },
+    { to: '/ajustes', label: 'Márgenes y precios', icon: SlidersHorizontal, soloEncargado: true },
   ] },
   { titulo: 'Equipo', items: [
     { to: '/turnos', label: 'Turnos', icon: CalendarDays },
@@ -64,7 +63,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
 const navItems = navGroups.flatMap(g => g.items);
 const INICIO: NavItem = { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true, badge: 'correo' };
 // Móvil: lo más usado abajo; el resto, en «Más» por grupos
-const BOTTOM = ['/firmas', '/consulta', '/turnos'];
+const BOTTOM = ['/albaranes', '/firmas', '/consulta'];
 const bottomItems = [INICIO, ...BOTTOM.map(t => navItems.find(n => n.to === t)!)];
 const drawerGroups = navGroups.map(g => ({ ...g, items: g.items.filter(n => !BOTTOM.includes(n.to)) })).filter(g => g.items.length);
 const drawerItems = drawerGroups.flatMap(g => g.items);
@@ -76,7 +75,7 @@ function SidebarNavGroup({ items, badges, collapsed }: {
 }) {
   return (
     <>
-      {items.map(({ to, label, icon: Icon, badge, exact }) => {
+      {items.filter(i => !i.soloEncargado || getRol() === 'admin').map(({ to, label, icon: Icon, badge, exact }) => {
         const count = badge ? badges[badge as keyof NavBadge] : 0;
         return (
           <NavLink
@@ -185,7 +184,7 @@ function ScrollRestoration() {
 function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/producto/') || location.pathname.startsWith('/reparaciones/') || location.pathname.startsWith('/firmas/');
+  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/reparaciones/') || location.pathname.startsWith('/firmas/');
 
   // Find current section (for title + clickable root link)
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
@@ -241,7 +240,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
           <div key={g.titulo}>
             <div className="more-drawer-grupo">{g.titulo}</div>
             <div className="more-drawer-grid">
-              {g.items.map(({ to, label, icon: Icon }) => (
+              {g.items.filter(i => !i.soloEncargado || getRol() === 'admin').map(({ to, label, icon: Icon }) => (
                 <NavLink key={to} to={to} className={({ isActive }) => `more-drawer-item${isActive ? ' active' : ''}`}>
                   <Icon size={26} />
                   <span>{label}</span>
@@ -358,9 +357,8 @@ function FullShell() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/albaranes" element={<HomePage />} />
             <Route path="/documento/:id" element={<DocumentPage />} />
-            <Route path="/producto/:id" element={<ProductInfoPage />} />
             <Route path="/analisis" element={<AnalyticsPage />} />
-            <Route path="/venta" element={<SalePage />} />
+            <Route path="/venta" element={<Navigate to="/consulta" replace />} />
             <Route path="/reparaciones" element={<RepairsPage />} />
             <Route path="/reparaciones/:id" element={<RepairDetailPage />} />
             <Route path="/pedidos" element={<OrdersPage />} />
@@ -371,6 +369,7 @@ function FullShell() {
             <Route path="/firmas" element={<FirmasPage />} />
             <Route path="/firmas/:id" element={<FirmaDetailPage />} />
             <Route path="/turnos" element={<TurnosPage />} />
+            <Route path="/ajustes" element={<AjustesPage />} />
           </Routes>
         </main>
         <BottomNav badges={badges} />

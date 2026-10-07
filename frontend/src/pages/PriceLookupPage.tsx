@@ -1,221 +1,272 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCatalog } from '../api/client';
+import { Search, Camera, Image as ImageIcon, X, Plus, Minus, ShoppingBasket, Trash2, FileText } from 'lucide-react';
+import { getCatalog, decodeBarcodeImage, describeApiError } from '../api/client';
+import { useCfToast } from '../components/CfToast';
 import type { CatalogArticle } from '../types';
+
+/**
+ * Consultar precio (+ la antigua «Venta»).
+ * - Lector PDA o teclado: se busca al leer el código y el campo queda listo para el siguiente.
+ * - Cámara del móvil: en directo o con una foto del código.
+ * - «Añadir a la cuenta»: suma varios artículos para decir el total al cliente.
+ */
+interface Linea { id: number; descripcion: string; pvp_con_iva: number; iva_pct: number; codigo: string; qty: number }
+
+const eur = (v: number) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+function leerCuenta(): Linea[] {
+  try { return JSON.parse(localStorage.getItem('sale_cart') ?? '[]'); } catch { return []; }
+}
 
 export function PriceLookupPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<CatalogArticle[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cuenta, setCuentaRaw] = useState<Linea[]>(leerCuenta);
+  const [verTotal, setVerTotal] = useState(false);
+  const { toast, show } = useCfToast();
 
-  // Auto-focus on mount (PDA scans directly into this field)
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  // Cámara
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const readerRef = useRef<any>(null);
+  const ultimoCodigo = useRef('');
+  const fotoRef = useRef<HTMLInputElement>(null);
+  const [camara, setCamara] = useState(false);
+  const [camaraError, setCamaraError] = useState<string | null>(null);
+  const [leyendoFoto, setLeyendoFoto] = useState(false);
 
-  const search = useCallback(async (q: string) => {
+  const setCuenta = (fn: (prev: Linea[]) => Linea[]) => setCuentaRaw(prev => {
+    const next = fn(prev);
+    try { localStorage.setItem('sale_cart', JSON.stringify(next)); } catch { /* nada */ }
+    return next;
+  });
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const search = useCallback(async (q: string, desdeLector = false) => {
     const clean = q.trim();
-    if (!clean) { setResults([]); setSearched(false); return; }
-    setLoading(true);
-    setSearched(true);
+    clearTimeout(timer.current);
+    if (!clean) { setResults([]); setSearched(false); setError(null); return; }
+    setLoading(true); setSearched(true); setError(null);
     try {
       const { data } = await getCatalog({ q: clean, limit: 20 });
       setResults(data);
+    } catch (e) {
+      setResults([]); setError(describeApiError(e));
     } finally {
       setLoading(false);
+      // Tras leer un código, el texto queda seleccionado: el siguiente código lo sustituye
+      if (desdeLector) requestAnimationFrame(() => inputRef.current?.select());
     }
   }, []);
 
-  // Debounce for keyboard typing
-  useEffect(() => {
-    const t = setTimeout(() => search(query), 300);
-    return () => clearTimeout(t);
-  }, [query, search]);
+  const onChange = (v: string) => {
+    setQuery(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => search(v), 350); // escribiendo a mano
+  };
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); search(query, true); }
+  };
+  const limpiar = () => { setQuery(''); setResults([]); setSearched(false); setError(null); inputRef.current?.focus(); };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      clearTimeout(0);
-      search(query);
+  const codigoLeido = useCallback((code: string) => {
+    if (navigator.vibrate) navigator.vibrate(60);
+    setQuery(code);
+    search(code, true);
+  }, [search]);
+
+  const pararCamara = useCallback(() => {
+    if (readerRef.current) { try { readerRef.current.reset(); } catch { /* nada */ } readerRef.current = null; }
+    setCamara(false);
+  }, []);
+  useEffect(() => () => pararCamara(), [pararCamara]);
+
+  const abrirCamara = async () => {
+    setCamaraError(null);
+    try {
+      const ZXing = await import('@zxing/browser');
+      const reader = new ZXing.BrowserMultiFormatReader();
+      readerRef.current = reader;
+      const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+      const trasera = devices.find(d => /back|rear|environment|trasera/i.test(d.label)) || devices[devices.length - 1];
+      setCamara(true);
+      await reader.decodeFromVideoDevice(trasera?.deviceId, videoRef.current!, result => {
+        const code = result?.getText();
+        if (code && code !== ultimoCodigo.current) {
+          ultimoCodigo.current = code;
+          codigoLeido(code);
+          setTimeout(() => { ultimoCodigo.current = ''; }, 2500);
+        }
+      });
+    } catch (e) {
+      const msg = (e as Error)?.message || String(e);
+      setCamara(false);
+      setCamaraError(/Permission|NotAllowed/i.test(msg)
+        ? 'No hay permiso para usar la cámara. Actívalo en los ajustes del navegador.'
+        : 'No se pudo abrir la cámara. Prueba con «Foto del código».');
     }
   };
 
-  const clear = () => {
-    setQuery('');
-    setResults([]);
-    setSearched(false);
-    inputRef.current?.focus();
+  const fotoCodigo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLeyendoFoto(true); setCamaraError(null);
+    try {
+      const { data } = await decodeBarcodeImage(file);
+      if (data.code) codigoLeido(data.code);
+    } catch {
+      setCamaraError('No se ve ningún código en la foto. Prueba más cerca y con buena luz.');
+    } finally {
+      setLeyendoFoto(false);
+      if (fotoRef.current) fotoRef.current.value = '';
+    }
   };
 
-  const fmt = (v: number) => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const añadir = (a: CatalogArticle) => {
+    setCuenta(prev => {
+      const ya = prev.find(l => l.id === a.id);
+      if (ya) return prev.map(l => l.id === a.id ? { ...l, qty: l.qty + 1 } : l);
+      return [...prev, { id: a.id, descripcion: a.descripcion, pvp_con_iva: a.pvp_con_iva, iva_pct: a.iva_pct, codigo: a.codigo_principal || a.ean || '', qty: 1 }];
+    });
+    show(`Añadido a la cuenta: ${a.descripcion}`);
+    inputRef.current?.select();
+  };
+  const cambiarQty = (id: number, d: number) => setCuenta(prev => prev.map(l => l.id === id ? { ...l, qty: l.qty + d } : l).filter(l => l.qty > 0));
+  const vaciar = () => {
+    const antes = cuenta;
+    setCuenta(() => []);
+    setVerTotal(false);
+    show('Cuenta vaciada', { undo: () => setCuenta(() => antes) });
+  };
+
+  const total = cuenta.reduce((s, l) => s + l.pvp_con_iva * l.qty, 0);
+  const unidades = cuenta.reduce((s, l) => s + l.qty, 0);
+
+  // Pantalla grande con el total, para enseñársela al cliente
+  if (verTotal && cuenta.length) {
+    return (
+      <div className="cuenta-total-pantalla">
+        <span>Total</span>
+        <b>{eur(total)}</b>
+        <small>IVA incluido · {unidades} artículo{unidades !== 1 ? 's' : ''}</small>
+        <ul>{cuenta.map(l => <li key={l.id}><span>{l.qty > 1 ? `${l.qty} × ` : ''}{l.descripcion}</span><span>{eur(l.pvp_con_iva * l.qty)}</span></li>)}</ul>
+        <div className="cuenta-total-botones">
+          <button className="btn btn-lg" onClick={() => setVerTotal(false)}>Volver</button>
+          <button className="btn btn-lg cuenta-nueva" onClick={vaciar}>Terminar y empezar otra</button>
+        </div>
+        {toast}
+      </div>
+    );
+  }
 
   return (
-    <div className="page" style={{ maxWidth: '760px' }}>
-
-      {/* Page header */}
-      <div className="inicio-head" style={{ marginBottom: 16 }}>
+    <div className={`page consulta${cuenta.length ? ' con-cuenta' : ''}`}>
+      <div className="inicio-head consulta-head">
         <div>
           <h1>Consultar precio</h1>
-          <p>Pasa el lector por el código de barras o escribe la referencia o el nombre.</p>
+          <p>Pasa el lector por el código, usa la cámara o escribe la referencia o el nombre.</p>
         </div>
       </div>
 
-      {/* Search bar */}
-      <div style={{ position: 'relative', marginBottom: '16px' }}>
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={e => e.target.select()}
-          placeholder="Código de barras, referencia o nombre…"
-          autoComplete="off"
-          style={{
-            width: '100%',
-            padding: '16px 52px 16px 22px',
-            fontSize: '18px',
-            minHeight: '60px',
-            fontFamily: 'var(--font)',
-            border: '2px solid var(--border-strong)',
-            borderRadius: '999px',
-            background: 'var(--surface)',
-            outline: 'none',
-            color: 'var(--text-1)',
-          }}
-        />
-        {query && (
-          <button
-            onClick={clear}
-            style={{
-              position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px',
-              color: 'var(--text-3)', padding: '8px',
-            }}
-            aria-label="Borrar búsqueda"
-          >✕</button>
-        )}
+      <div className="consulta-buscador">
+        <Search size={22} className="consulta-lupa" />
+        <input ref={inputRef} type="text" enterKeyHint="search" value={query} onChange={e => onChange(e.target.value)} onKeyDown={onKeyDown}
+          onFocus={e => e.target.select()} placeholder="Código de barras, referencia o nombre…" autoComplete="off"
+          aria-label="Buscar artículo" />
+        {query && <button className="consulta-borrar" onClick={limpiar} aria-label="Borrar búsqueda"><X size={20} /></button>}
       </div>
 
-      {/* Results */}
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-          Buscando…
-        </div>
-      )}
+      <div className="consulta-camara">
+        {!camara ? (
+          <>
+            <button className="btn btn-ghost" onClick={abrirCamara}><Camera size={18} /> Escanear con la cámara</button>
+            <label className="btn btn-ghost">
+              <ImageIcon size={18} /> {leyendoFoto ? 'Leyendo…' : 'Foto del código'}
+              <input ref={fotoRef} type="file" accept="image/*" capture="environment" hidden onChange={fotoCodigo} disabled={leyendoFoto} />
+            </label>
+          </>
+        ) : null}
+      </div>
+      <div className="consulta-video" style={{ display: camara ? 'block' : 'none' }}>
+        <video ref={videoRef} playsInline muted />
+        <span className="consulta-linea" />
+        <button className="btn btn-sm consulta-parar" onClick={pararCamara}><X size={16} /> Cerrar cámara</button>
+      </div>
+      {camaraError && <p className="consulta-aviso">{camaraError}</p>}
 
-      {!loading && searched && results.length === 0 && (
-        <div style={{
-          background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '12px',
-          padding: '20px', textAlign: 'center',
-        }}>
-          
-          <div style={{ fontWeight: 700, color: '#c2410c', marginBottom: '4px' }}>Artículo no encontrado</div>
-          <div style={{ fontSize: '13px', color: '#9a3412' }}>
-            No hay ningún artículo con ese código o descripción en el catálogo.
-          </div>
+      {loading && <p className="consulta-vacio">Buscando…</p>}
+      {!loading && error && <p className="consulta-aviso">No se pudo buscar: {error}</p>}
+      {!loading && !error && searched && results.length === 0 && (
+        <div className="consulta-noesta">
+          <b>No está en el catálogo</b>
+          <span>No hay ningún artículo con ese código o nombre. Solo aparecen los que han llegado en albaranes de proveedor.</span>
         </div>
       )}
 
       {!loading && results.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
-          {results.map((art, idx) => (
-            <div
-              key={art.id}
-              style={{
-                borderBottom: idx < results.length - 1 ? '1px solid var(--border)' : 'none',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Description + codes */}
-              <div style={{ padding: '12px 16px 8px' }}>
-                <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-1)', marginBottom: '6px', lineHeight: 1.3 }}>
-                  {art.descripcion}
+        <ul className="consulta-lista cf-enter">
+          {results.map(a => (
+            <li key={a.id} className="card consulta-art">
+              <div className="consulta-art-info">
+                <b>{a.descripcion}</b>
+                <div className="consulta-chips">
+                  {a.codigo_principal && <span className="mono">{a.codigo_principal}</span>}
+                  {a.ean && a.ean !== a.codigo_principal && <span className="mono">{a.ean}</span>}
+                  {a.supplier_name && <span>{a.supplier_name}</span>}
                 </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {art.codigo_principal && (
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--bg)', color: 'var(--text-2)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--border)' }}>
-                      {art.codigo_principal}
-                    </span>
-                  )}
-                  {art.ean && art.ean !== art.codigo_principal && (
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--brand-pale)', color: 'var(--brand-dark)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--brand-light)' }}>
-                      EAN: {art.ean}
-                    </span>
-                  )}
-                  {art.familia && (
-                    <span style={{ fontSize: '11px', background: 'var(--bg)', color: 'var(--text-3)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--border)' }}>
-                      {art.familia}
-                    </span>
-                  )}
-                  {art.supplier_name && (
-                    <span style={{ fontSize: '11px', background: 'var(--bg)', color: 'var(--text-3)', borderRadius: 'var(--r-sm)', padding: '2px 7px', border: '1px solid var(--border)' }}>
-                      {art.supplier_name}
-                    </span>
-                  )}
-                </div>
+                <small>
+                  Coste {eur(a.coste_neto_unitario)} · sin IVA {eur(a.pvp_sin_iva)} ({a.margen_pct.toFixed(0)} %)
+                  {a.doc_date && <> · <button className="turnos-link" onClick={() => navigate(`/documento/${a.document_id}`)}><FileText size={12} /> albarán del {a.doc_date}</button></>}
+                </small>
               </div>
-
-              {/* Price band */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-                background: 'var(--bg)', borderTop: '1px solid var(--border)',
-                padding: '10px 16px',
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Coste</div>
-                  <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '14px', color: 'var(--text-2)' }}>
-                    {fmt(art.coste_neto_unitario)}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center', borderLeft: '1px solid var(--grey-200)', borderRight: '1px solid var(--grey-200)' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
-                    PVP s/IVA · {art.margen_pct.toFixed(0)}%
-                  </div>
-                  <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '14px' }}>
-                    {fmt(art.pvp_sin_iva)}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
-                    PVP c/IVA · {art.iva_pct}%
-                  </div>
-                  <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '18px', color: '#166534' }}>
-                    {fmt(art.pvp_con_iva)}
-                  </div>
-                </div>
+              <div className="consulta-art-precio">
+                <span className="consulta-pvp">{eur(a.pvp_con_iva)}</span>
+                <small>con IVA</small>
+                <button className="btn btn-primary btn-sm" onClick={() => añadir(a)}><Plus size={15} /> A la cuenta</button>
               </div>
-
-              {/* Link to document */}
-              {art.doc_date && (
-                <div style={{
-                  padding: '6px 16px', display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'center', borderTop: '1px solid var(--grey-100)',
-                }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>
-                    Último albarán: {art.doc_date}{art.doc_number ? ` · #${art.doc_number}` : ''}
-                  </span>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ padding: '2px 8px', fontSize: '11px' }}
-                    onClick={() => navigate(`/documento/${art.document_id}`)}
-                  >Ver albarán</button>
-                </div>
-              )}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {!loading && !searched && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-3)' }}>
-          
-          <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>Lista para escanear</div>
-          <div style={{ fontSize: '13px' }}>Escanea un código de barras con la PDA o escribe en el campo de arriba.</div>
-        </div>
+      {!loading && !searched && !camara && (
+        <p className="consulta-vacio">Lista para leer códigos. También puedes sumar varios artículos con «A la cuenta» para decir el total al cliente.</p>
       )}
+
+      {cuenta.length > 0 && (
+        <section className="card consulta-cuenta" aria-label="Cuenta">
+          <div className="consulta-cuenta-cab">
+            <ShoppingBasket size={20} />
+            <b>Cuenta · {unidades} artículo{unidades !== 1 ? 's' : ''}</b>
+            <button className="btn btn-ghost btn-sm" onClick={vaciar} aria-label="Vaciar la cuenta"><Trash2 size={15} /> Vaciar</button>
+          </div>
+          <ul>
+            {cuenta.map(l => (
+              <li key={l.id}>
+                <span className="consulta-cuenta-desc">{l.descripcion}<small>{eur(l.pvp_con_iva)} c/u</small></span>
+                <span className="consulta-qty">
+                  <button onClick={() => cambiarQty(l.id, -1)} aria-label="Uno menos"><Minus size={18} /></button>
+                  <b>{l.qty}</b>
+                  <button onClick={() => cambiarQty(l.id, 1)} aria-label="Uno más"><Plus size={18} /></button>
+                </span>
+                <span className="consulta-cuenta-imp">{eur(l.pvp_con_iva * l.qty)}</span>
+              </li>
+            ))}
+          </ul>
+          <button className="btn btn-primary btn-lg consulta-total" onClick={() => setVerTotal(true)}>
+            Total {eur(total)} <small>· enseñar al cliente</small>
+          </button>
+        </section>
+      )}
+      {toast}
     </div>
   );
 }

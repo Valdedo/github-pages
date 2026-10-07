@@ -260,6 +260,10 @@ def export_treyfact(document_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "No articles found for this document")
 
     excel_bytes = generate_treyfact_excel(articles, supplier_name=doc.supplier_name or "")
+    if not doc.terminado_at:  # pasado a TreyFACT: el albarán queda como terminado
+        from datetime import datetime as _dt
+        doc.terminado_at = _dt.now()
+        db.commit()
     safe_name = doc.original_filename.rsplit(".", 1)[0]
     filename = f"treyfact_{safe_name}_{doc.id}.xlsx"
 

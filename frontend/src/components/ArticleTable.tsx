@@ -64,8 +64,9 @@ function EditableCell({
     return (
       <span
         onClick={() => { setVal(String(initialValue ?? '')); setEditing(true); }}
-        style={{ cursor: 'pointer', display: 'block', padding: '2px 4px', borderRadius: '3px', minWidth: width ? `${width}px` : undefined }}
-        title="Clic para editar"
+        className="celda-editable"
+        style={{ minWidth: width ? `${width}px` : undefined }}
+        title="Pulsa para cambiar"
       >
         {initialValue == null || initialValue === '' ? <em style={{ color: '#bbb' }}>—</em> : initialValue}
       </span>
@@ -464,7 +465,15 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const table = useReactTable({
     data: filtered,
     columns,
-    state: { sorting },
+    state: {
+      sorting,
+      // Los descuentos 2, 3 y 4 casi nunca vienen: la columna solo sale si algún artículo los tiene
+      columnVisibility: {
+        descuento_2: articles.some(a => a.descuento_2),
+        descuento_3: articles.some(a => a.descuento_3),
+        descuento_4: articles.some(a => a.descuento_4),
+      },
+    },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -555,7 +564,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
-                      type="number" step="0.10" min="0"
+                      type="text" inputMode="decimal"
                       value={cardPvpValue}
                       onChange={e => setCardPvpValue(e.target.value)}
                       style={{ flex: 1, padding: '9px 12px', border: '2px solid var(--brand)', borderRadius: '8px', fontSize: '16px', fontWeight: 700, fontFamily: 'inherit' }}
@@ -587,7 +596,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
-                      type="number" step="1" min="0" max="500"
+                      type="text" inputMode="decimal"
                       value={cardMarginValue}
                       onChange={e => setCardMarginValue(e.target.value)}
                       style={{ flex: 1, padding: '9px 12px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' }}
@@ -599,7 +608,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                       onClick={async () => {
                         const v = parseFloat(cardMarginValue.replace(',', '.'));
                         if (!isNaN(v)) {
-                          await handleUpdate(a.id, 'margen_pct', cardMarginValue);
+                          await handleUpdate(a.id, 'margen_pct', String(v));
                           setExpandedCardId(null);
                         }
                       }}
@@ -830,9 +839,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                       textAlign: 'left',
                       whiteSpace: 'nowrap',
                       fontWeight: 600,
-                      fontSize: '11px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      fontSize: '12.5px',
                       minWidth: header.column.getSize(),
                       borderBottom: '1px solid var(--border)',
                       cursor: canSort ? 'pointer' : 'default',
@@ -935,14 +942,14 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
 
       {/* Mobile cards */}
       <div className="article-table-mobile">
-        <MobileCards />
+        {MobileCards()}
       </div>
 
       <div style={{ padding: '8px 16px', fontSize: '11px', color: 'var(--grey-500)', background: 'var(--grey-100)', borderTop: '1px solid var(--grey-200)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
         <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', marginRight: '4px' }} />Margen automático</span>
         <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', marginRight: '4px' }} />Margen manual (↺ para restablecer)</span>
-        <span className="article-table-desktop">Clic en celda para editar · Enter para confirmar · Esc para cancelar</span>
-        <span className="article-table-mobile" style={{ display: 'none' }}>Toca una tarjeta para seleccionar</span>
+        <span className="article-table-desktop">Pulsa un dato para cambiarlo · Enter para guardar · Esc para dejarlo como estaba</span>
+        <span className="article-table-mobile" style={{ display: 'none' }}>Toca un artículo para cambiar su precio o margen</span>
       </div>
     </div>
     </>

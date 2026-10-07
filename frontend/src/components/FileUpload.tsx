@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { Camera, Images, UploadCloud } from 'lucide-react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import { uploadDocument, uploadMultiImages } from '../api/client';
 import type { Document } from '../types';
@@ -157,7 +158,7 @@ export function FileUpload({ onUploaded }: Props) {
           type="button"
           style={{ flex: 1 }}
         >
-          📷 Fotografiar
+          <Camera size={19} /> Hacer foto
         </button>
         <button
           className="btn-camera"
@@ -167,7 +168,7 @@ export function FileUpload({ onUploaded }: Props) {
           style={{ flex: 1 }}
           title="Selecciona varias fotos para albaranes de más de una página"
         >
-          🖼️ Galería (multi-página)
+          <Images size={19} /> Elegir fotos
         </button>
 
         {/* Single capture — camera */}
@@ -196,41 +197,31 @@ export function FileUpload({ onUploaded }: Props) {
         className={`upload-zone${isDragActive ? ' active' : ''}${uploading ? ' uploading' : ''}`}
       >
         <input {...getInputProps()} />
-        <div style={{ fontSize: '40px', marginBottom: '14px', lineHeight: 1 }}>
-          {uploading ? '⏳' : isDragActive ? '📂' : '📄'}
+        <div style={{ marginBottom: '12px', color: 'var(--cf-bosque)', display: 'flex', justifyContent: 'center' }}>
+          {uploading ? <span className="spinner spinner-lg" /> : <UploadCloud size={40} strokeWidth={1.6} />}
         </div>
         {uploading ? (
-          <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '15px' }}>
+          <p style={{ color: 'var(--cf-bosque)', fontWeight: 600, fontSize: '15px' }}>
             {uploadStatus || 'Subiendo y procesando...'}
           </p>
         ) : isDragActive ? (
-          <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '15px' }}>
+          <p style={{ color: 'var(--cf-bosque)', fontWeight: 600, fontSize: '15px' }}>
             Suelta el archivo aquí
           </p>
         ) : (
           <>
-            <p style={{ fontWeight: 600, fontSize: '15px', color: 'var(--grey-700)', marginBottom: '6px' }}>
-              Arrastra un albarán o toca para seleccionar
+            <p style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-1)', marginBottom: '6px' }}>
+              Arrastra aquí el albarán o pulsa para elegirlo
             </p>
-            <p style={{ color: 'var(--grey-500)', fontSize: '13px' }}>
-              PDF, JPG o PNG — máx. 20 MB por archivo — puedes seleccionar varias imágenes a la vez
+            <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>
+              PDF o fotos (JPG, PNG). Si el albarán tiene varias hojas, elige todas las fotos a la vez.
             </p>
           </>
         )}
       </div>
 
       {error && (
-        <div style={{
-          padding: '10px 16px',
-          background: '#fef2f2',
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          color: 'var(--danger)',
-          fontSize: '13px',
-          fontWeight: 500,
-        }}>
-          ⚠️ {error}
-        </div>
+        <div className="doc-aviso error" style={{ marginBottom: 0 }}>{error}</div>
       )}
     </div>
   );

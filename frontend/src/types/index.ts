@@ -19,6 +19,7 @@ export interface Document {
   total_calculado?: number;
   validacion_ok?: boolean | null;
   validacion_notas?: string; // JSON string with {notas, discrepancias[], diferencia}
+  terminado_at?: string | null;
   drive_file_id?: string | null;
   drive_url?: string | null;
   drive_carpeta?: string | null;
@@ -38,6 +39,8 @@ export interface DocumentListItem {
   doc_number?: string;
   doc_date?: string;
   article_count: number;
+  terminado_at?: string | null;
+  drive_pendiente?: boolean | null;
   created_at: string;
 }
 

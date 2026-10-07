@@ -1,15 +1,15 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDocument, getSettings, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts, downloadExcel, downloadTreyFact, downloadLabels, downloadPriceList, deleteDocument } from '../api/client';
+import { getDocument, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts, deleteDocument, describeApiError } from '../api/client';
+import { ArrowLeft, AlertTriangle, X } from 'lucide-react';
+import { DocAcciones } from '../components/DocAcciones';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { MetadataPanel } from '../components/MetadataPanel';
-import { MarginSettings } from '../components/MarginSettings';
 import { ArticleTable } from '../components/ArticleTable';
-import { ExportPanel } from '../components/ExportPanel';
 import { DriveEstado } from '../components/DriveEstado';
 import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
-import type { Document, Article, AppSettings, Supplier, PriceAlert } from '../types/index';
+import type { Document, Article, Supplier, PriceAlert } from '../types/index';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
   uploaded:   { label: 'Subido',       dot: 'var(--text-3)' },
@@ -25,7 +25,6 @@ export function DocumentPage() {
 
   const [document, setDocument] = useState<Document | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -42,7 +41,6 @@ export function DocumentPage() {
   const [assignSearch, setAssignSearch] = useState('');
   const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([]);
   const [showAlerts, setShowAlerts] = useState(true);
-  const [dlBusy, setDlBusy] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const assignSearchRef = useRef<HTMLInputElement>(null);
 
@@ -115,7 +113,6 @@ export function DocumentPage() {
       setLoading(true);
       const [docStatus] = await Promise.all([
         loadDocument(),
-        getSettings().then(r => setSettings(r.data)),
         listSuppliers().then(r => setSuppliers(r.data)),
         listDocuments().then(r => setDocIds(r.data.map((d: { id: number }) => d.id).reverse())),
       ]);
@@ -204,8 +201,8 @@ export function DocumentPage() {
   const st = STATUS_CONFIG[document.status] || STATUS_CONFIG.uploaded;
 
   const validBadge = document.status === 'completed' ? (
-    document.validacion_ok === true  ? { label: '✓ Totales cuadran', color: '#bbf7d0', text: '#166534' } :
-    document.validacion_ok === false ? { label: '⚠ Revisar totales', color: '#fde68a', text: '#78350f' } :
+    document.validacion_ok === true  ? { label: 'Los totales cuadran', color: 'var(--brand-light)', text: 'var(--cf-bosque)' } :
+    document.validacion_ok === false ? { label: 'Revisar totales', color: '#FDE9C2', text: '#6B4100' } :
     null
   ) : null;
 
@@ -219,6 +216,7 @@ export function DocumentPage() {
         <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
           {/* Prev / Next + counter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            <button className="doc-volver" onClick={() => navigate('/albaranes')}><ArrowLeft size={16} /> Albaranes</button>
             <button
               className="doc-hero-nav-btn"
               onClick={() => prevId && navigate(`/documento/${prevId}`)}
@@ -260,9 +258,8 @@ export function DocumentPage() {
             {document.doc_date && (
               <span className="doc-hero-chip">{document.doc_date}</span>
             )}
-            <span className="doc-hero-chip">
-              {st.label}
-            </span>
+            {document.status !== 'completed' && <span className="doc-hero-chip">{st.label}</span>}
+            {document.terminado_at && <span className="doc-hero-chip">Terminado</span>}
             {polling && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-3)' }}>
                 <span className="spinner spinner-sm" />
@@ -322,91 +319,64 @@ export function DocumentPage() {
 
       <DriveEstado doc={document} />
 
-      {/* ── Error banner ─────────────────────────────────────────── */}
+      {(document.status === 'completed' || document.status === 'error') && (
+        <DocAcciones
+          document={document}
+          suppliers={suppliers}
+          selectedArticleIds={selectedIds}
+          onChanged={d => setDocument(prev => prev ? { ...prev, ...d } : prev)}
+          onReload={loadDocument}
+          onReprocessed={() => { setArticles([]); loadDocument(); }}
+          onDelete={async () => {
+            if (!window.confirm('¿Borrar este albarán y todos sus artículos? No se puede deshacer.')) return;
+            try { await deleteDocument(docId); navigate('/albaranes'); }
+            catch (e) { showToast(`No se pudo borrar: ${describeApiError(e)}`, 'error'); }
+          }}
+          onToast={showToast}
+        />
+      )}
+
+      {/* ── No se pudo leer ─────────────────────────────────────── */}
       {document.status === 'error' && (
-        <div style={{
-          background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 'var(--r)',
-          padding: '12px 16px', marginBottom: '14px',
-          display: 'flex', flexDirection: 'column', gap: '6px',
-        }}>
-          <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '14px' }}>
-            ✕ Error en la extracción
-          </div>
-          {document.error_message ? (
-            <pre style={{
-              margin: 0, fontFamily: 'monospace', fontSize: '12px',
-              color: '#7f1d1d', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-              background: '#fee2e2', borderRadius: '4px', padding: '8px 10px',
-            }}>
-              {document.error_message}
-            </pre>
-          ) : (
-            <div style={{ fontSize: '13px', color: '#991b1b' }}>
-              No se guardó el mensaje de error. Revisa los logs del servidor.
-            </div>
-          )}
-          <div style={{ fontSize: '12px', color: '#b91c1c' }}>
-            Pulsa <strong>Reprocesar extracción</strong> para volver a intentarlo.
+        <div className="doc-aviso error">
+          <AlertTriangle size={20} />
+          <div>
+            <b>No se pudo leer este albarán</b>
+            <span>Prueba a volverlo a leer desde «Más» → «Volver a leer». Si sigue fallando, sube una foto más clara o el PDF original.</span>
+            {document.error_message && <details><summary>Detalle del error</summary><code>{document.error_message}</code></details>}
           </div>
         </div>
       )}
 
-      {/* ── Price alerts panel ──────────────────────────────────── */}
+      {/* ── Subidas de coste ─────────────────────────────────────── */}
       {priceAlerts.length > 0 && showAlerts && (
-        <div style={{
-          background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 'var(--r)',
-          padding: '12px 16px', marginBottom: '14px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <span style={{ fontWeight: 700, color: '#92400e', fontSize: '14px' }}>
-              ⚠ Subidas de precio detectadas ({priceAlerts.length})
-            </span>
-            <button
-              onClick={() => setShowAlerts(false)}
-              style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#b45309' }}
-            >✕ Cerrar</button>
+        <div className="doc-aviso subidas">
+          <AlertTriangle size={20} />
+          <div>
+            <b>Ha subido el coste de {priceAlerts.length} artículo{priceAlerts.length !== 1 ? 's' : ''}</b>
+            <span>Revisa su precio de venta antes de pasarlo a TreyFACT.</span>
+            <ul>
+              {priceAlerts.map(a => (
+                <li key={a.article_id}>
+                  <span>{a.descripcion}</span>
+                  <span className="doc-subida"><s>{a.coste_anterior.toFixed(2)} €</s> → <b>{a.coste_actual.toFixed(2)} €</b> (+{a.pct_cambio.toFixed(0)} %)</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {priceAlerts.map(alert => (
-              <div key={alert.article_id} style={{
-                display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center',
-                background: '#fff', borderRadius: '6px', padding: '8px 12px',
-                border: '1px solid #fde68a', fontSize: '13px',
-              }}>
-                <div>
-                  <span style={{ fontWeight: 600 }}>{alert.descripcion}</span>
-                  {alert.codigo_principal && (
-                    <span style={{ fontFamily: 'monospace', color: '#9ca3af', fontSize: '11px', marginLeft: '8px' }}>
-                      {alert.codigo_principal}
-                    </span>
-                  )}
-                </div>
-                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <span style={{ color: '#6b7280', textDecoration: 'line-through', marginRight: '6px' }}>
-                    {alert.coste_anterior.toFixed(4)} €
-                  </span>
-                  <span style={{ fontWeight: 700, color: '#dc2626' }}>
-                    {alert.coste_actual.toFixed(4)} € (+{alert.pct_cambio.toFixed(1)}%)
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: '11px', color: '#b45309', marginTop: '8px' }}>
-            Revisa los PVP de estos artículos — es posible que debas actualizarlos.
-          </div>
+          <button className="doc-aviso-cerrar" onClick={() => setShowAlerts(false)} aria-label="Cerrar"><X size={18} /></button>
         </div>
       )}
 
       {/* ── Validation detail panel ──────────────────────────────── */}
       {showValidation && validacion && (
-        <div className="card" style={{ marginBottom: '14px', borderColor: document.validacion_ok ? '#bbf7d0' : '#fde68a' }}>
+        <div className="card" style={{ marginBottom: '14px', borderColor: document.validacion_ok ? 'var(--brand-light)' : '#fde68a' }}>
           <div
             className="card-header"
-            style={{ cursor: 'pointer', background: document.validacion_ok ? '#f0fdf4' : '#fffbeb' }}
+            style={{ cursor: 'pointer', background: document.validacion_ok ? 'var(--brand-pale)' : '#FFF4E5' }}
             onClick={() => setShowValidation(false)}
           >
-            <span style={{ fontWeight: 700, color: document.validacion_ok ? '#166534' : '#78350f' }}>
+            <span style={{ fontWeight: 700, color: document.validacion_ok ? 'var(--cf-bosque)' : '#6B4100' }}>
               {document.validacion_ok ? '✓ Validación de totales — cuadran' : '⚠ Validación de totales — revisar'}
             </span>
             <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-3)', fontWeight: 400 }}>▲ Cerrar</span>
@@ -438,7 +408,7 @@ export function DocumentPage() {
                 <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Discrepancias detectadas</div>
                 <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {validacion.discrepancias.map((d: string, i: number) => (
-                    <li key={i} style={{ fontSize: '13px', color: '#78350f' }}>{d}</li>
+                    <li key={i} style={{ fontSize: '13px', color: '#6B4100' }}>{d}</li>
                   ))}
                 </ul>
               </div>
@@ -467,33 +437,33 @@ export function DocumentPage() {
       {/* ── Verification mode panel ──────────────────────────────── */}
       {verificationMode && (
         <div style={{
-          background: '#f0fdf4', border: '2px solid #22c55e', borderRadius: 'var(--r)',
+          background: 'var(--brand-pale)', border: '2px solid var(--cf-verde)', borderRadius: 'var(--r)',
           padding: '16px', marginBottom: '14px',
         }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, fontSize: '14px', color: '#166534' }}>
+            <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--cf-bosque)' }}>
               Verificando recepción
             </span>
             <span style={{
-              background: verifiedIds.size === articles.length && articles.length > 0 ? '#22c55e' : '#bbf7d0',
-              color: '#14532d', borderRadius: '99px', padding: '2px 10px',
+              background: verifiedIds.size === articles.length && articles.length > 0 ? 'var(--cf-verde)' : 'var(--brand-light)',
+              color: 'var(--cf-bosque-2)', borderRadius: '99px', padding: '2px 10px',
               fontSize: '13px', fontWeight: 700,
             }}>
               {verifiedIds.size} / {articles.length}
             </span>
             {verifiedIds.size > 0 && (
               <button
-                style={{ marginLeft: 'auto', fontSize: '12px', background: 'none', border: '1px solid #86efac', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', color: '#166534' }}
+                style={{ marginLeft: 'auto', fontSize: '12px', background: 'none', border: '1px solid var(--brand-light)', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', color: 'var(--cf-bosque)' }}
                 onClick={() => setVerifiedIds(new Set())}
               >↺ Reiniciar</button>
             )}
           </div>
 
           {/* Progress bar */}
-          <div style={{ background: '#dcfce7', borderRadius: '99px', height: '8px', marginBottom: '12px', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--brand-pale)', borderRadius: '99px', height: '8px', marginBottom: '12px', overflow: 'hidden' }}>
             <div style={{
-              background: '#22c55e', height: '8px', borderRadius: '99px',
+              background: 'var(--cf-verde)', height: '8px', borderRadius: '99px',
               width: `${articles.length ? (verifiedIds.size / articles.length * 100) : 0}%`,
               transition: 'width 0.3s ease',
             }} />
@@ -501,11 +471,11 @@ export function DocumentPage() {
 
           {/* Assignment picker — shown when a scanned barcode is unknown */}
           {assigningBarcode ? (
-            <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: '10px', padding: '14px' }}>
+            <div style={{ background: '#FFF4E5', border: '2px solid #f59e0b', borderRadius: '10px', padding: '14px' }}>
               <div style={{ fontWeight: 700, fontSize: '14px', color: '#92400e', marginBottom: '4px' }}>
                 Código desconocido: <span style={{ fontFamily: 'monospace' }}>{assigningBarcode}</span>
               </div>
-              <div style={{ fontSize: '12px', color: '#78350f', marginBottom: '10px' }}>
+              <div style={{ fontSize: '12px', color: '#6B4100', marginBottom: '10px' }}>
                 Toca el artículo al que corresponde este código — quedará guardado para la próxima vez.
               </div>
               <input
@@ -551,13 +521,13 @@ export function DocumentPage() {
                 type="text"
                 inputMode="numeric"
                 value={scanInput}
-                placeholder="Escanea un código de barras con la PDA…"
+                placeholder="Lee el código de barras de cada artículo…"
                 onChange={e => setScanInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleScan(scanInput); }}
                 autoFocus
                 style={{
                   width: '100%', padding: '13px 16px', fontSize: '18px',
-                  border: '2px solid #22c55e', borderRadius: '10px',
+                  border: '2px solid var(--cf-verde)', borderRadius: '10px',
                   fontFamily: 'monospace', boxSizing: 'border-box',
                   background: '#fff', marginBottom: '8px',
                 }}
@@ -566,13 +536,13 @@ export function DocumentPage() {
               {scanFeedback ? (
                 <div style={{
                   padding: '9px 14px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                  background: scanFeedback.ok ? '#dcfce7' : '#fee2e2',
-                  color: scanFeedback.ok ? '#166534' : '#dc2626',
+                  background: scanFeedback.ok ? 'var(--brand-pale)' : '#fee2e2',
+                  color: scanFeedback.ok ? 'var(--cf-bosque)' : '#dc2626',
                 }}>
                   {scanFeedback.msg}
                 </div>
               ) : verifiedIds.size === articles.length && articles.length > 0 ? (
-                <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#dcfce7', fontWeight: 700, color: '#166534', fontSize: '15px', textAlign: 'center' }}>
+                <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'var(--brand-pale)', fontWeight: 700, color: 'var(--cf-bosque)', fontSize: '15px', textAlign: 'center' }}>
                   ✓ ¡Todos los artículos verificados!
                 </div>
               ) : verifiedIds.size > 0 ? (
@@ -589,39 +559,6 @@ export function DocumentPage() {
           )}
         </div>
       )}
-
-      {/* ── Quick-action export bar ───────────────────────────────── */}
-      {document.status === 'completed' && articles.length > 0 && (() => {
-        const dl = (key: string, fn: () => void, msg: string) => {
-          if (dlBusy) return;
-          setDlBusy(key);
-          fn();
-          showToast(msg, 'info');
-          setTimeout(() => setDlBusy(null), 2500);
-        };
-        return (
-          <div className="quick-actions">
-            <span className="quick-actions-label">Exportar</span>
-            <button className="btn btn-success btn-sm" disabled={!!dlBusy}
-              onClick={() => dl('xl', () => downloadExcel(docId), 'Descargando Excel…')}>
-              {dlBusy === 'xl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : 'Excel'}
-            </button>
-            <button className="btn btn-success btn-sm" disabled={!!dlBusy}
-              title="Para importar en TreyFact"
-              onClick={() => dl('tf', () => downloadTreyFact(docId), 'Generando TreyFact…')}>
-              {dlBusy === 'tf' ? <><span className="spinner spinner-sm spinner-white"/>…</> : 'TreyFact'}
-            </button>
-            <button className="btn btn-primary btn-sm" disabled={!!dlBusy}
-              onClick={() => dl('pl', () => downloadPriceList(docId), 'Generando listín…')}>
-              {dlBusy === 'pl' ? <><span className="spinner spinner-sm spinner-white"/>…</> : 'Listín PDF'}
-            </button>
-            <button className="btn btn-ghost btn-sm" disabled={!!dlBusy}
-              onClick={() => dl('lb', () => downloadLabels(docId), 'Generando etiquetas…')}>
-              {dlBusy === 'lb' ? <><span className="spinner spinner-sm"/>…</> : 'Etiquetas'}
-            </button>
-          </div>
-        );
-      })()}
 
       {/* ── Panels: single-column, full width ────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -643,30 +580,6 @@ export function DocumentPage() {
             return next;
           }) : undefined}
         />
-
-        {/* 3. Actions row: Export + Margin side by side on desktop */}
-        <div className="doc-actions-row">
-          <ExportPanel
-            documentId={docId}
-            suppliers={suppliers}
-            selectedArticleIds={selectedIds}
-            onReprocessed={() => { setArticles([]); loadDocument(); }}
-            onDelete={async () => {
-              if (!window.confirm('¿Borrar este albarán y todos sus artículos? No se puede deshacer.')) return;
-              try { await deleteDocument(docId); navigate('/albaranes'); }
-              catch { showToast('No se pudo borrar el albarán', 'error'); }
-            }}
-            onToast={showToast}
-          />
-          {settings && (
-            <MarginSettings
-              settings={settings}
-              documentId={docId}
-              onUpdated={s => { setSettings(s); loadDocument(); }}
-              onToast={showToast}
-            />
-          )}
-        </div>
 
         {/* 4. Metadata — edit secondary info */}
         <MetadataPanel

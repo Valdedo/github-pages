@@ -90,6 +90,7 @@ def _run_migrations():
         ("access_config",         "codigos_env",  "TEXT"),
         ("access_codigos",        "propio",       "INTEGER DEFAULT 0"),
         # Albaranes de proveedor en Drive (v3.2.0)
+        ("documents", "terminado_at",     "DATETIME"),
         ("documents", "drive_file_id",    "TEXT"),
         ("documents", "drive_url",        "TEXT"),
         ("documents", "drive_carpeta_id", "TEXT"),

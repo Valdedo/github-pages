@@ -67,6 +67,7 @@ export const updateDocument = (id: number, data: Partial<Document>) =>
   api.put<Document>(`/api/documents/${id}`, data);
 
 export const deleteDocument = (id: number) => api.delete(`/api/documents/${id}`);
+export const marcarTerminado = (id: number, terminado: boolean) => api.put<Document>(`/api/documents/${id}/terminado`, { terminado });
 
 export const reprocessDocument = (id: number, supplierId?: number) =>
   api.post(`/api/documents/${id}/reprocess`, { supplier_id: supplierId });

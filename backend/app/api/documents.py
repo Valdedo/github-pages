@@ -11,6 +11,8 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from datetime import datetime
 
 from app.config import settings
 from app.database import get_db
@@ -222,10 +224,28 @@ def list_documents(
             doc_number=doc.doc_number,
             doc_date=doc.doc_date,
             article_count=count,
+            terminado_at=doc.terminado_at,
+            drive_pendiente=doc.drive_pendiente,
             created_at=doc.created_at,
         )
         for doc, count in rows
     ]
+
+
+class Terminado(BaseModel):
+    terminado: bool
+
+
+@router.put("/{doc_id}/terminado", response_model=DocumentResponse)
+def marcar_terminado(doc_id: int, data: Terminado, db: Session = Depends(get_db)):
+    """Albarán revisado y pasado a TreyFACT (o al revés, si se quita la marca)."""
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(404, "Albarán no encontrado")
+    doc.terminado_at = datetime.now() if data.terminado else None
+    db.commit()
+    db.refresh(doc)
+    return doc
 
 
 @router.get("/{doc_id}", response_model=DocumentWithArticles)

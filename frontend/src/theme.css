@@ -853,3 +853,111 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .turnohoy-lista { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
   .turnohoy-lista small { font-size: 12px; }
 }
+
+/* ── Consultar precio (con la cuenta de la antigua Venta) ─────── */
+.consulta { max-width: 820px; display: flex; flex-direction: column; gap: 12px; }
+.consulta-buscador { position: relative; }
+.consulta-buscador input { width: 100%; min-height: 62px; padding: 14px 54px 14px 54px; font: 500 19px var(--font); border: 2px solid var(--border-strong); border-radius: 999px; background: var(--surface); color: var(--text-1); outline: none; }
+.consulta-buscador input:focus { border-color: var(--cf-verde); box-shadow: 0 0 0 4px rgb(47 174 102 / .15); }
+.consulta-lupa { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--text-3); }
+.consulta-borrar { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: none; color: var(--text-3); cursor: pointer; }
+.consulta-borrar:hover { background: var(--surface-2); color: var(--text-1); }
+.consulta-camara { display: flex; gap: 8px; flex-wrap: wrap; }
+.consulta-camara .btn { flex: 1 1 200px; }
+.consulta-video { position: relative; border-radius: 18px; overflow: hidden; background: #000; }
+.consulta-video video { width: 100%; max-height: 280px; object-fit: cover; display: block; }
+.consulta-linea { position: absolute; left: 15%; right: 15%; top: 50%; height: 2px; background: var(--cf-verde); box-shadow: 0 0 12px var(--cf-verde); }
+.consulta-parar { position: absolute; top: 10px; right: 10px; background: rgb(0 0 0 / .55); color: #fff; }
+.consulta-aviso { margin: 0; padding: 10px 14px; border-radius: 12px; background: #FFF4E5; color: #7A4A00; font-size: 14px; }
+.consulta-vacio { margin: 20px 0; text-align: center; color: var(--text-3); font-size: 15px; }
+.consulta-noesta { display: flex; flex-direction: column; gap: 4px; padding: 18px; border-radius: 16px; background: #FFF4E5; color: #7A4A00; text-align: center; }
+.consulta-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.consulta-art { display: flex; gap: 14px; align-items: center; padding: 14px 18px; border: 0; border-radius: var(--r-xl); }
+.consulta-art-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.consulta-art-info > b { font-size: 16px; line-height: 1.3; }
+.consulta-art-info small { color: var(--text-3); font-size: 13px; }
+.consulta-art-info .turnos-link { font-size: 13px; padding: 0; display: inline-flex; align-items: center; gap: 3px; }
+.consulta-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.consulta-chips span { font-size: 12px; padding: 2px 8px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); }
+.consulta-chips .mono { font-family: ui-monospace, monospace; }
+.consulta-art-precio { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.consulta-pvp { font: 600 30px var(--font-display); color: var(--cf-bosque); line-height: 1.05; }
+.consulta-art-precio small { color: var(--text-3); font-size: 12px; margin-bottom: 6px; }
+.consulta-cuenta { position: sticky; bottom: 12px; padding: 14px 18px; border: 2px solid var(--cf-bosque); border-radius: var(--r-xl); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 8px; }
+.consulta-cuenta-cab { display: flex; align-items: center; gap: 8px; color: var(--cf-bosque); }
+.consulta-cuenta-cab .btn { margin-left: auto; color: var(--danger); }
+.consulta-cuenta ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 32vh; overflow-y: auto; }
+.consulta-cuenta li { display: flex; align-items: center; gap: 10px; }
+.consulta-cuenta-desc { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; display: flex; flex-direction: column; }
+.consulta-cuenta-desc small { font-weight: 400; color: var(--text-3); font-size: 12px; }
+.consulta-qty { display: inline-flex; align-items: center; gap: 4px; }
+.consulta-qty button { width: 40px; height: 40px; border-radius: 12px; border: 1.5px solid var(--border-strong); background: var(--surface); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.consulta-qty b { min-width: 26px; text-align: center; }
+.consulta-cuenta-imp { min-width: 74px; text-align: right; font-weight: 700; }
+.consulta-total { width: 100%; justify-content: center; }
+.consulta-total small { font-weight: 500; opacity: .8; }
+.cuenta-total-pantalla { min-height: 100vh; background: var(--cf-bosque-2); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; }
+.cuenta-total-pantalla > span { text-transform: uppercase; letter-spacing: .1em; opacity: .7; }
+.cuenta-total-pantalla > b { font: 600 clamp(56px, 14vw, 110px) var(--font-display); line-height: 1; }
+.cuenta-total-pantalla > small { opacity: .7; }
+.cuenta-total-pantalla ul { list-style: none; padding: 0; margin: 24px 0 0; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 6px; opacity: .9; }
+.cuenta-total-pantalla li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; text-align: left; }
+.cuenta-total-botones { display: flex; gap: 10px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+.cuenta-total-botones .btn { background: rgb(255 255 255 / .15); color: #fff; border: 1px solid rgb(255 255 255 / .3); }
+.cuenta-total-botones .cuenta-nueva { background: #fff; color: var(--cf-bosque); }
+@media (max-width: 768px) {
+  .consulta-art { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
+  .consulta-art-precio { flex-direction: row; align-items: center; gap: 8px; }
+  .consulta-art-precio small { margin: 0 auto 0 0; }
+  .consulta-pvp { font-size: 28px; }
+  .consulta-cuenta { bottom: 76px; }
+}
+.celda-editable { cursor: pointer; display: block; min-height: 30px; padding: 5px 8px; border-radius: 8px; border: 1px dashed transparent; }
+.celda-editable:hover { background: var(--brand-pale); border-color: var(--brand-light); }
+
+/* ── Albarán de proveedor: barra de acciones ──────────────────── */
+.doc-acciones { padding: 14px 18px; border: 0; border-radius: var(--r-xl); margin-bottom: 14px; display: flex; flex-direction: column; gap: 12px; }
+.doc-acciones-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.doc-etiquetas { display: inline-flex; align-items: center; gap: 4px; }
+.doc-copias { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1.5px solid var(--border-strong); border-radius: 999px; }
+.doc-copias button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.doc-copias b { min-width: 16px; text-align: center; }
+.doc-copias small { color: var(--text-3); font-size: 12px; margin-right: 4px; }
+.doc-terminado { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px dashed var(--border-strong); background: var(--surface); font: 600 14px var(--font); color: var(--text-2); cursor: pointer; margin-left: auto; }
+.doc-terminado .box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; }
+.doc-terminado.on { border-style: solid; border-color: var(--cf-bosque); background: var(--cf-bosque); color: #fff; }
+.doc-terminado.on .box { border-color: #fff; background: #fff; color: var(--cf-bosque); }
+.doc-mas { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.doc-mas-grupo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.doc-mas-grupo .form-input { margin: 0; max-width: 280px; }
+.doc-mas-txt { font-size: 13.5px; color: var(--text-2); flex-basis: 100%; }
+@media (max-width: 768px) {
+  .doc-acciones-fila > .btn-primary { flex: 1 1 100%; }
+  .doc-terminado { margin-left: 0; }
+}
+.doc-volver { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; padding: 6px 12px 6px 8px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface); font: 600 13.5px var(--font); color: var(--text-1); cursor: pointer; }
+.doc-volver:hover { background: var(--surface-2); }
+.doc-aviso { position: relative; display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; padding: 14px 18px; border-radius: 16px; font-size: 14px; }
+.doc-aviso > div { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.doc-aviso b { font-size: 15px; }
+.doc-aviso svg { flex-shrink: 0; margin-top: 2px; }
+.doc-aviso.error { background: #FDECEC; color: #8E1C1C; }
+.doc-aviso.subidas { background: #FFF4E5; color: #6B4100; }
+.doc-aviso details { margin-top: 4px; font-size: 12.5px; }
+.doc-aviso code { display: block; white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
+.doc-aviso ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.doc-aviso li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 10px; border-radius: 10px; background: rgb(255 255 255 / .7); }
+.doc-subida { white-space: nowrap; }
+.doc-subida s { opacity: .6; }
+.doc-aviso-cerrar { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.doc-vistas { grid-template-columns: repeat(2, minmax(0, 220px)); margin-bottom: 12px; }
+@media (min-width: 769px) {
+  .upload-overlay { align-items: center; justify-content: center; padding: 24px; }
+  .upload-sheet { max-width: 620px; border-radius: var(--r-xl); padding: 24px; }
+  .upload-sheet-handle { display: none; }
+}
+.btn-camera { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+@media (max-width: 768px) {
+  .doc-volver { display: none; }
+  .doc-page-hero h1 { white-space: normal !important; overflow: visible !important; font-size: 24px !important; }
+}

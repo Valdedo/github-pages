@@ -2,9 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, Search, X, ChevronRight, FileText } from 'lucide-react';
 import { FileUpload } from '../components/FileUpload';
-import { useConfirm } from '../components/ConfirmModal';
-import { useToast } from '../components/Toast';
-import { listDocuments, deleteDocument, describeApiError } from '../api/client';
+import { listDocuments, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import type { Document, DocumentListItem } from '../types';
 
@@ -15,9 +13,7 @@ export function HomePage() {
   const [showUpload, setShowUpload] = useState(false);
   const [search, setSearch] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const { confirm, ConfirmDialog } = useConfirm();
-  const { showToast, ToastContainer } = useToast();
-  const uploadRef = useRef<HTMLDivElement>(null);
+  const [vista, setVista] = useState<'pendientes' | 'todos'>('pendientes');
 
   const loadDocuments = async () => {
     try {
@@ -46,52 +42,31 @@ export function HomePage() {
     return () => clearInterval(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const el = document.getElementById('upload-trigger');
-    if (el) el.onclick = () => setShowUpload(true);
-  }, []);
-
   const handleUploaded = (doc: Document) => {
     setShowUpload(false);
     navigate(`/documento/${doc.id}`);
-  };
-
-  const handleDelete = async (id: number) => {
-    const ok = await confirm({
-      title: 'Eliminar albarán',
-      message: '¿Eliminar este albarán y todos sus artículos? No se puede deshacer.',
-      confirmLabel: 'Eliminar',
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await deleteDocument(id);
-      setDocuments(prev => prev.filter(d => d.id !== id));
-      showToast('Albarán eliminado', 'info');
-    } catch {
-      showToast('Error al eliminar', 'error');
-    }
   };
 
   const completed  = documents.filter(d => d.status === 'completed').length;
   const processing = documents.filter(d => d.status === 'processing' || d.status === 'uploaded').length;
 
   // Client-side search across filename, supplier, doc_number
+  // Pendientes: los que aún no se han terminado (revisados y pasados a TreyFACT)
+  const esPendiente = (d: DocumentListItem) => !d.terminado_at;
+  const nPendientes = documents.filter(esPendiente).length;
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return documents;
-    return documents.filter(d =>
+    const base = vista === 'pendientes' && !q ? documents.filter(d => !d.terminado_at) : documents;
+    if (!q) return base;
+    return base.filter(d =>
       d.original_filename.toLowerCase().includes(q) ||
       (d.supplier_name && d.supplier_name.toLowerCase().includes(q)) ||
       (d.doc_number && d.doc_number.toLowerCase().includes(q))
     );
-  }, [documents, search]);
+  }, [documents, search, vista]);
 
   return (
     <div className="page">
-      {ConfirmDialog}
-      <ToastContainer />
-      <button id="upload-trigger" style={{ display: 'none' }} />
 
       {loadError && (
         <ConnectionError message={loadError} onRetry={loadDocuments} />
@@ -114,21 +89,6 @@ export function HomePage() {
         <button className="btn btn-primary btn-lg" onClick={() => setShowUpload(true)}>
           <Upload size={19} /> Subir albarán
         </button>
-      </div>
-
-      {/* ── Upload panel — desktop only ── */}
-      <div ref={uploadRef} className="upload-desktop">
-        {showUpload && (
-          <div className="card" style={{ marginBottom: '20px' }}>
-            <div className="card-header" style={{ justifyContent: 'space-between' }}>
-              <span>Subir nuevo albarán</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowUpload(false)}>Cerrar</button>
-            </div>
-            <div className="card-body">
-              <FileUpload onUploaded={handleUploaded} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Document list ── */}
@@ -154,6 +114,15 @@ export function HomePage() {
         </div>
       ) : documents.length === 0 ? null : (
         <>
+          <div className="firma-vistas doc-vistas" role="tablist" aria-label="Qué albaranes ver">
+            <button role="tab" aria-selected={vista === 'pendientes'} className={`firma-vista${vista === 'pendientes' ? ' on' : ''}`} onClick={() => setVista('pendientes')}>
+              Por terminar <span className="firma-vista-n">{nPendientes}</span>
+            </button>
+            <button role="tab" aria-selected={vista === 'todos'} className={`firma-vista${vista === 'todos' ? ' on' : ''}`} onClick={() => setVista('todos')}>
+              Todos <span className="firma-vista-n">{documents.length}</span>
+            </button>
+          </div>
+
           {/* Search bar + count */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' }}>
             <div className="search-bar" style={{ flex: '1 1 220px', minWidth: 0 }}>
@@ -180,13 +149,13 @@ export function HomePage() {
           {filtered.length === 0 ? (
             <div className="empty-state" style={{ padding: '32px 0' }}>
               <div className="empty-state-icon"><Search size={36} style={{ opacity: 0.35 }} /></div>
-              <div className="empty-state-text">Sin resultados</div>
+              <div className="empty-state-text">{search ? 'Sin resultados' : 'Todo terminado'}</div>
               <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>
-                No hay albaranes que coincidan con «{search}».
+                {search ? `No hay albaranes que coincidan con «${search}».` : 'No queda ningún albarán por revisar y pasar a TreyFACT.'}
               </p>
-              <button className="btn btn-ghost btn-sm" style={{ marginTop: '12px' }} onClick={() => setSearch('')}>
+              {search && <button className="btn btn-ghost btn-sm" style={{ marginTop: '12px' }} onClick={() => setSearch('')}>
                 Limpiar búsqueda
-              </button>
+              </button>}
             </div>
           ) : (
             <div className="firma-lista cf-enter">
@@ -198,17 +167,15 @@ export function HomePage() {
         </>
       )}
 
-      {/* ── FAB (mobile) ── */}
-
-
-      {/* ── Upload bottom sheet (mobile) ── */}
+      {/* ── Subir: ventana (abajo en el móvil, centrada en el PC) ── */}
       {showUpload && (
         <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget) setShowUpload(false); }}>
           <div className="upload-sheet">
             <div className="upload-sheet-handle" />
-            <h3 style={{ fontWeight: 700, fontSize: '16px', marginBottom: '16px', color: 'var(--text-1)' }}>
-              Subir albarán
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ fontSize: 22, margin: 0 }}>Subir albarán de proveedor</h3>
+              <button className="modal-close" style={{ marginLeft: 'auto' }} onClick={() => setShowUpload(false)} aria-label="Cerrar"><X size={20} /></button>
+            </div>
             <FileUpload onUploaded={handleUploaded} />
           </div>
         </div>
@@ -233,7 +200,9 @@ const DOT_COLOR: Record<string, string> = {
 };
 
 function DocCard({ doc, onOpen }: { doc: DocumentListItem; onOpen: () => void }) {
-  const st = statusConfig[doc.status] || statusConfig.uploaded;
+  const st = doc.status === 'completed' && doc.terminado_at ? { label: 'Terminado', cls: 'badge badge-grey' }
+    : doc.status === 'completed' ? { label: 'Por terminar', cls: 'badge badge-success' }
+    : statusConfig[doc.status] || statusConfig.uploaded;
   const isProcessing = doc.status === 'processing' || doc.status === 'uploaded';
   const dateStr = new Date(doc.doc_date || doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
   return (
@@ -242,7 +211,7 @@ function DocCard({ doc, onOpen }: { doc: DocumentListItem; onOpen: () => void })
       <span className="doc-fila-main">
         <span className="doc-fila-tit">{doc.supplier_name || doc.original_filename}</span>
         <span className="doc-fila-sub">
-          {[doc.doc_number && `Nº ${doc.doc_number}`, dateStr, `${doc.article_count} artículo${doc.article_count !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+          {[doc.doc_number && `Nº ${doc.doc_number}`, dateStr, `${doc.article_count} artículo${doc.article_count !== 1 ? 's' : ''}`, doc.drive_pendiente && 'Falta elegir carpeta de Drive'].filter(Boolean).join(' · ')}
         </span>
       </span>
       <span className={st.cls} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>

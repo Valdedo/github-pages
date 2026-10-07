@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.api.turnos import solo_encargado  # márgenes de la tienda: solo Andrés
 from app.models.app_settings import AppSettings
 from app.models.supplier import Supplier
 from app.schemas.settings import (
@@ -54,7 +55,7 @@ def get_settings(db: Session = Depends(get_db)):
     return settings_to_response(s)
 
 
-@router.put("", response_model=AppSettingsResponse)
+@router.put("", response_model=AppSettingsResponse, dependencies=[Depends(solo_encargado)])
 def update_settings(update: AppSettingsUpdate, db: Session = Depends(get_db)):
     """Update application settings."""
     s = get_or_create_settings(db)

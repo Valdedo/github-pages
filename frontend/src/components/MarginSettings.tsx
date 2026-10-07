@@ -9,8 +9,8 @@ interface Props {
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-export function MarginSettings({ settings, documentId, onUpdated, onToast }: Props) {
-  const [open, setOpen] = useState(false);
+export function MarginSettings({ settings, documentId, onUpdated, onToast, abierto }: Props & { abierto?: boolean }) {
+  const [open, setOpen] = useState(!!abierto);
   const [tiers, setTiers] = useState<MarginTier[]>(settings.margin_tiers);
   const [roundingMode, setRoundingMode] = useState<'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents'>(settings.rounding_mode as 'standard' | 'psychological' | 'ceil_5cents' | 'ceil_10cents');
   const [decimals, setDecimals] = useState(settings.rounding_decimals);
@@ -109,7 +109,7 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
             </strong>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
-                <tr style={{ background: 'var(--primary)', color: '#fff' }}>
+                <tr style={{ background: 'var(--surface-2)', color: 'var(--text-2)' }}>
                   <th style={thSt}>Coste mín. (€)</th>
                   <th style={thSt}>Coste máx. (€)</th>
                   <th style={thSt}>Margen (%)</th>
@@ -129,7 +129,7 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
                       <input type="number" step="1" min="0" max="10000" value={tier.margin_pct} onChange={e => updateTier(idx, 'margin_pct', e.target.value)} style={{ ...inputSt, color: 'var(--primary)', fontWeight: 600 }} />
                     </td>
                     <td style={{ ...tdSt, textAlign: 'center' }}>
-                      <button onClick={() => removeTier(idx)} className="btn btn-danger btn-sm">✕</button>
+                      <button onClick={() => removeTier(idx)} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} aria-label="Quitar tramo">Quitar</button>
                     </td>
                   </tr>
                 ))}
@@ -138,9 +138,9 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={addTier} className="btn btn-accent btn-sm">+ Añadir tramo</button>
-            <button onClick={handleSave} disabled={saving} className="btn btn-success">
-              {saving ? <><span className="spinner spinner-sm spinner-white" /> Guardando…</> : '💾 Guardar y recalcular'}
+            <button onClick={addTier} className="btn btn-ghost btn-sm">+ Añadir tramo</button>
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+              {saving ? <><span className="spinner spinner-sm spinner-white" /> Guardando…</> : 'Guardar márgenes'}
             </button>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function MarginSettings({ settings, documentId, onUpdated, onToast }: Pro
   );
 }
 
-const labelSt: React.CSSProperties = { display: 'block', fontSize: '11px', color: 'var(--grey-500)', textTransform: 'uppercase', marginBottom: '5px', fontWeight: 600, letterSpacing: '0.04em' };
+const labelSt: React.CSSProperties = { display: 'block', fontSize: '13px', color: 'var(--text-2)', marginBottom: '5px', fontWeight: 600 };
 const selectSt: React.CSSProperties = { padding: '6px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '7px', fontSize: '13px', fontFamily: 'inherit' };
 const inputSt: React.CSSProperties = { width: '90px', padding: '5px 7px', border: '1.5px solid var(--grey-300)', borderRadius: '7px', fontSize: '13px', fontFamily: 'inherit' };
 const thSt: React.CSSProperties = { padding: '7px 10px', textAlign: 'left', fontWeight: 600 };

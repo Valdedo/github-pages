@@ -34,7 +34,7 @@ def _cuando(f: str) -> str:
 def solo_encargado(request: Request):
     """Con códigos creados, cambiar turnos exige la sesión del encargado."""
     if acc.config() and getattr(request.state, "rol", None) != "admin":
-        raise HTTPException(403, "Solo Andrés puede cambiar los turnos")
+        raise HTTPException(403, "Solo Andrés puede cambiar esto")
 
 
 class Cambio(BaseModel):

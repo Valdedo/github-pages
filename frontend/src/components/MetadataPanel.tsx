@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { updateDocument } from '../api/client';
 import type { Document, Supplier } from '../types';
 
@@ -10,13 +10,6 @@ interface Props {
   onProntoPagoChanged?: () => void;
 }
 
-const statusConfig: Record<string, { label: string; cls: string }> = {
-  uploaded:   { label: 'Subido',        cls: 'badge badge-grey' },
-  processing: { label: '⏳ Procesando', cls: 'badge badge-warning' },
-  completed:  { label: '✓ Completado',  cls: 'badge badge-success' },
-  error:      { label: '✕ Error',       cls: 'badge badge-danger' },
-};
-
 export function MetadataPanel({ document, suppliers, onUpdated, onToast, onProntoPagoChanged }: Props) {
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({
@@ -26,6 +19,15 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
     doc_date: document.doc_date || '',
     pronto_pago_pct: document.pronto_pago_pct ?? '',
   });
+  // Si el albarán se vuelve a leer, los datos se ponen al día
+  useEffect(() => {
+    if (editing) return;
+    setValues({
+      supplier_name: document.supplier_name || '', supplier_id: document.supplier_id || '',
+      doc_number: document.doc_number || '', doc_date: document.doc_date || '',
+      pronto_pago_pct: document.pronto_pago_pct ?? '',
+    });
+  }, [document, editing]);
 
   const handleSave = async () => {
     const prevProntoPago = document.pronto_pago_pct;
@@ -48,41 +50,16 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
     }
   };
 
-  const st = statusConfig[document.status] || { label: document.status, cls: 'badge badge-grey' };
-
   return (
     <div className="card">
       <div className="card-header" style={{ justifyContent: 'space-between' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>ℹ️</span> Datos del albarán
-        </span>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span className={st.cls}>{st.label}</span>
-          <button
-            className={`btn btn-sm ${editing ? 'btn-ghost' : 'btn-primary'}`}
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? 'Cancelar' : '✏️ Editar'}
-          </button>
-        </div>
+        <span>Datos del albarán</span>
+        <button className={`btn btn-sm ${editing ? 'btn-ghost' : 'btn-primary'}`} onClick={() => setEditing(!editing)}>
+          {editing ? 'Cancelar' : 'Cambiar'}
+        </button>
       </div>
 
       <div className="card-body">
-        {document.error_message && (
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            marginBottom: '14px',
-            color: 'var(--danger)',
-            fontSize: '13px',
-            fontWeight: 500,
-          }}>
-            Error: {document.error_message}
-          </div>
-        )}
-
         <div className="metadata-grid">
           <Field label="Proveedor" editing={editing}
             value={values.supplier_name}
@@ -100,12 +77,18 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
             display={document.doc_date || '—'}
             type="date"
           />
+          <Field label="Pronto pago (%)" editing={editing}
+            value={values.pronto_pago_pct}
+            onChange={v => setValues(p => ({ ...p, pronto_pago_pct: v }))}
+            display={document.pronto_pago_pct ? `${document.pronto_pago_pct} %` : 'No'}
+            type="number"
+          />
         </div>
 
         {editing && (
           <div style={{ marginTop: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button className="btn btn-success btn-sm" onClick={handleSave}>
-              💾 Guardar cambios
+            <button className="btn btn-primary btn-sm" onClick={handleSave}>
+              Guardar cambios
             </button>
             {suppliers.length > 0 && (
               <select
@@ -127,7 +110,7 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
                   background: '#fff',
                 }}
               >
-                <option value="">Seleccionar proveedor...</option>
+                <option value="">Elegir de la lista de proveedores…</option>
                 {suppliers.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -150,7 +133,7 @@ function Field({ label, editing, value, onChange, display, type = 'text' }: {
 }) {
   return (
     <div>
-      <div style={{ fontSize: '11px', color: 'var(--grey-500)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>
+      <div style={{ fontSize: '13px', color: 'var(--text-3)', marginBottom: '4px', fontWeight: 600 }}>
         {label}
       </div>
       {editing ? (
@@ -160,16 +143,16 @@ function Field({ label, editing, value, onChange, display, type = 'text' }: {
           onChange={e => onChange(e.target.value)}
           style={{
             width: '100%',
-            padding: '6px 10px',
-            border: '1.5px solid var(--primary)',
-            borderRadius: '7px',
-            fontSize: '13px',
+            padding: '8px 12px',
+            border: '1.5px solid var(--border-strong)',
+            borderRadius: '10px',
+            fontSize: '15px',
             fontFamily: 'inherit',
             outline: 'none',
           }}
         />
       ) : (
-        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--grey-900)' }}>{display}</div>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-1)' }}>{display}</div>
       )}
     </div>
   );
