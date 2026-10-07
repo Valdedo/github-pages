@@ -421,7 +421,7 @@ export function TurnosPage() {
       <header className="inicio-head turnos-head">
         <div>
           <h1>Turnos</h1>
-          <p>{quien === 'todos' ? `Semana ${rangoSemana(semana)}` : `${cap(mesNombre(mes.getMonth()))} de ${mes.getFullYear()}`}{!admin && ' · Solo Andrés puede cambiarlos'}</p>
+          <p>{quien === 'todos' ? `Semana ${rangoSemana(semana)}` : `${cap(mesNombre(mes.getMonth()))} de ${mes.getFullYear()}`}</p>
         </div>
         <div className="turnos-nav" role="group" aria-label="Cambiar de fecha">
           <button className="btn btn-ghost turnos-flecha" aria-label="Anterior"
@@ -582,7 +582,8 @@ export function TurnosPage() {
         </section>
       )}
 
-      {aj && (
+      {/* Gestión: solo el encargado. Los demás solo ven su cuadrante */}
+      {aj && admin && (
         <div className="turnos-gestion">
           <Vacaciones aj={aj} editable={admin} recargar={cargar} show={show} />
           <Festivos aj={aj} editable={admin} recargar={cargar} show={show} />
