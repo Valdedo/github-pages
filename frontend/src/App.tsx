@@ -35,31 +35,35 @@ interface NavBadge {
   firmas: number;
 }
 
-// Primary items → shown in sidebar AND mobile bottom nav (no Inicio — CF logo is the home link)
-// label: menú lateral · short: barra inferior del móvil
+// Menú agrupado por áreas del negocio (igual para la tienda y el encargado)
 type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean };
-const primaryNavItems: NavItem[] = [
-  { to: '/firmas', label: 'Firmar albaranes', short: 'Firmas', icon: PenLine, badge: 'firmas' },
-  { to: '/albaranes', label: 'Albaranes de proveedor', short: 'Proveedor', icon: FileText },
-  { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
-  { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' },
-  { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' },
-  { to: '/turnos', label: 'Turnos', icon: CalendarDays },
+const navGroups: { titulo: string; items: NavItem[] }[] = [
+  { titulo: 'Clientes', items: [
+    { to: '/firmas', label: 'Firmar albaranes', short: 'Firmas', icon: PenLine, badge: 'firmas' },
+    { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' },
+    { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' },
+  ] },
+  { titulo: 'Mostrador', items: [
+    { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
+    { to: '/venta', label: 'Venta', icon: Store },
+    { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
+  ] },
+  { titulo: 'Proveedores', items: [
+    { to: '/albaranes', label: 'Albaranes de proveedor', short: 'Proveedor', icon: FileText },
+    { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
+    { to: '/analisis', label: 'Análisis de compras', icon: BarChart2 },
+  ] },
+  { titulo: 'Equipo', items: [
+    { to: '/turnos', label: 'Turnos', icon: CalendarDays },
+  ] },
 ];
-
-// Secondary items → sidebar only (desktop)
-const secondaryNavItems: NavItem[] = [
-  { to: '/catalogo',  label: 'Catálogo',  icon: BookOpen },
-  { to: '/analisis',  label: 'Análisis',  icon: BarChart2 },
-  { to: '/venta',     label: 'Venta',     icon: Store },
-  { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
-];
-
-const navItems = [...primaryNavItems, ...secondaryNavItems];
-// Móvil: 4 accesos abajo + «Más» (Precios y herramientas en el cajón)
-const enCajon = ['/consulta', '/turnos'];
-const bottomItems = primaryNavItems.filter(n => !enCajon.includes(n.to));
-const drawerItems = [...primaryNavItems.filter(n => enCajon.includes(n.to)), ...secondaryNavItems];
+const navItems = navGroups.flatMap(g => g.items);
+const INICIO: NavItem = { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true };
+// Móvil: lo más usado abajo; el resto, en «Más» por grupos
+const BOTTOM = ['/firmas', '/consulta', '/turnos'];
+const bottomItems = [INICIO, ...BOTTOM.map(t => navItems.find(n => n.to === t)!)];
+const drawerGroups = navGroups.map(g => ({ ...g, items: g.items.filter(n => !BOTTOM.includes(n.to)) })).filter(g => g.items.length);
+const drawerItems = drawerGroups.flatMap(g => g.items);
 
 function SidebarNavGroup({ items, badges, collapsed }: {
   items: typeof navItems;
@@ -117,24 +121,15 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
         )}
       </div>
 
-      {/* Primary nav */}
       <nav className="sidebar-nav">
-        {/* Inicio only in sidebar, not in bottom nav */}
-        <NavLink to="/" end className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
-          title={collapsed ? 'Inicio' : undefined}>
-          <span className="sidebar-item-icon"><LayoutDashboard size={20} /></span>
-          {!collapsed && <span className="sidebar-item-label">Inicio</span>}
-        </NavLink>
-        <SidebarNavGroup items={primaryNavItems} badges={badges} collapsed={collapsed} />
+        <SidebarNavGroup items={[INICIO]} badges={badges} collapsed={collapsed} />
       </nav>
-
-      {/* Secondary nav */}
-      <nav className="sidebar-nav sidebar-nav-secondary">
-        {!collapsed && (
-          <div className="sidebar-section-label">Herramientas</div>
-        )}
-        <SidebarNavGroup items={secondaryNavItems} badges={badges} collapsed={collapsed} />
-      </nav>
+      {navGroups.map(g => (
+        <nav key={g.titulo} className="sidebar-nav sidebar-nav-grupo" aria-label={g.titulo}>
+          {!collapsed && <div className="sidebar-section-label">{g.titulo}</div>}
+          <SidebarNavGroup items={g.items} badges={badges} collapsed={collapsed} />
+        </nav>
+      ))}
       {collapsed ? (
         <button className="sidebar-collapse-btn" style={{ margin: '8px auto 16px' }} onClick={onToggle} title="Ampliar el menú" aria-label="Ampliar el menú">
           <Menu size={18} />
@@ -233,19 +228,20 @@ function BottomNav({ badges }: { badges: NavBadge }) {
       {/* Tools drawer */}
       <div className={`more-drawer${drawerOpen ? ' more-drawer-open' : ''}`}>
         <div className="more-drawer-handle" onClick={() => setDrawerOpen(false)} />
-        <div className="more-drawer-title">Más opciones</div>
-        <div className="more-drawer-grid">
-          {drawerItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) => `more-drawer-item${isActive ? ' active' : ''}`}
-            >
-              <Icon size={26} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </div>
+        <div className="more-drawer-title">Más apartados</div>
+        {drawerGroups.map(g => (
+          <div key={g.titulo}>
+            <div className="more-drawer-grupo">{g.titulo}</div>
+            <div className="more-drawer-grid">
+              {g.items.map(({ to, label, icon: Icon }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => `more-drawer-item${isActive ? ' active' : ''}`}>
+                  <Icon size={26} />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        ))}
         <SesionLinks />
       </div>
 

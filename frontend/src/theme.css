@@ -740,3 +740,19 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .turnos-encargado .form-input, .turnos-encargado .btn { flex: 1 1 100%; width: auto; }
   .turnos-mes-head .turnos-link { display: none; }
 }
+
+/* ── Menú por grupos ──────────────────────────────────────────── */
+.sidebar { overflow-y: auto; }
+.sidebar-nav:first-of-type { flex: none; }
+.sidebar-nav-grupo { padding-top: 2px; padding-bottom: 2px; overflow: visible; }
+.sidebar-nav-grupo:last-of-type { flex: 1; }
+.sidebar-nav-grupo .sidebar-section-label { padding: 10px 12px 4px; }
+.sidebar-collapsed .sidebar-nav-grupo { border-top: 1px solid var(--border); margin: 4px 10px 0; padding-top: 6px; }
+.more-drawer-grupo { font-size: 12px; font-weight: 700; color: var(--text-3); margin: 12px 0 8px; }
+.more-drawer-grupo:first-child { margin-top: 0; }
+@media (max-width: 768px) {
+  .more-drawer { max-height: 85vh; overflow-y: auto; }
+  .more-drawer-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .more-drawer-item { font-size: 12.5px !important; min-height: 78px; }
+}
+.sidebar-item { padding: 10px 14px; }
