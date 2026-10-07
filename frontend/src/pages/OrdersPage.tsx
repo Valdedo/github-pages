@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, ShoppingCart, Search, ChevronRight, Package, Phone } from 'lucide-react';
+import { Plus, ShoppingCart, Search, ChevronRight, Package, Phone, CheckCheck } from 'lucide-react';
+import { numES } from '../components/AvisoCliente';
 import { listOrders, createOrder, deleteOrder, listSuppliers, describeApiError } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
@@ -12,15 +13,15 @@ import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 const ACTIVE_STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'pendiente', label: 'Por pedir' },
-  { value: 'pedido', label: 'Pedido' },
-  { value: 'recibido', label: 'Recibido' },
+  { value: 'pedido', label: 'Pedidos' },
+  { value: 'recibido', label: 'Han llegado' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
   pendiente: 'Por pedir',
   pedido: 'Pedido',
-  parcial: 'Parcial',
-  recibido: 'Recibido',
+  parcial: 'Llegando',
+  recibido: 'Ha llegado',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
 };
@@ -97,8 +98,8 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
         status: 'pendiente',
         lines: validLines.map(l => ({
           descripcion:   l.descripcion.trim(),
-          cantidad:      parseFloat(l.cantidad) || 1,
-          precio_unitario: l.precio_unitario ? parseFloat(l.precio_unitario) : undefined,
+          cantidad:      numES(l.cantidad) || 1,
+          precio_unitario: numES(l.precio_unitario) ?? undefined,
           supplier_name: l.supplier_name.trim() || undefined,
         })),
       } as any);
@@ -121,7 +122,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
             {error && (
-              <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>{error}</div>
+              <div className="doc-aviso error">{error}</div>
             )}
 
             {/* CLIENT — primary */}
@@ -135,7 +136,7 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
                   <input className="form-input" value={form.client_name} onChange={setField('client_name')} placeholder="Nombre del cliente" required />
                 </div>
                 <div>
-                  <label className="form-label">Teléfono</label>
+                  <label className="form-label">Teléfono (para avisarle)</label>
                   <input className="form-input" type="tel" value={form.client_phone} onChange={setField('client_phone')} placeholder="666 123 456" />
                 </div>
               </div>
@@ -202,12 +203,12 @@ function NewOrderModal({ suppliers, onClose, onSaved }: {
                     <div style={{ display: 'grid', gridTemplateColumns: '80px 90px 1fr', gap: 6 }}>
                       <div>
                         <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>CANT.</div>
-                        <input className="form-input" type="number" min="0.01" step="0.01" value={line.cantidad}
+                        <input className="form-input" type="text" inputMode="decimal" value={line.cantidad}
                           onChange={setLine(i, 'cantidad')} style={{ margin: 0, textAlign: 'right' }} />
                       </div>
                       <div>
                         <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>PRECIO</div>
-                        <input className="form-input" type="number" min="0" step="0.01" placeholder="€" value={line.precio_unitario}
+                        <input className="form-input" type="text" inputMode="decimal" placeholder="€" value={line.precio_unitario}
                           onChange={setLine(i, 'precio_unitario')} style={{ margin: 0, textAlign: 'right' }} />
                       </div>
                       <div>
@@ -270,7 +271,10 @@ function OrderCard({ order, overdue, onNavigate, onDelete, muted = false }: {
               </a>
             )}
             <StatusChip status={order.status} />
-            {overdue && <span style={{ fontSize: 11, color: '#b91c1c', fontWeight: 600 }}>⚠ Retrasado</span>}
+            {overdue && <span className="aviso-chip">Retrasado</span>}
+            {order.status === 'recibido' && (order.aviso_at
+              ? <span className="aviso-chip hecho"><CheckCheck size={13} /> Cliente avisado</span>
+              : <span className="aviso-chip">Sin avisar al cliente</span>)}
           </div>
           <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-3)', flexWrap: 'wrap', alignItems: 'center' }}>
             {order.supplier_name && (
@@ -285,8 +289,8 @@ function OrderCard({ order, overdue, onNavigate, onDelete, muted = false }: {
             )}
             <span>Pedido: {fmtDate(order.order_date)}</span>
             {order.expected_date && (
-              <span style={{ color: overdue ? '#b91c1c' : undefined }}>
-                Est. llegada: {fmtDate(order.expected_date)}
+              <span style={{ color: overdue ? 'var(--danger)' : undefined, fontWeight: overdue ? 600 : undefined }}>
+                Llegada prevista: {fmtDate(order.expected_date)}
               </span>
             )}
             <span>{order.line_count} artículo{order.line_count !== 1 ? 's' : ''}</span>
@@ -346,7 +350,7 @@ export function OrdersPage() {
   const history = orders.filter(o => isDone(o));
 
   const filtered = active.filter(o => {
-    const matchStatus = !filter || o.status === filter;
+    const matchStatus = !filter || o.status === filter || (filter === 'pedido' && o.status === 'parcial');
     const matchSearch = !search ||
       o.client_name.toLowerCase().includes(search.toLowerCase()) ||
       (o.supplier_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
@@ -367,9 +371,10 @@ export function OrdersPage() {
     }
   };
 
+  // Retrasado solo a partir del día siguiente al previsto (se compara la fecha, sin horas)
   const isOverdue = (o: SupplierOrderListItem) =>
-    o.expected_date && o.status !== 'recibido' && o.status !== 'entregado' && o.status !== 'cancelado' &&
-    new Date(o.expected_date) < new Date();
+    !!o.expected_date && (o.status === 'pedido' || o.status === 'parcial' || o.status === 'pendiente') &&
+    o.expected_date.split('T')[0] < today();
 
   return (
     <div className="page">
@@ -394,7 +399,7 @@ export function OrdersPage() {
             onClick={() => setFilter(st.value as OrderStatus | '')}
             className={`firma-vista${filter === st.value ? ' on' : ''}`}>
             {st.label}
-            <span className="firma-vista-n">{st.value ? active.filter(o => o.status === st.value).length : active.length}</span>
+            <span className="firma-vista-n">{st.value ? active.filter(o => o.status === st.value || (st.value === 'pedido' && o.status === 'parcial')).length : active.length}</span>
           </button>
         ))}
       </div>

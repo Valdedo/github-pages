@@ -201,6 +201,7 @@ export interface Repair {
   date_repaired?: string;
   date_estimated_return?: string;
   date_returned?: string;
+  aviso_at?: string | null;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -230,6 +231,7 @@ export interface SupplierOrder {
   order_date: string;
   expected_date?: string;
   received_date?: string;
+  aviso_at?: string | null;
   status: OrderStatus;
   notes?: string;
   reference?: string;
@@ -248,6 +250,7 @@ export interface SupplierOrderListItem {
   expected_date?: string;
   status: OrderStatus;
   reference?: string;
+  aviso_at?: string | null;
   line_count: number;
   lines_received: number;
   created_at: string;

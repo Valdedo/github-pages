@@ -71,6 +71,10 @@ def update_repair(repair_id: int, update: RepairUpdate, db: Session = Depends(ge
         raise HTTPException(404, "Reparación no encontrada")
 
     data = update.model_dump(exclude_unset=True)
+    # Los obligatorios no se pueden vaciar; el resto sí (null = borrar)
+    for campo in ("client_name", "tool_description", "problem_description", "status", "date_received"):
+        if campo in data and data[campo] is None:
+            data.pop(campo)
 
     if "status" in data and data["status"] not in VALID_STATUSES:
         raise HTTPException(400, f"Estado inválido. Valores: {VALID_STATUSES}")

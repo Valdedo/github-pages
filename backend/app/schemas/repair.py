@@ -38,6 +38,7 @@ class RepairUpdate(BaseModel):
     date_repaired: Optional[datetime.datetime] = None
     date_estimated_return: Optional[datetime.datetime] = None
     date_returned: Optional[datetime.datetime] = None
+    aviso_at: Optional[datetime.datetime] = None
     notes: Optional[str] = None
 
 
@@ -47,6 +48,7 @@ class RepairResponse(RepairBase):
     date_sent_to_repair: Optional[datetime.datetime] = None
     date_repaired: Optional[datetime.datetime] = None
     date_returned: Optional[datetime.datetime] = None
+    aviso_at: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

@@ -27,6 +27,9 @@ class SupplierOrder(Base):
 
     status: Mapped[str] = mapped_column(String(20), default="pendiente", index=True)
 
+    # Cuándo se avisó al cliente (WhatsApp) de que ya llegó
+    aviso_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reference: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 

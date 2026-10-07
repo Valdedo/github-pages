@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save } from 'lucide-react';
-import { getRepair, updateRepair, deleteRepair } from '../api/client';
+import { Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save, ArrowLeft, HandCoins } from 'lucide-react';
+import { getRepair, updateRepair, deleteRepair, describeApiError } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
-import { useToast } from '../components/Toast';
+import { useCfToast } from '../components/CfToast';
 import { useIsMobile } from '../hooks';
+import { BotonWhatsApp, ImporteModal, textoReparacion, numES, fmtEur } from '../components/AvisoCliente';
 import type { Repair, RepairStatus } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -12,84 +13,57 @@ import type { Repair, RepairStatus } from '../types';
 const STATUS_STEPS: RepairStatus[] = ['recibida', 'en_taller', 'reparada', 'entregada'];
 
 const STATUS_LABELS: Record<RepairStatus, string> = {
-  recibida: 'Recibida', en_taller: 'En taller', reparada: 'Reparada', entregada: 'Entregada',
+  recibida: 'Recibida', en_taller: 'En el taller', reparada: 'Lista', entregada: 'Entregada',
 };
 
 const STATUS_NEXT: Record<RepairStatus, { status: RepairStatus; label: string } | null> = {
-  recibida:  { status: 'en_taller', label: 'Enviar a taller' },
-  en_taller: { status: 'reparada',  label: 'Marcar reparada' },
-  reparada:  { status: 'entregada', label: 'Marcar entregada' },
+  recibida:  { status: 'en_taller', label: 'Enviar al taller' },
+  en_taller: { status: 'reparada',  label: 'Ya ha vuelto reparada' },
+  reparada:  { status: 'entregada', label: 'Entregar al cliente' },
   entregada: null,
 };
 
 const STATUS_PREV: Record<RepairStatus, { status: RepairStatus; label: string } | null> = {
   recibida:  null,
-  en_taller: { status: 'recibida',  label: 'Deshacer envío a taller' },
-  reparada:  { status: 'en_taller', label: 'Volver a "En taller"' },
+  en_taller: { status: 'recibida',  label: 'Deshacer envío al taller' },
+  reparada:  { status: 'en_taller', label: 'Volver a «En el taller»' },
   entregada: { status: 'reparada',  label: 'Deshacer entrega' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtDate(dt?: string | null): string {
-  if (!dt) return '';
-  const [y, m, d] = dt.split('T')[0].split('-');
-  return `${d}/${m}/${y}`;
-}
 
 function toDateInput(dt?: string | null): string {
   if (!dt) return '';
   return dt.split('T')[0];
 }
 
-function fromDateInput(s: string): string | undefined {
-  if (!s) return undefined;
+function fromDateInput(s: string): string | null {
+  if (!s) return null;
   return s + 'T12:00:00';
 }
 
+const precioTxt = (n?: number | null) => (n != null ? String(n).replace('.', ',') : '');
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatusChip({ status }: { status: RepairStatus }) {
-  return <span className={`status-chip ${status}`}>{STATUS_LABELS[status]}</span>;
-}
-
 function StatusBar({ status }: { status: RepairStatus }) {
-  const idx = STATUS_STEPS.indexOf(status);
+  const idx = status === 'entregada' ? STATUS_STEPS.length : STATUS_STEPS.indexOf(status);
   return (
-    <div style={{ overflowX: 'auto', marginBottom: 2 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 260 }}>
-        {STATUS_STEPS.map((s, i) => (
-          <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < STATUS_STEPS.length - 1 ? 1 : 0 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: i <= idx ? 'var(--brand)' : 'var(--border)',
-                color: i <= idx ? '#fff' : 'var(--text-3)',
-                fontSize: 12, fontWeight: 700, transition: 'background 0.2s',
-                flexShrink: 0,
-              }}>
-                {i < idx ? '✓' : i + 1}
-              </div>
-              <span style={{ fontSize: 10, fontWeight: i === idx ? 700 : 400, color: i === idx ? 'var(--brand)' : 'var(--text-3)', whiteSpace: 'nowrap' }}>
-                {STATUS_LABELS[s]}
-              </span>
-            </div>
-            {i < STATUS_STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 2, background: i < idx ? 'var(--brand)' : 'var(--border)', margin: '0 4px', marginBottom: 14 }} />
-            )}
-          </div>
-        ))}
-      </div>
+    <div className="pasos" aria-label={`Estado: ${STATUS_LABELS[status]}`}>
+      {STATUS_STEPS.map((s, i) => (
+        <div key={s} className={`paso${i < idx ? ' hecho' : ''}${i === idx || (idx === STATUS_STEPS.length && i === idx - 1) ? ' actual' : ''}`}>
+          <span className="paso-bola">{i < idx ? '✓' : i + 1}</span>
+          <span className="paso-txt">{STATUS_LABELS[s]}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card" style={{ padding: '16px 20px' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
-        {title}
-      </div>
+    <div className="card seccion">
+      <div className="seccion-titulo">{title}</div>
       {children}
     </div>
   );
@@ -131,8 +105,8 @@ function repairToForm(r: Repair): FormState {
     tool_model: r.tool_model ?? '',
     tool_description: r.tool_description,
     problem_description: r.problem_description,
-    estimated_price: r.estimated_price != null ? String(r.estimated_price) : '',
-    final_price: r.final_price != null ? String(r.final_price) : '',
+    estimated_price: precioTxt(r.estimated_price),
+    final_price: precioTxt(r.final_price),
     notes: r.notes ?? '',
     date_received: toDateInput(r.date_received),
     date_sent_to_repair: toDateInput(r.date_sent_to_repair),
@@ -150,14 +124,14 @@ export function RepairDetailPage() {
   const isMobile = useIsMobile();
 
   const { confirm, ConfirmDialog } = useConfirm();
-  const { showToast, ToastContainer } = useToast();
+  const { toast, show } = useCfToast();
   const [repair, setRepair] = useState<Repair | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [entregando, setEntregando] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -167,6 +141,8 @@ export function RepairDetailPage() {
       setRepair(data);
       setForm(repairToForm(data));
       setDirty(false);
+    } catch (err) {
+      setError(describeApiError(err));
     } finally {
       setLoading(false);
     }
@@ -174,84 +150,131 @@ export function RepairDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Avisa antes de cerrar o recargar la página con cambios sin guardar
+  useEffect(() => {
+    if (!dirty) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [dirty]);
+
   const set = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm(f => f ? { ...f, [k]: e.target.value } : f);
     setDirty(true);
-    setSaved(false);
+  };
+
+  /** Lo que hay escrito en el formulario, listo para guardar (vacío = borrar). */
+  const datosFormulario = (): Parameters<typeof updateRepair>[1] | null => {
+    if (!form) return null;
+    if (!form.client_name.trim()) { setError('Falta el nombre del cliente'); return null; }
+    if (!form.tool_description.trim()) { setError('Falta qué herramienta es'); return null; }
+    if (!form.problem_description.trim()) { setError('Falta qué le pasa'); return null; }
+    const est = numES(form.estimated_price), fin = numES(form.final_price);
+    if ((form.estimated_price.trim() && est == null) || (form.final_price.trim() && fin == null)) {
+      setError('Los precios tienen que ser números, por ejemplo 35,50'); return null;
+    }
+    setError('');
+    return {
+      client_name: form.client_name.trim(),
+      client_phone: form.client_phone.trim() || null,
+      tool_brand: form.tool_brand.trim() || null,
+      tool_model: form.tool_model.trim() || null,
+      tool_description: form.tool_description.trim(),
+      problem_description: form.problem_description.trim(),
+      estimated_price: est,
+      final_price: fin,
+      notes: form.notes.trim() || null,
+      date_received: fromDateInput(form.date_received) ?? undefined,
+      date_sent_to_repair: fromDateInput(form.date_sent_to_repair),
+      date_repaired: fromDateInput(form.date_repaired),
+      date_estimated_return: fromDateInput(form.date_estimated_return),
+      date_returned: fromDateInput(form.date_returned),
+    };
+  };
+
+  const guardarRespuesta = (data: Repair) => {
+    setRepair(data);
+    setForm(repairToForm(data));
+    setDirty(false);
   };
 
   const handleSave = async () => {
-    if (!repair || !form) return;
-    if (!form.client_name.trim()) { setError('El nombre del cliente es obligatorio'); return; }
-    if (!form.tool_description.trim()) { setError('La descripción de la herramienta es obligatoria'); return; }
-    if (!form.problem_description.trim()) { setError('La descripción del problema es obligatoria'); return; }
+    if (!repair) return;
+    const datos = datosFormulario();
+    if (!datos) return;
     setSaving(true);
-    setError('');
     try {
-      const { data } = await updateRepair(repair.id, {
-        client_name: form.client_name.trim(),
-        client_phone: form.client_phone.trim() || undefined,
-        tool_brand: form.tool_brand.trim() || undefined,
-        tool_model: form.tool_model.trim() || undefined,
-        tool_description: form.tool_description.trim(),
-        problem_description: form.problem_description.trim(),
-        estimated_price: form.estimated_price ? parseFloat(form.estimated_price) : undefined,
-        final_price: form.final_price ? parseFloat(form.final_price) : undefined,
-        notes: form.notes.trim() || undefined,
-        date_received: fromDateInput(form.date_received),
-        date_sent_to_repair: fromDateInput(form.date_sent_to_repair),
-        date_repaired: fromDateInput(form.date_repaired),
-        date_estimated_return: fromDateInput(form.date_estimated_return),
-        date_returned: fromDateInput(form.date_returned),
-      });
-      setRepair(data);
-      setForm(repairToForm(data));
-      setDirty(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setError(detail ? `Error: ${detail}` : 'Error al guardar');
+      guardarRespuesta((await updateRepair(repair.id, datos)).data);
+      show('Cambios guardados');
+    } catch (err) {
+      setError(`No se pudo guardar: ${describeApiError(err)}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleStatusChange = async (newStatus: RepairStatus, isPrev = false) => {
+  /** Cambia el estado guardando a la vez lo que se haya escrito (no se pierde nada). */
+  const cambiarEstado = async (status: RepairStatus, extra: Parameters<typeof updateRepair>[1] = {}) => {
     if (!repair) return;
-    if (isPrev) {
-      const prevStep = STATUS_PREV[repair.status];
-      const ok = await confirm({
-        title: 'Cambiar estado',
-        message: `¿${prevStep?.label ?? 'Deshacer estado'}?`,
-        confirmLabel: 'Confirmar',
-      });
-      if (!ok) return;
+    let datos: Parameters<typeof updateRepair>[1] = {};
+    if (dirty) {
+      const d = datosFormulario();
+      if (!d) return;
+      datos = d;
+      // Las fechas de seguimiento las pone el servidor al cambiar de estado
+      if (status === 'en_taller' && !form?.date_sent_to_repair) delete datos.date_sent_to_repair;
+      if (status === 'reparada' && !form?.date_repaired) delete datos.date_repaired;
+      if (status === 'entregada' && !form?.date_returned) delete datos.date_returned;
     }
+    const antes = repair.status;
     try {
-      const { data } = await updateRepair(repair.id, { status: newStatus });
-      setRepair(data);
-      setForm(repairToForm(data));
-      setDirty(false);
-    } catch {
-      showToast('Error al cambiar el estado', 'error');
+      guardarRespuesta((await updateRepair(repair.id, { ...datos, ...extra, status })).data);
+      show(`${repair.tool_description}: ${STATUS_LABELS[status].toLowerCase()}`, {
+        undo: async () => guardarRespuesta((await updateRepair(repair.id, {
+          status: antes,
+          ...(status === 'en_taller' ? { date_sent_to_repair: null } : {}),
+          ...(status === 'reparada' ? { date_repaired: null } : {}),
+          ...(status === 'entregada' ? { date_returned: null } : {}),
+        })).data),
+      });
+    } catch (err) {
+      show(`No se pudo cambiar: ${describeApiError(err)}`, { error: true });
     }
+  };
+
+  const handleRevert = async () => {
+    if (!repair) return;
+    const prev = STATUS_PREV[repair.status];
+    if (!prev) return;
+    const ok = await confirm({ title: 'Cambiar estado', message: `¿${prev.label}?`, confirmLabel: 'Sí, cambiar' });
+    if (!ok) return;
+    const borrar = repair.status === 'en_taller' ? { date_sent_to_repair: null }
+      : repair.status === 'reparada' ? { date_repaired: null }
+      : repair.status === 'entregada' ? { date_returned: null } : {};
+    try { guardarRespuesta((await updateRepair(repair.id, { status: prev.status, ...borrar })).data); }
+    catch (err) { show(`No se pudo cambiar: ${describeApiError(err)}`, { error: true }); }
+  };
+
+  const avisado = async () => {
+    if (!repair) return;
+    try { const { data } = await updateRepair(repair.id, { aviso_at: new Date().toISOString() }); setRepair(r => r ? { ...r, aviso_at: data.aviso_at } : r); }
+    catch { /* el aviso ya se abrió; apuntarlo no es imprescindible */ }
   };
 
   const handleDelete = async () => {
     if (!repair) return;
     const ok = await confirm({
-      title: 'Eliminar reparación',
-      message: `¿Eliminar la reparación de ${repair.client_name}? Esta acción no se puede deshacer.`,
-      confirmLabel: 'Eliminar',
+      title: 'Borrar reparación',
+      message: `¿Borrar la reparación de ${repair.client_name}? No se puede deshacer.`,
+      confirmLabel: 'Borrar',
       danger: true,
     });
     if (!ok) return;
     try {
       await deleteRepair(repair.id);
       navigate('/reparaciones');
-    } catch {
-      showToast('Error al eliminar la reparación', 'error');
+    } catch (err) {
+      show(`No se pudo borrar: ${describeApiError(err)}`, { error: true });
     }
   };
 
@@ -260,105 +283,89 @@ export function RepairDetailPage() {
   }
 
   if (!repair || !form) {
-    return <div className="page" style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Reparación no encontrada.</div>;
+    return <div className="page" style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>{error || 'Reparación no encontrada.'}</div>;
   }
 
   const nextStep = STATUS_NEXT[repair.status];
   const prevStep = STATUS_PREV[repair.status];
-
-  // Bottom save bar clears the mobile nav (64px) + margin
-  const saveBarBottom = isMobile ? 76 : 16;
+  const importeAviso = numES(form.final_price) ?? null;
 
   return (
-    <div className="page">
+    <div className="page rep-detalle">
       {ConfirmDialog}
-      <ToastContainer />
+      {toast}
 
-      {/* ── Top header (desktop only back button — mobile header handles navigation) ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
-              <Wrench size={16} style={{ verticalAlign: 'middle', marginRight: 6, opacity: 0.6 }} />
-              {repair.client_name}
-            </h1>
-            <StatusChip status={repair.status} />
+      <div className="pedido-head">
+        <div style={{ flex: '1 1 100%', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button className="doc-volver" onClick={() => navigate('/reparaciones')}><ArrowLeft size={16} /> Reparaciones</button>
+            <h1>{repair.client_name}</h1>
+            <span className={`status-chip ${repair.status}`}>{STATUS_LABELS[repair.status]}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-            {repair.client_phone && (
-              <a href={`tel:${repair.client_phone}`} style={{ fontSize: 13, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-                <Phone size={13} /> {repair.client_phone}
-              </a>
-            )}
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-              {repair.tool_description}
-              {(repair.tool_brand || repair.tool_model) && ` · ${[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}`}
-            </span>
+          <div className="pedido-sub">
+            <span><Wrench size={15} /> {repair.tool_description}{(repair.tool_brand || repair.tool_model) && ` · ${[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}`}</span>
+            {repair.client_phone && <a href={`tel:${repair.client_phone}`}><Phone size={15} /> {repair.client_phone}</a>}
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          {!isMobile && dirty && (
-            <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} style={{ gap: 5 }}>
-              <Save size={14} /> {saving ? 'Guardando…' : 'Guardar'}
-            </button>
-          )}
-          {!isMobile && saved && !dirty && (
-            <span style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600 }}>✓ Guardado</span>
-          )}
-          <button className="btn btn-danger btn-sm" onClick={handleDelete} title="Borrar reparación">
-            <Trash2 size={14} /> Borrar
-          </button>
         </div>
       </div>
 
-      {error && (
-        <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="doc-aviso error" style={{ marginTop: 12 }}>{error}</div>}
 
-      {/* ── Status flow ── */}
-      <SectionCard title="Estado de la reparación">
+      {/* ── Estado y siguiente paso ── */}
+      <div className="card seccion" style={{ marginTop: 12 }}>
         <StatusBar status={repair.status} />
-        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-          {prevStep && (
-            <button className="btn btn-ghost btn-sm" onClick={() => handleStatusChange(prevStep.status, true)} style={{ gap: 5 }}>
-              <RotateCcw size={13} /> {prevStep.label}
-            </button>
-          )}
+
+        {repair.status === 'reparada' && (
+          <div className="rep-lista">
+            <BotonWhatsApp
+              telefono={repair.client_phone}
+              texto={textoReparacion(repair.client_name, repair.tool_description, importeAviso)}
+              avisadoEl={repair.aviso_at}
+              onAvisado={avisado}
+            />
+          </div>
+        )}
+
+        <div className="rep-acciones">
           {nextStep && (
-            <button className="btn btn-primary btn-sm" onClick={() => handleStatusChange(nextStep.status)} style={{ gap: 5 }}>
-              {nextStep.label} <ChevronRight size={13} />
+            <button className={`btn ${repair.status === 'reparada' ? 'btn-ghost' : 'btn-primary'} btn-lg`}
+              onClick={() => nextStep.status === 'entregada' ? setEntregando(true) : cambiarEstado(nextStep.status)}>
+              {nextStep.status === 'entregada' ? <HandCoins size={18} /> : null}
+              {nextStep.label} {nextStep.status !== 'entregada' && <ChevronRight size={18} />}
             </button>
           )}
-          {!nextStep && repair.status === 'entregada' && (
-            <span style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600 }}>✓ Reparación completada</span>
+          {repair.status === 'entregada' && (
+            <span className="rep-hecha">
+              ✓ Entregada{repair.final_price != null ? ` · cobrado ${fmtEur(repair.final_price)}` : ''}
+            </span>
+          )}
+          {prevStep && (
+            <button className="btn btn-ghost btn-sm" onClick={handleRevert} style={{ color: 'var(--text-3)' }}>
+              <RotateCcw size={14} /> {prevStep.label}
+            </button>
           )}
         </div>
-      </SectionCard>
+      </div>
 
-      {/* ── Fields grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
-
-        {/* Cliente */}
-        <SectionCard title="Datos del cliente">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Field label="Nombre del cliente *">
-              <input className="form-input" value={form.client_name} onChange={set('client_name')} placeholder="Nombre completo" />
+      {/* ── Datos ── */}
+      <div className="rep-rejilla">
+        <SectionCard title="Cliente">
+          <div className="campos">
+            <Field label="Nombre *">
+              <input className="form-input" value={form.client_name} onChange={set('client_name')} placeholder="Nombre del cliente" />
             </Field>
-            <Field label="Teléfono">
+            <Field label="Teléfono (para avisarle)">
               <input className="form-input" value={form.client_phone} onChange={set('client_phone')} placeholder="666 123 456" type="tel" />
             </Field>
           </div>
         </SectionCard>
 
-        {/* Herramienta */}
         <SectionCard title="Herramienta">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Field label="Descripción *">
+          <div className="campos">
+            <Field label="Qué es *">
               <input className="form-input" value={form.tool_description} onChange={set('tool_description')} placeholder="Ej: Taladro percutor" />
             </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="campos-2">
               <Field label="Marca">
                 <input className="form-input" value={form.tool_brand} onChange={set('tool_brand')} placeholder="Bosch…" />
               </Field>
@@ -366,100 +373,80 @@ export function RepairDetailPage() {
                 <input className="form-input" value={form.tool_model} onChange={set('tool_model')} placeholder="GSB 13…" />
               </Field>
             </div>
+            <Field label="Qué le pasa *">
+              <textarea className="form-input" value={form.problem_description} onChange={set('problem_description')}
+                placeholder="Describe el problema…" rows={3} style={{ resize: 'vertical', margin: 0 }} />
+            </Field>
           </div>
         </SectionCard>
-      </div>
 
-      {/* Problema */}
-      <div style={{ marginTop: 12 }}>
-        <SectionCard title="Problema">
-          <textarea
-            className="form-input"
-            value={form.problem_description}
-            onChange={set('problem_description')}
-            placeholder="Describe el problema…"
-            rows={3}
-            style={{ resize: 'vertical', margin: 0 }}
-          />
+        <SectionCard title="Precio">
+          <div className="campos-2">
+            <Field label="Presupuesto (€)">
+              <input className="form-input" type="text" inputMode="decimal" value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" />
+            </Field>
+            <Field label="Cobrado (€)">
+              <input className="form-input" type="text" inputMode="decimal" value={form.final_price} onChange={set('final_price')} placeholder="0,00" />
+            </Field>
+          </div>
         </SectionCard>
-      </div>
 
-      {/* Fechas + Precios */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 12 }}>
-
-        {/* Fechas */}
         <SectionCard title="Fechas">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="campos-2">
             <Field label="Recibida">
               <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
+            </Field>
+            <Field label="Fecha prevista">
+              <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
             </Field>
             <Field label="Al taller">
               <input className="form-input" type="date" value={form.date_sent_to_repair} onChange={set('date_sent_to_repair')} />
             </Field>
-            <Field label="Reparada">
+            <Field label="Volvió reparada">
               <input className="form-input" type="date" value={form.date_repaired} onChange={set('date_repaired')} />
             </Field>
             <Field label="Entregada">
               <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} />
             </Field>
           </div>
-          <div style={{ marginTop: 10 }}>
-            <Field label="Entrega estimada">
-              <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
-            </Field>
-          </div>
         </SectionCard>
 
-        {/* Precios + Notas */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SectionCard title="Precios">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="Estimado (€)">
-                <input className="form-input" type="number" step="0.01" min="0"
-                  value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" />
-              </Field>
-              <Field label="Final (€)">
-                <input className="form-input" type="number" step="0.01" min="0"
-                  value={form.final_price} onChange={set('final_price')} placeholder="0,00" />
-              </Field>
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Notas">
-            <textarea
-              className="form-input"
-              value={form.notes}
-              onChange={set('notes')}
-              placeholder="Notas adicionales…"
-              rows={3}
-              style={{ resize: 'vertical', margin: 0 }}
-            />
-          </SectionCard>
-        </div>
+        <SectionCard title="Notas">
+          <textarea className="form-input" value={form.notes} onChange={set('notes')}
+            placeholder="Notas internas…" rows={3} style={{ resize: 'vertical', margin: 0 }} />
+        </SectionCard>
       </div>
 
-      {/* ── Bottom save bar (visible when dirty) ── */}
+      <div style={{ marginTop: 24, textAlign: 'center' }}>
+        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={handleDelete}>
+          <Trash2 size={14} /> Borrar esta reparación
+        </button>
+      </div>
+
+      {/* ── Barra de guardar (solo con cambios) ── */}
       {dirty && (
-        <div style={{
-          position: 'sticky', bottom: saveBarBottom, marginTop: 16,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 12, padding: '12px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          boxShadow: '0 4px 20px rgb(0 0 0 / .10)',
-          zIndex: 'var(--z-fab)' as any,
-        }}>
-          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>
-            {isMobile ? 'Sin guardar' : 'Tienes cambios sin guardar'}
-          </span>
+        <div className="guardar-barra" style={{ bottom: isMobile ? 76 : 16 }}>
+          <span>Cambios sin guardar</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => { setForm(repairToForm(repair)); setDirty(false); setError(''); }}>
               Descartar
             </button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              <Save size={14} /> {saving ? 'Guardando…' : 'Guardar'}
+              <Save size={15} /> {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </div>
+      )}
+
+      {entregando && (
+        <ImporteModal
+          titulo="Entregar al cliente"
+          texto={`¿Cuánto se le cobra a ${repair.client_name}?`}
+          inicial={numES(form.final_price) ?? repair.final_price ?? repair.estimated_price}
+          boton="Entregada"
+          onCancel={() => setEntregando(false)}
+          onOk={importe => { setEntregando(false); cambiarEstado('entregada', { final_price: importe }); }}
+        />
       )}
     </div>
   );

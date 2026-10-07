@@ -225,7 +225,7 @@ export const listRepairs = (status?: string) =>
 export const getRepair = (id: number) => api.get<Repair>(`/api/repairs/${id}`);
 export const createRepair = (data: Omit<Repair, 'id' | 'created_at' | 'updated_at' | 'date_received'>) =>
   api.post<Repair>('/api/repairs', data);
-export const updateRepair = (id: number, data: Partial<Repair>) =>
+export const updateRepair = (id: number, data: { [K in keyof Repair]?: Repair[K] | null }) =>
   api.put<Repair>(`/api/repairs/${id}`, data);
 export const deleteRepair = (id: number) => api.delete(`/api/repairs/${id}`);
 export const getRepairStats = () => api.get<{ recibida: number; en_taller: number; reparada: number; entregada: number; pending: number; total: number }>('/api/repairs/stats');
@@ -236,7 +236,7 @@ export const listOrders = (status?: string) =>
 export const getOrder = (id: number) => api.get<SupplierOrder>(`/api/orders/${id}`);
 export const createOrder = (data: Omit<SupplierOrder, 'id' | 'created_at' | 'updated_at' | 'lines'> & { lines?: Partial<SupplierOrderLine>[] }) =>
   api.post<SupplierOrder>('/api/orders', data);
-export const updateOrder = (id: number, data: Partial<SupplierOrder>) =>
+export const updateOrder = (id: number, data: { [K in keyof SupplierOrder]?: SupplierOrder[K] | null }) =>
   api.put<SupplierOrder>(`/api/orders/${id}`, data);
 export const deleteOrder = (id: number) => api.delete(`/api/orders/${id}`);
 export const getOrderStats = () => api.get<{ pendiente: number; parcial: number; recibido: number; pending: number; total: number }>('/api/orders/stats');

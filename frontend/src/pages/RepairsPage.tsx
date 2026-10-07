@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Wrench, Search, Phone, ChevronRight } from 'lucide-react';
+import { Plus, Wrench, Search, Phone, ChevronRight, MessageCircle, CheckCheck } from 'lucide-react';
 import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
+import { ImporteModal, numES, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
 import type { Repair, RepairStatus } from '../types';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
@@ -21,15 +22,15 @@ const STATUS_NEXT: Record<RepairStatus, RepairStatus | null> = {
   entregada: null,
 };
 const STATUS_NEXT_LABEL: Record<RepairStatus, string> = {
-  recibida: 'Enviar a taller',
-  en_taller: 'Marcar reparada',
-  reparada: 'Marcar entregada',
+  recibida: 'Enviar al taller',
+  en_taller: 'Ya ha vuelto',
+  reparada: 'Entregar',
   entregada: '',
 };
 
 function StatusChip({ status }: { status: RepairStatus }) {
   const labels: Record<RepairStatus, string> = {
-    recibida: 'Recibida', en_taller: 'En taller', reparada: 'Reparada', entregada: 'Entregada',
+    recibida: 'Recibida', en_taller: 'En el taller', reparada: 'Lista', entregada: 'Entregada',
   };
   return <span className={`status-chip ${status}`}>{labels[status]}</span>;
 }
@@ -136,6 +137,7 @@ function RepairModal({
     if (!form.client_name.trim()) { setError('El nombre del cliente es obligatorio'); return; }
     if (!form.tool_description.trim()) { setError('La descripción de la herramienta es obligatoria'); return; }
     if (!form.problem_description.trim()) { setError('La descripción del problema es obligatoria'); return; }
+    if (form.estimated_price.trim() && numES(form.estimated_price) == null) { setError('El presupuesto tiene que ser un número, por ejemplo 35,50'); return; }
     setSaving(true);
     setError('');
     try {
@@ -146,14 +148,11 @@ function RepairModal({
         tool_model: form.tool_model.trim() || undefined,
         tool_description: form.tool_description.trim(),
         problem_description: form.problem_description.trim(),
-        estimated_price: form.estimated_price ? parseFloat(form.estimated_price) : undefined,
+        estimated_price: numES(form.estimated_price) ?? undefined,
         notes: form.notes.trim() || undefined,
         status: repair?.status ?? 'recibida' as RepairStatus,
         date_received: fromDateInput(form.date_received),
-        date_sent_to_repair: fromDateInput(form.date_sent_to_repair),
-        date_repaired: fromDateInput(form.date_repaired),
         date_estimated_return: fromDateInput(form.date_estimated_return),
-        date_returned: fromDateInput(form.date_returned),
       };
       const { data } = repair
         ? await updateRepair(repair.id, payload)
@@ -179,7 +178,7 @@ function RepairModal({
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
             {error && (
-              <div style={{ background: '#fee2e2', color: '#b91c1c', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>{error}</div>
+              <div className="doc-aviso error">{error}</div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -188,7 +187,7 @@ function RepairModal({
                 <input className="form-input" value={form.client_name} onChange={set('client_name')} placeholder="Nombre del cliente" required />
               </div>
               <div>
-                <label className="form-label">Teléfono</label>
+                <label className="form-label">Teléfono (para avisarle)</label>
                 <input className="form-input" value={form.client_phone} onChange={set('client_phone')} placeholder="666 123 456" type="tel" />
               </div>
             </div>
@@ -222,39 +221,18 @@ function RepairModal({
               />
             </div>
 
-            {/* Dates — 4 tracking milestones */}
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Seguimiento de fechas
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label className="form-label">Fecha recibida</label>
-                  <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
-                </div>
-                <div>
-                  <label className="form-label">Enviada al taller</label>
-                  <input className="form-input" type="date" value={form.date_sent_to_repair} onChange={set('date_sent_to_repair')} placeholder="Auto al cambiar estado" />
-                </div>
-                <div>
-                  <label className="form-label">Llegó reparada</label>
-                  <input className="form-input" type="date" value={form.date_repaired} onChange={set('date_repaired')} placeholder="Auto al cambiar estado" />
-                </div>
-                <div>
-                  <label className="form-label">Entregada al cliente</label>
-                  <input className="form-input" type="date" value={form.date_returned} onChange={set('date_returned')} placeholder="Auto al cambiar estado" />
-                </div>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <label className="form-label">Entrega estimada</label>
-                <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} style={{ maxWidth: 200 }} />
-              </div>
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label className="form-label">Precio estimado (€)</label>
-                <input className="form-input" value={form.estimated_price} onChange={set('estimated_price')} placeholder="0.00" type="number" step="0.01" min="0" />
+                <label className="form-label">Recibida el</label>
+                <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
+              </div>
+              <div>
+                <label className="form-label">Fecha prevista</label>
+                <input className="form-input" type="date" value={form.date_estimated_return} onChange={set('date_estimated_return')} />
+              </div>
+              <div>
+                <label className="form-label">Presupuesto (€)</label>
+                <input className="form-input" value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" type="text" inputMode="decimal" />
               </div>
             </div>
 
@@ -283,11 +261,12 @@ function RepairModal({
 }
 
 function RepairCard({
-  repair, onNavigate, onAdvance, muted = false,
+  repair, onNavigate, onAdvance, onAvisado, muted = false,
 }: {
   repair: Repair;
   onNavigate: () => void;
   onAdvance: (r: Repair) => void;
+  onAvisado: (r: Repair) => void;
   muted?: boolean;
 }) {
   return (
@@ -324,15 +303,25 @@ function RepairCard({
               <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· entregada {fmtDate(repair.date_returned)}</span>
             )}
             {repair.final_price != null && (
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· {repair.final_price.toFixed(2)} €</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· {repair.final_price.toFixed(2).replace('.', ',')} €</span>
             )}
+            {repair.status === 'reparada' && (repair.aviso_at
+              ? <span className="aviso-chip hecho"><CheckCheck size={13} /> Cliente avisado</span>
+              : <span className="aviso-chip">Sin avisar al cliente</span>)}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}
           onClick={e => e.stopPropagation()}>
+          {repair.status === 'reparada' && !repair.aviso_at && telWhatsApp(repair.client_phone) && (
+            <a className="btn wa-btn" target="_blank" rel="noopener noreferrer"
+              href={`https://wa.me/${telWhatsApp(repair.client_phone)}?text=${encodeURIComponent(textoReparacion(repair.client_name, repair.tool_description, repair.final_price))}`}
+              onClick={() => onAvisado(repair)}>
+              <MessageCircle size={16} /> Avisar
+            </a>
+          )}
           {STATUS_NEXT[repair.status] && (
             <button
-              className="btn btn-primary"
+              className={`btn ${repair.status === 'reparada' && !repair.aviso_at ? 'btn-ghost' : 'btn-primary'}`}
               onClick={() => onAdvance(repair)}
               title={STATUS_NEXT_LABEL[repair.status]}
             >
@@ -392,15 +381,29 @@ export function RepairsPage() {
 
   const { toast, show } = useCfToast();
   const NOMBRE: Record<RepairStatus, string> = { recibida: 'recibida', en_taller: 'en el taller', reparada: 'reparada', entregada: 'entregada' };
-  const advanceStatus = async (repair: Repair) => {
+  const [entregar, setEntregar] = useState<Repair | null>(null);
+  const pedirAvance = (repair: Repair) => {
+    if (STATUS_NEXT[repair.status] === 'entregada') setEntregar(repair);
+    else advanceStatus(repair);
+  };
+  const avisado = async (repair: Repair) => {
+    try {
+      const { data } = await updateRepair(repair.id, { aviso_at: new Date().toISOString() });
+      setRepairs(prev => prev.map(r => r.id === data.id ? data : r));
+    } catch { /* WhatsApp ya se abrió */ }
+  };
+  const advanceStatus = async (repair: Repair, importe?: number | null) => {
     const next = STATUS_NEXT[repair.status];
     if (!next) return;
     try {
-      const { data } = await updateRepair(repair.id, { status: next });
+      const { data } = await updateRepair(repair.id, next === 'entregada' ? { status: next, final_price: importe ?? null } : { status: next });
       setRepairs(prev => prev.map(r => r.id === data.id ? data : r));
       show(`${repair.tool_description} de ${repair.client_name}: ${NOMBRE[next]}`, {
         undo: async () => {
-          const { data: back } = await updateRepair(repair.id, { status: repair.status });
+          const { data: back } = await updateRepair(repair.id, {
+            status: repair.status,
+            ...(next === 'en_taller' ? { date_sent_to_repair: null } : next === 'reparada' ? { date_repaired: null } : { date_returned: null, final_price: repair.final_price ?? null }),
+          });
           setRepairs(prev => prev.map(r => r.id === back.id ? back : r));
         },
       });
@@ -467,7 +470,7 @@ export function RepairsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map(repair => (
-            <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={advanceStatus} />
+            <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={pedirAvance} onAvisado={avisado} />
           ))}
         </div>
       )}
@@ -490,7 +493,7 @@ export function RepairsPage() {
           {showHistory && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
               {history.map(repair => (
-                <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={advanceStatus} muted />
+                <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={pedirAvance} onAvisado={avisado} muted />
               ))}
             </div>
           )}
@@ -498,6 +501,16 @@ export function RepairsPage() {
       )}
 
       {toast}
+      {entregar && (
+        <ImporteModal
+          titulo="Entregar al cliente"
+          texto={`¿Cuánto se le cobra a ${entregar.client_name}?`}
+          inicial={entregar.final_price ?? entregar.estimated_price}
+          boton="Entregada"
+          onCancel={() => setEntregar(null)}
+          onOk={importe => { const r = entregar; setEntregar(null); advanceStatus(r, importe); }}
+        />
+      )}
       {showModal && (
         <RepairModal
           repair={null}

@@ -22,19 +22,33 @@ router = APIRouter(prefix="/api/orders", tags=["orders"])
 
 
 def _recalculate_status(order: SupplierOrder) -> str:
-    """Recompute order status from line receipts.
-    Manual statuses (pedido, entregado, cancelado) are never overridden."""
-    if order.status in MANUAL_STATUSES:
+    """Estado del pedido según lo recibido en las líneas.
+    Entregado y cancelado no se tocan. Si no ha llegado nada, se queda en «por pedir» o «pedido»."""
+    if order.status in ("entregado", "cancelado"):
         return order.status
     if not order.lines:
         return order.status
     total = sum(ln.cantidad for ln in order.lines)
-    received = sum(ln.cantidad_recibida for ln in order.lines)
-    if received == 0:
-        return "pendiente"
+    received = sum(min(ln.cantidad_recibida, ln.cantidad) for ln in order.lines)
+    if received <= 0:
+        return order.status if order.status in ("pendiente", "pedido") else "pedido"
     if received >= total:
         return "recibido"
     return "parcial"
+
+
+def _avisar_llegada(order: SupplierOrder) -> None:
+    """Aviso a la tienda cuando llega todo un pedido de cliente."""
+    try:
+        from app.services import push_service
+        push_service.avisar(
+            push_service.a_tienda,
+            f"Ha llegado el pedido de {order.client_name or 'un cliente'}",
+            "Ya está todo. Avisa al cliente para que pase a recogerlo.",
+            f"/pedidos/{order.id}", f"pedido-{order.id}",
+        )
+    except Exception as e:  # el aviso nunca debe romper la recepción
+        logger.warning("No se pudo avisar de la llegada del pedido %s: %s", order.id, e)
 
 
 @router.get("", response_model=List[SupplierOrderListItem])
@@ -66,6 +80,7 @@ def list_orders(
             reference=o.reference,
             line_count=len(o.lines),
             lines_received=lines_received,
+            aviso_at=o.aviso_at,
             created_at=o.created_at,
         ))
     return result
@@ -125,8 +140,25 @@ def update_order(order_id: int, update: SupplierOrderUpdate, db: Session = Depen
     if "status" in data and data["status"] not in VALID_STATUSES:
         raise HTTPException(400, f"Estado inválido: {VALID_STATUSES}")
 
+    if data.get("client_name", "") is None:
+        data["client_name"] = ""
+
+    antes = order.status
     for field, value in data.items():
         setattr(order, field, value)
+
+    nuevo = data.get("status")
+    if nuevo == "recibido" and antes != "recibido":
+        # «Marcar recibido» a mano: todo lo pedido ha llegado
+        for ln in order.lines:
+            ln.cantidad_recibida = ln.cantidad
+        if not order.received_date:
+            order.received_date = date.today()
+    elif nuevo in ("pendiente", "pedido") and antes in ("parcial", "recibido"):
+        # Deshacer la recepción
+        for ln in order.lines:
+            ln.cantidad_recibida = 0
+        order.received_date = None
 
     db.commit()
     db.refresh(order)
@@ -180,10 +212,15 @@ def update_line(
     # Recompute order status from lines
     order = db.query(SupplierOrder).filter(SupplierOrder.id == order_id).first()
     if order and order.status != "cancelado":
+        antes = order.status
         order.status = _recalculate_status(order)
         # Auto-set received_date when fully received
         if order.status == "recibido" and not order.received_date:
             order.received_date = date.today()
+        if order.status != "recibido" and antes == "recibido":
+            order.received_date = None
+        if order.status == "recibido" and antes != "recibido":
+            _avisar_llegada(order)
 
     db.commit()
     db.refresh(line)

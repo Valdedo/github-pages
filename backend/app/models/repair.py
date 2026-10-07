@@ -37,6 +37,9 @@ class Repair(Base):
     date_estimated_return: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     date_returned: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
+    # Cuándo se avisó al cliente (WhatsApp) de que ya está lista
+    aviso_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     # Internal notes
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
