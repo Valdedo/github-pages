@@ -1,7 +1,8 @@
 """Guarda cada albarán de proveedor en Drive en cuanto la app lo lee.
 
 Carpeta: ALBARANES/<PROVEEDOR>/ (la misma que usa el script de facturas).
-Nombre: «AAAA-MM-DD_<Proveedor>_Albarán <nº>.pdf». Las fotos se convierten a PDF.
+Nombre: «AAAA-MM-DD_<Proveedor>_Albarán <nº>.pdf». Las fotos y los escaneos se convierten
+a PDF con el texto reconocido (OCR), para poder buscar cualquier palabra desde Drive.
 
 La carpeta se elige así:
 1. La que se eligió a mano para ese proveedor (se recuerda).
@@ -76,15 +77,56 @@ def adivinar(proveedor: str, lista: list) -> Optional[dict]:
     return c if puntos >= 0.99 and not empate else None
 
 
+def _ocr_pdf(imagenes: list) -> Optional[bytes]:
+    """PDF con el texto reconocido por debajo (se puede buscar en Drive). None si no hay OCR."""
+    try:
+        import pytesseract
+        from pypdf import PdfReader, PdfWriter
+        langs = pytesseract.get_languages(config="")
+        lang = "spa" if "spa" in langs else "eng"
+        w = PdfWriter()
+        for im in imagenes:
+            pag = pytesseract.image_to_pdf_or_hocr(im, extension="pdf", lang=lang)
+            for pg in PdfReader(io.BytesIO(pag)).pages:
+                w.add_page(pg)
+        buf = io.BytesIO()
+        w.write(buf)
+        return buf.getvalue()
+    except Exception as e:
+        logger.warning("OCR no disponible, se guarda sin texto: %s", e)
+        return None
+
+
+def _tiene_texto(pdf: bytes) -> bool:
+    try:
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(pdf)) as p:
+            return sum(len((pg.extract_text() or "").strip()) for pg in p.pages[:3]) > 40
+    except Exception:
+        return True
+
+
 def _pdf(doc, paginas: list) -> bytes:
+    """PDF para Drive, siempre con texto buscable (las fotos y los escaneos pasan por OCR)."""
     if doc.doc_type == "pdf":
-        return Path(doc.file_path).read_bytes()
+        datos = Path(doc.file_path).read_bytes()
+        if _tiene_texto(datos):
+            return datos
+        try:  # PDF escaneado sin texto: se reconoce
+            from pdf2image import convert_from_bytes
+            ocr = _ocr_pdf(convert_from_bytes(datos, dpi=250, last_page=10))
+            return ocr or datos
+        except Exception:
+            return datos
     from PIL import Image, ImageOps
     imgs = []
     for p in paginas:
         im = ImageOps.exif_transpose(Image.open(p)).convert("RGB")
-        im.thumbnail((2400, 2400))
+        im.thumbnail((2600, 2600))
         imgs.append(im)
+    ocr = _ocr_pdf(imgs)
+    if ocr:
+        return ocr
     buf = io.BytesIO()
     imgs[0].save(buf, "PDF", save_all=True, append_images=imgs[1:], resolution=200)
     return buf.getvalue()
