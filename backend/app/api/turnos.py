@@ -92,6 +92,7 @@ def put_ajustes(data: Ajustes, db: Session = Depends(get_db)):
     n = len(data.semanas)
     datos = data.model_dump()
     datos["v"] = 2
+    datos["vac_previas"] = ts.ajustes(db).get("vac_previas", {})
     datos["inicio"] = {e.id: int(data.inicio.get(e.id, 0)) % n for e in data.empleados}
     return ts.guardar_ajustes(db, datos)
 

@@ -9,7 +9,7 @@ import { getYo, setYo, esEncargado, getRol, setSesion } from '../auth';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import {
-  iso, deIso, sumar, lunes, hoyIso, diaCorto, cap, fechaLarga, fechaCorta, rangoSemana, mesNombre, textoWhatsApp,
+  iso, deIso, sumar, lunes, hoyIso, diaCorto, diaLargo, cap, fechaLarga, fechaCorta, rangoSemana, mesNombre, textoWhatsApp,
 } from '../lib/turnos';
 
 const errorDe = (err: unknown) => {
@@ -137,7 +137,8 @@ function Vacaciones({ aj, editable, recargar, show }: {
   const año = String(new Date().getFullYear());
   const lista = aj.vacaciones.filter(v => v.fin >= hoy).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const nombre = (id: string) => aj.empleados.find(e => e.id === id);
-  const usados = (id: string) => aj.vacaciones.filter(v => v.empleado === id && v.inicio.startsWith(año)).reduce((s, v) => s + v.dias, 0);
+  const previos = (id: string) => aj.vac_previas?.[año]?.[id] ?? 0;
+  const usados = (id: string) => previos(id) + aj.vacaciones.filter(v => v.empleado === id && v.inicio.startsWith(año)).reduce((s, v) => s + v.dias, 0);
 
   const añadir = async (e: React.FormEvent) => {
     e.preventDefault(); setError(null);
@@ -163,7 +164,7 @@ function Vacaciones({ aj, editable, recargar, show }: {
       <h2>Vacaciones</h2>
       <div className="turnos-vac-resumen">
         {aj.empleados.map(e => (
-          <span key={e.id}><span className="turno-dot" style={{ background: e.color }} />{e.nombre}: <b>{usados(e.id)}</b> días en {año}</span>
+          <span key={e.id}><span className="turno-dot" style={{ background: e.color }} />{e.nombre}: <b>{usados(e.id)}</b> días gastados en {año}</span>
         ))}
       </div>
       {lista.length === 0
@@ -262,7 +263,6 @@ function Rotacion({ aj, recargar, show }: { aj: TurnosAjustes; recargar: () => v
   useEffect(() => { setSemanas(aj.semanas); setTipos(aj.tipos); }, [aj]);
   const cambiado = JSON.stringify(semanas) !== JSON.stringify(aj.semanas) || JSON.stringify(tipos) !== JSON.stringify(aj.tipos);
   const letras = 'ABCDEFGH';
-  const horas = (s: string[]) => s.reduce((t, id) => t + (tipos.find(x => x.id === id)?.horas ?? 0), 0);
 
   const guardar = async () => {
     setGuardando(true);
@@ -301,7 +301,7 @@ function Rotacion({ aj, recargar, show }: { aj: TurnosAjustes; recargar: () => v
       <h3>Semanas tipo</h3>
       <div className="turnos-semtipo-wrap">
         <table className="turnos-semtipo">
-          <thead><tr><th />{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => <th key={d}>{d}</th>)}<th>Horas</th></tr></thead>
+          <thead><tr><th />{['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => <th key={d}>{d}</th>)}</tr></thead>
           <tbody>
             {semanas.map((s, i) => (
               <tr key={i}>
@@ -315,7 +315,6 @@ function Rotacion({ aj, recargar, show }: { aj: TurnosAjustes; recargar: () => v
                     </select>
                   </td>
                 ))}
-                <td className="turnos-horas">{horas(s)} h</td>
               </tr>
             ))}
           </tbody>
@@ -329,8 +328,6 @@ function Rotacion({ aj, recargar, show }: { aj: TurnosAjustes; recargar: () => v
             <b>{t.nombre}</b>
             <input className="form-input" value={t.horario} aria-label={`Horario de ${t.nombre}`}
               onChange={e => setTipos(ts => ts.map((x, xi) => xi === i ? { ...x, horario: e.target.value } : x))} />
-            <label className="turnos-h"><input className="form-input" type="number" min={0} max={14} step={0.5} value={t.horas}
-              onChange={e => setTipos(ts => ts.map((x, xi) => xi === i ? { ...x, horas: Number(e.target.value) } : x))} /> h</label>
           </div>
         ))}
       </div>
@@ -407,12 +404,14 @@ export function TurnosPage() {
     catch { show('No se pudo copiar', { error: true }); }
   };
 
-  const horasMes = personaMes?.dias.filter(d => deIso(d.fecha).getMonth() === mes.getMonth()) ?? [];
-  const resumenMes = {
-    dias: horasMes.filter(d => d.clase === 'trabajo').length,
-    horas: horasMes.reduce((t, d) => t + (d.clase === 'trabajo' ? d.horas : 0), 0),
-    vac: horasMes.filter(d => d.clase === 'vacaciones' && deIso(d.fecha).getDay() !== 0).length,
-  };
+  // «Esta semana: martes a sábado · Entra 9:30»
+  const estaSemana = (() => {
+    const dias = c?.empleados.find(e => e.id === quien)?.dias.filter(d => d.clase === 'trabajo') ?? [];
+    if (!dias.length) return 'Esta semana no trabaja';
+    const extra = [...new Set(dias.map(d => d.nombre).filter(n => n !== 'Jornada' && n !== 'Sábado'))];
+    const rango = dias.length === 1 ? diaLargo(dias[0].fecha) : `${diaLargo(dias[0].fecha)} a ${diaLargo(dias[dias.length - 1].fecha)}`;
+    return `${semana === iso(lunes(new Date())) ? 'Esta semana' : `Semana ${rangoSemana(semana)}`}: ${rango}${extra.length ? ` · ${extra.join(', ')}` : ''}`;
+  })();
   const selT = personaMes?.dias.find(d => d.fecha === diaSel);
 
   return (
@@ -476,7 +475,6 @@ export function TurnosPage() {
                       {d.fecha === hoy && <em>Hoy</em>}
                     </th>
                   ))}
-                  <th className="turnos-cuadro-h">Horas</th>
                 </tr>
               </thead>
               <tbody>
@@ -493,7 +491,6 @@ export function TurnosPage() {
                         <Celda t={d} onClick={admin ? () => setEditar({ emp: e, t: d }) : undefined} />
                       </td>
                     ))}
-                    <td className="turnos-horas">{e.dias.reduce((t, d) => t + (d.clase === 'trabajo' ? d.horas : 0), 0)} h</td>
                   </tr>
                 ))}
                 <tr className="turnos-cobertura">
@@ -503,7 +500,6 @@ export function TurnosPage() {
                       {x.cerrado && x.n === 0 ? <small>Cerrado</small> : <span className={`turnos-n${x.n <= 1 ? ' poco' : ''}`}>{x.n}</span>}
                     </td>
                   ))}
-                  <td />
                 </tr>
               </tbody>
             </table>
@@ -551,7 +547,7 @@ export function TurnosPage() {
             <span className="turnohoy-avatar" style={{ background: persona.color }}>{persona.nombre.charAt(0)}</span>
             <div>
               <h2>{persona.nombre}</h2>
-              <p>{resumenMes.dias} días de trabajo · {resumenMes.horas} h{resumenMes.vac ? ` · ${resumenMes.vac} de vacaciones` : ''}</p>
+              <p>{estaSemana}</p>
             </div>
             {quien !== yo && getRol() !== 'reparto' && (
               <button className="turnos-link" onClick={() => { setYo(quien); setYoS(quien); show(`Este dispositivo es de ${persona.nombre}`); }}>Soy {persona.nombre}</button>

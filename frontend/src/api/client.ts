@@ -321,6 +321,7 @@ export interface Cuadrante { desde: string; hasta: string; festivos: Record<stri
 export interface TurnosAjustes {
   empleados: TurnoEmpleado[]; tipos: TurnoTipo[]; semanas: string[][]; ancla: string; inicio: Record<string, number>;
   esta_semana: Record<string, number>;
+  vac_previas?: Record<string, Record<string, number>>;
   festivos: { id: number; fecha: string; nombre: string }[];
   vacaciones: { id: number; empleado: string; inicio: string; fin: string; nota?: string | null; dias: number }[];
 }

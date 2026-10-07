@@ -45,6 +45,8 @@ DEFAULT = {
         ["jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE, LIBRE],      # D: L–J
     ],
     "v": 2,
+    # Días de vacaciones gastados antes de usar la app (se suman a los apuntados)
+    "vac_previas": {"2026": {"melchor": 15, "patricia": 15, "oscar": 15, "andres": 15}},
     # Lunes de referencia y qué semana tipo (índice) le toca a cada uno esa semana.
     # Sigue la rotación de la app anterior: semana 41 de 2026 → (posición + 41) % 4
     "ancla": "2026-10-05",

@@ -529,7 +529,7 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 
 /* Cuadrante (PC) */
 .turnos-cuadro { padding: 10px 14px 6px; border: 0; border-radius: var(--r-xl); overflow-x: auto; }
-.turnos-cuadro table { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; min-width: 860px; }
+.turnos-cuadro table { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; min-width: 800px; }
 .turnos-cuadro thead th { font: 500 13px var(--font); color: var(--text-3); text-align: left; padding: 6px 4px; }
 .turnos-cuadro thead th b { font: 600 20px var(--font-display); color: var(--text-1); }
 .turnos-cuadro thead th em { font-style: normal; margin-left: 6px; font-size: 11px; font-weight: 700; color: #fff; background: var(--cf-verde); border-radius: 999px; padding: 2px 8px; vertical-align: 3px; }
@@ -643,7 +643,7 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .turnos-semtipo .sel-libre { color: var(--text-3); border-style: dashed; }
 .turnos-semtipo .sel-jornada { background: var(--brand-pale); }
 .turnos-tipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.turnos-tipos > div { display: grid; grid-template-columns: 70px 1fr 80px; align-items: center; gap: 8px; }
+.turnos-tipos > div { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
 .turnos-tipos .form-input { margin: 0; }
 .turnos-h { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-3); }
 .turnos-guardar { display: flex; justify-content: flex-end; gap: 8px; }
