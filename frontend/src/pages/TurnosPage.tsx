@@ -5,9 +5,8 @@ import {
   putTurnosAjustes, putEstaSemana, accesoEstado, accesoEncargado, describeApiError,
   type Cuadrante, type TurnoDia, type TurnosAjustes, type TurnoEmpleado,
 } from '../api/client';
-import { getYo, setYo, esEncargado, getRol, setSesion, sesionPersonal } from '../auth';
+import { getYo, esEncargado, getRol, setSesion } from '../auth';
 import { useCfToast } from '../components/CfToast';
-import { actualizarPersona } from '../lib/avisos';
 import { ConnectionError } from '../components/ConnectionError';
 import {
   iso, deIso, sumar, lunes, hoyIso, diaCorto, diaLargo, cap, fechaLarga, fechaCorta, rangoSemana, mesNombre, textoWhatsApp,
@@ -356,7 +355,7 @@ export function TurnosPage() {
   const [admin, setAdmin] = useState(esEncargado());
   const { toast, show } = useCfToast();
   const hoy = hoyIso();
-  const [yo, setYoS] = useState(getYo);
+  const yo = getYo();
 
   // Rejilla del mes: de lunes a domingo, semanas completas
   const mesDesde = useMemo(() => lunes(mes), [mes]);
@@ -550,9 +549,7 @@ export function TurnosPage() {
               <h2>{persona.nombre}</h2>
               <p>{estaSemana}</p>
             </div>
-            {quien !== yo && getRol() !== 'reparto' && !sesionPersonal() && (
-              <button className="turnos-link" onClick={() => { setYo(quien); setYoS(quien); actualizarPersona(); show(`Este dispositivo es de ${persona.nombre}`); }}>Soy {persona.nombre}</button>
-            )}
+            
           </div>
           <div className="turnos-cal" role="grid">
             {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => <span key={d} className="turnos-cal-cab">{d}</span>)}

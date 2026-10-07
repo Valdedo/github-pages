@@ -13,6 +13,7 @@ export const setSesion = (token: string, rol: Rol, persona?: string | null) => {
     localStorage.setItem(KEY, token); localStorage.setItem(ROL, rol);
     if (persona) localStorage.setItem(PERSONA, persona); else localStorage.removeItem(PERSONA);
     if (persona && persona !== 'tienda') localStorage.setItem('cfYo', persona);
+    else localStorage.removeItem('cfYo'); // equipo compartido: no es de nadie en concreto
   } catch { /* nada */ }
 };
 export const cerrarSesion = () => {

@@ -12,9 +12,9 @@ function hace(iso?: string) {
   return d === 1 ? 'ayer' : `hace ${d} días`;
 }
 
-function Fila({ c }: { c: CorreoItem }) {
+function Fila({ c, nuevo }: { c: CorreoItem; nuevo?: boolean }) {
   return (
-    <li>
+    <li className={nuevo ? 'nuevo' : ''}>
       <a href={c.enlace} target="_blank" rel="noreferrer">
         <span className={`correo-tipo ${c.tipo || 'otro'}`}>{c.tipo === 'cliente' ? 'Cliente' : c.tipo === 'proveedor' ? 'Proveedor' : 'Correo'}</span>
         <span className="correo-txt">
@@ -31,6 +31,7 @@ function Fila({ c }: { c: CorreoItem }) {
 export function CorreoCard() {
   const [d, setD] = useState<CorreoResumen | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [verTodos, setVerTodos] = useState(false);
   const cargar = useCallback((refrescar = false) => {
     setCargando(true);
     getCorreo(refrescar).then(({ data }) => setD(data)).catch(() => setD(v => v ?? { configurado: true, error: 'No se ha podido leer el correo ahora mismo', sin_leer: [], sin_contestar: [] })).finally(() => setCargando(false));
@@ -58,32 +59,26 @@ export function CorreoCard() {
     );
   }
 
+  const todos = [...d.sin_leer.map(c => ({ ...c, leer: true })), ...d.sin_contestar.map(c => ({ ...c, leer: false }))];
+  const visibles = verTodos ? todos : todos.slice(0, 3);
   return (
     <section className="card correo-card correo-pendiente" aria-label="Correo pendiente">
       <div className="correo-cab">
-        <span className="correo-ico grande"><Mail size={24} /></span>
-        <div className="correo-titulos">
-          <h2>Correo pendiente</h2>
-          <div className="correo-cuentas">
-            {nLeer > 0 && <span className="correo-cuenta leer"><b>{nLeer}</b> sin leer</span>}
-            {nResp > 0 && <span className="correo-cuenta resp"><b>{nResp}</b> esperan respuesta</span>}
-          </div>
-        </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => cargar(true)} disabled={cargando}>
-          <RefreshCw size={15} className={cargando ? 'girando' : ''} /> <span className="correo-act-txt">{cargando ? 'Mirando…' : 'Actualizar'}</span>
+        <span className="correo-ico"><Mail size={19} /></span>
+        <h2>Correo</h2>
+        {nLeer > 0 && <span className="correo-cuenta leer"><b>{nLeer}</b> sin leer</span>}
+        {nResp > 0 && <span className="correo-cuenta resp"><b>{nResp}</b> por contestar</span>}
+        <button className="btn btn-ghost btn-sm correo-act" onClick={() => cargar(true)} disabled={cargando} aria-label="Actualizar el correo" title="Actualizar">
+          <RefreshCw size={15} className={cargando ? 'girando' : ''} />
         </button>
       </div>
-      {nLeer > 0 && (
-        <div>
-          <div className="correo-grupo">Sin leer</div>
-          <ul className="correo-lista">{d.sin_leer.map(c => <Fila key={c.id} c={c} />)}</ul>
-        </div>
-      )}
-      {nResp > 0 && (
-        <div>
-          <div className="correo-grupo">Esperan respuesta</div>
-          <ul className="correo-lista">{d.sin_contestar.map(c => <Fila key={c.id} c={c} />)}</ul>
-        </div>
+      <ul className="correo-lista">
+        {visibles.map(c => <Fila key={c.id} c={c} nuevo={c.leer} />)}
+      </ul>
+      {todos.length > 3 && (
+        <button className="turnos-link" onClick={() => setVerTodos(v => !v)}>
+          {verTodos ? 'Ver menos' : `Ver los ${todos.length} correos`}
+        </button>
       )}
     </section>
   );
