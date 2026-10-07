@@ -31,22 +31,32 @@ DEFAULT = {
     ],
     "tipos": [
         {"id": "jornada", "nombre": "Jornada", "horario": "8:30–13:30 · 14:30–18:30", "horas": 9},
+        {"id": "entrada", "nombre": "Entra 9:30", "horario": "9:30–13:30 · 14:30–18:30", "horas": 8},
+        {"id": "salida", "nombre": "Sale 17:30", "horario": "8:30–13:30 · 14:30–17:30", "horas": 8},
         {"id": "sabado", "nombre": "Sábado", "horario": "9:30–13:30", "horas": 4},
         {"id": "manana", "nombre": "Mañana", "horario": "8:30–13:30", "horas": 5},
         {"id": "tarde", "nombre": "Tarde", "horario": "14:30–18:30", "horas": 4},
     ],
-    # Lunes … domingo
+    # Lunes … domingo. Cada lunes cada uno pasa a la siguiente (A → B → C → D → A)
     "semanas": [
-        ["jornada", "jornada", "jornada", "jornada", "jornada", "sabado", LIBRE],
-        [LIBRE, "jornada", "jornada", "jornada", "jornada", "sabado", LIBRE],
-        ["jornada", "jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE],
-        ["jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE, LIBRE],
+        ["salida", "salida", "salida", "salida", "salida", "sabado", LIBRE],     # A: L–S, sale 17:30
+        [LIBRE, "jornada", "jornada", "jornada", "jornada", "sabado", LIBRE],   # B: libra el lunes, M–S
+        ["entrada", "entrada", "entrada", "entrada", "entrada", LIBRE, LIBRE],  # C: L–V, entra 9:30
+        ["jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE, LIBRE],      # D: L–J
     ],
+    "v": 2,
     # Lunes de referencia y qué semana tipo (índice) le toca a cada uno esa semana.
     # Sigue la rotación de la app anterior: semana 41 de 2026 → (posición + 41) % 4
     "ancla": "2026-10-05",
     "inicio": {"melchor": 1, "patricia": 2, "oscar": 3, "andres": 0},
 }
+
+_SEMANAS_V1 = [
+    ["jornada", "jornada", "jornada", "jornada", "jornada", "sabado", LIBRE],
+    [LIBRE, "jornada", "jornada", "jornada", "jornada", "sabado", LIBRE],
+    ["jornada", "jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE],
+    ["jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE, LIBRE],
+]
 
 FESTIVOS_2026 = [
     ("2026-01-01", "Año Nuevo"), ("2026-01-06", "Reyes"),
@@ -71,6 +81,11 @@ def ajustes(db: Session) -> dict:
                 db.add(Festivo(fecha=f, nombre=n))
         db.commit()
     datos = json.loads(row.datos)
+    if datos.get("v", 1) < 2 and datos.get("semanas") == _SEMANAS_V1:
+        # Rotación real (7/10/2026): sustituye a la provisional si nadie la había tocado
+        datos.update(tipos=DEFAULT["tipos"], semanas=DEFAULT["semanas"], v=2)
+        row.datos = json.dumps(datos, ensure_ascii=False)
+        db.commit()
     for k, v in DEFAULT.items():
         datos.setdefault(k, v)
     return datos

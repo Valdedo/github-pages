@@ -47,7 +47,7 @@ export function textoWhatsApp(c: Cuadrante, tipos: { id: string; nombre: string;
     const vac = t.filter(x => x.t.clase === 'vacaciones');
     if (!trab.length && d.getDay() === 0) return; // domingo cerrado: no se pone
     if (!trab.length) { lineas.push(`${cab} · Cerrado`); return; }
-    const quien = trab.map(x => x.t.tipo === 'jornada' || x.t.tipo === 'sabado' ? x.e.nombre : `${x.e.nombre} (${x.t.nombre.toLowerCase()} ${x.t.horario})`);
+    const quien = trab.map(x => x.t.tipo === 'jornada' || x.t.tipo === 'sabado' ? x.e.nombre : `${x.e.nombre} (${x.t.horario})`);
     let l = `${cab} · ${quien.join(', ')}`;
     if (vac.length) l += ` · Vacaciones: ${vac.map(x => x.e.nombre).join(', ')}`;
     lineas.push(l);
