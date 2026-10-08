@@ -162,11 +162,12 @@ type Estado = 'reposo' | 'animando' | 'oculto' | 'volviendo';
 export function CabeceraPegatina() {
   const caja = useRef<HTMLDivElement>(null);
   const lienzo = useRef<SVGSVGElement>(null);
+  const fondo = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const svg = lienzo.current, box = caja.current;
+    const svg = lienzo.current, box = caja.current, fd = fondo.current;
     const main = document.getElementById('app-main');
-    if (!svg || !box || !main) return;
+    if (!svg || !box || !fd || !main) return;
     const quieto = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const esc = montar(svg);
     esc.reposo();
@@ -179,8 +180,11 @@ export function CabeceraPegatina() {
       if (si) {
         const r = box.getBoundingClientRect();
         Object.assign(svg.style, { position: 'fixed', top: `${r.top}px`, left: `${r.left}px`, width: `${r.width}px`, zIndex: '40' });
+        // velo esmerilado detrás de la escena: separa las pegatinas del texto de debajo
+        Object.assign(fd.style, { display: 'block', height: `${Math.max(0, r.top) + r.width * VB_H / VB_W + 24}px`, opacity: '0' });
       } else {
         Object.assign(svg.style, { position: '', top: '', left: '', width: '', zIndex: '' });
+        Object.assign(fd.style, { display: 'none', opacity: '0' });
       }
     };
     const correr = (dur: number, pinta: (k: number, t: number) => void, fin: () => void) => {
@@ -204,7 +208,7 @@ export function CabeceraPegatina() {
       if (!yaSalioHoy()) {
         marcarHoy();
         fijar(true);
-        correr(DURA, (_k, t) => esc.completa(t), () => {
+        correr(DURA, (_k, t) => { esc.completa(t); fd.style.opacity = String(easeOut(seg(t, 0, .25)) * (1 - easeIn(seg(t, DURA - .5, DURA)))); }, () => {
           fijar(false); esc.oculto(); estado = 'oculto';
           if (arriba()) volver();
         });
@@ -228,6 +232,7 @@ export function CabeceraPegatina() {
           dangerouslySetInnerHTML={{ __html: ESCENA_PEGATINA }} />
       </div>
       <div className="cab-pegatina-velo" aria-hidden="true" />
+      <div ref={fondo} className="cab-pegatina-fondo" aria-hidden="true" />
     </div>
   );
 }
