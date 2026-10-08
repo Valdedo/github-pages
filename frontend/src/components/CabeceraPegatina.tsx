@@ -2,16 +2,14 @@ import { useEffect, useRef } from 'react';
 import { ESCENA_PEGATINA } from './pegatinaEscena';
 
 /**
- * Cabecera de Inicio en el móvil, estilo «pegatina».
- * El logo está pegado arriba. Al empezar a bajar: se despega, entra el camión,
- * el logo vuela y se pega en la puerta de la cabina, y el camión se va. Arriba queda limpio.
- * Al volver arriba del todo, el logo se vuelve a pegar.
- * La animación completa sale una vez al día; el resto de veces el logo solo se desvanece.
+ * Estilo «pegatina» (en pruebas, solo el encargado en el móvil).
+ * - CabeceraPegatina: el logo pegado arriba de Inicio; al bajar se va con la página, sin más.
+ * - ArranquePegatina: al abrir la app, el logo centrado se despega, se pega en la puerta del camión
+ *   y el camión se lo lleva; luego aparece la app. Se salta tocando la pantalla.
  */
 
 const VB_W = 393, VB_H = 320, ALTO_LOGO = 128;   // alto (en coords de la escena) que ocupa el logo en reposo
 const DURA = 2.75;                                // segundos de la animación completa
-const CLAVE_DIA = 'cfPegatinaDia';
 
 // ---------------------------------------------------------------- utilidades
 const c01 = (x: number) => Math.max(0, Math.min(1, x));
@@ -23,9 +21,6 @@ const easeInOut = (x: number) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x +
 const easeOutBack = (x: number, c = 1.4) => 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2);
 const muelle = (dt: number, A: number, w = 30, k = 8) => (dt < 0 ? 0 : A * Math.exp(-k * dt) * Math.sin(w * dt));
 
-const hoy = () => new Date().toISOString().slice(0, 10);
-function yaSalioHoy(): boolean { try { return localStorage.getItem(CLAVE_DIA) === hoy(); } catch { return false; } }
-function marcarHoy() { try { localStorage.setItem(CLAVE_DIA, hoy()); } catch { /* sin almacenamiento: no pasa nada */ } }
 
 // ---------------------------------------------------------------- tiempos y geometría (coords de la escena 393×320)
 const T_PEEL0 = 0.2, T_PEEL1 = 0.83;
@@ -62,8 +57,8 @@ function camTrans(t: number) {
 }
 
 /** Prepara la escena dentro del <svg> y devuelve las funciones para pintar cada momento. */
-function montar(svg: SVGSVGElement) {
-  const q = (id: string) => svg.querySelector('#cfp-' + id) as SVGElement;
+function montar(svg: SVGSVGElement, pre: string) {
+  const q = (id: string) => svg.querySelector('#' + pre + id) as SVGElement;
   const at = (id: string, k: string, v: string | number) => q(id).setAttribute(k, String(v));
   // ruedas
   for (const id of ['r1', 'r2']) {
@@ -157,82 +152,71 @@ function montar(svg: SVGSVGElement) {
   return { completa, corta, vuelve, reposo: () => { sinCamion(); logoQuieto(); }, oculto: () => { sinCamion(); logoQuieto(1, 0, 0); } };
 }
 
-type Estado = 'reposo' | 'animando' | 'oculto' | 'volviendo';
+const escena = (pre: string) => ESCENA_PEGATINA.split('cfp-').join(pre);
 
+/** Logo pegatina quieto en lo alto de Inicio. */
 export function CabeceraPegatina() {
-  const caja = useRef<HTMLDivElement>(null);
   const lienzo = useRef<SVGSVGElement>(null);
-  const fondo = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (lienzo.current) montar(lienzo.current, 'cfi-').reposo(); }, []);
+  return (
+    <div className="cab-pegatina-zona">
+      <div className="cab-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción"
+        style={{ aspectRatio: `${VB_W} / ${ALTO_LOGO}` }}>
+        <svg ref={lienzo} viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true"
+          dangerouslySetInnerHTML={{ __html: escena('cfi-') }} />
+      </div>
+      <div className="cab-pegatina-velo" aria-hidden="true" />
+    </div>
+  );
+}
+
+/** Solo al abrir la app de cero (una vez por carga), en Inicio. */
+let yaArranco = false;
+export function debeArrancar(ruta: string) {
+  if (yaArranco || ruta !== '/') return false;
+  yaArranco = true;
+  return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+const SALIDA = 0.35;   // segundos que tarda en desvanecerse la pantalla al terminar
+
+/** Pantalla de arranque con la animación del camión. Llama a onFin al acabar (o al tocar). */
+export function ArranquePegatina({ onFin }: { onFin: () => void }) {
+  const capa = useRef<HTMLDivElement>(null);
+  const lienzo = useRef<SVGSVGElement>(null);
+  const fin = useRef(onFin); fin.current = onFin;
 
   useEffect(() => {
-    const svg = lienzo.current, box = caja.current, fd = fondo.current;
-    const main = document.getElementById('app-main');
-    if (!svg || !box || !fd || !main) return;
-    const quieto = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const esc = montar(svg);
+    const svg = lienzo.current, cp = capa.current;
+    if (!svg || !cp) return;
+    const esc = montar(svg, 'cfp-');
     esc.reposo();
-    if (quieto) return;
-
-    let estado: Estado = 'reposo';
-    let raf = 0;
-
-    const fijar = (si: boolean) => {
-      if (si) {
-        const r = box.getBoundingClientRect();
-        Object.assign(svg.style, { position: 'fixed', top: `${r.top}px`, left: `${r.left}px`, width: `${r.width}px`, zIndex: '40' });
-        // velo esmerilado detrás de la escena: separa las pegatinas del texto de debajo
-        Object.assign(fd.style, { display: 'block', height: `${Math.max(0, r.top) + r.width * VB_H / VB_W + 24}px`, opacity: '0' });
-      } else {
-        Object.assign(svg.style, { position: '', top: '', left: '', width: '', zIndex: '' });
-        Object.assign(fd.style, { display: 'none', opacity: '0' });
+    let raf = 0, t0 = 0, saliendo = -1, acabado = false;
+    const terminar = () => { if (!acabado) { acabado = true; cancelAnimationFrame(raf); fin.current(); } };
+    const paso = (ahora: number) => {
+      if (!t0) t0 = ahora + 250;                 // un instante con el logo quieto antes de empezar
+      const t = Math.max(0, (ahora - t0) / 1000);
+      esc.completa(Math.min(t, DURA));
+      if (saliendo < 0 && t >= DURA - 0.25) saliendo = ahora;
+      if (saliendo >= 0) {
+        const k = c01((ahora - saliendo) / 1000 / SALIDA);
+        cp.style.opacity = String(1 - easeIn(k));
+        if (k >= 1) return terminar();
       }
-    };
-    const correr = (dur: number, pinta: (k: number, t: number) => void, fin: () => void) => {
-      cancelAnimationFrame(raf);
-      const t0 = performance.now();
-      const paso = (ahora: number) => {
-        const t = (ahora - t0) / 1000;
-        pinta(c01(t / dur), Math.min(t, dur));
-        if (t < dur) raf = requestAnimationFrame(paso); else fin();
-      };
       raf = requestAnimationFrame(paso);
     };
-    const arriba = () => main.scrollTop <= 2;
-
-    const volver = () => {
-      estado = 'volviendo';
-      correr(0.5, k => esc.vuelve(k), () => { esc.reposo(); estado = 'reposo'; if (!arriba()) despegar(); });
-    };
-    const despegar = () => {
-      estado = 'animando';
-      if (!yaSalioHoy()) {
-        marcarHoy();
-        fijar(true);
-        correr(DURA, (_k, t) => { esc.completa(t); fd.style.opacity = String(easeOut(seg(t, 0, .25)) * (1 - easeIn(seg(t, DURA - .5, DURA)))); }, () => {
-          fijar(false); esc.oculto(); estado = 'oculto';
-          if (arriba()) volver();
-        });
-      } else {
-        correr(0.3, k => esc.corta(k), () => { esc.oculto(); estado = 'oculto'; if (arriba()) volver(); });
-      }
-    };
-    const alMover = () => {
-      if (estado === 'reposo' && main.scrollTop > 6) despegar();
-      else if (estado === 'oculto' && arriba()) volver();
-    };
-    main.addEventListener('scroll', alMover, { passive: true });
-    return () => { main.removeEventListener('scroll', alMover); cancelAnimationFrame(raf); fijar(false); };
+    raf = requestAnimationFrame(paso);
+    const saltar = () => { if (saliendo < 0) saliendo = performance.now(); };
+    cp.addEventListener('pointerdown', saltar);
+    const seguro = window.setTimeout(terminar, (DURA + 2) * 1000);   // por si el navegador para la animación
+    return () => { cancelAnimationFrame(raf); cp.removeEventListener('pointerdown', saltar); clearTimeout(seguro); };
   }, []);
 
   return (
-    <div className="cab-pegatina-zona">
-      <div ref={caja} className="cab-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción"
-        style={{ aspectRatio: `${VB_W} / ${ALTO_LOGO}` }}>
-        <svg ref={lienzo} viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true"
-          dangerouslySetInnerHTML={{ __html: ESCENA_PEGATINA }} />
-      </div>
-      <div className="cab-pegatina-velo" aria-hidden="true" />
-      <div ref={fondo} className="cab-pegatina-fondo" aria-hidden="true" />
+    <div ref={capa} className="arranque-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción">
+      <svg ref={lienzo} viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: escena('cfp-') }} />
+      <span className="arranque-saltar">Toca para saltar</span>
     </div>
   );
 }

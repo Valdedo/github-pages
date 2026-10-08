@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
+import { ArranquePegatina, debeArrancar } from './components/CabeceraPegatina';
 import { CargasPage, OrdenCargaPage } from './pages/CargasPage';
 import { HomePage } from './pages/HomePage';
 import { DocumentPage } from './pages/DocumentPage';
@@ -337,6 +338,8 @@ function AppShell() {
 function FullShell() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
   const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0, correo: 0 });
+  // En pruebas (encargado, móvil): animación del camión al abrir la app en Inicio
+  const [arranque, setArranque] = useState(() => getRol() === 'admin' && window.innerWidth <= 768 && debeArrancar(window.location.pathname));
 
   // Load badge counts (pending repairs + pending orders)
   useEffect(() => {
@@ -359,6 +362,7 @@ function FullShell() {
 
   return (
     <div className="app-layout">
+      {arranque && <ArranquePegatina onFin={() => setArranque(false)} />}
       <Sidebar badges={badges} collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       <div className="app-content">
         <MobileHeader />
