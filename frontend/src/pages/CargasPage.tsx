@@ -16,7 +16,7 @@ import { useCfToast } from '../components/CfToast';
 import { numES } from '../components/AvisoCliente';
 import { SignaturePad } from './FirmaDetailPage';
 import { HojaVisor } from '../components/HojaVisor';
-import { CamionPegatina, SelloHecho } from '../components/Pegatinas';
+import { CamionPegatina, SelloHecho, Vacio } from '../components/Pegatinas';
 import { sinRed } from '../lib/offline';
 import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reducirFoto } from '../lib/offlineCargas';
 
@@ -151,15 +151,22 @@ export function CargasPage() {
   useEffect(load, [load]);
 
   const enCurso = (ordenes || []).filter(o => o.estado !== 'entregado');
-  const porPasar = (ordenes || []).flatMap(o => o.entregas.filter(e => e.estado === 'entregada' && !e.treyfact_at));
+  // Los que se marcan como pasados se quedan a la vista (en verde) hasta salir de la pantalla
+  const [recien, setRecien] = useState<Set<number>>(new Set());
+  const porPasar = (ordenes || []).flatMap(o => o.entregas.filter(e => e.estado === 'entregada' && (!e.treyfact_at || recien.has(e.id))));
+  const quedan = porPasar.filter(e => !e.treyfact_at).length;
   const lista = vista === 'curso' ? enCurso : ordenes || [];
 
   const marcarPasado = async (e: EntregaCarga) => {
     try {
       await treyfactEntregaCarga(e.id, true);
+      setRecien(r => new Set(r).add(e.id));
       load();
-      show(`${e.cliente}: pasado a TreyFACT`, { undo: async () => { await treyfactEntregaCarga(e.id, false); load(); } });
     } catch (err) { show(`No se pudo guardar: ${describeApiError(err)}`, { error: true }); }
+  };
+  const desmarcar = async (e: EntregaCarga) => {
+    try { await treyfactEntregaCarga(e.id, false); load(); }
+    catch (err) { show(`No se pudo guardar: ${describeApiError(err)}`, { error: true }); }
   };
 
   return (
@@ -177,7 +184,7 @@ export function CargasPage() {
       <NuevaOrden onHecho={o => navigate(`/cargas/${o.id}`)} />
 
       <div className="firma-vistas" role="tablist" style={{ margin: '18px 0 12px' }}>
-        {([['curso', 'En curso', enCurso.length], ['treyfact', 'Por pasar a TreyFACT', porPasar.length], ['todas', 'Todas', (ordenes || []).length]] as const).map(([k, t, n]) => (
+        {([['curso', 'En curso', enCurso.length], ['treyfact', 'Por pasar a TreyFACT', quedan], ['todas', 'Todas', (ordenes || []).length]] as const).map(([k, t, n]) => (
           <button key={k} role="tab" aria-selected={vista === k} className={`firma-vista${vista === k ? ' on' : ''}`} onClick={() => setVista(k)}>
             {t}<span className="firma-vista-n">{n}</span>
           </button>
@@ -188,17 +195,24 @@ export function CargasPage() {
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
       ) : vista === 'treyfact' ? (
         porPasar.length === 0 ? (
-          <div className="empty-state"><div className="empty-state-text">No hay entregas firmadas pendientes de pasar.</div></div>
+          <Vacio dibujo="facturaOk" titulo="Todo pasado a TreyFACT" texto="No queda ninguna entrega firmada por pasar." />
         ) : (
           <div className="card ana-lista">
             {porPasar.map(e => (
-              <div key={e.id} className="ana-fila estatica">
+              <div key={e.id} className="ana-fila estatica treyfact-fila">
                 <span className="ana-txt">
                   <b>{e.cliente || 'Sin nombre'}</b>
                   <small>{e.numero} · firmado {fechaHora(e.firmado_at)} · {e.lineas.filter(l => l.cargado_ok || l.cargado).length} materiales</small>
                 </span>
                 <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)}><FileText size={15} /> Hoja</button>
-                <button className="btn btn-primary btn-sm" onClick={() => marcarPasado(e)}><Check size={15} /> Ya está pasado</button>
+                {e.treyfact_at ? (
+                  <span className="treyfact-hecho">
+                    <span className="cat-chip ok"><Check size={14} /> Pasado a TreyFACT</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => desmarcar(e)}>Deshacer</button>
+                  </span>
+                ) : (
+                  <button className="btn btn-primary btn-sm" onClick={() => marcarPasado(e)}>Marcar como pasado</button>
+                )}
               </div>
             ))}
           </div>
@@ -667,6 +681,7 @@ export function OrdenCargaPage() {
                   <span className="cat-chip">{e.servir ? 'Servir' : 'Recoge en tienda'}</span>
                   {e.pagado && <span className="cat-chip">Pagado</span>}
                   {e.numero && <span className="cat-chip gris">{e.numero}</span>}
+                  {e.treyfact_at && <span className="cat-chip ok"><Check size={13} /> Pasado a TreyFACT</span>}
                 </div>
               </div>
               <div className="carga-entrega-acc">

@@ -1410,3 +1410,10 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .conexion-error-txt .btn { align-self: flex-start; margin-top: 6px; }
 .conexion-error.compacto .conexion-error-txt { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
 .conexion-error.compacto .conexion-error-txt .btn { margin-top: 0; }
+.cat-chip.ok { display: inline-flex; align-items: center; gap: 4px; background: var(--cf-verde); color: #fff; }
+.treyfact-hecho { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 768px) {
+  .treyfact-fila { flex-wrap: wrap; row-gap: 10px; }
+  .treyfact-fila .ana-txt { flex: 1 1 100%; }
+  .treyfact-fila .treyfact-hecho { justify-content: flex-start; }
+}
