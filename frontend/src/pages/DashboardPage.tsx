@@ -213,10 +213,10 @@ export function DashboardPage() {
       </div>
 
       <section className="inicio-rapidos" aria-label="Accesos rápidos">
-        <Link to="/firmas" className="inicio-rapido"><span><PenLine size={22} /></span>Firmar un albarán</Link>
-        <Link to="/consulta" className="inicio-rapido"><span><Search size={22} /></span>Consultar un precio</Link>
-        <Link to="/reparaciones?new=1" className="inicio-rapido"><span><Wrench size={22} /></span>Nueva reparación</Link>
-        <Link to="/pedidos?new=1" className="inicio-rapido"><span><Plus size={22} /></span>Nuevo pedido</Link>
+        <Link to="/firmas" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="albaranBoli" tam={58} /></span>Firmar un albarán</Link>
+        <Link to="/consulta" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="precio" tam={58} escala={1.15} /></span>Consultar un precio</Link>
+        <Link to="/reparaciones?new=1" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="llaveSola" tam={58} escala={1.4} /></span>Nueva reparación</Link>
+        <Link to="/pedidos?new=1" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="cajaMas" tam={58} escala={1.5} /></span>Nuevo pedido</Link>
       </section>
     </div>
   );

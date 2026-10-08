@@ -72,6 +72,26 @@ const DIBUJOS = {
     <rect x="-5" y="-6" width="10" height="40" rx="5" fill="#C9CEC9"/><rect x="0" y="-6" width="5" height="40" rx="2.5" fill="#8D948F"/>
     <path d="M-13 -22 a14 14 0 1 0 26 0 l-6 6 h-14 z" fill="#C9CEC9"/><path d="M0 -8 a14 14 0 0 0 13 -14 l-6 6 h-7 z" fill="#8D948F"/>
     <rect x="-5" y="22" width="10" height="16" rx="5" fill="#E2453C"/><rect x="0" y="22" width="5" height="16" rx="2.5" fill="#B82E26"/></g></g>`,
+  albaranBoli: `<g filter="url(#cfs-pega)">
+    <path d="M-36 -42 H14 L30 -26 V42 H-36 Z" fill="#FFFFFF"/><path d="M14 -42 V-26 H30 Z" fill="#E3E8E0"/>
+    <rect x="-26" y="-28" width="28" height="5" rx="2.5" fill="#1F5A3A"/>
+    <rect x="-26" y="-14" width="44" height="3.5" rx="1.75" fill="#C9D1C5"/><rect x="-26" y="-5" width="38" height="3.5" rx="1.75" fill="#C9D1C5"/>
+    <rect x="-26" y="4" width="44" height="3.5" rx="1.75" fill="#C9D1C5"/>
+    <path d="M-24 28 q6 -10 12 0 t12 -2" fill="none" stroke="#1A1A1A" stroke-width="2.4" stroke-linecap="round"/>
+    <g transform="translate(26 14) rotate(40)">
+      <rect x="-6" y="-34" width="12" height="44" rx="2" fill="#F5C542"/><rect x="0" y="-34" width="6" height="44" rx="1.5" fill="#D9A520"/>
+      <rect x="-6" y="-42" width="12" height="9" rx="3" fill="#E2453C"/><rect x="-6" y="-34" width="12" height="4" fill="#C9CEC9"/>
+      <path d="M-6 10 L0 22 L6 10 Z" fill="#E6CDA4"/><path d="M-2 18 L0 22 L2 18 Z" fill="#1A1A1A"/></g></g>`,
+  precio: `<g filter="url(#cfs-pega)">
+    <g transform="rotate(-20)"><path d="M-34 -18 H14 L30 0 L14 18 H-34 Z" fill="#2FAE66"/><path d="M-34 4 H26.3 L14 18 H-34 Z" fill="#1F7A47"/>
+    <circle cx="14" cy="0" r="4.5" fill="#fff"/>
+    <text x="-12" y="9" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="600" font-size="26" fill="#fff">€</text></g>
+    <g transform="translate(18 18)"><rect x="10" y="10" width="9" height="24" rx="4.5" fill="#2B302C" transform="rotate(-45 14 22)"/>
+    <circle r="17" fill="#C9CEC9"/><circle r="11.5" fill="#DDF3F8"/><path d="M-7 -4 a8 8 0 0 1 6 -5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g></g>`,
+  cajaMas: `<g filter="url(#cfs-pega)">
+    <path d="M14 -10 L26 -18 V18 L14 26 Z" fill="#B8956A"/><rect x="-24" y="-10" width="38" height="36" rx="2" fill="#D9B98A"/><path d="M-24 -10 L-12 -18 H26 L14 -10 Z" fill="#E6CDA4"/>
+    <rect x="-10" y="-10" width="9" height="36" fill="#2FAE66"/><path d="M-10 -10 L2 -18 H11 L-1 -10 Z" fill="#45C27A"/>
+    <g transform="translate(24 -16)"><circle r="12" fill="#2FAE66"/><path d="M-12 0 A12 12 0 0 0 12 0 Z" fill="#1F7A47"/><path d="M0 -6 V6 M-6 0 H6" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/></g></g>`,
   cono: `<g filter="url(#cfs-pega)"><path d="M-14 22 L-4 -22 H4 L14 22 Z" fill="#F28C28"/><path d="M-9 0 H9 L11 9 H-11 Z" fill="#fff"/><path d="M-6.5 -12 H6.5 L7.5 -6 H-7.5 Z" fill="#fff"/>
     <rect x="-20" y="20" width="40" height="7" rx="2" fill="#D96F14"/></g>`,
 };
@@ -79,10 +99,11 @@ const DIBUJOS = {
 type Dibujo = Exclude<keyof typeof DIBUJOS, 'sello'>;
 
 /** Un dibujo suelto, centrado en un lienzo de 120×110. */
-export function Ilustracion({ dibujo, tam = 96, className }: { dibujo: Dibujo; tam?: number; className?: string }) {
+export function Ilustracion({ dibujo, tam = 96, escala = 1, className }: { dibujo: Dibujo; tam?: number; escala?: number; className?: string }) {
+  const html = escala === 1 ? DIBUJOS[dibujo] as string : `<g transform="scale(${escala})">${DIBUJOS[dibujo]}</g>`;
   return (
     <svg viewBox="-60 -55 120 110" width={tam} height={tam * 110 / 120} className={`peg-ilus ${className ?? ''}`} aria-hidden="true"
-      style={{ overflow: 'visible' }} dangerouslySetInnerHTML={{ __html: DIBUJOS[dibujo] as string }} />
+      style={{ overflow: 'visible' }} dangerouslySetInnerHTML={{ __html: html }} />
   );
 }
 
