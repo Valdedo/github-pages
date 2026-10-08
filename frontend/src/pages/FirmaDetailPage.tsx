@@ -16,7 +16,7 @@ import type { ClientDeliveryNote } from '../types';
 type Pt = { x: number; y: number; p: number };
 
 /** Lienzo de firma: dedo, lápiz o ratón. */
-function SignaturePad({ padRef, onChange }: {
+export function SignaturePad({ padRef, onChange }: {
   padRef: React.MutableRefObject<{ clear: () => void; toBlob: () => Promise<Blob | null>; isEmpty: () => boolean } | null>;
   onChange: (hasInk: boolean) => void;
 }) {

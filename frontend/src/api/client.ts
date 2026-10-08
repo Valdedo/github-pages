@@ -355,3 +355,46 @@ export const deleteFestivo = (id: number) => api.delete(`/api/turnos/festivos/${
 export interface CorreoItem { id: string; de?: string; asunto?: string; fecha?: string; enlace?: string; resumen?: string; tipo?: string }
 export interface CorreoResumen { configurado: boolean; error?: string; sin_leer: CorreoItem[]; sin_contestar: CorreoItem[]; actualizado?: string }
 export const getCorreo = (refrescar = false) => api.get<CorreoResumen>(`/api/correo/resumen${refrescar ? '?refrescar=true' : ''}`, { timeout: 90000 });
+
+// ── Órdenes de carga (en pruebas) ──────────────────────────────
+export interface LineaCarga {
+  id: number; cantidad: number | null; unidad: string | null; descripcion: string;
+  original: string | null; duda: string | null; cargado: number | null; cargado_ok: boolean;
+}
+export interface EntregaCarga {
+  id: number; orden_id: number; numero: string | null; cliente: string; lugar: string | null;
+  telefono: string | null; cuando: string | null; servir: boolean; pagado: boolean;
+  notas: string | null; dudas: string | null; estado: 'pendiente' | 'entregada';
+  firmado_por: string | null; firmado_at: string | null; treyfact_at: string | null; lineas: LineaCarga[];
+}
+export interface OrdenCarga {
+  id: number; estado: 'preparando' | 'cargado' | 'entregado'; fotos: string[]; texto: string | null;
+  notas: string | null; creado_por: string | null; created_at: string; entregas: EntregaCarga[];
+}
+export const listarCargas = () => api.get<OrdenCarga[]>('/api/cargas');
+export const verCarga = (id: number) => api.get<OrdenCarga>(`/api/cargas/${id}`);
+export const borrarCarga = (id: number) => api.delete(`/api/cargas/${id}`);
+export const leerCarga = (fotos: File[], texto: string, ordenId?: number) => {
+  const form = new FormData();
+  fotos.forEach(f => form.append('fotos', f, f.name || 'foto.jpg'));
+  form.append('texto', texto);
+  if (ordenId) form.append('orden_id', String(ordenId));
+  return api.post<OrdenCarga>('/api/cargas/leer', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 });
+};
+export const fotoCargaUrl = (nombre: string) => withToken(`${BASE}/api/cargas/foto/${encodeURIComponent(nombre)}`);
+export const nuevaEntregaCarga = (ordenId: number) => api.post<OrdenCarga>(`/api/cargas/${ordenId}/entregas`, {});
+export const editarEntregaCarga = (id: number, d: Partial<Omit<EntregaCarga, 'id' | 'lineas'>>) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}`, d);
+export const borrarEntregaCarga = (id: number) => api.delete(`/api/cargas/entregas/${id}`);
+export const firmarEntregaCarga = (id: number, firma: Blob, nombre: string, dni: string) => {
+  const form = new FormData();
+  form.append('firma', firma, 'firma.png');
+  form.append('nombre', nombre);
+  form.append('dni', dni);
+  return api.post<EntregaCarga>(`/api/cargas/entregas/${id}/firmar`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+};
+export const anularFirmaCarga = (id: number) => api.post<EntregaCarga>(`/api/cargas/entregas/${id}/anular-firma`);
+export const hojaEntregaUrl = (id: number) => withToken(`${BASE}/api/cargas/entregas/${id}/pdf`);
+export const treyfactEntregaCarga = (id: number, pasado: boolean) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}/treyfact`, { pasado });
+export const nuevaLineaCarga = (entregaId: number, d: Partial<LineaCarga>) => api.post<LineaCarga>(`/api/cargas/entregas/${entregaId}/lineas`, d);
+export const editarLineaCarga = (id: number, d: Partial<LineaCarga>) => api.put<LineaCarga>(`/api/cargas/lineas/${id}`, d);
+export const borrarLineaCarga = (id: number) => api.delete(`/api/cargas/lineas/${id}`);

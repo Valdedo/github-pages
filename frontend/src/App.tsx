@@ -2,10 +2,11 @@ import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, use
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal
+  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck
 } from 'lucide-react';
 
 import { DashboardPage } from './pages/DashboardPage';
+import { CargasPage, OrdenCargaPage } from './pages/CargasPage';
 import { HomePage } from './pages/HomePage';
 import { DocumentPage } from './pages/DocumentPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -59,7 +60,12 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'Equipo', items: [
     { to: '/turnos', label: 'Turnos', icon: CalendarDays },
   ] },
+  // Lo que se está probando: solo lo ve el encargado
+  { titulo: 'En pruebas', items: [
+    { to: '/cargas', label: 'Órdenes de carga', icon: ClipboardCheck, soloEncargado: true },
+  ] },
 ];
+const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
 const navItems = navGroups.flatMap(g => g.items);
 const INICIO: NavItem = { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true, badge: 'correo' };
 // Móvil: lo más usado abajo; el resto, en «Más» por grupos
@@ -131,7 +137,7 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
       <nav className="sidebar-nav">
         <SidebarNavGroup items={[INICIO]} badges={badges} collapsed={collapsed} />
       </nav>
-      {navGroups.map(g => (
+      {navGroups.filter(g => g.items.some(visible)).map(g => (
         <nav key={g.titulo} className="sidebar-nav sidebar-nav-grupo" aria-label={g.titulo}>
           {!collapsed && <div className="sidebar-section-label">{g.titulo}</div>}
           <SidebarNavGroup items={g.items} badges={badges} collapsed={collapsed} />
@@ -184,7 +190,7 @@ function ScrollRestoration() {
 function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/reparaciones/') || location.pathname.startsWith('/firmas/');
+  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/reparaciones/') || location.pathname.startsWith('/firmas/') || location.pathname.startsWith('/cargas/');
 
   // Find current section (for title + clickable root link)
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
@@ -236,7 +242,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
       <div className={`more-drawer${drawerOpen ? ' more-drawer-open' : ''}`}>
         <div className="more-drawer-handle" onClick={() => setDrawerOpen(false)} />
         <div className="more-drawer-title">Más apartados</div>
-        {drawerGroups.map(g => (
+        {drawerGroups.filter(g => g.items.some(visible)).map(g => (
           <div key={g.titulo}>
             <div className="more-drawer-grupo">{g.titulo}</div>
             <div className="more-drawer-grid">
@@ -370,6 +376,8 @@ function FullShell() {
             <Route path="/firmas/:id" element={<FirmaDetailPage />} />
             <Route path="/turnos" element={<TurnosPage />} />
             <Route path="/ajustes" element={<AjustesPage />} />
+            <Route path="/cargas" element={getRol() === 'admin' ? <CargasPage /> : <Navigate to="/" replace />} />
+            <Route path="/cargas/:id" element={getRol() === 'admin' ? <OrdenCargaPage /> : <Navigate to="/" replace />} />
           </Routes>
         </main>
         <BottomNav badges={badges} />
