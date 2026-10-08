@@ -35,9 +35,20 @@ function hoyISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 const hora = (iso?: string | null) => (iso ? iso.split('T')[1]?.slice(0, 5) ?? '' : '');
+/** Las horas de subida (created_at) vienen en UTC sin zona: se pasan a la hora de Madrid,
+ *  como «2026-10-09T00:12». Así un albarán subido a las 00:10 cuenta como de hoy, no de ayer. */
+const utcAMadrid = (iso?: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  if (isNaN(d.getTime())) return iso;
+  const p = Object.fromEntries(new Intl.DateTimeFormat('es-ES', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(d).map(x => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+};
 /** Días de calendario desde una fecha (0 = hoy, 1 = ayer…). */
 const diasDesde = (iso: string) => {
-  const d = new Date(iso); const h = new Date();
+  const d = new Date(iso.length === 10 ? `${iso}T12:00` : iso); const h = new Date();
   const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()), b = Date.UTC(h.getFullYear(), h.getMonth(), h.getDate());
   return Math.max(0, Math.round((b - a) / 86400000));
 };
@@ -89,7 +100,8 @@ export function DashboardPage() {
   const porFacturar = notes.filter(n => n.status === 'firmado' && !n.facturado_at);
   const importeFacturar = porFacturar.reduce((t, n) => t + (n.importe ?? 0), 0);
   const empresasFacturar = new Set(porFacturar.map(n => n.codigo_cliente || n.cliente || '—')).size;
-  const viejo = porFirmar.reduce((m, n) => Math.max(m, diasDesde(n.created_at)), 0);
+  // Antigüedad por la fecha del albarán (la de treyFACT); si no se leyó, por cuándo se subió
+  const viejo = porFirmar.reduce((m, n) => Math.max(m, diasDesde(n.fecha || utcAMadrid(n.created_at))), 0);
   const detalleFirmar = porFirmar.length === 0 ? 'Todo firmado'
     : viejo === 0 ? 'Albaranes de hoy'
     : viejo === 1 ? 'Desde ayer'
@@ -109,7 +121,8 @@ export function DashboardPage() {
       if (n.facturado_at?.startsWith(hoy)) a.push({ key: `b${n.id}`, at: n.facturado_at, titulo: `Facturado ${n.numero}`, detalle: cli, tipo: 'factura', to: `/firmas/${n.id}` });
     });
     s.recent_documents.forEach(d => {
-      if (d.created_at?.startsWith(hoy) && !ES_MANUAL(d.supplier_name)) a.push({ key: `d${d.id}`, at: d.created_at, titulo: 'Albarán de proveedor procesado', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
+      const subido = utcAMadrid(d.created_at);
+      if (subido.startsWith(hoy) && !ES_MANUAL(d.supplier_name)) a.push({ key: `d${d.id}`, at: subido, titulo: 'Albarán de proveedor procesado', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
     });
     return a.sort((x, y) => (y.at > x.at ? 1 : -1)).slice(0, 7);
   }, [notes, s.recent_documents]);

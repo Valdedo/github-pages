@@ -11,6 +11,7 @@ import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
 import type { Document, Article, Supplier, PriceAlert } from '../types/index';
 import { fechaES, ORDEN_ALBARANES } from '../lib/texto';
+import { useAnchoVentana } from '../hooks/useIsMobile';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
   uploaded:   { label: 'Subido',       dot: 'var(--text-3)' },
@@ -32,7 +33,19 @@ export function DocumentPage() {
   const [polling, setPolling] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [docIds, setDocIds] = useState<number[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
+  // En pantallas grandes el original se ve al lado de la tabla (se recuerda si se cierra)
+  const ancho = useAnchoVentana();
+  const alLado = ancho >= 1600;
+  const [verOriginal, setVerOriginal] = useState<boolean | null>(() => {
+    try { const v = localStorage.getItem('docOriginal'); return v == null ? null : v === '1'; } catch { return null; }
+  });
+  const showPreview = verOriginal ?? alLado;
+  const setShowPreview = (f: (p: boolean) => boolean) => {
+    const nuevo = f(showPreview);
+    setVerOriginal(nuevo);
+    // Solo se recuerda en el ordenador grande; en pantallas pequeñas se abre y cierra cada vez
+    if (alLado) { try { localStorage.setItem('docOriginal', nuevo ? '1' : '0'); } catch { /* nada */ } }
+  };
   const [showValidation, setShowValidation] = useState(false);
   const [verificationMode, setVerificationMode] = useState(false);
   const [verifiedIds, setVerifiedIds] = useState<Set<number>>(new Set());
@@ -219,7 +232,7 @@ export function DocumentPage() {
       {/* ── Document hero strip ───────────────────────────────────── */}
       <div className="doc-page-hero">
         {/* Left: navigation + title + chips */}
-        <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+        <div className="doc-hero-izq" style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
           {/* Prev / Next + counter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
             <button className="doc-volver" onClick={() => navigate('/albaranes')}><ArrowLeft size={16} /> Albaranes</button>
@@ -290,7 +303,7 @@ export function DocumentPage() {
         </div>
 
         {/* Right: article count + actions */}
-        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+        <div className="doc-hero-dcha" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, color: 'var(--text-1)' }}>
               {articles.length}
@@ -301,21 +314,19 @@ export function DocumentPage() {
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
-              className="doc-hero-nav-btn"
+              className="btn btn-ghost btn-sm"
               onClick={() => setShowPreview(p => !p)}
-              title={showPreview ? 'Ocultar imagen original' : 'Ver imagen original'}
-              style={{ fontSize: '13px', width: 'auto', padding: '4px 10px' }}
+              title={showPreview ? 'Ocultar el albarán original' : 'Ver el albarán original del proveedor'}
             >
-              {showPreview ? 'Ocultar' : 'Ver doc'}
+              {showPreview ? 'Ocultar original' : 'Ver original'}
             </button>
             {document.status === 'completed' && articles.length > 0 && (
               <button
-                className="doc-hero-nav-btn"
+                className={`btn btn-sm ${verificationMode ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => { setVerificationMode(v => !v); setVerifiedIds(new Set()); setScanInput(''); setScanFeedback(null); }}
-                title="Verificar artículos escaneando códigos de barras"
-                style={{ fontSize: '13px', width: 'auto', padding: '4px 10px', background: verificationMode ? 'var(--brand-pale)' : undefined, borderColor: verificationMode ? 'var(--brand-light)' : undefined, color: verificationMode ? 'var(--brand-dark)' : undefined }}
+                title="Comprobar lo que ha llegado pasando el lector por cada artículo"
               >
-                {verificationMode ? 'Salir' : 'Verificar'}
+                {verificationMode ? 'Terminar' : <>Comprobar<span className="solo-pc"> con el lector</span></>}
               </button>
             )}
           </div>
@@ -365,7 +376,7 @@ export function DocumentPage() {
               {priceAlerts.map(a => (
                 <li key={a.article_id}>
                   <span>{a.descripcion}</span>
-                  <span className="doc-subida"><s>{a.coste_anterior.toFixed(2)} €</s> → <b>{a.coste_actual.toFixed(2)} €</b> (+{a.pct_cambio.toFixed(0)} %)</span>
+                  <span className="doc-subida"><s>{a.coste_anterior.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</s> → <b>{a.coste_actual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</b> (+{a.pct_cambio.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} %)</span>
                 </li>
               ))}
             </ul>
@@ -391,12 +402,12 @@ export function DocumentPage() {
             {/* Numbers row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
               {[
-                { label: 'Base calculada', value: validacion.base_calculada != null ? `${validacion.base_calculada.toFixed(2)} €` : '—' },
-                { label: 'Base documento', value: validacion.base_imponible_doc != null ? `${validacion.base_imponible_doc.toFixed(2)} €` : '—' },
-                { label: 'IVA documento', value: document.total_iva_doc != null ? `${document.total_iva_doc.toFixed(2)} €` : '—' },
-                { label: 'Recargo equiv.', value: document.total_recargo_doc != null ? `${document.total_recargo_doc.toFixed(2)} €` : '—' },
-                { label: 'Total documento', value: document.total_doc != null ? `${document.total_doc.toFixed(2)} €` : '—' },
-                { label: 'Diferencia base', value: validacion.diferencia != null ? `${validacion.diferencia > 0 ? '+' : ''}${validacion.diferencia.toFixed(2)} €` : '—', highlight: validacion.diferencia != null && Math.abs(validacion.diferencia) > 0.5 },
+                { label: 'Base calculada', value: validacion.base_calculada != null ? `${validacion.base_calculada.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
+                { label: 'Base documento', value: validacion.base_imponible_doc != null ? `${validacion.base_imponible_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
+                { label: 'IVA documento', value: document.total_iva_doc != null ? `${document.total_iva_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
+                { label: 'Recargo equiv.', value: document.total_recargo_doc != null ? `${document.total_recargo_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
+                { label: 'Total documento', value: document.total_doc != null ? `${document.total_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
+                { label: 'Diferencia base', value: validacion.diferencia != null ? `${validacion.diferencia > 0 ? '+' : ''}${validacion.diferencia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—', highlight: validacion.diferencia != null && Math.abs(validacion.diferencia) > 0.5 },
               ].map(({ label, value, highlight }) => (
                 <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '10px 14px', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{label}</div>
@@ -423,20 +434,14 @@ export function DocumentPage() {
         </div>
       )}
 
-      {/* ── Collapsible preview ───────────────────────────────────── */}
-      {showPreview && (
-        <div className="card" style={{ marginBottom: '14px', overflow: 'hidden' }}>
-          <div
-            className="card-header"
-            style={{ cursor: 'pointer', userSelect: 'none' }}
-            onClick={() => setShowPreview(false)}
-          >
-            <span>{document.original_filename}</span>
-            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-3)', fontWeight: 400 }}>▲ Ocultar</span>
+      {/* ── Original arriba (pantallas normales) ─────────────────── */}
+      {showPreview && !alLado && (
+        <div className="card doc-original" style={{ marginBottom: '14px' }}>
+          <div className="card-header">
+            <span>Albarán original</span>
+            <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setShowPreview(() => false)}>Ocultar</button>
           </div>
-          <div style={{ height: '500px' }}>
-            <DocumentPreview document={document} />
-          </div>
+          <div style={{ height: '520px' }}><DocumentPreview document={document} /></div>
         </div>
       )}
 
@@ -566,8 +571,9 @@ export function DocumentPage() {
         </div>
       )}
 
-      {/* ── Panels: single-column, full width ────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {/* ── Paneles; en pantallas grandes, con el original al lado ── */}
+      <div className={showPreview && alLado ? 'doc-cuerpo con-original' : 'doc-cuerpo'}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
 
         {/* 1. Totals overview */}
         <TotalsPanel articles={articles} />
@@ -600,6 +606,16 @@ export function DocumentPage() {
           }}
         />
 
+      </div>
+      {showPreview && alLado && (
+        <aside className="card doc-original doc-original-lado" aria-label="Albarán original">
+          <div className="card-header">
+            <span>Albarán original</span>
+            <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setShowPreview(() => false)}>Ocultar</button>
+          </div>
+          <DocumentPreview document={document} />
+        </aside>
+      )}
       </div>
     </div>
   );

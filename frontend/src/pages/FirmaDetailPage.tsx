@@ -111,7 +111,7 @@ export function SignaturePad({ padRef, onChange }: {
         onPointerCancel={() => { current.current = null; }}
       />
       <div className="firma-pad-line" />
-      <div className="firma-pad-hint">Firme aquí con el dedo o el lápiz</div>
+      <div className="firma-pad-hint">{typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches ? 'Firme aquí con el ratón' : 'Firme aquí con el dedo o el lápiz'}</div>
     </div>
   );
 }
@@ -149,15 +149,22 @@ export function FirmaDetailPage() {
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
   // En el reparto siempre se firma en la pantalla del móvil
   const esPC = !reparto && typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
+  const eleccionGuardada = (() => { try { return localStorage.getItem('modoFirma'); } catch { return null; } })();
   const [modo, setModo] = useState<'pantalla' | 'tableta'>(() => {
     // En el PC, la tableta Topaz por defecto (salvo que se haya elegido Pantalla)
     if (!esPC) return 'pantalla';
-    try { return localStorage.getItem('modoFirma') === 'pantalla' ? 'pantalla' : 'tableta'; } catch { return 'tableta'; }
+    return eleccionGuardada === 'pantalla' ? 'pantalla' : 'tableta';
   });
+  // Si nadie ha elegido y en este ordenador no hay tableta, se pasa solo a firmar con el ratón
+  const [sinTableta, setSinTableta] = useState(false);
   const cambiarModo = (m: 'pantalla' | 'tableta') => {
-    setModo(m); setHasInk(false);
+    setModo(m); setHasInk(false); setSinTableta(false);
     try { localStorage.setItem('modoFirma', m); } catch { /* nada */ }
   };
+  const alNoHaberTableta = useCallback(() => {
+    if (eleccionGuardada === 'tableta') return; // la eligieron a propósito: se avisa y se deja reintentar
+    setModo('pantalla'); setHasInk(false); setSinTableta(true);
+  }, [eleccionGuardada]);
 
   // Envío al cliente: email y teléfono recordados por cliente
   const [email, setEmail] = useState('');
@@ -472,14 +479,18 @@ export function FirmaDetailPage() {
                 <div style={{ fontWeight: 600 }}>Recibí conforme</div>
                 {esPC && (
                   <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-                    <button className={`btn btn-sm ${modo === 'tableta' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => cambiarModo('tableta')}>Tableta</button>
-                    <button className={`btn btn-sm ${modo === 'pantalla' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => cambiarModo('pantalla')}>Pantalla</button>
+                    <button className={`btn btn-sm ${modo === 'tableta' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => cambiarModo('tableta')}>Con tableta</button>
+                    <button className={`btn btn-sm ${modo === 'pantalla' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => cambiarModo('pantalla')}>Con ratón</button>
                   </div>
                 )}
               </div>
               {modo === 'tableta'
-                ? <TopazPad ref={padRef as React.MutableRefObject<TopazHandle | null>} onChange={setHasInk} />
+                ? <TopazPad ref={padRef as React.MutableRefObject<TopazHandle | null>} onChange={setHasInk}
+                    onSinTableta={alNoHaberTableta} onUsarRaton={() => cambiarModo('pantalla')} />
                 : <SignaturePad padRef={padRef} onChange={setHasInk} />}
+              {modo === 'pantalla' && sinTableta && (
+                <div className="firma-nota">No hay tableta de firma en este ordenador: firma con el ratón en el recuadro.</div>
+              )}
               <label className="form-label">Nombre de quien recibe
                 <input className="form-input" value={nombre} maxLength={MAX_NOMBRE} onChange={e => setNombre(e.target.value)} autoComplete="off" />
                 {nombre.length > MAX_NOMBRE - 15 && <small className="firma-limite">{nombre.length}/{MAX_NOMBRE}</small>}
@@ -510,8 +521,8 @@ export function FirmaDetailPage() {
             </>
           )}
           {note.nota && <div style={{ fontSize: 12, color: 'var(--warning)' }}>{note.nota}</div>}
-          {!reparto && <button className="btn btn-danger btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onDelete} disabled={borrando}>
-            <Trash2 size={13} /> {borrando ? 'Borrando…' : 'Borrar albarán'}
+          {!reparto && <button className="firma-borrar" onClick={onDelete} disabled={borrando}>
+            <Trash2 size={13} /> {borrando ? 'Borrando…' : 'Borrar este albarán'}
           </button>}
         </div>
       </div>

@@ -5,6 +5,7 @@ import './index.css'
 import './theme.css'
 import './estilos-b.css'
 import './estilos-c.css'
+import './escritorio.css'
 import { registrarSW } from './lib/avisos'
 
 registrarSW()

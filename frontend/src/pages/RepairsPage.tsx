@@ -297,14 +297,14 @@ function RepairCard({
             )}
             <StatusChip status={repair.status} />
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 3 }}>
+          <div className="rep-linea-herr" style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 3 }}>
             <strong>{repair.tool_description}</strong>
             {(repair.tool_brand || repair.tool_model) && (
               <span style={{ color: 'var(--text-3)' }}> · {[repair.tool_brand, repair.tool_model].filter(Boolean).join(' ')}</span>
             )}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repair.problem_description}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+          <div className="rep-linea-prob" style={{ fontSize: 12, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repair.problem_description}</div>
+          <div className="rep-linea-meta" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Recibida {relativeDate(repair.date_received)}</span>
             {repair.date_estimated_return && !repair.date_returned && (
               <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>· entrega est. {fmtDate(repair.date_estimated_return)}</span>

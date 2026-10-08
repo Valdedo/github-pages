@@ -62,8 +62,8 @@ export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: bo
   );
 }
 
-function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado }: {
-  n: ClientDeliveryNote; selectable: boolean; selected: boolean;
+function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado }: {
+  n: ClientDeliveryNote; selectable: boolean; selected: boolean; sinEstado?: boolean;
   onToggle: () => void; onOpen: () => void; onCamion?: () => void; camionOcupado?: boolean;
 }) {
   return (
@@ -73,8 +73,8 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
         <input type="checkbox" className="firma-check" checked={selected} aria-label={`Seleccionar ${n.numero}`}
           onClick={e => e.stopPropagation()} onChange={onToggle} />
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+      <div className="firma-card-info" style={{ flex: 1, minWidth: 0 }}>
+        <div className="firma-card-linea" style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{n.numero}</span>
           <span style={{ fontSize: 13, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 160px', minWidth: 0 }}>
             {n.cliente || 'Cliente sin identificar'}
@@ -83,7 +83,7 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
           <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{fmtFecha(n.fecha)}</span>
           {n.importe != null && <span style={{ fontSize: 13, fontWeight: 600 }}>{fmtEuros(n.importe)}</span>}
         </div>
-        <Marcas n={n} />
+        <Marcas n={n} sinEstado={sinEstado} />
         {n.nota && <div style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
       </div>
       {onCamion && (
@@ -99,6 +99,8 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
   );
 }
 
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const nombreMes = (ym: string) => { const [y, m] = ym.split('-'); const n = MESES[+m - 1] || m; return `${n[0].toUpperCase()}${n.slice(1)} ${y}`; };
 /** En el ordenador se puede arrastrar; en el móvil, no. */
 const conRaton = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
 
@@ -174,6 +176,12 @@ export function FirmasPage() {
     todos: notes.length,
   };
   const hayFiltros = !!(search.trim() || cliente || mes || envio);
+  // Meses que tienen albaranes, del más reciente al más antiguo
+  const meses = useMemo(() => {
+    const set = new Set(notes.map(n => (n.fecha || '').slice(0, 7)).filter(m => /^\d{4}-\d{2}$/.test(m)));
+    if (mes) set.add(mes);
+    return [...set].sort().reverse();
+  }, [notes, mes]);
 
   const q = search.trim().toLowerCase();
   const filtered = notes.filter(n => {
@@ -301,7 +309,8 @@ export function FirmasPage() {
   const row = (n: ClientDeliveryNote) => (
     <NoteRow key={n.id} n={n} selectable={selectable} selected={sel.has(n.id)}
       onToggle={() => toggle(n.id)} onOpen={() => navigate(`/firmas/${n.id}`)}
-      onCamion={n.status === 'pendiente' ? () => camion(n) : undefined} camionOcupado={camionOcupado.has(n.id)} />
+      onCamion={n.status === 'pendiente' ? () => camion(n) : undefined} camionOcupado={camionOcupado.has(n.id)}
+      sinEstado={vista === 'firmar'} />
   );
 
   return (
@@ -345,7 +354,7 @@ export function FirmasPage() {
       <div style={{ display: 'flex', gap: 8, margin: '12px 0 16px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px' }}>
           <Search size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
-          <input className="form-input" placeholder="Buscar nº, cliente, obra o factura…" value={search}
+          <input className="form-input" placeholder="Buscar nº, cliente u obra…" title="Busca por número de albarán, cliente, obra o factura" value={search}
             onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }} />
         </div>
         <select className="form-input" value={cliente} onChange={e => { setCliente(e.target.value); setSel(new Set()); }}
@@ -361,10 +370,11 @@ export function FirmasPage() {
           <option value="whatsapp">Enviados por WhatsApp</option>
           <option value="copia">Copia entregada</option>
         </select>
-        <label className="firmas-mes">
-          <span>Mes</span>
-          <input className="form-input" type="month" value={mes} onChange={e => setMes(e.target.value)} />
-        </label>
+        <select className="form-input firmas-mes-sel" value={mes} onChange={e => setMes(e.target.value)} aria-label="Mes"
+          style={{ margin: 0, flex: '0 1 170px' }}>
+          <option value="">Cualquier mes</option>
+          {meses.map(m => <option key={m} value={m}>{nombreMes(m)}</option>)}
+        </select>
         {hayFiltros && (
           <button className="btn btn-ghost btn-sm" onClick={quitarFiltros}><X size={14} /> Quitar filtros</button>
         )}

@@ -59,9 +59,9 @@ function StatusBar({ status }: { status: RepairStatus }) {
   );
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="card seccion">
+    <div className={`card seccion ${className}`}>
       <div className="seccion-titulo">{title}</div>
       {children}
     </div>
@@ -359,7 +359,7 @@ export function RepairDetailPage() {
 
       {/* ── Datos ── */}
       <div className="rep-rejilla">
-        <SectionCard title="Cliente">
+        <SectionCard title="Cliente" className="rep-cliente">
           <div className="campos">
             <Field label="Nombre *">
               <input className="form-input" value={form.client_name} onChange={set('client_name')} placeholder="Nombre del cliente" />
@@ -370,7 +370,7 @@ export function RepairDetailPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Herramienta">
+        <SectionCard title="Herramienta" className="rep-herramienta">
           <div className="campos">
             <Field label="Qué es *">
               <input className="form-input" value={form.tool_description} onChange={set('tool_description')} placeholder="Ej: Taladro percutor" />
@@ -390,7 +390,7 @@ export function RepairDetailPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Precio">
+        <SectionCard title="Precio" className="rep-precio">
           <div className="campos-2">
             <Field label="Presupuesto (€)">
               <input className="form-input" type="text" inputMode="decimal" value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" />
@@ -401,8 +401,8 @@ export function RepairDetailPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Fechas">
-          <div className="campos-2">
+        <SectionCard title="Fechas" className="rep-fechas">
+          <div className="campos-2 rep-fechas-campos">
             <Field label="Recibida">
               <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
             </Field>
@@ -421,7 +421,7 @@ export function RepairDetailPage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Notas">
+        <SectionCard title="Notas" className="rep-notas">
           <textarea className="form-input" value={form.notes} onChange={set('notes')}
             placeholder="Notas internas…" rows={3} style={{ resize: 'vertical', margin: 0 }} />
         </SectionCard>

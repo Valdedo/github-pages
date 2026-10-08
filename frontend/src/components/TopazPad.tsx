@@ -73,8 +73,8 @@ function trimToBlob(b64: string): Promise<Blob | null> {
 
 type Estado = 'cargando' | 'listo' | 'sin-sigweb';
 
-export const TopazPad = forwardRef<TopazHandle, { onChange: (hasInk: boolean) => void }>(
-  function TopazPad({ onChange }, ref) {
+export const TopazPad = forwardRef<TopazHandle, { onChange: (hasInk: boolean) => void; onSinTableta?: () => void; onUsarRaton?: () => void }>(
+  function TopazPad({ onChange, onSinTableta, onUsarRaton }, ref) {
     const canvas = useRef<HTMLCanvasElement>(null);
     const tmr = useRef<any>(null);
     const [estado, setEstado] = useState<Estado>('cargando');
@@ -88,7 +88,7 @@ export const TopazPad = forwardRef<TopazHandle, { onChange: (hasInk: boolean) =>
       loadSigWeb()
         .then(() => {
           if (cancel) return;
-          if (!w.IsSigWebInstalled()) { setEstado('sin-sigweb'); return; }
+          if (!w.IsSigWebInstalled()) { setEstado('sin-sigweb'); onSinTableta?.(); return; }
           const ctx = canvas.current!.getContext('2d');
           w.SetDisplayXSize(canvas.current!.width);
           w.SetDisplayYSize(canvas.current!.height);
@@ -101,7 +101,7 @@ export const TopazPad = forwardRef<TopazHandle, { onChange: (hasInk: boolean) =>
             try { const t = w.NumberOfTabletPoints() > 0; setTinta(t); onChange(t); } catch { /* sin conexión */ }
           }, 400);
         })
-        .catch(() => { if (!cancel) setEstado('sin-sigweb'); });
+        .catch(() => { if (!cancel) { setEstado('sin-sigweb'); onSinTableta?.(); } });
       return () => {
         cancel = true;
         if (poll) clearInterval(poll);
@@ -133,11 +133,15 @@ export const TopazPad = forwardRef<TopazHandle, { onChange: (hasInk: boolean) =>
         </div>
         {estado === 'cargando' && <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 6 }}>Conectando con la tableta…</div>}
         {estado === 'sin-sigweb' && (
-          <div style={{ fontSize: 13, color: 'var(--danger)', marginTop: 6 }}>
-            No se encuentra la tableta. En este ordenador hay que instalar una vez{' '}
-            <a href={SIGWEB_URL} target="_blank" rel="noreferrer">SigWeb de Topaz</a>
-            {' '}con la tableta enchufada.{' '}
-            <button className="btn btn-ghost btn-sm" onClick={() => setReintento(n => n + 1)}>Reintentar</button>
+          <div className="firma-sin-tableta" role="status">
+            <span>
+              No se encuentra la tableta. Comprueba que está enchufada. Si es la primera vez en este ordenador,
+              hay que instalar <a href={SIGWEB_URL} target="_blank" rel="noreferrer">SigWeb de Topaz</a>.
+            </span>
+            <span className="firma-sin-tableta-botones">
+              <button className="btn btn-ghost btn-sm" onClick={() => setReintento(n => n + 1)}>Reintentar</button>
+              {onUsarRaton && <button className="btn btn-primary btn-sm" onClick={onUsarRaton}>Firmar con el ratón</button>}
+            </span>
           </div>
         )}
       </div>

@@ -47,7 +47,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (`extraction_service`, `carga_service`).
 - `frontend/` React + Vite + TypeScript. Páginas en `src/pages/`, cliente API en `src/api/client.ts`,
   rutas y menú en `src/App.tsx` (carga por partes con `React.lazy`). CSS: `index.css` (base),
-  `theme.css` (tema), `estilos-b.css` y `estilos-c.css` (ajustes posteriores). Utilidades en
+  `theme.css` (tema), `estilos-b.css` y `estilos-c.css` (ajustes posteriores), `escritorio.css` (repaso del
+  ordenador, oct. 2026: menú que cabe en 1366×768, tabla de artículos compacta por debajo de ~1180 px,
+  original al lado del albarán desde 1600 px, panel de firma con el botón siempre a la vista). Utilidades en
   `src/lib/` (`texto.ts` búsqueda sin tildes/fechas/plurales, `descargas.ts`, `estados.ts`).
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
@@ -64,13 +66,12 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   Sin clave de IA en local: simular `carga_service.leer` / extracción si hace falta.
 - Frontend: `npm run build && npx vite preview --port 3000` (proxy a :8000), o `npx vite` para desarrollo.
 - Sesión: poner en localStorage `cfToken`, `cfRol` (`admin`/`tienda`/`reparto`) y `cfAvisosNo='1'`.
-- Probar con Playwright en 390 px, 320 px y 1280 px; mirar las capturas, no solo que no haya errores.
+- Probar con Playwright en 390 px, 320 px, 1280×800, 1366×650 (portátil) y 1920×1080; mirar las capturas, no solo que no haya errores.
 
 ## Pendiente (octubre 2026)
 - Anular la firma de un albarán de venta (no existe endpoint).
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).
 - Análisis: ordenar por importe gastado (falta `SUM` en `top-products`).
 - Festivo nacional de agosto 2027 marcado «por confirmar» en `turnos_service.py` (revisar con el BOE).
-- Repaso específico del **escritorio** con el mismo cuidado que el móvil.
 - Ideas aparcadas: márgenes de impresión de etiquetas, sección Clientes, importar albaranes de venta
   en TreyFACT, pasar Órdenes de carga a Melchor cuando Andrés lo apruebe.

@@ -11,6 +11,7 @@ import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUp
 import { useConfirm } from './ConfirmModal';
 import { borrarArticuloYa, mensajeError } from '../lib/descargas';
 import type { Article } from '../types/index';
+import { Trash2 } from 'lucide-react';
 
 const NUMERICOS = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
 const OPCIONALES = ['descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'recargo_pct'];
@@ -50,7 +51,7 @@ function revisarPvp(art: Article, pvp: number | null): { error: string } | { mar
     return { error: 'Este artículo no tiene coste (precio de compra 0). Pon primero el precio de compra para poder fijar el precio de venta.' };
   const sin = pvp / (1 + (art.iva_pct ?? 21) / 100);
   const margen = (sin / art.coste_neto_unitario - 1) * 100;
-  if (margen < 0) return { error: `Ese precio está por debajo del coste (${art.coste_neto_unitario.toFixed(2)} € sin IVA): perderías dinero` };
+  if (margen < 0) return { error: `Ese precio está por debajo del coste (${num(art.coste_neto_unitario, 2)} € sin IVA): perderías dinero` };
   return { margen };
 }
 
@@ -64,11 +65,15 @@ interface Props {
   onVerify?: (id: number) => void;
 }
 
+/** Número a la española (coma decimal). Con 4 decimales no se rellenan ceros de más. */
+const num = (n: number, digits = 2) =>
+  n.toLocaleString('es-ES', { minimumFractionDigits: Math.min(digits, 2), maximumFractionDigits: digits });
+
 const fmt = (n: number | undefined | null, digits = 2) =>
-  n == null ? '—' : n.toFixed(digits);
+  n == null ? '—' : num(n, digits);
 
 const fmtEur = (n: number | undefined | null) =>
-  n == null ? '—' : `${n.toFixed(2)} €`;
+  n == null ? '—' : `${num(n)} €`;
 
 function EditableCell({
   value: initialValue,
@@ -106,7 +111,7 @@ function EditableCell({
 
   return (
     <input
-      autoFocus type={type} value={val}
+      autoFocus type={type === 'number' ? 'text' : type} inputMode={type === 'number' ? 'decimal' : undefined} value={val}
       onChange={e => setVal(e.target.value)}
       onBlur={commit}
       onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
@@ -137,6 +142,16 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
+  // En ordenadores de 1280–1440 px no caben todas las columnas: se agrupan (sin perder ninguna)
+  const tablaRef = useRef<HTMLDivElement | null>(null);
+  const [compacta, setCompacta] = useState(false);
+  useEffect(() => {
+    const el = tablaRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setCompacta(e.contentRect.width > 0 && e.contentRect.width < 1180));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Debounced search — wait 250ms after user stops typing
   useEffect(() => {
@@ -281,7 +296,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       const { data } = await updateArticle(article.id, { margen_pct: Math.round(r.margen * 100) / 100, margen_override: true });
       onArticlesChanged(articlesRef.current.map(a => a.id === article.id ? data : a));
       setPvpEditId(null);
-      onToast?.(`Precio fijado — margen resultante: ${r.margen.toFixed(1)}%`);
+      onToast?.(`Precio fijado — margen resultante: ${num(r.margen, 1)}%`);
       return true;
     } catch (e) {
       onToast?.(mensajeError(e), 'error');
@@ -393,12 +408,12 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       cell: info => <span style={{ color: 'var(--grey-500)', fontSize: '12px' }}>{info.getValue()}</span>,
     }),
     ch.accessor('descripcion', {
-      header: 'Descripción', size: 220, enableSorting: true,
-      cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'descripcion', v)} width={210} />,
+      header: 'Descripción', size: 180, enableSorting: true,
+      cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'descripcion', v)} width={170} />,
     }),
     ch.accessor('cantidad', {
       header: 'Cant.', size: 60, enableSorting: true,
-      cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'cantidad', v)} type="number" width={52} />,
+      cell: info => <EditableCell value={txt(info.getValue())} onSave={v => handleUpdate(info.row.original.id, 'cantidad', v)} type="number" width={52} />,
     }),
     ch.accessor('precio_unitario_bruto', {
       header: 'P. Bruto', size: 80,
@@ -406,27 +421,27 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     }),
     ch.accessor('descuento_1', {
       header: 'Dto1%', size: 60,
-      cell: info => <EditableCell value={info.getValue() ?? ''} onSave={v => handleUpdate(info.row.original.id, 'descuento_1', v)} type="number" width={50} />,
+      cell: info => <EditableCell value={txt(info.getValue())} onSave={v => handleUpdate(info.row.original.id, 'descuento_1', v)} type="number" width={50} />,
     }),
     ch.accessor('descuento_2', {
       header: 'Dto2%', size: 60,
-      cell: info => <EditableCell value={info.getValue() ?? ''} onSave={v => handleUpdate(info.row.original.id, 'descuento_2', v)} type="number" width={50} />,
+      cell: info => <EditableCell value={txt(info.getValue())} onSave={v => handleUpdate(info.row.original.id, 'descuento_2', v)} type="number" width={50} />,
     }),
     ch.accessor('descuento_3', {
       header: 'Dto3%', size: 60,
-      cell: info => <EditableCell value={info.getValue() ?? ''} onSave={v => handleUpdate(info.row.original.id, 'descuento_3', v)} type="number" width={50} />,
+      cell: info => <EditableCell value={txt(info.getValue())} onSave={v => handleUpdate(info.row.original.id, 'descuento_3', v)} type="number" width={50} />,
     }),
     ch.accessor('descuento_4', {
       header: 'Dto4%', size: 60,
-      cell: info => <EditableCell value={info.getValue() ?? ''} onSave={v => handleUpdate(info.row.original.id, 'descuento_4', v)} type="number" width={50} />,
+      cell: info => <EditableCell value={txt(info.getValue())} onSave={v => handleUpdate(info.row.original.id, 'descuento_4', v)} type="number" width={50} />,
     }),
     ch.accessor('coste_neto_unitario', {
       header: 'Coste neto', size: 90, enableSorting: true,
       cell: info => <span style={{ fontWeight: 600, color: 'var(--grey-700)' }}>{fmtEur(info.getValue())}</span>,
     }),
     ch.accessor('iva_pct', {
-      header: 'IVA%', size: 60,
-      cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'iva_pct', v)} type="number" width={50} />,
+      header: 'IVA%', size: 50,
+      cell: info => <EditableCell value={info.getValue()} onSave={v => handleUpdate(info.row.original.id, 'iva_pct', v)} type="number" width={40} />,
     }),
     ch.accessor('margen_pct', {
       header: 'Margen%', size: 90, enableSorting: true,
@@ -455,11 +470,12 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
         const art = info.row.original;
         const isOpen = pvpEditId === art.id;
         return (
+          <span className="art-pvp-celda">
           <button
             onClick={() => {
               if (isOpen) { setPvpEditId(null); return; }
               setPvpEditId(art.id);
-              setPvpEditValue(art.pvp_con_iva != null ? art.pvp_con_iva.toFixed(2) : '');
+              setPvpEditValue(art.pvp_con_iva != null ? num(art.pvp_con_iva, 2) : '');
             }}
             title="Clic para fijar precio de venta manualmente"
             style={{
@@ -470,6 +486,20 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
           >
             {fmtEur(info.getValue())} {isOpen ? '▲' : '▼'}
           </button>
+          {compacta && <span className="art-sub">{fmtEur(art.pvp_sin_iva)} sin IVA</span>}
+          </span>
+        );
+      },
+    }),
+    ch.display({
+      id: 'codigos', header: 'Código / EAN', size: 120,
+      cell: info => {
+        const a = info.row.original;
+        return (
+          <span className="art-codigos">
+            <EditableCell value={a.codigo_principal ?? ''} onSave={v => handleUpdate(a.id, 'codigo_principal', v)} width={100} />
+            <EditableCell value={a.ean ?? ''} onSave={v => handleUpdate(a.id, 'ean', v)} width={110} />
+          </span>
         );
       },
     }),
@@ -487,8 +517,8 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
         const id = info.row.original.id;
         return (
           <button onClick={() => handleDelete(id)}
-            className="btn btn-danger btn-sm" title="Eliminar artículo" aria-label="Eliminar artículo">
-            ✕
+            className="art-borrar" title="Quitar este artículo" aria-label="Quitar este artículo">
+            <Trash2 size={15} />
           </button>
         );
       },
@@ -502,6 +532,11 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       sorting,
       // Los descuentos 2, 3 y 4 casi nunca vienen: la columna solo sale si algún artículo los tiene
       columnVisibility: {
+        line_number: !compacta,
+        pvp_sin_iva: !compacta,
+        codigo_principal: !compacta,
+        ean: !compacta,
+        codigos: compacta,
         descuento_2: articles.some(a => a.descuento_2),
         descuento_3: articles.some(a => a.descuento_3),
         descuento_4: articles.some(a => a.descuento_4),
@@ -542,7 +577,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
               )}
               <span className="art-tarjeta-desc">{a.descripcion || '—'}</span>
               <span className="art-tarjeta-pvp" style={{ background: a.margen_override ? 'var(--accent)' : 'var(--brand)' }}>
-                {a.pvp_con_iva != null ? `${a.pvp_con_iva.toFixed(2)} €` : '—'}
+                {a.pvp_con_iva != null ? `${num(a.pvp_con_iva, 2)} €` : '—'}
               </span>
               {!verifiedIds && <span className="art-tarjeta-flecha">{isExpanded ? '▲' : '▼'}</span>}
             </div>
@@ -550,9 +585,9 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
             {/* Datos */}
             <div className="art-tarjeta-meta">
               <span>Cant. <b>{a.cantidad ?? '—'}</b></span>
-              <span>Coste <b className={!a.coste_neto_unitario ? 'art-sin-coste' : ''}>{a.coste_neto_unitario ? `${a.coste_neto_unitario.toFixed(2)} €` : 'sin coste'}</b></span>
+              <span>Coste <b className={!a.coste_neto_unitario ? 'art-sin-coste' : ''}>{a.coste_neto_unitario ? `${num(a.coste_neto_unitario, 2)} €` : 'sin coste'}</b></span>
               <span style={{ color: a.margen_override ? 'var(--accent)' : 'var(--success)' }}>
-                Margen <b>{a.margen_pct != null ? `${a.margen_pct.toFixed(1)}%` : '—'}</b>{a.margen_override ? ' (a mano)' : ''}
+                Margen <b>{a.margen_pct != null ? `${num(a.margen_pct, 1)}%` : '—'}</b>{a.margen_override ? ' (a mano)' : ''}
               </span>
               {a.codigo_principal && <span>Ref. {a.codigo_principal}</span>}
               {a.ean && <span>EAN {a.ean}</span>}
@@ -671,7 +706,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       )}
 
       {/* Desktop table */}
-      <div className="article-table-desktop" style={{ overflowX: 'auto' }}>
+      <div className="article-table-desktop" ref={tablaRef} style={{ overflowX: 'auto' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px' }}>
           <thead>
             {table.getHeaderGroups().map(hg => (
@@ -761,7 +796,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                             Coste neto: {fmtEur(art.coste_neto_unitario)} · IVA {art.iva_pct ?? 21}%
                             {pvpEditValue.trim() && (() => {
                               const r = revisarPvp(art, leerNumero(pvpEditValue));
-                              return 'error' in r ? <b style={{ color: 'var(--danger)' }}> — {r.error}</b> : ` → margen ${r.margen.toFixed(1)}%`;
+                              return 'error' in r ? <b style={{ color: 'var(--danger)' }}> — {r.error}</b> : ` → margen ${num(r.margen, 1)}%`;
                             })()}
                           </span>
                           <button
@@ -798,7 +833,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
   );
 }
 
-const txt = (n: number | null | undefined, d?: number) => (n == null ? '' : d != null ? n.toFixed(d) : String(n));
+const txt = (n: number | null | undefined, d?: number) => (n == null ? '' : d != null ? num(n, d) : String(n).replace('.', ','));
 
 /** Campo de la ficha que se guarda al salir de él (si cambió). Si no se puede guardar, vuelve a lo que había. */
 function CampoFicha({ etiqueta, valor, onGuardar, tipo = 'decimal', sufijo, ayuda, multilinea }: {
@@ -859,7 +894,7 @@ function FichaArticulo({ art, guardando, onUpdate, onPvp, onResetMargin, onDelet
       <div className={`art-ficha-coste${sinCoste ? ' mal' : ''}`}>
         {sinCoste
           ? 'Sin coste: pon el precio de compra para poder calcular el precio de venta.'
-          : <>Coste por unidad (con descuentos, sin IVA): <b>{art.coste_neto_unitario.toFixed(2)} €</b></>}
+          : <>Coste por unidad (con descuentos, sin IVA): <b>{num(art.coste_neto_unitario, 2)} €</b></>}
       </div>
 
       <div className="art-ficha-2">
@@ -880,7 +915,7 @@ function FichaArticulo({ art, guardando, onUpdate, onPvp, onResetMargin, onDelet
           <button className="btn btn-primary btn-sm" disabled={guardando || !pvp.trim() || pvp === txt(art.pvp_con_iva, 2)}
             onClick={async () => { if (await onPvp(pvp)) onClose(); }}>{guardando ? '…' : 'Fijar'}</button>
         </span>
-        {r && <span className={`art-ficha-ayuda ${'error' in r ? 'mal' : 'bien'}`}>{'error' in r ? r.error : `Margen resultante: ${r.margen.toFixed(1)} %`}</span>}
+        {r && <span className={`art-ficha-ayuda ${'error' in r ? 'mal' : 'bien'}`}>{'error' in r ? r.error : `Margen resultante: ${num(r.margen, 1)} %`}</span>}
       </div>
 
       <div className="art-ficha-campo">
