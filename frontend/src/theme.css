@@ -1356,7 +1356,7 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 }
 /* Pantalla de arranque con el camión (al abrir la app) */
 .arranque-pegatina { position: fixed; inset: 0; z-index: 2000; background: var(--bg); overflow: hidden; touch-action: none; }
-.arranque-pegatina svg { position: absolute; left: 0; top: 50%; width: 100%; height: auto; transform: translateY(-42%); pointer-events: none; }
+.arranque-pegatina svg { position: absolute; left: 0; top: 50%; width: 100%; height: auto; transform: translateY(-42%); pointer-events: none; overflow: visible; }
 .arranque-saltar { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); text-align: center; font-size: 13px; color: var(--text-3); animation: arranque-aparece .4s 1s both; }
 @keyframes arranque-aparece { from { opacity: 0; } to { opacity: 1; } }
 

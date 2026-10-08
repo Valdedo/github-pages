@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ESCENA_PEGATINA } from './pegatinaEscena';
 
 /**
@@ -157,7 +157,7 @@ const escena = (pre: string) => ESCENA_PEGATINA.split('cfp-').join(pre);
 /** Logo pegatina quieto en lo alto de Inicio. */
 export function CabeceraPegatina() {
   const lienzo = useRef<SVGSVGElement>(null);
-  useEffect(() => { if (lienzo.current) montar(lienzo.current, 'cfi-').reposo(); }, []);
+  useLayoutEffect(() => { if (lienzo.current) montar(lienzo.current, 'cfi-').reposo(); }, []);
   return (
     <div className="cab-pegatina-zona">
       <div className="cab-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción"

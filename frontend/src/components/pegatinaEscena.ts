@@ -35,7 +35,7 @@ export const ESCENA_PEGATINA = `<defs>
     <clipPath id="cfp-frente"><polygon id="cfp-pFrente"/></clipPath>
     <clipPath id="cfp-detras"><polygon id="cfp-pDetras"/></clipPath>
   </defs>
-  <g id="cfp-camion">
+  <g id="cfp-camion" transform="translate(-600 0)">
     <g id="cfp-camCuerpo">
       <g filter="url(#cfp-pegaCam)">
     <defs><clipPath id="cfp-cab"><path d="M208 118 V34 Q208 18 224 18 H266 Q280 18 285 30 L307 88 Q311 98 308 118 Z"/></clipPath></defs>
