@@ -259,7 +259,8 @@ function BottomNav({ badges }: { badges: NavBadge }) {
         <SesionLinks />
       </div>
 
-      {/* Bottom nav */}
+      {/* Bottom nav (con un difuminado detrás para separarla del contenido) */}
+      <div className="bottom-nav-fondo" aria-hidden="true" />
       <nav className="bottom-nav">
         {bottomItems.map(({ to, label, short, icon: Icon, badge, exact }) => {
           const count = badge ? badges[badge as keyof NavBadge] : 0;

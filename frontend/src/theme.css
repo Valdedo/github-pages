@@ -1294,3 +1294,21 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (max-width: 768px) { .bottom-nav { background: var(--surface); } }
 }
+
+/* Difuminado detrás de la barra flotante: el contenido se desvanece antes de llegar a ella */
+.bottom-nav-fondo { display: none; }
+@media (max-width: 768px) {
+  .bottom-nav-fondo {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0;
+    height: calc(var(--nav-espacio) + 26px);
+    z-index: calc(var(--z-bottom-nav) - 1); pointer-events: none;
+    background: linear-gradient(to top, rgb(242 244 240 / .96) 0%, rgb(242 244 240 / .85) 45%, rgb(242 244 240 / 0) 100%);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to top, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 55%, transparent 100%);
+  }
+  .bottom-nav {
+    border: 1px solid rgb(18 58 38 / .10);
+    box-shadow: 0 12px 32px rgb(18 58 38 / .22), 0 2px 6px rgb(18 58 38 / .10), inset 0 1px 0 rgb(255 255 255 / .9);
+  }
+}
