@@ -366,16 +366,19 @@ export interface EntregaCarga {
   telefono: string | null; cuando: string | null; servir: boolean; pagado: boolean;
   notas: string | null; dudas: string | null; estado: 'pendiente' | 'entregada';
   firmado_por: string | null; firmado_at: string | null; treyfact_at: string | null; lineas: LineaCarga[];
+  foto_entrega: string | null; drive_at: string | null;
 }
 export interface OrdenCarga {
   id: number; estado: 'preparando' | 'cargado' | 'entregado'; fotos: string[]; texto: string | null;
   notas: string | null; creado_por: string | null; created_at: string; entregas: EntregaCarga[];
+  parecidas: { orden_id: number; entrega_id: number; cliente: string; creada: string; materiales: number }[];
 }
 export const listarCargas = () => api.get<OrdenCarga[]>('/api/cargas');
 export const verCarga = (id: number) => api.get<OrdenCarga>(`/api/cargas/${id}`);
 export const borrarCarga = (id: number) => api.delete(`/api/cargas/${id}`);
-export const leerCarga = (fotos: File[], texto: string, ordenId?: number) => {
+export const leerCarga = (fotos: File[], texto: string, ordenId?: number, forzar = false) => {
   const form = new FormData();
+  if (forzar) form.append('forzar', 'true');
   fotos.forEach(f => form.append('fotos', f, f.name || 'foto.jpg'));
   form.append('texto', texto);
   if (ordenId) form.append('orden_id', String(ordenId));
@@ -387,13 +390,23 @@ export const fotoCargaUrl = (nombre: string) => withToken(`${BASE}/api/cargas/fo
 export const nuevaEntregaCarga = (ordenId: number) => api.post<OrdenCarga>(`/api/cargas/${ordenId}/entregas`, {});
 export const editarEntregaCarga = (id: number, d: Partial<Omit<EntregaCarga, 'id' | 'lineas'>>) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}`, d);
 export const borrarEntregaCarga = (id: number) => api.delete(`/api/cargas/entregas/${id}`);
-export const firmarEntregaCarga = (id: number, firma: Blob, nombre: string, dni: string) => {
+export const firmarEntregaCarga = (id: number, firma: Blob, nombre: string, dni: string,
+  extra: { firmadoEl?: string; foto?: Blob | null; cargadas?: Record<string, { ok: boolean; cargado: number | null }> } = {}) => {
   const form = new FormData();
   form.append('firma', firma, 'firma.png');
   form.append('nombre', nombre);
   form.append('dni', dni);
-  return api.post<EntregaCarga>(`/api/cargas/entregas/${id}/firmar`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  if (extra.firmadoEl) form.append('firmado_el', extra.firmadoEl);
+  if (extra.foto) form.append('foto', extra.foto, 'entrega.jpg');
+  if (extra.cargadas) form.append('cargadas', JSON.stringify(extra.cargadas));
+  return api.post<EntregaCarga>(`/api/cargas/entregas/${id}/firmar`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 };
+export const fotoEntregaCarga = (id: number, foto: Blob) => {
+  const form = new FormData();
+  form.append('foto', foto, 'entrega.jpg');
+  return api.post<EntregaCarga>(`/api/cargas/entregas/${id}/foto`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 });
+};
+export const ordenarEntregasCarga = (ordenId: number, ids: number[]) => api.put<OrdenCarga>(`/api/cargas/${ordenId}/orden-entregas`, { ids });
 export const anularFirmaCarga = (id: number) => api.post<EntregaCarga>(`/api/cargas/entregas/${id}/anular-firma`);
 export const hojaEntregaUrl = (id: number) => withToken(`${BASE}/api/cargas/entregas/${id}/pdf`);
 export const treyfactEntregaCarga = (id: number, pasado: boolean) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}/treyfact`, { pasado });

@@ -62,6 +62,8 @@ class EntregaOut(BaseModel):
     firmado_por: Optional[str] = None
     firmado_at: Optional[datetime] = None
     treyfact_at: Optional[datetime] = None
+    foto_entrega: Optional[str] = None
+    drive_at: Optional[datetime] = None
     lineas: List[LineaOut] = []
 
     class Config:
@@ -77,13 +79,34 @@ class OrdenOut(BaseModel):
     creado_por: Optional[str] = None
     created_at: datetime
     entregas: List[EntregaOut] = []
+    # Otras órdenes sin entregar del mismo cliente (posible pedido repetido)
+    parecidas: List[dict] = []
 
 
-def _out(o: OrdenCarga) -> OrdenOut:
+def _norm(t: str) -> str:
+    import unicodedata
+    t = unicodedata.normalize("NFD", (t or "").lower())
+    return " ".join("".join(ch for ch in t if unicodedata.category(ch) != "Mn" and (ch.isalnum() or ch == " ")).split())
+
+
+def _parecidas(db: Session, o: OrdenCarga) -> List[dict]:
+    """Entregas sin firmar de los mismos clientes en otras órdenes."""
+    nombres = {_norm(e.cliente) for e in o.entregas if e.estado != "entregada" and _norm(e.cliente)}
+    if not nombres:
+        return []
+    otras = (db.query(EntregaCarga).filter(EntregaCarga.orden_id != o.id, EntregaCarga.estado != "entregada")
+             .order_by(EntregaCarga.id.desc()).limit(300).all())
+    return [{"orden_id": x.orden_id, "entrega_id": x.id, "cliente": x.cliente,
+             "creada": x.created_at.isoformat(), "materiales": len(x.lineas)}
+            for x in otras if _norm(x.cliente) in nombres][:5]
+
+
+def _out(o: OrdenCarga, db: Optional[Session] = None) -> OrdenOut:
     return OrdenOut(
         id=o.id, estado=o.estado, fotos=json.loads(o.fotos or "[]"), texto=o.texto, notas=o.notas,
         creado_por=o.creado_por, created_at=o.created_at,
         entregas=[EntregaOut.model_validate(e) for e in o.entregas],
+        parecidas=_parecidas(db, o) if db is not None else [],
     )
 
 
@@ -127,9 +150,11 @@ def _anadir_entregas(db: Session, o: OrdenCarga, datos: dict) -> None:
             orden_id=o.id, orden_n=base + i, numero=_numero(db),
             cliente=(ent.get("cliente") or "").strip()[:200],
             lugar=(ent.get("lugar") or None), telefono=(ent.get("telefono") or None),
-            cuando=(ent.get("cuando") or None), servir=bool(ent.get("servir", True)),
-            pagado=bool(ent.get("pagado", False)), notas=ent.get("notas") or None, dudas=ent.get("dudas") or None,
+            servir=bool(ent.get("servir", True)), pagado=bool(ent.get("pagado", False)),
+            notas="; ".join(x for x in [ent.get("cuando"), ent.get("notas")] if x) or None,
+            dudas=ent.get("dudas") or None,
         )
+        e.cliente_leido = None  # solo se rellena si alguien corrige el nombre
         db.add(e)
         db.flush()
         for j, ln in enumerate(ent.get("lineas") or []):
@@ -140,13 +165,14 @@ def _anadir_entregas(db: Session, o: OrdenCarga, datos: dict) -> None:
             db.add(LineaCarga(
                 entrega_id=e.id, orden_n=j, cantidad=cant, unidad=(ln.get("unidad") or None),
                 descripcion=(ln.get("descripcion") or "").strip(), original=ln.get("original") or None,
-                duda=ln.get("duda") or None,
+                duda=ln.get("duda") or None, leido=(ln.get("descripcion") or "").strip() or None,
             ))
         db.flush()
 
 
-async def _guardar_fotos(fotos: List[UploadFile]) -> List[str]:
-    nombres = []
+async def _guardar_fotos(fotos: List[UploadFile]) -> tuple:
+    import hashlib
+    nombres, huellas = [], []
     for f in fotos or []:
         ext = Path(f.filename or "").suffix.lower() or ".jpg"
         if ext not in TIPOS_FOTO:
@@ -157,7 +183,8 @@ async def _guardar_fotos(fotos: List[UploadFile]) -> List[str]:
         nombre = f"{uuid.uuid4().hex}{ext}"
         (_dir() / nombre).write_bytes(datos)
         nombres.append(nombre)
-    return nombres
+        huellas.append(hashlib.sha256(datos).hexdigest()[:32])
+    return nombres, huellas
 
 
 # ── Órdenes ──────────────────────────────────────────────────────────────
@@ -172,12 +199,22 @@ async def leer(
     fotos: List[UploadFile] = File(default=[]),
     texto: str = Form(default=""),
     orden_id: Optional[int] = Form(default=None),
+    forzar: bool = Form(default=False),
     db: Session = Depends(get_db),
 ):
     """Lee fotos de la libreta (o lo dictado) y crea la orden. Con orden_id, añade a esa orden."""
     if not fotos and not texto.strip():
         raise HTTPException(400, "Saca una foto de la hoja o escribe el pedido")
-    nombres = await _guardar_fotos(fotos)
+    nombres, huellas = await _guardar_fotos(fotos)
+    if huellas and not forzar:
+        # ¿Esta foto ya se subió? Se avisa antes de gastar una lectura y crear otra orden igual
+        for previa in db.query(OrdenCarga).filter(OrdenCarga.huellas.isnot(None)).all():
+            if set(huellas) & set((previa.huellas or "").split(",")):
+                for n in nombres:
+                    (_dir() / n).unlink(missing_ok=True)
+                clientes = ", ".join(e.cliente for e in previa.entregas if e.cliente) or "sin nombre"
+                raise HTTPException(409, {"repetida": previa.id, "mensaje":
+                    f"Esta foto ya se subió el {previa.created_at:%d/%m} ({clientes})."})
     try:
         datos = await carga_service.leer(db, [str(_dir() / n) for n in nombres], texto)
     except ValueError as e:
@@ -193,6 +230,8 @@ async def leer(
         db.add(o)
         db.flush()
     o.fotos = json.dumps(json.loads(o.fotos or "[]") + nombres)
+    if huellas:
+        o.huellas = ",".join([h for h in (o.huellas or "").split(",") if h] + huellas)
     if texto.strip():
         o.texto = ((o.texto + "\n") if o.texto else "") + texto.strip()
     _anadir_entregas(db, o, datos)
@@ -201,7 +240,7 @@ async def leer(
     _estado(o)
     db.commit()
     db.refresh(o)
-    return _out(o)
+    return _out(o, db)
 
 
 @router.get("/foto/{nombre}")
@@ -214,7 +253,23 @@ def foto(nombre: str):
 
 @router.get("/{oid}", response_model=OrdenOut)
 def ver(oid: int, db: Session = Depends(get_db)):
-    return _out(_orden(db, oid))
+    return _out(_orden(db, oid), db)
+
+
+class Orden(BaseModel):
+    ids: List[int]
+
+
+@router.put("/{oid}/orden-entregas", response_model=OrdenOut)
+def ordenar(oid: int, data: Orden, db: Session = Depends(get_db)):
+    """Cambia el orden de reparto de las entregas del viaje."""
+    o = _orden(db, oid)
+    pos = {eid: i for i, eid in enumerate(data.ids)}
+    for e in o.entregas:
+        e.orden_n = pos.get(e.id, len(pos) + e.orden_n)
+    db.commit()
+    db.expire(o)
+    return _out(_orden(db, oid), db)
 
 
 class OrdenIn(BaseModel):
@@ -237,8 +292,9 @@ def borrar(oid: int, db: Session = Depends(get_db)):
     for n in json.loads(o.fotos or "[]"):
         (_dir() / n).unlink(missing_ok=True)
     for e in o.entregas:
-        if e.firma_archivo:
-            (_dir() / e.firma_archivo).unlink(missing_ok=True)
+        for f in (e.firma_archivo, e.foto_entrega):
+            if f:
+                (_dir() / f).unlink(missing_ok=True)
     db.delete(o)
     db.commit()
     return {"ok": True}
@@ -272,6 +328,8 @@ def editar_entrega(eid: int, data: EntregaIn, db: Session = Depends(get_db)):
     for k, v in data.model_dump(exclude_unset=True).items():
         if k == "cliente":
             v = (v or "").strip()
+            if v != e.cliente and e.cliente_leido is None:
+                e.cliente_leido = e.cliente or ""  # para aprender cómo se lee
         setattr(e, k, v)
     db.commit()
     db.refresh(e)
@@ -294,6 +352,9 @@ def borrar_entrega(eid: int, db: Session = Depends(get_db)):
 async def firmar(
     eid: int, request: Request,
     firma: UploadFile = File(...), nombre: str = Form(...), dni: str = Form(default=""),
+    firmado_el: Optional[str] = Form(default=None),
+    foto: Optional[UploadFile] = File(default=None),
+    cargadas: Optional[str] = Form(default=None),
     db: Session = Depends(get_db),
 ):
     e = _entrega(db, eid)
@@ -301,6 +362,19 @@ async def firmar(
         raise HTTPException(409, "Esta entrega ya está firmada")
     if not nombre.strip():
         raise HTTPException(400, "Falta el nombre de quien firma")
+    if cargadas:
+        # Firmada sin cobertura: lo que se marcó como cargado en el móvil
+        try:
+            marcas = json.loads(cargadas)
+            for ln in e.lineas:
+                if str(ln.id) in marcas:
+                    m = marcas[str(ln.id)]
+                    ln.cargado_ok = bool(m.get("ok"))
+                    ln.cargado = m.get("cargado")
+        except Exception:
+            pass
+    if not any(ln.cargado_ok or ln.cargado for ln in e.lineas):
+        raise HTTPException(400, "No hay nada marcado como cargado. Marca lo que se entrega antes de firmar.")
     png = await firma.read()
     if not png or len(png) > 3 * 1024 * 1024:
         raise HTTPException(400, "La firma no es válida")
@@ -310,13 +384,53 @@ async def firmar(
     e.firmado_por = nombre.strip()[:200]
     e.firmado_dni = dni.strip()[:30] or None
     e.firmado_at = datetime.utcnow()
+    if firmado_el:
+        try:  # hora real de la firma (hecha sin cobertura), en UTC sin zona
+            from datetime import timezone
+            f = datetime.fromisoformat(firmado_el.replace("Z", "+00:00"))
+            if f.tzinfo:
+                f = f.astimezone(timezone.utc).replace(tzinfo=None)
+            if f <= e.firmado_at:
+                e.firmado_at = f
+        except ValueError:
+            pass
+    if foto is not None and foto.filename:
+        datos = await foto.read()
+        if datos and len(datos) <= 25 * 1024 * 1024:
+            e.foto_entrega = f"entrega_{e.id}_{uuid.uuid4().hex[:8]}{Path(foto.filename).suffix.lower() or '.jpg'}"
+            (_dir() / e.foto_entrega).write_bytes(datos)
     e.entregado_por = getattr(request.state, "persona", None)
     e.estado = "entregada"
+    e.drive_at = None
+    for ln in e.lineas:
+        ln.confirmada = True  # entregado y firmado: ya se puede aprender de ello
     if not e.numero:
         e.numero = _numero(db)
     db.flush(); db.refresh(e.orden); _estado(e.orden)
     db.commit()
     db.refresh(e)
+    from app.services.backup_service import backup_en_segundo_plano
+    backup_en_segundo_plano()
+    return e
+
+
+@router.post("/entregas/{eid}/foto", response_model=EntregaOut)
+async def subir_foto_entrega(eid: int, foto: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Añadir o cambiar la foto del material descargado (también después de firmar)."""
+    e = _entrega(db, eid)
+    datos = await foto.read()
+    if not datos or len(datos) > 25 * 1024 * 1024:
+        raise HTTPException(400, "La foto no es válida")
+    if e.foto_entrega:
+        (_dir() / e.foto_entrega).unlink(missing_ok=True)
+    e.foto_entrega = f"entrega_{e.id}_{uuid.uuid4().hex[:8]}{Path(foto.filename or '').suffix.lower() or '.jpg'}"
+    (_dir() / e.foto_entrega).write_bytes(datos)
+    e.drive_at = None  # se vuelve a subir la hoja con la foto
+    db.commit()
+    db.refresh(e)
+    if e.estado == "entregada":
+        from app.services.backup_service import backup_en_segundo_plano
+        backup_en_segundo_plano()
     return e
 
 
@@ -329,6 +443,7 @@ def anular_firma(eid: int, db: Session = Depends(get_db)):
     e.firma_archivo = e.firmado_por = e.firmado_dni = None
     e.firmado_at = None
     e.estado = "pendiente"
+    e.drive_at = None
     db.flush(); db.refresh(e.orden); _estado(e.orden)
     db.commit()
     db.refresh(e)
@@ -340,8 +455,11 @@ def _hoja(db: Session, eid: int):
     png = None
     if e.firma_archivo and (_dir() / e.firma_archivo).exists():
         png = (_dir() / e.firma_archivo).read_bytes()
+    foto = None
+    if e.foto_entrega and (_dir() / e.foto_entrega).exists():
+        foto = (_dir() / e.foto_entrega).read_bytes()
     nombre = f"Hoja de entrega {e.numero or e.id} - {e.cliente or 'cliente'}.pdf".replace("/", "-")
-    return carga_service.hoja_pdf(e, png), nombre
+    return carga_service.hoja_pdf(e, png, foto), nombre
 
 
 @router.get("/entregas/{eid}/pdf")
@@ -427,6 +545,7 @@ def editar_linea(lid: int, data: LineaIn, db: Session = Depends(get_db)):
         setattr(ln, k, v)
     if "descripcion" in cambios or "cantidad" in cambios or "unidad" in cambios:
         ln.duda = cambios.get("duda")  # al corregirla, deja de estar en duda
+        ln.confirmada = True           # revisada por una persona: se aprende de ella
     if cambios.get("cargado_ok"):
         ln.cargado = None
     o = ln.entrega.orden

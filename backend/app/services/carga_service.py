@@ -48,27 +48,43 @@ Devuelve SOLO este JSON, sin texto antes ni después:
 
 
 def _pistas(db) -> str:
-    """Lo aprendido de hojas anteriores: clientes y cómo se corrigieron los materiales."""
+    """Lo aprendido de hojas anteriores. Solo cuenta lo confirmado (corregido a mano o
+    entregado y firmado), para no repetir errores que nadie revisó."""
     from app.models.carga import EntregaCarga, LineaCarga
     partes = []
     try:
-        clientes = [c for (c,) in db.query(EntregaCarga.cliente).filter(EntregaCarga.cliente != "")
-                    .order_by(EntregaCarga.id.desc()).limit(200).all()]
-        vistos = list(dict.fromkeys(clientes))[:60]
-        if vistos:
-            partes.append("Clientes que ya han salido antes (si el nombre se parece, usa este): " + "; ".join(vistos))
-        pares = (db.query(LineaCarga.original, LineaCarga.descripcion, LineaCarga.unidad)
-                 .filter(LineaCarga.original.isnot(None)).order_by(LineaCarga.id.desc()).limit(300).all())
-        ejemplos, vistos_o = [], set()
-        for o, d, u in pares:
-            k = (o or "").strip().lower()
-            if k and k not in vistos_o and d:
-                vistos_o.add(k)
-                ejemplos.append(f"«{o}» → {d}{f' ({u})' if u else ''}")
-            if len(ejemplos) >= 50:
-                break
+        # Clientes de entregas firmadas o corregidas a mano
+        filas = (db.query(EntregaCarga.cliente, EntregaCarga.cliente_leido, EntregaCarga.lugar)
+                 .filter(EntregaCarga.cliente != "")
+                 .filter((EntregaCarga.estado == "entregada") | (EntregaCarga.cliente_leido.isnot(None)))
+                 .order_by(EntregaCarga.id.desc()).limit(300).all())
+        clientes, cambios_cli = {}, []
+        for c, leido, lugar in filas:
+            clientes.setdefault(c, lugar)
+            if leido and leido.strip() and leido.strip().lower() != c.strip().lower():
+                cambios_cli.append(f"se leyó «{leido}» pero era «{c}»")
+        if clientes:
+            lista = [f"{c}{f' ({l})' if l else ''}" for c, l in list(clientes.items())[:60]]
+            partes.append("Clientes que ya han salido (si el nombre se parece, usa este): " + "; ".join(lista))
+        if cambios_cli:
+            partes.append("Nombres que se leyeron mal antes:\n- " + "\n- ".join(list(dict.fromkeys(cambios_cli))[:20]))
+
+        lineas = (db.query(LineaCarga.original, LineaCarga.leido, LineaCarga.descripcion, LineaCarga.unidad)
+                  .filter(LineaCarga.confirmada.is_(True)).order_by(LineaCarga.id.desc()).limit(400).all())
+        ejemplos, errores, vistos = [], [], set()
+        for original, leido, desc, unidad in lineas:
+            if not desc:
+                continue
+            if leido and leido.strip().lower() != desc.strip().lower() and len(errores) < 30:
+                errores.append(f"«{original or leido}»: se entendió «{leido}», pero es «{desc}»{f' ({unidad})' if unidad else ''}")
+            k = (original or "").strip().lower()
+            if k and k not in vistos and len(ejemplos) < 50:
+                vistos.add(k)
+                ejemplos.append(f"«{original}» → {desc}{f' ({unidad})' if unidad else ''}")
+        if errores:
+            partes.append("Errores de lectura que ya se corrigieron (no los repitas):\n- " + "\n- ".join(dict.fromkeys(errores)))
         if ejemplos:
-            partes.append("Así se han pasado a limpio otras líneas (úsalo para entender abreviaturas):\n- " + "\n- ".join(ejemplos))
+            partes.append("Así se escribe en la libreta y lo que es en realidad:\n- " + "\n- ".join(ejemplos))
     except Exception as e:  # sin historial no pasa nada
         logger.warning("Sin pistas de cargas: %s", e)
     return ("\n" + "\n\n".join(partes) + "\n") if partes else ""
@@ -136,7 +152,7 @@ LOPD = ("De conformidad con la Ley Orgánica 15/1999, de 13 de diciembre, de Pro
         "dirigida a MANUEL FERNANDEZ FERNANDEZ LLAVIADA S/N 33720 BOAL (ASTURIAS), a la atención del Responsable del Tratamiento")
 
 
-def hoja_pdf(e, firma_png: Optional[bytes]) -> bytes:
+def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> bytes:
     """Hoja de entrega con el mismo aspecto que los albaranes de TreyFACT de Casa Fonso,
     pero sin precios y con la firma del cliente donde van los totales."""
     from reportlab.lib.colors import HexColor, black, white
@@ -175,7 +191,7 @@ def hoja_pdf(e, firma_png: Optional[bytes]) -> bytes:
             paginas.append(actual); actual, alto = [], 0
         actual.append(item); alto += h
     paginas.append(actual)
-    total_pag = len(paginas)
+    total_pag = len(paginas) + (1 if foto else 0)
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -285,6 +301,27 @@ def hoja_pdf(e, firma_png: Optional[bytes]) -> bytes:
             c.setFillColor(black); c.setFont("Helvetica-Bold", 9.5)
             c.drawRightString(vx, T(top + 108), f"{len(filas)} línea{'s' if len(filas) != 1 else ''}")
         pie(n)
+        c.showPage()
+
+    if foto:
+        # Anexo: foto del material descargado en la obra
+        cabecera_foto_y = 60
+        c.setFillColor(black); c.setFont("Helvetica-Bold", 12.5)
+        c.drawString(X0 + 2, T(cabecera_foto_y), f"HOJA DE ENTREGA  {e.numero or e.id} · FOTO DE LA ENTREGA")
+        c.setFont("Helvetica", 9); c.setFillColor(gris_txt)
+        c.drawString(X0 + 2, T(cabecera_foto_y + 16), f"{(e.cliente or '').upper()}{' · ' + e.lugar.upper() if e.lugar else ''} · {fecha.strftime('%d/%m/%Y %H:%M')}")
+        try:
+            from PIL import Image, ImageOps
+            im = ImageOps.exif_transpose(Image.open(io.BytesIO(foto))).convert("RGB")
+            im.thumbnail((1800, 1800))
+            b2 = io.BytesIO(); im.save(b2, "JPEG", quality=82)
+            ancho, alto_max = X1 - X0, H - 200
+            esc = min(ancho / im.width, alto_max / im.height)
+            w, h = im.width * esc, im.height * esc
+            c.drawImage(ImageReader(io.BytesIO(b2.getvalue())), X0 + (ancho - w) / 2, T(cabecera_foto_y + 30) - h, width=w, height=h)
+        except Exception as ex:
+            logger.warning("No se pudo poner la foto de la entrega %s: %s", e.id, ex)
+        pie(total_pag)
         c.showPage()
     c.save()
     return buf.getvalue()

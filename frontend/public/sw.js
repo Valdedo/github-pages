@@ -54,6 +54,9 @@ const GUARDAR = [
   /^\/api\/turnos\/cuadrante$/,
   /^\/api\/turnos\/ajustes$/,
   /^\/api\/acceso\/estado$/,
+  /^\/api\/cargas$/,                      // órdenes de carga (en pruebas)
+  /^\/api\/cargas\/\d+$/,
+  /^\/api\/cargas\/foto\/[\w.-]+$/,
 ];
 
 // Clave sin el código de sesión (?t=…) para que valga aunque cambie

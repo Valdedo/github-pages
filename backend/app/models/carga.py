@@ -18,6 +18,7 @@ class OrdenCarga(Base):
     estado: Mapped[str] = mapped_column(String(20), default="preparando", index=True)
     fotos: Mapped[str] = mapped_column(Text, default="[]")       # JSON: nombres de archivo
     texto: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # lo dictado o escrito
+    huellas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # sha256 de las fotos, para avisar de repetidas
     notas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     creado_por: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -38,6 +39,7 @@ class EntregaCarga(Base):
     numero: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)  # OC-2026-0001
 
     cliente: Mapped[str] = mapped_column(String(200), default="")
+    cliente_leido: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # lo que entendió la IA
     lugar: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     telefono: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     cuando: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)   # «esta semana», «martes»…
@@ -54,6 +56,8 @@ class EntregaCarga(Base):
     firmado_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     entregado_por: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     treyfact_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    foto_entrega: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # foto del material descargado
+    drive_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)     # copia de la hoja en Drive
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -75,6 +79,9 @@ class LineaCarga(Base):
     descripcion: Mapped[str] = mapped_column(Text, default="")
     original: Mapped[Optional[str]] = mapped_column(Text, nullable=True)       # tal como estaba escrito
     duda: Mapped[Optional[str]] = mapped_column(Text, nullable=True)           # por qué hay que revisarla
+    leido: Mapped[Optional[str]] = mapped_column(Text, nullable=True)          # lo que entendió la IA al leerla
+    # Confirmada: corregida a mano o entregada y firmada. Solo de estas se aprende.
+    confirmada: Mapped[bool] = mapped_column(Boolean, default=False)
     # Lo que se ha cargado: None = nada; igual a cantidad = todo
     cargado: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     cargado_ok: Mapped[bool] = mapped_column(Boolean, default=False)

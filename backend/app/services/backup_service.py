@@ -72,11 +72,37 @@ def backup_pendientes() -> int:
                 logger.warning("Copia en Drive fallida para %s: %s", n.numero, e)
                 db.rollback()
                 break  # si falla uno (sin red, cuota…), se reintenta en el próximo repaso
+        hechos += _hojas_de_entrega(db)
     finally:
         db.close()
         _lock.release()
     if hechos:
-        logger.info("Copia en Drive: %d albarán(es) subidos", hechos)
+        logger.info("Copia en Drive: %d documento(s) subidos", hechos)
+    return hechos
+
+
+def _hojas_de_entrega(db) -> int:
+    """Hojas de entrega firmadas (órdenes de carga) en «Hojas de entrega/<cliente>/<AAAA-MM>/»."""
+    from app.config import settings
+    from app.models.carga import EntregaCarga
+    from app.services import carga_service
+    d = Path(settings.upload_dir) / "cargas"
+    hechos = 0
+    for e in (db.query(EntregaCarga)
+              .filter(EntregaCarga.estado == "entregada", EntregaCarga.drive_at.is_(None)).all()):
+        try:
+            leer = lambda n: (d / n).read_bytes() if n and (d / n).exists() else None
+            pdf = carga_service.hoja_pdf(e, leer(e.firma_archivo), leer(e.foto_entrega))
+            mes = (e.firmado_at or datetime.utcnow()).strftime("%Y-%m")
+            mail_service.backup_pdf(f"Hojas de entrega/{_clean(e.cliente or 'Sin cliente')}/{mes}",
+                                    f"{_clean(e.numero or str(e.id))} - {_clean(e.cliente or 'cliente')}.pdf", pdf)
+            e.drive_at = datetime.now(TZ).replace(tzinfo=None)
+            db.commit()
+            hechos += 1
+        except Exception as ex:
+            logger.warning("Copia en Drive de la hoja %s fallida: %s", e.numero, ex)
+            db.rollback()
+            break
     return hechos
 
 

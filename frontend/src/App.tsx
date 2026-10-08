@@ -29,6 +29,7 @@ import { CodigosModal } from './components/CodigosModal';
 import { MiCodigoModal } from './components/MiCodigoModal';
 import { AvisosLink } from './components/AvisosCard';
 import { arrancarCola } from './lib/offline';
+import { arrancarColaCargas } from './lib/offlineCargas';
 import { getRol, cerrarSesion, sesionPersonal } from './auth';
 import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
 
@@ -324,7 +325,7 @@ function RepartoShell() {
 
 function AppShell() {
   const location = useLocation();
-  useEffect(() => { arrancarCola(); }, []);
+  useEffect(() => { arrancarCola(); if (getRol() === 'admin') arrancarColaCargas(); }, []);
   if (getRol() === 'reparto' || location.pathname === '/reparto' || isReparto()) return <RepartoShell />;
   return <FullShell />;
 }
