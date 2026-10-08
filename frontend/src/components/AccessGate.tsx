@@ -5,6 +5,7 @@ import { CodigoInput } from './CodigoInput';
 import { getToken, setSesion, cerrarSesion, type Rol } from '../auth';
 import { setReparto } from '../reparto';
 import { Logo } from './Logo';
+import { PegatinaDefs, CamionPegatina } from './Pegatinas';
 
 type Fase = 'cargando' | 'crear' | 'entrar' | 'propio' | 'dentro' | 'sin-conexion';
 
@@ -91,22 +92,22 @@ export function AccessGate({ children }: { children: ReactNode }) {
     } finally { setEnviando(false); }
   };
 
-  if (fase === 'dentro') return <>{children}</>;
+  if (fase === 'dentro') return <><PegatinaDefs />{children}</>;
   // Mientras comprueba la sesión: el mismo logo pegatina que se ve al cargar la app
   if (fase === 'cargando') return <img className="cf-cargando-logo" src="/brand/logo-pegatina.png" alt="Casa Fonso" />;
 
   return (
     <div className="acceso">
       <div className="acceso-caja">
-        <Logo size={44} />
-
-        {fase === 'sin-conexion' && (
-          <>
-            <h1>No hay conexión</h1>
-            <p className="acceso-txt">No se puede hablar con el servidor. Comprueba internet y vuelve a probar.</p>
+        <PegatinaDefs />
+        {fase === 'sin-conexion' ? (
+          <div className="peg-sinred">
+            <CamionPegatina modo="pinchado" ancho={250} />
+            <h1>Sin cobertura</h1>
+            <p className="acceso-txt">No llego al servidor. Comprueba que tienes internet y vuelve a probar.</p>
             <button className="btn btn-primary btn-lg" onClick={comprobar}>Volver a probar</button>
-          </>
-        )}
+          </div>
+        ) : <Logo size={44} />}
 
         {fase === 'entrar' && (
           <form onSubmit={onEntrar} className="acceso-form">

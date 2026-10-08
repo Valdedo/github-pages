@@ -6,6 +6,7 @@ import { listOrders, createOrder, deleteOrder, listSuppliers, describeApiError }
 import { useConfirm } from '../components/ConfirmModal';
 import { useToast } from '../components/Toast';
 import { ConnectionError } from '../components/ConnectionError';
+import { Vacio } from '../components/Pegatinas';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 
 // Status flow: pendiente → pedido → recibido → entregado
@@ -421,13 +422,9 @@ export function OrdersPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
       ) : loadError ? null : active.length === 0 && !filter && !search ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><Package size={36} style={{ opacity: 0.3 }} /></div>
-          <div className="empty-state-text">No hay pedidos activos</div>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowModal(true)}>
-            <Plus size={14} /> Crear primer pedido
-          </button>
-        </div>
+        <Vacio dibujo="cajaVacia" titulo="Sin pedidos pendientes" texto="Cuando hagas un pedido a un proveedor, aparecerá aquí.">
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setShowModal(true)}><Plus size={14} /> Nuevo pedido</button>
+        </Vacio>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Package size={36} style={{ opacity: 0.3 }} /></div>

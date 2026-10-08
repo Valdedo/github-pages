@@ -7,6 +7,7 @@ import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, repartoFirm
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
+import { Vacio } from '../components/Pegatinas';
 import type { ClientDeliveryNote } from '../types';
 
 type Vista = 'firmar' | 'facturar' | 'facturados' | 'todos';
@@ -368,7 +369,11 @@ export function FirmasPage() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : loadError ? null : filtered.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 && notes.length > 0 && vista === 'firmar' ? (
+        <Vacio dibujo="albaranOk" titulo="Todo firmado" texto="No queda ningún albarán pendiente de firmar." />
+      ) : filtered.length === 0 && notes.length > 0 && vista === 'facturar' ? (
+        <Vacio dibujo="facturaOk" titulo="Nada por facturar" texto="Todos los albaranes firmados están ya facturados." />
+      ) : filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><PenLine size={36} style={{ opacity: 0.3 }} /></div>
           <div className="empty-state-text">

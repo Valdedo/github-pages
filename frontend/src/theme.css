@@ -1359,3 +1359,54 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .arranque-pegatina svg { position: absolute; left: 0; top: 50%; width: 100%; height: auto; transform: translateY(-42%); pointer-events: none; }
 .arranque-saltar { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); text-align: center; font-size: 13px; color: var(--text-3); animation: arranque-aparece .4s 1s both; }
 @keyframes arranque-aparece { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Pegatinas (dibujos de momentos: firmar, vacío, avisos, reparto, sin cobertura) ── */
+.peg-vacio { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 26px 16px 22px; background: var(--surface); border-radius: var(--card-radius); }
+.peg-vacio .peg-ilus, .peg-vacio .peg-camion { margin-bottom: 6px; }
+.peg-vacio-titulo { font-family: var(--font-display); font-size: 23px; font-weight: 600; color: var(--cf-bosque-2); }
+.peg-vacio-texto { font-size: 14.5px; color: var(--text-2); line-height: 1.45; max-width: 360px; }
+.peg-ilus { animation: pegAparece .5s var(--ease-out) both; }
+@keyframes pegAparece { 0% { transform: scale(.6) rotate(-6deg); opacity: 0; } 60% { transform: scale(1.06) rotate(1deg); opacity: 1; } 100% { transform: none; } }
+
+.peg-sello-cae { transform-box: fill-box; transform-origin: center; animation: pegCae .5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pegCae { 0% { transform: scale(2.3) rotate(-14deg); opacity: 0; } 55% { transform: scale(.9); opacity: 1; } 75% { transform: scale(1.05); } 100% { transform: none; } }
+.peg-golpe-linea { transform-box: view-box; transform-origin: 80px 70px; opacity: 0; animation: pegLinea .4s .26s ease-out both; }
+@keyframes pegLinea { 0% { opacity: 1; transform: scale(.85); } 100% { opacity: 0; transform: scale(1.2); } }
+
+.peg-rodando .peg-rueda { transform-box: fill-box; transform-origin: center; animation: pegGira .55s linear infinite; }
+.peg-rodando .peg-bote { animation: pegBote .3s ease-in-out infinite alternate; }
+.peg-viento { animation: pegViento .9s ease-in-out infinite; opacity: 0; }
+.peg-carretera { animation: pegCarretera .55s linear infinite; }
+.peg-zzz { animation: pegZzz 2.4s ease-in-out infinite; }
+@keyframes pegGira { to { transform: rotate(360deg); } }
+@keyframes pegBote { to { transform: translateY(-3px); } }
+@keyframes pegViento { 0% { opacity: 0; transform: translateX(10px); } 40% { opacity: .75; } 100% { opacity: 0; transform: translateX(-18px); } }
+@keyframes pegCarretera { to { stroke-dashoffset: 19; } }
+@keyframes pegZzz { 0%, 100% { opacity: .3; transform: translateY(2px); } 50% { opacity: 1; transform: translateY(-3px); } }
+
+/* Avisos buenos en Inicio */
+.inicio-buenas { display: flex; flex-direction: column; gap: 10px; }
+.buena-noticia { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: var(--card-radius); padding: 12px 16px 12px 10px; border-left: 5px solid var(--cf-verde); text-decoration: none; color: inherit; }
+.buena-noticia .peg-ilus { flex-shrink: 0; }
+.buena-noticia b { display: block; font-size: 16px; }
+.buena-noticia small { display: block; font-size: 13.5px; color: var(--text-2); margin-top: 2px; }
+.buena-noticia .enl { color: var(--success); font-weight: 700; font-size: 13.5px; margin-top: 4px; display: block; }
+
+/* Sin cobertura */
+.peg-sinred { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.peg-sinred .btn { margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .peg-ilus, .peg-sello-cae, .peg-golpe-linea, .peg-rodando .peg-rueda, .peg-rodando .peg-bote, .peg-viento, .peg-carretera, .peg-zzz { animation: none !important; }
+  .peg-viento { opacity: .6; }
+}
+.conexion-error { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: var(--card-radius); border-left: 5px solid var(--warning); padding: 10px 14px 10px 8px; margin-bottom: 16px; }
+.conexion-error.compacto { padding: 10px 14px; }
+.conexion-error .peg-camion { flex-shrink: 0; }
+.conexion-error-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.conexion-error-txt b { font-size: 15px; }
+.conexion-error-txt small { font-size: 13px; color: var(--text-2); line-height: 1.35; }
+.carga-leyendo .peg-camion { display: block; margin: 0 auto 4px; }
+.conexion-error-txt .btn { align-self: flex-start; margin-top: 6px; }
+.conexion-error.compacto .conexion-error-txt { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.conexion-error.compacto .conexion-error-txt .btn { margin-top: 0; }

@@ -1,4 +1,5 @@
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { CamionPegatina } from './Pegatinas';
 
 interface Props {
   message: string;
@@ -6,55 +7,19 @@ interface Props {
   compact?: boolean;
 }
 
+/** Aviso cuando no se pueden cargar los datos: el camión con la rueda pinchada. */
 export function ConnectionError({ message, onRetry, compact = false }: Props) {
+  const sinRed = typeof navigator !== 'undefined' && navigator.onLine === false;
   return (
-    <div
-      role="alert"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        background: '#fef2f2',
-        border: '1px solid #fca5a5',
-        color: '#991b1b',
-        borderRadius: 'var(--r-lg)',
-        padding: compact ? '10px 14px' : '14px 18px',
-        marginBottom: 16,
-        fontSize: 13,
-      }}
-    >
-      <AlertCircle size={18} style={{ flexShrink: 0, color: '#dc2626' }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, marginBottom: compact ? 0 : 2 }}>
-          {message}
-        </div>
-        {!compact && (
-          <div style={{ fontSize: 12, color: '#7f1d1d', opacity: 0.85 }}>
-            No se pudieron cargar los datos. Los contadores no reflejan la realidad.
-          </div>
+    <div role="alert" className={`conexion-error${compact ? ' compacto' : ''}`}>
+      {!compact && <CamionPegatina modo="pinchado" ancho={84} />}
+      <div className="conexion-error-txt">
+        <b>{sinRed ? 'Sin cobertura' : message}</b>
+        {!compact && <small>{sinRed ? 'Lo que hagas se guarda y se envía al volver la conexión.' : 'No se pudieron cargar los datos. Los números de aquí pueden no estar al día.'}</small>}
+        {onRetry && (
+          <button className="btn btn-ghost btn-sm" onClick={onRetry}><RefreshCw size={14} /> Reintentar</button>
         )}
       </div>
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            background: '#fff',
-            border: '1px solid #fca5a5',
-            color: '#991b1b',
-            borderRadius: 'var(--r)',
-            padding: '6px 12px',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
-        >
-          <RefreshCw size={13} /> Reintentar
-        </button>
-      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Wrench, Search, Phone, ChevronRight, MessageCircle, CheckCheck } from 'lucide-react';
 import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
+import { Vacio } from '../components/Pegatinas';
 import { useCfToast } from '../components/CfToast';
 import { ImporteModal, numES, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
 import type { Repair, RepairStatus } from '../types';
@@ -456,13 +457,9 @@ export function RepairsPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
       ) : loadError ? null : filtered.length === 0 && active.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><Wrench size={36} style={{ opacity: 0.3 }} /></div>
-          <div className="empty-state-text">No hay reparaciones activas</div>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowModal(true)}>
-            <Plus size={14} /> Crear primera reparación
-          </button>
-        </div>
+        <Vacio dibujo="llaveSola" titulo="Sin reparaciones en curso" texto="Cuando entre una máquina a reparar, apúntala aquí.">
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setShowModal(true)}><Plus size={14} /> Nueva reparación</button>
+        </Vacio>
       ) : filtered.length === 0 ? (
         <div className="empty-state" style={{ padding: '28px 0' }}>
           <div className="empty-state-text">Sin resultados para este filtro</div>

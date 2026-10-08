@@ -10,6 +10,7 @@ import { CorreoCard } from '../components/CorreoCard';
 import { TurnoHoy } from '../components/TurnoHoy';
 import { AvisosCard } from '../components/AvisosCard';
 import { CabeceraPegatina } from '../components/CabeceraPegatina';
+import { Ilustracion } from '../components/Pegatinas';
 import { useIsMobile } from '../hooks';
 import type { ClientDeliveryNote, DashboardStats } from '../types';
 
@@ -134,6 +135,31 @@ export function DashboardPage() {
       <CorreoCard />
       <TurnoHoy />
       <AvisosCard />
+
+      {(s.orders.recibido > 0 || s.repairs.reparada > 0) && (
+        <section className="inicio-buenas" aria-label="Buenas noticias">
+          {s.orders.recibido > 0 && (
+            <Link to="/pedidos" className="buena-noticia">
+              <Ilustracion dibujo="cajaOk" tam={64} />
+              <div>
+                <b>{s.orders.recibido === 1 ? 'Ha llegado un pedido' : `Han llegado ${s.orders.recibido} pedidos`}</b>
+                <small>Ya está en la tienda: falta avisar o entregar al cliente.</small>
+                <span className="enl">Ver pedidos ›</span>
+              </div>
+            </Link>
+          )}
+          {s.repairs.reparada > 0 && (
+            <Link to="/reparaciones" className="buena-noticia">
+              <Ilustracion dibujo="llave" tam={64} />
+              <div>
+                <b>{s.repairs.reparada === 1 ? 'Hay una reparación lista' : `Hay ${s.repairs.reparada} reparaciones listas`}</b>
+                <small>Avisa al cliente para que pase a recogerla.</small>
+                <span className="enl">Ver reparaciones ›</span>
+              </div>
+            </Link>
+          )}
+        </section>
+      )}
 
       <section className="inicio-tiles" aria-label="Pendiente">
         <Tile to="/firmas?vista=firmar" destacado titulo="Por firmar" valor={loading ? 0 : porFirmar.length}

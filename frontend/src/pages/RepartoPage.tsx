@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff, Truck } from 'lucide-react';
+import { Vacio } from '../components/Pegatinas';
+import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff } from 'lucide-react';
 import { listFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
@@ -100,19 +101,14 @@ export function RepartoPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
       ) : lista.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            {camion.length === 0 && pendientes.length > 0 ? <Truck size={40} style={{ color: 'var(--text-3)' }} /> : <CheckCircle size={40} style={{ color: 'var(--success)' }} />}
-          </div>
-          <div className="empty-state-text">
-            {pendientes.length === 0 ? 'Todo firmado.' : 'No te han puesto albaranes en el camión.'}
-          </div>
+        <Vacio camion="aparcado" titulo={pendientes.length === 0 ? 'Hoy no hay entregas' : 'Camión vacío'}
+          texto={pendientes.length === 0 ? 'Todo firmado. Cuando haya carga para ti, te aviso.' : 'No te han puesto albaranes en el camión.'}>
           {!verTodos && pendientes.length > 0 && (
-            <button className="btn btn-ghost" style={{ marginTop: 14 }} onClick={() => setVerTodos(true)}>
+            <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={() => setVerTodos(true)}>
               Ver los {pendientes.length} pendientes de la tienda
             </button>
           )}
-        </div>
+        </Vacio>
       ) : (
         <div className="cf-enter" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {lista.map((n, i) => (

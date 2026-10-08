@@ -16,6 +16,7 @@ import { useCfToast } from '../components/CfToast';
 import { numES } from '../components/AvisoCliente';
 import { SignaturePad } from './FirmaDetailPage';
 import { HojaVisor } from '../components/HojaVisor';
+import { CamionPegatina, SelloHecho } from '../components/Pegatinas';
 import { sinRed } from '../lib/offline';
 import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reducirFoto } from '../lib/offlineCargas';
 
@@ -119,9 +120,9 @@ function NuevaOrden({ ordenId, onHecho, compacto }: { ordenId?: number; onHecho:
       {leyendo && (
         <div className="carga-leyendo" role="status">
           <div className="card">
-            <span className="spinner" />
+            <CamionPegatina modo="rodando" ancho={230} />
             <b>Leyendo la hoja…</b>
-            <small>Tarda unos segundos.</small>
+            <small>Un momento, estoy pasando el cuaderno a limpio.</small>
           </div>
         </div>
       )}
@@ -491,6 +492,7 @@ export function OrdenCargaPage() {
   const [datos, setDatos] = useState<EntregaCarga | null>(null);
   const [linea, setLinea] = useState<{ entregaId: number; ln: LineaCarga | null } | null>(null);
   const [firmando, setFirmando] = useState<EntregaCarga | null>(null);
+  const [entregado, setEntregado] = useState(false);
   const [hoja, setHoja] = useState<number | null>(null);
   const cerrarHoja = useCallback(() => setHoja(null), []);
   const [mas, setMas] = useState(false);
@@ -765,7 +767,8 @@ export function OrdenCargaPage() {
       {linea && <LineaModal entregaId={linea.entregaId} ln={linea.ln} onClose={() => setLinea(null)}
         onSaved={() => { setLinea(null); load(); }} onDelete={linea.ln ? () => quitarLinea(linea.ln!) : undefined} />}
       {firmando && <FirmaModal e={firmando} ordenId={o.id} onClose={() => setFirmando(null)}
-        onFirmado={sr => { setFirmando(null); load(); show(sr ? 'Firma guardada. Se enviará sola' : 'Entrega firmada'); }} />}
+        onFirmado={sr => { setFirmando(null); load(); setEntregado(true); setTimeout(() => setEntregado(false), 1500); if (sr) show('Firma guardada. Se enviará sola'); }} />}
+      {entregado && <SelloHecho texto="ENTREGADO" titulo="Entrega firmada" />}
     </div>
   );
 }

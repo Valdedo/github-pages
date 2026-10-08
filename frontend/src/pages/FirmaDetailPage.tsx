@@ -8,6 +8,7 @@ import {
 } from '../api/client';
 import { enCola, ponerEnCola, sinRed } from '../lib/offline';
 import { ConnectionError } from '../components/ConnectionError';
+import { SelloHecho } from '../components/Pegatinas';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
 import { isReparto } from '../reparto';
 import { fmtFecha, fmtFirmado, fmtEuros, Marcas } from './FirmasPage';
@@ -446,16 +447,7 @@ export function FirmaDetailPage() {
         </div>
       </div>
 
-      {hecho && (
-        <div className="cf-done" role="status" aria-live="polite">
-          <div className="cf-done-box">
-            <div className="cf-done-circle">
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
-            </div>
-            <div className="cf-done-text">Albarán firmado</div>
-          </div>
-        </div>
-      )}
+      {hecho && <SelloHecho texto="FIRMADO" titulo="Albarán firmado" />}
       {printing && createPortal(
         <div id="firma-print">{printPages.map(src => <img key={src} src={src} alt="" />)}</div>,
         document.body,
