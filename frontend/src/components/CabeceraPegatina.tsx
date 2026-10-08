@@ -184,6 +184,7 @@ const SALIDA = 0.35;   // segundos que tarda en desvanecerse la pantalla al term
 export function ArranquePegatina({ onFin }: { onFin: () => void }) {
   const capa = useRef<HTMLDivElement>(null);
   const lienzo = useRef<SVGSVGElement>(null);
+  const fijo = useRef<HTMLImageElement>(null);
   const fin = useRef(onFin); fin.current = onFin;
 
   useEffect(() => {
@@ -191,29 +192,42 @@ export function ArranquePegatina({ onFin }: { onFin: () => void }) {
     if (!svg || !cp) return;
     const esc = montar(svg, 'cfp-');
     esc.reposo();
-    let raf = 0, t0 = 0, saliendo = -1, acabado = false;
-    const terminar = () => { if (!acabado) { acabado = true; cancelAnimationFrame(raf); fin.current(); } };
+    // El reloj avanza como mucho 1/30 s por fotograma: si el móvil va cargado al abrir la app,
+    // la animación va más lenta en vez de saltarse entera.
+    let raf = 0, antes = 0, t = -0.25, saliendo = -1, acabado = false, cuadros = 0, seguro = 0;
+    const terminar = () => { if (!acabado) { acabado = true; cancelAnimationFrame(raf); clearTimeout(seguro); fin.current(); } };
     const paso = (ahora: number) => {
-      if (!t0) t0 = ahora + 250;                 // un instante con el logo quieto antes de empezar
-      const t = Math.max(0, (ahora - t0) / 1000);
-      esc.completa(Math.min(t, DURA));
-      if (saliendo < 0 && t >= DURA - 0.25) saliendo = ahora;
+      if (cuadros++ > 1) t += Math.min(1 / 30, Math.max(0, (ahora - antes) / 1000));   // los 2 primeros fotogramas no cuentan
+      antes = ahora;
+      esc.completa(Math.max(0, Math.min(t, DURA)));
+      if (fijo.current) fijo.current.style.visibility = t > 0.1 ? 'hidden' : '';
+      if (saliendo < 0 && t >= DURA - 0.25) saliendo = t;
       if (saliendo >= 0) {
-        const k = c01((ahora - saliendo) / 1000 / SALIDA);
+        const k = c01((t - saliendo) / SALIDA);
         cp.style.opacity = String(1 - easeIn(k));
         if (k >= 1) return terminar();
       }
       raf = requestAnimationFrame(paso);
     };
-    raf = requestAnimationFrame(paso);
-    const saltar = () => { if (saliendo < 0) saliendo = performance.now(); };
+    // Espera a que estén listas las imágenes del logo (máx. 1,5 s) antes de arrancar
+    const listas = ['/brand/logo-tejado.png', '/brand/logo-palabra.png'].map(src => {
+      const im = new Image(); im.src = src; return im.decode ? im.decode().catch(() => undefined) : Promise.resolve();
+    });
+    let cancelado = false;
+    Promise.race([Promise.all(listas), new Promise(r => setTimeout(r, 1500))]).then(() => {
+      if (cancelado) return;
+      raf = requestAnimationFrame(paso);
+      seguro = window.setTimeout(terminar, 12000);   // por si el navegador para la animación del todo
+    });
+    const saltar = () => { if (saliendo < 0) saliendo = Math.max(t, 0); };
     cp.addEventListener('pointerdown', saltar);
-    const seguro = window.setTimeout(terminar, (DURA + 2) * 1000);   // por si el navegador para la animación
-    return () => { cancelAnimationFrame(raf); cp.removeEventListener('pointerdown', saltar); clearTimeout(seguro); };
+    return () => { cancelado = true; cancelAnimationFrame(raf); cp.removeEventListener('pointerdown', saltar); clearTimeout(seguro); };
   }, []);
 
   return (
     <div ref={capa} className="arranque-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción">
+      {/* el mismo logo de la pantalla de carga, debajo, hasta que la animación ya está en marcha */}
+      <img ref={fijo} className="cf-cargando-logo" src="/brand/logo-pegatina.png" alt="" />
       <svg ref={lienzo} viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true"
         dangerouslySetInnerHTML={{ __html: escena('cfp-') }} />
       <span className="arranque-saltar">Toca para saltar</span>

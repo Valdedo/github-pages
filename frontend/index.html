@@ -18,10 +18,13 @@
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; background: #F2F4F0; color: #1A1A1A; font-family: 'Montserrat', system-ui, sans-serif; }
+      /* Logo pegatina mientras carga: mismo sitio y tamaño que al empezar la animación del camión */
+      .cf-cargando-logo { position: fixed; left: 50%; top: 50%; width: calc(min(100vw, 480px) * 220 / 393); height: auto;
+        transform: translate(-50%, calc(-50% - min(100vw, 480px) * 70.4 / 393)); pointer-events: none; user-select: none; }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><img class="cf-cargando-logo" src="/brand/logo-pegatina.png" alt="Casa Fonso" /></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

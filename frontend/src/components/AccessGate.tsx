@@ -92,12 +92,13 @@ export function AccessGate({ children }: { children: ReactNode }) {
   };
 
   if (fase === 'dentro') return <>{children}</>;
+  // Mientras comprueba la sesión: el mismo logo pegatina que se ve al cargar la app
+  if (fase === 'cargando') return <img className="cf-cargando-logo" src="/brand/logo-pegatina.png" alt="Casa Fonso" />;
 
   return (
     <div className="acceso">
       <div className="acceso-caja">
         <Logo size={44} />
-        {fase === 'cargando' && <p className="acceso-txt">Cargando…</p>}
 
         {fase === 'sin-conexion' && (
           <>
