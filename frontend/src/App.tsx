@@ -285,7 +285,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
           className={`bottom-nav-item${isSecondaryActive || drawerOpen ? ' active' : ''}`}
           onClick={() => setDrawerOpen(v => !v)}
         >
-          <MoreHorizontal size={22} />
+          <span className="bn-icon"><MoreHorizontal size={22} /></span>
           <span>Más</span>
         </button>
       </nav>

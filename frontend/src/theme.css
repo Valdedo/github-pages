@@ -1240,3 +1240,57 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .carga-resumen-fila { padding: 10px 14px; }
   .carga-resumen-fila .carga-cant { min-width: 64px; }
 }
+
+/* ── Barra de abajo flotante (móvil), estilo cristal ───────────────
+   Separada de los bordes para que no choque con las esquinas curvas
+   del iPhone, y por encima de la rayita de inicio. */
+:root {
+  --nav-alto: 64px;
+  --nav-abajo: max(12px, calc(env(safe-area-inset-bottom, 0px) - 4px));
+  --nav-espacio: calc(var(--nav-alto) + var(--nav-abajo) + 14px);  /* lo que ocupa contando el aire */
+}
+.guardar-barra { bottom: 16px; }
+@media (max-width: 768px) {
+  .bottom-nav {
+    left: 12px; right: 12px; bottom: var(--nav-abajo);
+    height: var(--nav-alto); padding: 0 6px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / .82);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgb(255 255 255 / .7);
+    box-shadow: 0 10px 34px rgb(18 58 38 / .18), 0 1px 3px rgb(18 58 38 / .10), inset 0 1px 0 rgb(255 255 255 / .8);
+  }
+  .bottom-nav-item { text-decoration: none; font-size: 11.5px; gap: 2px; padding: 6px 2px; border-radius: 999px; -webkit-tap-highlight-color: transparent; }
+  .bottom-nav-item span:last-child { text-decoration: none; }
+  .bn-icon { width: 52px; height: 30px; }
+  .bottom-nav-item:active .bn-icon { transform: scale(.92); }
+  .bn-icon { transition: background .2s, transform .12s; }
+
+  /* Que nada quede escondido detrás de la barra */
+  .page, .page-wide { padding-bottom: calc(var(--nav-espacio) + 16px); }
+  .cf-toast, .firma-selbar { bottom: calc(var(--nav-espacio) + 4px); }
+  .fab { bottom: calc(var(--nav-espacio) + 6px); }
+  .consulta-cuenta { bottom: calc(var(--nav-espacio) - 2px); }
+  .guardar-barra { bottom: calc(var(--nav-espacio) + 2px); }
+
+  /* «Más»: sale por encima de la barra, también flotante */
+  .more-drawer {
+    left: 8px; right: 8px; bottom: calc(var(--nav-espacio) - 4px);
+    border-radius: 28px; border: 1px solid rgb(255 255 255 / .7);
+    padding-bottom: 18px;
+    background: rgb(255 255 255 / .94);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    box-shadow: 0 12px 40px rgb(18 58 38 / .22);
+    max-height: calc(100dvh - var(--nav-espacio) - 80px); overflow-y: auto;
+  }
+  .more-drawer:not(.more-drawer-open) { transform: translateY(calc(100% + var(--nav-espacio))); }
+
+  /* Cabecera de arriba: respeta la zona de la hora y la batería */
+  .mobile-header { padding-top: env(safe-area-inset-top, 0px); height: calc(60px + env(safe-area-inset-top, 0px)); }
+}
+/* Sin cristal (navegadores antiguos): fondo blanco liso */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (max-width: 768px) { .bottom-nav { background: var(--surface); } }
+}

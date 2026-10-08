@@ -425,7 +425,7 @@ export function RepairDetailPage() {
 
       {/* ── Barra de guardar (solo con cambios) ── */}
       {dirty && (
-        <div className="guardar-barra" style={{ bottom: isMobile ? 76 : 16 }}>
+        <div className="guardar-barra">
           <span>Cambios sin guardar</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => { setForm(repairToForm(repair)); setDirty(false); setError(''); }}>
