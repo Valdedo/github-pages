@@ -24,6 +24,7 @@ import { TurnosPage } from './pages/TurnosPage';
 import { AjustesPage } from './pages/AjustesPage';
 import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
+import { CabeceraCamion } from './components/CabeceraCamion';
 import { AccessGate } from './components/AccessGate';
 import { CodigosModal } from './components/CodigosModal';
 import { MiCodigoModal } from './components/MiCodigoModal';
@@ -196,6 +197,9 @@ function MobileHeader() {
   // Find current section (for title + clickable root link)
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
   const title = location.pathname === '/' ? '' : (section?.label ?? '');
+
+  // Inicio: cabecera animada con el camión
+  if (location.pathname === '/') return <CabeceraCamion />;
 
   return (
     <header className="mobile-header">

@@ -1321,3 +1321,27 @@ button.tc:hover .tc-lapiz { opacity: 1; }
     box-shadow: 0 12px 32px rgb(18 58 38 / .22), 0 2px 6px rgb(18 58 38 / .10), inset 0 1px 0 rgb(255 255 255 / .9);
   }
 }
+
+/* ── Cabecera de Inicio con el camión (móvil) ───────────────── */
+.cabecera-camion { display: none; }
+@media (max-width: 768px) {
+  .cabecera-camion {
+    display: block; position: relative; flex-shrink: 0; overflow: hidden;
+    height: calc(176px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--bg);
+    z-index: var(--z-header);
+    transition: box-shadow .2s;
+  }
+  .cabecera-camion.recogida { background: var(--surface); box-shadow: 0 1px 0 var(--border), 0 6px 18px rgb(18 58 38 / .06); }
+  .cabecera-escena { position: relative; width: 100%; height: 100%; }
+  .cabecera-escena > * { position: absolute; left: 0; top: 0; will-change: transform; }
+  .cabecera-tejado { width: 56px; height: auto; z-index: 3; }
+  .cabecera-letras { width: 190px; transform-origin: 50% 0; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .cabecera-letras img { width: 116px; height: auto; display: block; }
+  .cabecera-letras span { font: 500 11.5px var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--cf-grafito); white-space: nowrap; }
+  .cabecera-cam { z-index: 2; opacity: 0; }
+  .cabecera-cam svg { display: block; }
+  .cabecera-mini { left: 50%; top: 14px; opacity: 0; z-index: 4; display: block; }
+  .cabecera-mini img { height: 32px; width: auto; display: block; }
+}
