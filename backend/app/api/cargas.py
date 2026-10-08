@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -335,16 +335,47 @@ def anular_firma(eid: int, db: Session = Depends(get_db)):
     return e
 
 
-@router.get("/entregas/{eid}/pdf")
-def pdf(eid: int, db: Session = Depends(get_db)):
+def _hoja(db: Session, eid: int):
     e = _entrega(db, eid)
     png = None
     if e.firma_archivo and (_dir() / e.firma_archivo).exists():
         png = (_dir() / e.firma_archivo).read_bytes()
-    datos = carga_service.hoja_pdf(e, png)
     nombre = f"Hoja de entrega {e.numero or e.id} - {e.cliente or 'cliente'}.pdf".replace("/", "-")
+    return carga_service.hoja_pdf(e, png), nombre
+
+
+@router.get("/entregas/{eid}/pdf")
+def pdf(eid: int, download: bool = False, db: Session = Depends(get_db)):
+    datos, nombre = _hoja(db, eid)
+    modo = "attachment" if download else "inline"
     return Response(datos, media_type="application/pdf",
-                    headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(nombre)}"})
+                    headers={"Content-Disposition": f"{modo}; filename*=UTF-8''{quote(nombre)}"})
+
+
+@router.get("/entregas/{eid}/hoja")
+def hoja_info(eid: int, db: Session = Depends(get_db)):
+    """Cuántas páginas tiene la hoja y cómo se llama (para verla dentro de la app)."""
+    from pdf2image import pdfinfo_from_bytes
+    datos, nombre = _hoja(db, eid)
+    try:
+        paginas = int(pdfinfo_from_bytes(datos).get("Pages", 1))
+    except Exception:
+        paginas = 1
+    return {"paginas": paginas, "nombre": nombre}
+
+
+@router.get("/entregas/{eid}/pagina/{n}.png")
+def hoja_pagina(eid: int, n: int, dpi: int = Query(default=110, ge=50, le=220), db: Session = Depends(get_db)):
+    """Una página de la hoja como imagen: se ve igual en cualquier móvil y sirve para imprimir."""
+    import io
+    from pdf2image import convert_from_bytes
+    datos, _ = _hoja(db, eid)
+    imgs = convert_from_bytes(datos, dpi=dpi, first_page=n, last_page=n)
+    if not imgs:
+        raise HTTPException(404, "Página no encontrada")
+    buf = io.BytesIO()
+    imgs[0].save(buf, "PNG", optimize=True)
+    return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 class Treyfact(BaseModel):

@@ -1199,3 +1199,13 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .carga-entrega .pedido-linea { padding-left: 12px; }
   .ana-fila.estatica { flex-wrap: wrap; }
 }
+
+/* Visor de la hoja de entrega dentro de la app */
+.hoja-visor { position: fixed; inset: 0; z-index: 450; display: flex; flex-direction: column; background: #3A3F3A; }
+.hoja-visor-barra { display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); background: var(--surface); flex-wrap: nowrap; box-shadow: 0 2px 12px rgb(0 0 0 / .2); }
+.hoja-visor-esp { flex: 1; }
+.hoja-visor-barra .btn { min-height: 44px; }
+.hoja-visor-paginas { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 14px 10px max(20px, env(safe-area-inset-bottom)); }
+.hoja-visor-paginas img { width: 100%; max-width: 860px; height: auto; background: #fff; box-shadow: 0 4px 18px rgb(0 0 0 / .35); border-radius: 2px; }
+@media (max-width: 350px) { .hoja-visor-txt { display: none; } .hoja-visor-barra .btn { padding: 0 14px; } }
+.hoja-visor-barra .btn { padding: 0 12px; gap: 6px; white-space: nowrap; }

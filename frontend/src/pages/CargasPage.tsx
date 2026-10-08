@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import {
   listarCargas, verCarga, borrarCarga, leerCarga, fotoCargaUrl, nuevaEntregaCarga, editarEntregaCarga,
-  borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, hojaEntregaUrl, treyfactEntregaCarga,
+  borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, treyfactEntregaCarga,
   nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError,
   type OrdenCarga, type EntregaCarga, type LineaCarga,
 } from '../api/client';
@@ -15,6 +15,7 @@ import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
 import { numES } from '../components/AvisoCliente';
 import { SignaturePad } from './FirmaDetailPage';
+import { HojaVisor } from '../components/HojaVisor';
 
 const cant = (n: number | null | undefined) => (n == null ? '' : String(+n.toFixed(2)).replace('.', ','));
 const fechaHora = (iso?: string | null) => {
@@ -114,6 +115,8 @@ export function CargasPage() {
   const [ordenes, setOrdenes] = useState<OrdenCarga[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [vista, setVista] = useState<'curso' | 'treyfact' | 'todas'>('curso');
+  const [hoja, setHoja] = useState<number | null>(null);
+  const cerrarHoja = useCallback(() => setHoja(null), []);
   const { toast, show } = useCfToast();
 
   const load = useCallback(() => {
@@ -137,6 +140,7 @@ export function CargasPage() {
     <div className="page">
       {error && <ConnectionError message={error} onRetry={load} />}
       {toast}
+      {hoja != null && <HojaVisor entregaId={hoja} onClose={cerrarHoja} />}
       <div className="inicio-head" style={{ marginBottom: 14 }}>
         <div>
           <h1>Órdenes de carga <span className="aviso-chip" style={{ verticalAlign: 'middle' }}>En pruebas</span></h1>
@@ -167,7 +171,7 @@ export function CargasPage() {
                   <b>{e.cliente || 'Sin nombre'}</b>
                   <small>{e.numero} · firmado {fechaHora(e.firmado_at)} · {e.lineas.filter(l => l.cargado_ok || l.cargado).length} materiales</small>
                 </span>
-                <a className="btn btn-ghost btn-sm" href={hojaEntregaUrl(e.id)} target="_blank" rel="noopener noreferrer"><FileText size={15} /> Hoja</a>
+                <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)}><FileText size={15} /> Hoja</button>
                 <button className="btn btn-primary btn-sm" onClick={() => marcarPasado(e)}><Check size={15} /> Ya está pasado</button>
               </div>
             ))}
@@ -391,6 +395,8 @@ export function OrdenCargaPage() {
   const [datos, setDatos] = useState<EntregaCarga | null>(null);
   const [linea, setLinea] = useState<{ entregaId: number; ln: LineaCarga | null } | null>(null);
   const [firmando, setFirmando] = useState<EntregaCarga | null>(null);
+  const [hoja, setHoja] = useState<number | null>(null);
+  const cerrarHoja = useCallback(() => setHoja(null), []);
   const [mas, setMas] = useState(false);
 
   const load = useCallback(() => {
@@ -443,6 +449,7 @@ export function OrdenCargaPage() {
     <div className="page carga-detalle">
       {ConfirmDialog}
       {toast}
+      {hoja != null && <HojaVisor entregaId={hoja} onClose={cerrarHoja} />}
       <div className="pedido-head">
         <div style={{ flex: '1 1 100%', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -525,7 +532,7 @@ export function OrdenCargaPage() {
               {firmada ? (
                 <>
                   <span className="rep-hecha">✓ Firmado por {e.firmado_por} · {fechaHora(e.firmado_at)}</span>
-                  <a className="btn btn-primary" href={hojaEntregaUrl(e.id)} target="_blank" rel="noopener noreferrer"><FileText size={17} /> Hoja de entrega</a>
+                  <button className="btn btn-primary" onClick={() => setHoja(e.id)}><FileText size={17} /> Hoja de entrega</button>
                   <label className="carga-treyfact">
                     <input type="checkbox" checked={!!e.treyfact_at} onChange={ev => pasado(e, ev.target.checked)} /> Pasado a TreyFACT
                   </label>
@@ -537,7 +544,7 @@ export function OrdenCargaPage() {
                   <button className={`btn btn-lg ${faltan === 0 && e.lineas.length > 0 ? 'btn-primary' : 'btn-ghost'}`} disabled={e.lineas.length === 0} onClick={() => setFirmando(e)}>
                     <PenLine size={18} /> Firma del cliente
                   </button>
-                  <a className="btn btn-ghost btn-sm" href={hojaEntregaUrl(e.id)} target="_blank" rel="noopener noreferrer"><FileText size={15} /> Ver la hoja</a>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)}><FileText size={15} /> Ver la hoja</button>
                   {o.entregas.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => quitarEntrega(e)}><Trash2 size={14} /> Quitar pedido</button>}
                 </>
               )}

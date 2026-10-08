@@ -381,6 +381,8 @@ export const leerCarga = (fotos: File[], texto: string, ordenId?: number) => {
   if (ordenId) form.append('orden_id', String(ordenId));
   return api.post<OrdenCarga>('/api/cargas/leer', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 });
 };
+/** Dirección completa del servidor con la sesión, para <img> y descargas. */
+export const withTokenUrl = (path: string) => withToken(`${BASE}${path}`);
 export const fotoCargaUrl = (nombre: string) => withToken(`${BASE}/api/cargas/foto/${encodeURIComponent(nombre)}`);
 export const nuevaEntregaCarga = (ordenId: number) => api.post<OrdenCarga>(`/api/cargas/${ordenId}/entregas`, {});
 export const editarEntregaCarga = (id: number, d: Partial<Omit<EntregaCarga, 'id' | 'lineas'>>) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}`, d);
