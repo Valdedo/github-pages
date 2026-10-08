@@ -84,7 +84,7 @@ function NuevaOrden({ ordenId, onHecho, compacto }: { ordenId?: number; onHecho:
               </small>
               {error && <div className="doc-aviso error">{error}</div>}
             </div>
-            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button className="btn btn-ghost" onClick={() => setEscribir(false)} disabled={leyendo}>Cancelar</button>
               <button className="btn btn-primary" onClick={() => enviar([], texto)} disabled={leyendo || !texto.trim()}>
                 {leyendo ? 'Leyendo…' : 'Preparar la carga'}
@@ -247,7 +247,7 @@ function DatosModal({ e, onClose, onSaved }: { e: EntregaCarga; onClose: () => v
             </div>
             <div><label className="form-label">Notas</label><textarea className="form-input" rows={2} value={f.notas} onChange={set('notas')} /></div>
           </div>
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
           </div>
@@ -307,7 +307,7 @@ function LineaModal({ entregaId, ln, onClose, onSaved, onDelete }: {
               </div>
             )}
           </div>
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {ln && onDelete && <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={onDelete}><Trash2 size={14} /> Quitar</button>}
             <span style={{ flex: 1 }} />
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
@@ -367,10 +367,10 @@ function FirmaModal({ e, onClose, onFirmado }: { e: EntregaCarga; onClose: () =>
           <SignaturePad padRef={pad} onChange={setTinta} />
         </div>
         {error && <div className="doc-aviso error" style={{ marginTop: 10 }}>{error}</div>}
-        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+        <div className="carga-firma-botones">
           <button className="btn btn-ghost btn-lg" onClick={() => pad.current?.clear()} disabled={!tinta}><Eraser size={18} /> Borrar</button>
-          <button className="btn btn-primary btn-lg" style={{ flex: 1, justifyContent: 'center' }} onClick={firmar} disabled={saving || !tinta}>
-            {saving ? 'Guardando…' : <><Check size={20} /> Firmar la entrega</>}
+          <button className="btn btn-primary btn-lg" onClick={firmar} disabled={saving || !tinta}>
+            {saving ? 'Guardando…' : <><Check size={20} /> Firmar</>}
           </button>
         </div>
       </div>
@@ -460,13 +460,15 @@ export function OrdenCargaPage() {
       </div>
 
       {o.fotos.length > 0 && (
+        <div className="carga-fotos-caja">
+        <small>Toca la foto para compararla con la lista</small>
         <div className="carga-fotos">
           {o.fotos.map(f => (
             <button key={f} onClick={() => setFoto(f)} aria-label="Ver la hoja de la libreta">
               <img src={fotoCargaUrl(f)} alt="Hoja de la libreta" loading="lazy" />
             </button>
           ))}
-          <span>Toca la foto para compararla</span>
+        </div>
         </div>
       )}
 

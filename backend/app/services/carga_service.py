@@ -13,7 +13,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 MADRID = ZoneInfo("Europe/Madrid")
-LOGO = Path(__file__).resolve().parent.parent / "assets" / "logo-horizontal.png"
+LOGO = Path(__file__).resolve().parent.parent / "assets" / "logo-albaran.png"
 
 PROMPT = """Eres quien pasa a limpio las hojas de la libreta de pedidos de Casa Fonso, \
 un almacén de materiales de construcción de Boal y Villayón (Asturias). En la libreta se apunta \
@@ -128,119 +128,163 @@ def _num(n: Optional[float]) -> str:
     return (f"{n:.2f}".rstrip("0").rstrip(".")).replace(".", ",")
 
 
+LOPD = ("De conformidad con la Ley Orgánica 15/1999, de 13 de diciembre, de Protección de Datos de Carácter Personal, "
+        "se informa que los datos personales facilitados por usted están incorporados a un fichero titularidad de "
+        "MANUEL FERNANDEZ FERNANDEZ cuya finalidad es el mantenimiento, gestión y prestación de los servicios solicitados, "
+        "así como el mantenimiento de comunicaciones de carácter informativo. Por último, se le informa de que le asisten "
+        "los derechos de acceso, modificación, oposición y cancelación, que podrá ejercitar mediante petición escrita gratuita "
+        "dirigida a MANUEL FERNANDEZ FERNANDEZ LLAVIADA S/N 33720 BOAL (ASTURIAS), a la atención del Responsable del Tratamiento")
+
+
 def hoja_pdf(e, firma_png: Optional[bytes]) -> bytes:
-    """Hoja de entrega de una entrega: cliente, materiales y cantidades, firma. Sin precios."""
-    from reportlab.lib.colors import HexColor
+    """Hoja de entrega con el mismo aspecto que los albaranes de TreyFACT de Casa Fonso,
+    pero sin precios y con la firma del cliente donde van los totales."""
+    from reportlab.lib.colors import HexColor, black, white
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.utils import ImageReader, simpleSplit
     from reportlab.pdfgen import canvas
 
-    verde, bosque, gris, linea = HexColor("#2FAE66"), HexColor("#1F5A3A"), HexColor("#6B7468"), HexColor("#E3E8E0")
     W, H = A4
-    M = 46
+    gris_caja, gris_cab, gris_txt = HexColor("#EFEFEF"), HexColor("#DCDCDC"), HexColor("#7A7A7A")
+    X0, X1 = 30, W - 30
+    T = lambda top: H - top  # coordenadas medidas desde arriba, como en el albarán original
+
+    fecha = (e.firmado_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(MADRID) if e.firmado_at
+             else datetime.now(MADRID))
+
+    # Filas de la tabla: lo cargado; lo que no, va como pendiente
+    filas, pendientes = [], []
+    for ln in e.lineas:
+        llevado = ln.cantidad if ln.cargado_ok else ln.cargado
+        if ln.cantidad is not None and (llevado or 0) < ln.cantidad:
+            falta = ln.cantidad - (llevado or 0)
+            pendientes.append(f"{_num(falta)} {ln.unidad or ''} {ln.descripcion}".replace("  ", " ").strip())
+        if ln.cargado_ok or ln.cargado:
+            filas.append((ln, llevado))
+
+    # Reparto en páginas: unas 17 filas por página; la firma va en la última
+    lineas_txt = []
+    for ln, llevado in filas:
+        partes = simpleSplit((ln.descripcion or "").upper(), "Helvetica", 7.6, 230) or [""]
+        lineas_txt.append((partes, llevado, ln.unidad or ""))
+    paginas, actual, alto = [], [], 0
+    LIMITE = 340  # alto útil de la tabla (pt)
+    for item in lineas_txt:
+        h = 20 + 9 * (len(item[0]) - 1)
+        if actual and alto + h > LIMITE:
+            paginas.append(actual); actual, alto = [], 0
+        actual.append(item); alto += h
+    paginas.append(actual)
+    total_pag = len(paginas)
+
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     c.setTitle(f"Hoja de entrega {e.numero or e.id}")
 
     def cabecera():
-        y = H - M
         if LOGO.exists():
-            c.drawImage(ImageReader(str(LOGO)), M, y - 40, width=185, height=40, mask="auto")
-        c.setFillColor(gris); c.setFont("Helvetica", 8.5)
-        for i, t in enumerate(["Manuel Fernández Fernández · CIF 10770071E",
-                               "Boal y Villayón (Asturias) · Tel. 985 62 04 81",
-                               "casafonsomc@gmail.com"]):
-            c.drawRightString(W - M, y - 10 - i * 11, t)
-        c.setFillColor(bosque); c.setFont("Helvetica-Bold", 20)
-        c.drawString(M, y - 82, "HOJA DE ENTREGA")
-        c.setFont("Helvetica", 10); c.setFillColor(gris)
-        c.drawRightString(W - M, y - 82, f"N.º {e.numero or e.id}")
-        c.setStrokeColor(verde); c.setLineWidth(2.5); c.line(M, y - 92, W - M, y - 92)
-        return y - 116
+            c.drawImage(ImageReader(str(LOGO)), 32, T(70), width=236, height=236 * 370 / 1285, mask="auto")
+        # Datos de la empresa (izquierda)
+        y = 98
+        def t(txt, bold=False, size=8.2, gap=10.5):
+            nonlocal y
+            c.setFont("Helvetica-Bold" if bold else "Helvetica", size); c.setFillColor(black)
+            c.drawString(X0 + 2, T(y), txt); y += gap
+        t("Manuel Fernandez Fernandez", True, 8.4, 12); t("CIF: 10770071E", gap=17)
+        t("ALMACÉN VILLAYÓN:", True, 7.4, 12); t("Valdedo, Villayon", gap=9.5); t("33719 (Asturias)", gap=9.5); t("Telf: 985 924 032", gap=17)
+        t("ALMACÉN BOAL:", True, 7.4, 12); t("Llaviada, Boal", gap=9.5); t("33720 (Asturias)", gap=9.5); t("Telf: 985 620 481", gap=13)
+        t("WhatsApp: 985 62 04 81", True, 8.4, 10.5); t("casafonsomc@gmail.com")
 
-    y = cabecera()
-    fecha = (e.firmado_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(MADRID) if e.firmado_at
-             else datetime.now(MADRID))
+        # Caja gris con el número (derecha)
+        bx = 297
+        c.setFillColor(gris_caja); c.rect(bx, T(163), X1 - bx + 2, 91, stroke=0, fill=1)
+        c.setFillColor(black); c.setFont("Helvetica-Bold", 12.5)
+        c.drawRightString(X1 - 30, T(88), f"HOJA DE ENTREGA  {e.numero or e.id}")
+        c.setFont("Helvetica-Bold", 8.2)
+        c.drawString(bx + 10, T(106), "OBRA /"); c.drawString(bx + 10, T(116), "REFERENCIA")
+        c.drawString(bx + 10, T(136), "Fecha"); c.drawString(bx + 10, T(151), "Hora")
+        c.setFont("Helvetica", 8.2)
+        if e.lugar:
+            c.drawString(bx + 90, T(111), e.lugar.upper()[:38])
+        c.drawString(bx + 90, T(136), fecha.strftime("%d/%m/%Y"))
+        c.drawString(bx + 90, T(151), fecha.strftime("%H:%M"))
 
-    # Datos del cliente
-    c.setFillColor(gris); c.setFont("Helvetica", 8.5)
-    c.drawString(M, y, "CLIENTE"); c.drawString(W / 2 + 10, y, "FECHA DE ENTREGA")
-    c.setFillColor(HexColor("#1A1A1A")); c.setFont("Helvetica-Bold", 13)
-    c.drawString(M, y - 16, (e.cliente or "—")[:48])
-    c.setFont("Helvetica", 11)
-    c.drawString(W / 2 + 10, y - 16, fecha.strftime("%d/%m/%Y · %H:%M"))
-    yy = y - 32
-    c.setFont("Helvetica", 10.5); c.setFillColor(HexColor("#4A5249"))
-    if e.lugar:
-        c.drawString(M, yy, f"Lugar: {e.lugar}"[:70]); yy -= 14
-    if e.telefono:
-        c.drawString(M, yy, f"Teléfono: {e.telefono}"); yy -= 14
-    y = min(yy, y - 46) - 14
+        # Datos del cliente
+        c.setFillColor(gris_txt); c.setFont("Helvetica", 8.2); c.drawString(bx + 4, T(184), "DATOS CLIENTE")
+        c.setFillColor(black); c.setFont("Helvetica-Bold", 9.6); c.drawString(bx + 4, T(196), (e.cliente or "—").upper()[:44])
+        c.setFont("Helvetica", 8.2)
+        y2 = 208
+        for txt in [e.lugar and e.lugar.upper(), e.telefono, "SERVIR EN OBRA" if e.servir else "RECOGE EN ALMACÉN"]:
+            if txt:
+                c.drawString(bx + 4, T(y2), txt[:56]); y2 += 11
 
-    # Tabla de materiales
-    col_c, col_u = M + 70, M + 140
-    def cab_tabla(y):
-        c.setFillColor(HexColor("#F2F4F0")); c.rect(M, y - 6, W - 2 * M, 22, stroke=0, fill=1)
-        c.setFillColor(gris); c.setFont("Helvetica-Bold", 9)
-        c.drawRightString(col_c - 10, y + 1, "CANTIDAD"); c.drawString(col_c, y + 1, "UNIDAD")
-        c.drawString(col_u, y + 1, "MATERIAL")
-        return y - 24
+        # Cabecera de la tabla
+        c.setStrokeColor(black); c.setLineWidth(.6)
+        c.line(X0, T(258), X1, T(258)); c.line(X0, T(272), X1, T(272))
+        c.setFont("Helvetica-Bold", 8.2)
+        c.drawString(X0 + 2, T(268), "CODIGO"); c.drawString(110, T(268), "DESCRIPCION")
+        c.drawRightString(388, T(268), "CANT."); c.drawString(410, T(268), "UNIDAD")
 
-    y = cab_tabla(y)
-    pendientes = []
-    for ln in e.lineas:
-        llevado = ln.cantidad if ln.cargado_ok else ln.cargado
-        if ln.cantidad is not None and (llevado or 0) < ln.cantidad:
-            pendientes.append(ln)
-        if not ln.cargado_ok and not ln.cargado:
-            continue  # lo que no se ha cargado no sale como entregado
-        partes = simpleSplit(ln.descripcion or "", "Helvetica", 11, W - M - col_u)
-        alto = 16 * max(1, len(partes)) + 6
-        if y - alto < 210:
-            c.showPage(); y = cab_tabla(cabecera())
-        c.setFillColor(HexColor("#1A1A1A")); c.setFont("Helvetica-Bold", 11.5)
-        c.drawRightString(col_c - 10, y, _num(llevado))
-        c.setFont("Helvetica", 11); c.drawString(col_c, y, (ln.unidad or "")[:10])
-        for i, p in enumerate(partes or [""]):
-            c.drawString(col_u, y - i * 16, p)
-        y -= alto
-        c.setStrokeColor(linea); c.setLineWidth(.6); c.line(M, y + 8, W - M, y + 8)
+    def pie(n):
+        c.setFillColor(black); c.setFont("Helvetica", 5.6)
+        for i, ln in enumerate(simpleSplit(LOPD, "Helvetica", 5.6, X1 - X0)):
+            c.drawString(X0, T(788 + i * 6.6), ln)
+        c.setFont("Helvetica", 8); c.drawRightString(X1, T(822), f"Página {n} de {total_pag}")
+        c.setFillColor(gris_txt); c.setFont("Helvetica", 7)
+        c.drawString(X0, T(822), "Documento de entrega de material. No es factura ni albarán valorado.")
 
-    if pendientes:
-        y -= 6
-        c.setFillColor(gris); c.setFont("Helvetica-Oblique", 9.5)
-        txt = "Queda pendiente de entregar: " + "; ".join(
-            f"{_num((p.cantidad or 0) - ((p.cantidad if p.cargado_ok else p.cargado) or 0))} {p.unidad or ''} {p.descripcion}".replace("  ", " ")
-            for p in pendientes)
-        for i, p in enumerate(simpleSplit(txt, "Helvetica-Oblique", 9.5, W - 2 * M)[:4]):
-            c.drawString(M, y - i * 12, p)
-        y -= 12 * min(4, len(simpleSplit(txt, "Helvetica-Oblique", 9.5, W - 2 * M))) + 4
+    for n, filas_pag in enumerate(paginas, 1):
+        cabecera()
+        y = 290
+        c.setFillColor(black)
+        for partes, llevado, unidad in filas_pag:
+            c.setFont("Helvetica", 7.6)
+            for i, p in enumerate(partes):
+                c.drawString(110, T(y + i * 9), p)
+            c.drawRightString(388, T(y), f"{llevado:.2f}".replace(".", ",") if llevado is not None else "")
+            c.drawString(410, T(y), unidad)
+            y += 20 + 9 * (len(partes) - 1)
+        if n == total_pag and pendientes:
+            c.setFont("Helvetica-Oblique", 7.6); c.setFillColor(gris_txt)
+            txt = "QUEDA PENDIENTE DE ENTREGAR: " + "; ".join(pendientes).upper()
+            for i, p in enumerate(simpleSplit(txt, "Helvetica-Oblique", 7.6, 440)[:4]):
+                c.drawString(110, T(y + 4 + i * 9.5), p)
 
-    # Firma
-    if y < 200:
-        c.showPage(); cabecera()
-    caja_y = M + 40
-    c.setStrokeColor(linea); c.setLineWidth(1)
-    c.roundRect(M, caja_y, W - 2 * M, 120, 10, stroke=1, fill=0)
-    c.setFillColor(gris); c.setFont("Helvetica", 8.5)
-    c.drawString(M + 14, caja_y + 104, "RECIBÍ CONFORME — FIRMA DEL CLIENTE")
-    if firma_png:
-        try:
-            img = ImageReader(io.BytesIO(firma_png))
-            iw, ih = img.getSize()
-            esc = min(230 / iw, 78 / ih)
-            c.drawImage(img, M + 14, caja_y + 16, width=iw * esc, height=ih * esc, mask="auto")
-        except Exception as ex:
-            logger.warning("No se pudo poner la firma en la hoja %s: %s", e.id, ex)
-    c.setFillColor(HexColor("#1A1A1A")); c.setFont("Helvetica", 10.5)
-    xd = W / 2 + 30
-    if e.firmado_por:
-        c.drawString(xd, caja_y + 78, f"Nombre: {e.firmado_por}"[:44])
-    if e.firmado_dni:
-        c.drawString(xd, caja_y + 60, f"DNI: {e.firmado_dni}")
-    if e.firmado_at:
-        c.drawString(xd, caja_y + 42, f"Firmado: {fecha.strftime('%d/%m/%Y %H:%M')}")
-    c.setFillColor(gris); c.setFont("Helvetica", 8)
-    c.drawCentredString(W / 2, M + 16, "Documento de entrega de material. No es factura ni albarán de venta.")
+        if n < total_pag:
+            c.setFillColor(gris_txt); c.setFont("Helvetica", 8); c.drawRightString(X1, T(650), "Sigue en la página siguiente")
+        else:
+            # Zona de firma, donde el albarán lleva los totales
+            top = 643
+            c.setFillColor(gris_cab); c.rect(X0 + 2, T(top + 13), 325, 13, stroke=0, fill=1)
+            c.setFillColor(black); c.setFont("Helvetica", 7.8)
+            c.drawString(X0 + 12, T(top + 9.5), "Recibí conforme — firma del cliente")
+            c.setStrokeColor(HexColor("#BBBBBB")); c.setLineWidth(.6)
+            c.rect(X0 + 2, T(top + 112), 325, 99, stroke=1, fill=0)
+            if firma_png:
+                try:
+                    img = ImageReader(io.BytesIO(firma_png))
+                    iw, ih = img.getSize()
+                    esc = min(290 / iw, 84 / ih)
+                    c.drawImage(img, X0 + 2 + (325 - iw * esc) / 2, T(top + 106), width=iw * esc, height=ih * esc, mask="auto")
+                except Exception as ex:
+                    logger.warning("No se pudo poner la firma en la hoja %s: %s", e.id, ex)
+
+            # Columna de datos de la firma (como Bruto / Neto…)
+            lx, vx = 412, X1
+            c.setFillColor(gris_caja); c.rect(lx, T(top + 92), 80, 92, stroke=0, fill=1)
+            filas_f = [("Firmado por", (e.firmado_por or "")[:22]), ("DNI", e.firmado_dni or ""),
+                       ("Fecha", fecha.strftime("%d/%m/%Y") if e.firmado_at else ""),
+                       ("Hora", fecha.strftime("%H:%M") if e.firmado_at else ""),
+                       ("Pendiente", "Sí" if pendientes else "No")]
+            for i, (k, v) in enumerate(filas_f):
+                yy = top + 12 + i * 17
+                c.setFillColor(black); c.setFont("Helvetica", 7.8); c.drawRightString(lx + 74, T(yy), k)
+                c.setFont("Helvetica-Bold" if i == 0 else "Helvetica", 7.8); c.drawRightString(vx, T(yy), v)
+            c.setFillColor(HexColor("#3C3C3C")); c.rect(lx, T(top + 114), 80, 20, stroke=0, fill=1)
+            c.setFillColor(white); c.setFont("Helvetica-Bold", 10.5); c.drawCentredString(lx + 40, T(top + 108), "ENTREGADO" if e.firmado_at else "SIN FIRMAR")
+            c.setFillColor(black); c.setFont("Helvetica-Bold", 9.5)
+            c.drawRightString(vx, T(top + 108), f"{len(filas)} línea{'s' if len(filas) != 1 else ''}")
+        pie(n)
+        c.showPage()
     c.save()
     return buf.getvalue()

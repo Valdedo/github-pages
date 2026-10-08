@@ -1180,3 +1180,22 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .carga-entrega-pie .btn-lg { width: 100%; justify-content: center; }
   .carga-cant { min-width: 0; margin-right: 4px; }
 }
+/* Órdenes de carga: que nada se salga en móviles estrechos */
+.carga-nueva .btn, .carga-entrega-pie .btn, .carga-firma-cuerpo .btn, .carga-detalle .seccion .btn,
+.carga-detalle .modal .btn, .carga-entrega-head .btn { min-width: 0; white-space: normal; text-align: center; line-height: 1.25; }
+.carga-nueva > * { min-width: 0; }
+.carga-fotos-caja { margin: 12px 0; }
+.carga-fotos-caja > small { display: block; font-size: 13px; color: var(--text-3); margin-bottom: 6px; }
+.carga-fotos-caja .carga-fotos { margin: 0; }
+.carga-firma-botones { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin-top: 14px; }
+.carga-firma-botones .btn-primary { justify-content: center; }
+.carga-entrega-head { flex-wrap: wrap; }
+.carga-entrega-head h2 { overflow-wrap: anywhere; }
+.carga-card-txt b, .ana-txt b { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .carga-nueva .btn-lg { min-height: 56px; font-size: 15px; padding: 10px 12px; }
+  .carga-entrega-head { padding: 14px 14px 10px; }
+  .carga-entrega-pie { padding: 12px 14px; }
+  .carga-entrega .pedido-linea { padding-left: 12px; }
+  .ana-fila.estatica { flex-wrap: wrap; }
+}
