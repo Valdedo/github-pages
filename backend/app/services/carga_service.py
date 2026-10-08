@@ -260,13 +260,13 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
             c.drawRightString(388, T(y), f"{llevado:.2f}".replace(".", ",") if llevado is not None else "")
             c.drawString(410, T(y), unidad)
             y += 20 + 9 * (len(partes) - 1)
-        if n == total_pag and pendientes:
+        if n == len(paginas) and pendientes:
             c.setFont("Helvetica-Oblique", 7.6); c.setFillColor(gris_txt)
             txt = "QUEDA PENDIENTE DE ENTREGAR: " + "; ".join(pendientes).upper()
             for i, p in enumerate(simpleSplit(txt, "Helvetica-Oblique", 7.6, 440)[:4]):
                 c.drawString(110, T(y + 4 + i * 9.5), p)
 
-        if n < total_pag:
+        if n < len(paginas):
             c.setFillColor(gris_txt); c.setFont("Helvetica", 8); c.drawRightString(X1, T(650), "Sigue en la página siguiente")
         else:
             # Zona de firma, donde el albarán lleva los totales
