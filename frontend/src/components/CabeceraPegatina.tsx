@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ESCENA_PEGATINA } from './pegatinaEscena';
 
 /**
- * Estilo «pegatina» (en pruebas, solo el encargado en el móvil).
+ * Estilo «pegatina» (móvil, todos los usuarios).
  * - CabeceraPegatina: el logo pegado arriba de Inicio; al bajar se va con la página, sin más.
  * - ArranquePegatina: al abrir la app, el logo centrado se despega, se pega en la puerta del camión
  *   y el camión se lo lleva; luego aparece la app. Se salta tocando la pantalla.
@@ -172,8 +172,8 @@ export function CabeceraPegatina() {
 
 /** Solo al abrir la app de cero (una vez por carga), en Inicio. */
 let yaArranco = false;
-export function debeArrancar(ruta: string) {
-  if (yaArranco || ruta !== '/') return false;
+export function debeArrancar(ruta: string, inicio: string) {
+  if (yaArranco || ruta !== inicio) return false;
   yaArranco = true;
   return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }

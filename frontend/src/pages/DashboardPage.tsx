@@ -11,7 +11,6 @@ import { TurnoHoy } from '../components/TurnoHoy';
 import { AvisosCard } from '../components/AvisosCard';
 import { CabeceraPegatina } from '../components/CabeceraPegatina';
 import { useIsMobile } from '../hooks';
-import { getRol } from '../auth';
 import type { ClientDeliveryNote, DashboardStats } from '../types';
 
 const EMPTY_STATS: DashboardStats = {
@@ -55,7 +54,7 @@ function Tile({ to, titulo, valor, detalle, destacado }: { to: string; titulo: s
 export function DashboardPage() {
   const navigate = useNavigate();
   const esMovil = useIsMobile();
-  const pegatina = esMovil && getRol() === 'admin';
+  const pegatina = esMovil;
   const fileRef = useRef<HTMLInputElement>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [notes, setNotes] = useState<ClientDeliveryNote[]>([]);

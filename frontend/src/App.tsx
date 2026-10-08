@@ -198,8 +198,8 @@ function MobileHeader() {
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
   const title = location.pathname === '/' ? '' : (section?.label ?? '');
 
-  // En pruebas: en Inicio, el encargado ve la cabecera «pegatina» en lugar de la barra de arriba
-  if (location.pathname === '/' && getRol() === 'admin') return null;
+  // En Inicio, la cabecera es el logo pegatina (dentro de la página) en lugar de la barra de arriba
+  if (location.pathname === '/') return null;
 
   return (
     <header className="mobile-header">
@@ -303,8 +303,10 @@ function RepartoShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const enLista = location.pathname === '/reparto';
+  const [arranque, setArranque] = useState(() => window.innerWidth <= 768 && debeArrancar(window.location.pathname, '/reparto'));
   return (
     <div className="reparto-layout">
+      {arranque && <ArranquePegatina onFin={() => setArranque(false)} />}
       <header className="reparto-header">
         {enLista ? (
           <Logo size={22} onDark />
@@ -338,8 +340,8 @@ function AppShell() {
 function FullShell() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
   const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0, correo: 0 });
-  // En pruebas (encargado, móvil): animación del camión al abrir la app en Inicio
-  const [arranque, setArranque] = useState(() => getRol() === 'admin' && window.innerWidth <= 768 && debeArrancar(window.location.pathname));
+  // Móvil: animación del camión al abrir la app en Inicio
+  const [arranque, setArranque] = useState(() => window.innerWidth <= 768 && debeArrancar(window.location.pathname, '/'));
 
   // Load badge counts (pending repairs + pending orders)
   useEffect(() => {
