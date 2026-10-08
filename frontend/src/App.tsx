@@ -197,6 +197,9 @@ function MobileHeader() {
   const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
   const title = location.pathname === '/' ? '' : (section?.label ?? '');
 
+  // En pruebas: en Inicio, el encargado ve la cabecera «pegatina» en lugar de la barra de arriba
+  if (location.pathname === '/' && getRol() === 'admin') return null;
+
   return (
     <header className="mobile-header">
       {isDoc ? (

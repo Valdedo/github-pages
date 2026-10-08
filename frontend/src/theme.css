@@ -1345,3 +1345,12 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .cabecera-mini { left: 50%; top: 14px; opacity: 0; z-index: 4; display: block; }
   .cabecera-mini img { height: 32px; width: auto; display: block; }
 }
+
+/* ── Cabecera «pegatina» de Inicio (móvil, en pruebas) ─────────── */
+.cab-pegatina-zona { padding-top: env(safe-area-inset-top, 0px); margin: -10px -14px -8px; }
+.cab-pegatina { position: relative; width: 100%; }
+.cab-pegatina svg { position: absolute; top: 0; left: 0; width: 100%; height: auto; overflow: hidden; pointer-events: none; }
+.cab-pegatina-velo {
+  position: fixed; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top, 0px) + 16px);
+  background: linear-gradient(var(--bg) 55%, rgb(242 244 240 / 0)); pointer-events: none; z-index: 35;
+}
