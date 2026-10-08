@@ -1417,9 +1417,10 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   .treyfact-fila .ana-txt { flex: 1 1 100%; }
   .treyfact-fila .treyfact-hecho { justify-content: flex-start; }
 }
-/* Accesos rápidos de Inicio con pegatina */
-.inicio-rapido > span.rapido-peg { width: 62px; height: 58px; background: none; border-radius: 0; }
-.inicio-rapido .peg-ilus { animation: none; }
-@media (max-width: 768px) {
-  .inicio-rapido:has(.rapido-peg) { flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; min-height: 124px; padding: 14px 10px; }
-}
+/* Accesos rápidos de Inicio: cada uno es una pegatina (sin tarjeta) */
+.accesos-peg { gap: 6px 14px !important; padding: 14px 6px 0; }
+.acceso-peg { display: block; padding: 4px 6px; -webkit-tap-highlight-color: transparent; transition: transform .15s var(--ease-out); }
+.acceso-peg svg { display: block; width: 100%; height: auto; }
+.acceso-peg:hover { transform: translateY(-2px) rotate(-1deg); }
+.acceso-peg:active { transform: scale(.94); }
+@media (min-width: 769px) { .acceso-peg { max-width: 220px; justify-self: center; width: 100%; } }

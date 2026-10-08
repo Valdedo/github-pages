@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { CAMION_CUERPO } from './camionCuerpo';
 
 /**
@@ -177,5 +178,27 @@ export function Vacio({ dibujo, camion, titulo, texto, children }: {
       {texto && <div className="peg-vacio-texto">{texto}</div>}
       {children}
     </div>
+  );
+}
+
+/**
+ * Acceso rápido hecho pegatina: el dibujo grande y el texto en una cinta que lo cruza,
+ * todo recortado junto con el borde blanco. Sin tarjeta alrededor.
+ */
+export function AccesoPegatina({ to, dibujo, escala = 1, lineas, giro = 0, color = '#123A26' }: {
+  to: string; dibujo: Dibujo; escala?: number; lineas: [string, string]; giro?: number; color?: string;
+}) {
+  const ancho = Math.max(lineas[0].length, lineas[1].length) * 9.6 + 26;
+  const html = `<g filter="url(#cfs-pega)" transform="rotate(${giro} 80 70)">
+    <g transform="translate(80 50) scale(${escala})">${DIBUJOS[dibujo]}</g>
+    <g transform="translate(80 104) rotate(${-giro * 1.6 - 3})">
+      <rect x="${-ancho / 2}" y="-21" width="${ancho}" height="42" rx="9" fill="${color}"/>
+      <text y="-3" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="600" font-size="17" fill="#fff">${lineas[0]}</text>
+      <text y="15" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="500" font-size="15" fill="#BFE8CF">${lineas[1]}</text>
+    </g></g>`;
+  return (
+    <Link to={to} className="acceso-peg" aria-label={`${lineas[0]} ${lineas[1]}`}>
+      <svg viewBox="0 0 160 140" aria-hidden="true" style={{ overflow: 'visible' }} dangerouslySetInnerHTML={{ __html: html }} />
+    </Link>
   );
 }

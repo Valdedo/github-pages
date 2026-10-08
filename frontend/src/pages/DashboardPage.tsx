@@ -10,7 +10,7 @@ import { CorreoCard } from '../components/CorreoCard';
 import { TurnoHoy } from '../components/TurnoHoy';
 import { AvisosCard } from '../components/AvisosCard';
 import { CabeceraPegatina } from '../components/CabeceraPegatina';
-import { Ilustracion } from '../components/Pegatinas';
+import { Ilustracion, AccesoPegatina } from '../components/Pegatinas';
 import { useIsMobile } from '../hooks';
 import type { ClientDeliveryNote, DashboardStats } from '../types';
 
@@ -212,11 +212,11 @@ export function DashboardPage() {
         </section>
       </div>
 
-      <section className="inicio-rapidos" aria-label="Accesos rápidos">
-        <Link to="/firmas" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="albaranBoli" tam={58} /></span>Firmar un albarán</Link>
-        <Link to="/consulta" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="precio" tam={58} escala={1.15} /></span>Consultar un precio</Link>
-        <Link to="/reparaciones?new=1" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="llaveSola" tam={58} escala={1.4} /></span>Nueva reparación</Link>
-        <Link to="/pedidos?new=1" className="inicio-rapido"><span className="rapido-peg"><Ilustracion dibujo="cajaMas" tam={58} escala={1.5} /></span>Nuevo pedido</Link>
+      <section className="inicio-rapidos accesos-peg" aria-label="Accesos rápidos">
+        <AccesoPegatina to="/firmas" dibujo="albaranBoli" escala={1.05} lineas={['Firmar', 'un albarán']} giro={-3} />
+        <AccesoPegatina to="/consulta" dibujo="precio" escala={1.15} lineas={['Consultar', 'un precio']} giro={3} color="#1F5A3A" />
+        <AccesoPegatina to="/reparaciones?new=1" dibujo="llaveSola" escala={1.4} lineas={['Nueva', 'reparación']} giro={3} color="#1F5A3A" />
+        <AccesoPegatina to="/pedidos?new=1" dibujo="cajaMas" escala={1.5} lineas={['Nuevo', 'pedido']} giro={-3} />
       </section>
     </div>
   );
