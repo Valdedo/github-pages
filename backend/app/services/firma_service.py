@@ -42,6 +42,21 @@ def _row_right_of(words, label_words, max_dx=260):
     return min(cands, key=lambda w: w["x0"])["text"] if cands else ""
 
 
+def _line_right_of(words, label_words, max_gap=40):
+    """Todas las palabras a la derecha de una etiqueta en la misma línea (hasta un hueco grande)."""
+    last = label_words[-1]
+    cands = sorted((w for w in words
+                    if abs(w["top"] - last["top"]) < 3 and w["x0"] > last["x1"] - 1 and w not in label_words),
+                   key=lambda w: w["x0"])
+    out, x = [], last["x1"]
+    for w in cands:
+        if out and w["x0"] - x > max_gap:
+            break
+        out.append(w["text"])
+        x = w["x1"]
+    return " ".join(out).strip()
+
+
 def _find_seq(words, seq):
     """Busca una secuencia de palabras consecutivas en la misma línea (ignora mayúsculas/tildes)."""
     norm = lambda s: s.lower().replace("ó", "o").replace("á", "a")
@@ -107,7 +122,7 @@ def parse_albaran(pdf_bytes: bytes, filename: str = "") -> AlbaranMeta:
 
     lbl = _find_seq(words, ["REFERENCIA"])
     if lbl:
-        meta.obra = _row_right_of(words, lbl)
+        meta.obra = _line_right_of(words, lbl)[:200]
     return meta
 
 
@@ -133,6 +148,17 @@ def _find_slot(pdf_bytes: bytes) -> Optional[tuple]:
     return (W - 30 - SLOT_W, y, SLOT_W, SLOT_H)
 
 
+def _texto_ajustado(c, texto: str, x: float, y: float, ancho: float, size: float, minimo: float = 5.5):
+    """Escribe el texto entero; si no cabe, con letra más pequeña y, como último recurso, cortado con «…»."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    while size > minimo and stringWidth(texto, "Helvetica", size) > ancho:
+        size -= 0.5
+    while len(texto) > 1 and stringWidth(texto, "Helvetica", size) > ancho:
+        texto = texto[:-2] + "…"
+    c.setFont("Helvetica", size)
+    c.drawString(x, y, texto)
+
+
 def _draw_box(c, box, sig_png: bytes, nombre: str, dni: str, firmado_el: str):
     x, y, w, h = box
     ink, grey = Color(0.1, 0.1, 0.1), Color(0.45, 0.45, 0.45)
@@ -144,16 +170,17 @@ def _draw_box(c, box, sig_png: bytes, nombre: str, dni: str, firmado_el: str):
     c.drawString(x + 8, y + h - 13, "Recibí conforme")
     img = ImageReader(io.BytesIO(sig_png))
     iw, ih = img.getSize()
-    area_w, area_h = w - 16, h - 46
+    base = 40 if dni else 28                       # con DNI, una línea más bajo la raya
+    area_w, area_h = w - 16, h - base - 18
     sc = min(area_w / iw, area_h / ih)
     dw, dh = iw * sc, ih * sc
-    c.drawImage(img, x + 8 + (area_w - dw) / 2, y + 30 + (area_h - dh) / 2, dw, dh, mask="auto")
+    c.drawImage(img, x + 8 + (area_w - dw) / 2, y + base + 2 + (area_h - dh) / 2, dw, dh, mask="auto")
     c.setStrokeColor(grey)
     c.setLineWidth(0.5)
-    c.line(x + 8, y + 28, x + w - 8, y + 28)
-    who = nombre + (f"   DNI {dni}" if dni else "")
-    c.setFont("Helvetica", 8)
-    c.drawString(x + 8, y + 17, who[:60])
+    c.line(x + 8, y + base, x + w - 8, y + base)
+    _texto_ajustado(c, nombre, x + 8, y + base - 11, w - 16, 8)
+    if dni:
+        _texto_ajustado(c, f"DNI {dni}", x + 8, y + 17, w - 16, 8)
     c.setFillColor(grey)
     c.setFont("Helvetica", 7)
     c.drawString(x + 8, y + 7, f"Firmado el {firmado_el}")

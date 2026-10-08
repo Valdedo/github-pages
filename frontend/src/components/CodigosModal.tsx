@@ -1,13 +1,9 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, LogOut } from 'lucide-react';
 import { accesoCodigo, accesoCerrarTodas, accesoEstado, describeApiError, type PersonaAcceso } from '../api/client';
 import { setSesion, getRol } from '../auth';
 import { useCfToast } from './CfToast';
-
-const errorDe = (err: unknown) => {
-  const ax = err as { response?: { data?: { detail?: string } } };
-  return ax.response?.data?.detail || describeApiError(err);
-};
 
 /** Códigos de acceso: uno por persona. Solo el encargado (Andrés) los cambia. */
 export function CodigosModal({ onClose }: { onClose: () => void }) {
@@ -20,7 +16,7 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     if (!admin) return;
-    accesoEstado().then(r => setPersonas(r.data.personas ?? [])).catch(e => setError(errorDe(e)));
+    accesoEstado().then(r => setPersonas(r.data.personas ?? [])).catch(e => setError(describeApiError(e)));
   }, [admin]);
 
   const guardar = async (p: PersonaAcceso) => {
@@ -32,7 +28,7 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
       setNuevo(n => ({ ...n, [p.id]: '' }));
       setPersonas(ps => ps?.map(x => x.id === p.id ? { ...x, tiene_codigo: true } : x) ?? null);
       show(`Código de ${p.nombre} cambiado. Tendrá que escribir el nuevo la próxima vez.`);
-    } catch (err) { setError(errorDe(err)); } finally { setGuardando(null); }
+    } catch (err) { setError(describeApiError(err)); } finally { setGuardando(null); }
   };
 
   const cerrarTodas = async () => {
@@ -41,21 +37,23 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
       const { data } = await accesoCerrarTodas();
       setSesion(data.token, data.rol, data.persona);
       show('Sesiones cerradas en todos los demás dispositivos');
-    } catch (err) { setError(errorDe(err)); }
+    } catch (err) { setError(describeApiError(err)); }
   };
 
-  return (
+  // Fuera del cajón «Más» (en el móvil, si no, queda atrapado dentro y con los estilos del menú)
+  return createPortal(
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal codigos-modal" role="dialog" aria-label="Códigos de acceso">
         <div className="turno-modal-head">
           <div><h3>Códigos de acceso</h3></div>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={20} /></button>
         </div>
+        {error && <p className="acceso-error" role="alert">{error}</p>}
         {!admin ? (
           <p className="turnos-ayuda">Solo Andrés puede cambiar los códigos. Si has olvidado el tuyo, pídeselo a él.</p>
         ) : personas === null ? <p>Cargando…</p> : (
           <>
-            <p className="turnos-ayuda">Cada persona tiene su código. Al cambiar uno, solo esa persona tendrá que volver a escribirlo.</p>
+            <p className="turnos-ayuda">Cada persona tiene su código (mínimo 4 números o letras, sin espacios). Al cambiar uno, solo esa persona tendrá que volver a escribirlo.</p>
             <div className="codigos-lista">
               {personas.map(p => (
                 <div key={p.id} className="codigos-persona">
@@ -63,10 +61,11 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
                     <b>{p.nombre}</b>
                     <small>{p.rol === 'admin' ? 'Encargado' : p.rol === 'reparto' ? 'Reparto' : p.id === 'tienda' ? 'Para los dispositivos compartidos' : 'Tienda'}{!p.tiene_codigo && ' · sin código'}</small>
                   </div>
-                  <input className="form-input" inputMode="numeric" autoComplete="off" placeholder="Nuevo"
-                    value={nuevo[p.id] || ''} onChange={e => setNuevo(n => ({ ...n, [p.id]: e.target.value }))} aria-label={`Código nuevo de ${p.nombre}`} />
-                  <button className="btn btn-primary btn-sm" disabled={guardando === p.id || (nuevo[p.id] || '').trim().length < 4} onClick={() => guardar(p)}>
-                    {guardando === p.id ? '…' : 'Cambiar'}
+                  <input className="form-input" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="Código nuevo" maxLength={32}
+                    value={nuevo[p.id] || ''} onChange={e => setNuevo(n => ({ ...n, [p.id]: e.target.value.replace(/\s/g, '') }))}
+                    onKeyDown={e => { if (e.key === 'Enter' && (nuevo[p.id] || '').trim().length >= 4) guardar(p); }} aria-label={`Código nuevo de ${p.nombre}`} />
+                  <button className="btn btn-primary codigos-cambiar" disabled={guardando === p.id || (nuevo[p.id] || '').trim().length < 4} onClick={() => guardar(p)}>
+                    {guardando === p.id ? 'Guardando…' : 'Cambiar'}
                   </button>
                 </div>
               ))}
@@ -74,9 +73,9 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
             <button className="btn btn-ghost" onClick={cerrarTodas}><LogOut size={16} /> Cerrar sesión en todos los dispositivos</button>
           </>
         )}
-        {error && <p className="acceso-error" role="alert">{error}</p>}
       </div>
       {toast}
-    </div>
+    </div>,
+    document.body,
   );
 }

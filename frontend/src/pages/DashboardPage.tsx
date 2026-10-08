@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  ArrowUpRight, Upload, PenLine, Search, Wrench, Plus, Check, Mail, Receipt, MessageCircle, FileText,
-} from 'lucide-react';
-import { getDashboardStats, listFirmas, uploadFirmas, describeApiError } from '../api/client';
+import { ArrowUpRight, Upload, PenLine, Check, Mail, Receipt, MessageCircle, FileText } from 'lucide-react';
+import { getDashboardStats, listFirmas, listDocuments, uploadFirmas, describeApiError } from '../api/client';
+import { ES_MANUAL } from '../lib/proveedor';
 import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { CorreoCard } from '../components/CorreoCard';
@@ -12,7 +11,7 @@ import { AvisosCard } from '../components/AvisosCard';
 import { CabeceraPegatina } from '../components/CabeceraPegatina';
 import { Ilustracion, AccesoPegatina } from '../components/Pegatinas';
 import { useIsMobile } from '../hooks';
-import type { ClientDeliveryNote, DashboardStats } from '../types';
+import type { ClientDeliveryNote, DashboardStats, DocumentListItem } from '../types';
 
 const EMPTY_STATS: DashboardStats = {
   documents: { total: 0, processing: 0 },
@@ -36,6 +35,12 @@ function hoyISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 const hora = (iso?: string | null) => (iso ? iso.split('T')[1]?.slice(0, 5) ?? '' : '');
+/** Días de calendario desde una fecha (0 = hoy, 1 = ayer…). */
+const diasDesde = (iso: string) => {
+  const d = new Date(iso); const h = new Date();
+  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()), b = Date.UTC(h.getFullYear(), h.getMonth(), h.getDate());
+  return Math.max(0, Math.round((b - a) / 86400000));
+};
 
 interface Actividad { key: string; at: string; titulo: string; detalle: string; tipo: 'firma' | 'correo' | 'whatsapp' | 'factura' | 'proveedor'; to: string }
 
@@ -62,12 +67,14 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [docs, setDocs] = useState<DocumentListItem[]>([]);
 
   const load = useCallback(async () => {
     setLoadError(null);
-    const [st, fi] = await Promise.allSettled([getDashboardStats(), listFirmas()]);
+    const [st, fi, dc] = await Promise.allSettled([getDashboardStats(), listFirmas(), listDocuments()]);
     if (st.status === 'fulfilled') setStats(st.value.data);
     if (fi.status === 'fulfilled') setNotes(fi.value.data);
+    if (dc.status === 'fulfilled') setDocs(dc.value.data);
     if (st.status === 'rejected' && fi.status === 'rejected') setLoadError(describeApiError(st.reason));
     setLoading(false);
   }, []);
@@ -82,7 +89,13 @@ export function DashboardPage() {
   const porFacturar = notes.filter(n => n.status === 'firmado' && !n.facturado_at);
   const importeFacturar = porFacturar.reduce((t, n) => t + (n.importe ?? 0), 0);
   const empresasFacturar = new Set(porFacturar.map(n => n.codigo_cliente || n.cliente || '—')).size;
-  const viejo = porFirmar.reduce((m, n) => Math.max(m, Math.floor((Date.now() - new Date(n.created_at).getTime()) / 86400000)), 0);
+  const viejo = porFirmar.reduce((m, n) => Math.max(m, diasDesde(n.created_at)), 0);
+  const detalleFirmar = porFirmar.length === 0 ? 'Todo firmado'
+    : viejo === 0 ? 'Albaranes de hoy'
+    : viejo === 1 ? 'Desde ayer'
+    : porFirmar.length === 1 ? `Hace ${viejo} días` : `El más antiguo, hace ${viejo} días`;
+  // Albaranes de proveedor leídos que falta revisar y pasar a TreyFACT
+  const porTerminar = docs.filter(d => !d.terminado_at && (d.status === 'completed' || d.status === 'error'));
 
   // Lo que se ha hecho hoy, lo más reciente arriba
   const actividad = useMemo<Actividad[]>(() => {
@@ -96,7 +109,7 @@ export function DashboardPage() {
       if (n.facturado_at?.startsWith(hoy)) a.push({ key: `b${n.id}`, at: n.facturado_at, titulo: `Facturado ${n.numero}`, detalle: cli, tipo: 'factura', to: `/firmas/${n.id}` });
     });
     s.recent_documents.forEach(d => {
-      if (d.created_at?.startsWith(hoy)) a.push({ key: `d${d.id}`, at: d.created_at, titulo: 'Albarán de proveedor procesado', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
+      if (d.created_at?.startsWith(hoy) && !ES_MANUAL(d.supplier_name)) a.push({ key: `d${d.id}`, at: d.created_at, titulo: 'Albarán de proveedor procesado', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
     });
     return a.sort((x, y) => (y.at > x.at ? 1 : -1)).slice(0, 7);
   }, [notes, s.recent_documents]);
@@ -163,7 +176,7 @@ export function DashboardPage() {
 
       <section className="inicio-tiles" aria-label="Pendiente">
         <Tile to="/firmas?vista=firmar" destacado titulo="Por firmar" valor={loading ? 0 : porFirmar.length}
-          detalle={porFirmar.length === 0 ? 'Todo firmado' : viejo >= 2 ? `Uno lleva ${viejo} días esperando` : 'Albaranes de hoy'} />
+          detalle={detalleFirmar} />
         <Tile to="/firmas?vista=facturar" titulo="Por facturar" valor={loading ? 0 : porFacturar.length}
           detalle={porFacturar.length === 0 ? 'Nada pendiente' : `De ${empresasFacturar} empresa${empresasFacturar !== 1 ? 's' : ''}${importeFacturar > 0 ? ` · ${euros(importeFacturar)}` : ''}`} />
         <Tile to="/reparaciones" titulo="Reparaciones listas" valor={s.repairs.reparada}
@@ -175,18 +188,18 @@ export function DashboardPage() {
       <div className="inicio-cols">
         <section className="card inicio-bloque" aria-label="Para no olvidar">
           <h2>Para no olvidar</h2>
-          <div className="firmas-avisos inicio-avisos"><FirmasAvisos /></div>
-          {s.repairs.reparada === 0 && <p className="inicio-aldia">Todo al día. Aquí saldrá lo que se esté quedando atrás.</p>}
-          {s.repairs.reparada > 0 && (
-            <Link to="/reparaciones" className="inicio-aviso">
-              <span className="inicio-aviso-ico"><Wrench size={20} /></span>
+          {porTerminar.length > 0 && (
+            <Link to="/albaranes" className="inicio-aviso">
+              <span className="inicio-aviso-ico"><FileText size={20} /></span>
               <span className="inicio-aviso-txt">
-                <b>{s.repairs.reparada} reparación{s.repairs.reparada > 1 ? 'es' : ''} lista{s.repairs.reparada > 1 ? 's' : ''} para entregar</b>
-                <small>Llama al cliente para que pase a recogerla</small>
+                <b>{porTerminar.length === 1 ? 'Un albarán de proveedor por terminar' : `${porTerminar.length} albaranes de proveedor por terminar`}</b>
+                <small>Revisar precios y pasar a TreyFACT{porTerminar.some(d => d.status === 'error') ? ' · alguno no se pudo leer' : ''}</small>
               </span>
               <span className="btn btn-primary btn-sm">Ver</span>
             </Link>
           )}
+          <div className="firmas-avisos inicio-avisos"><FirmasAvisos /></div>
+          {porTerminar.length === 0 && <p className="inicio-aldia">Todo al día. Aquí saldrá lo que se esté quedando atrás.</p>}
         </section>
 
 

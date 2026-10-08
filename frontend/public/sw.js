@@ -4,7 +4,7 @@
  *   cada albarán y sus páginas para poder abrirlos y firmarlos sin señal.
  * Lo demás va siempre a la red (nada de datos viejos en la tienda).
  */
-const VERSION = 'cf-v2';
+const VERSION = 'cf-v3';
 const APP = `${VERSION}-app`;
 const DATOS = `${VERSION}-datos`;
 
@@ -22,22 +22,36 @@ self.addEventListener('activate', e => {
 
 const esHTML = res => res.ok && (res.headers.get('content-type') || '').includes('text/html');
 
-/** Guarda la portada y los archivos que usa (y borra los de versiones anteriores). */
+// Los archivos «legacy» solo los usan navegadores muy viejos (que no tienen service worker)
+const esLegacy = p => /-legacy[-.]/.test(p);
+
+/** Guarda la portada y los archivos que usa (y borra los de versiones anteriores).
+ *  Las partes que se cargan al abrir cada apartado (carga por partes) no se descargan aquí:
+ *  se guardan la primera vez que se usan. */
 async function guardarApp(res) {
   const c = await caches.open(APP);
   const r = res || await fetch('/', { cache: 'no-store' });
   if (!esHTML(r)) return;
   const html = await r.clone().text();
-  const assets = [...new Set(html.match(/\/assets\/[^"'\s)]+/g) || [])];
+  const assets = [...new Set(html.match(/\/assets\/[^"'\s)]+/g) || [])].filter(p => !esLegacy(p));
   await c.put('/', r.clone());
+  const vigentes = new Set(assets);
   for (const a of assets) {
-    if (!(await c.match(a))) {
-      try { const x = await fetch(a); if (x.ok && !esHTML(x)) await c.put(a, x); } catch { /* sin red */ }
+    let x = await c.match(a);
+    if (!x) {
+      try { const y = await fetch(a); if (y.ok && !esHTML(y)) { await c.put(a, y.clone()); x = y; } } catch { /* sin red */ }
+    }
+    // Las partes de esta versión que nombra el archivo principal se conservan (si ya estaban guardadas)
+    if (x && a.endsWith('.js')) {
+      try {
+        const js = await x.clone().text();
+        for (const m of js.match(/[\w.-]+-[\w-]{8}\.(?:js|css)/g) || []) vigentes.add(`/assets/${m}`);
+      } catch { /* nada */ }
     }
   }
   for (const k of await c.keys()) {
     const p = new URL(k.url).pathname;
-    if (p.startsWith('/assets/') && !assets.includes(p)) await c.delete(k);
+    if (p.startsWith('/assets/') && (!vigentes.has(p) || esLegacy(p))) await c.delete(k);
   }
   for (const extra of ['/manifest.webmanifest', '/brand/icon-192.png']) {
     if (!(await c.match(extra))) { try { await c.add(extra); } catch { /* nada */ } }
@@ -53,7 +67,6 @@ const GUARDAR = [
   /^\/api\/turnos\/hoy$/,
   /^\/api\/turnos\/cuadrante$/,
   /^\/api\/turnos\/ajustes$/,
-  /^\/api\/acceso\/estado$/,
   /^\/api\/cargas$/,                      // órdenes de carga (en pruebas)
   /^\/api\/cargas\/\d+$/,
   /^\/api\/cargas\/foto\/[\w.-]+$/,
@@ -66,11 +79,49 @@ function clave(url) {
   return u.toString();
 }
 
+// Poda: como mucho MAX entradas y nada de más de 14 días
+const MAX = 200;
+const DIAS = 14 * 86400000;
+let podando = false;
+async function podar(c) {
+  if (podando) return;
+  podando = true;
+  try {
+    const ks = await c.keys(); // en el orden en que se guardaron
+    const viejas = [];
+    for (const k of ks) {
+      const r = await c.match(k);
+      const t = Number(r && r.headers.get('x-guardado')) || 0;
+      if (!t || Date.now() - t > DIAS) viejas.push(k);
+    }
+    for (const k of viejas) await c.delete(k);
+    const resto = ks.filter(k => !viejas.includes(k));
+    for (const k of resto.slice(0, Math.max(0, resto.length - MAX))) await c.delete(k);
+  } finally { podando = false; }
+}
+
+/** Copia de la respuesta con la hora a la que se guardó. */
+async function conHora(res) {
+  const h = new Headers(res.headers);
+  h.set('x-guardado', String(Date.now()));
+  return new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: h });
+}
+
+/** La copia guardada, marcada para que la app avise de que son datos de hace un rato. */
+async function desdeCache(res) {
+  const h = new Headers(res.headers);
+  h.set('X-Desde-Cache', '1');
+  return new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: h });
+}
+
 /** Red primero; si no hay red o tarda más de 5 s y hay copia guardada, la copia. */
-async function redPrimero(req) {
+async function redPrimero(req, e) {
   const c = await caches.open(DATOS);
   const red = fetch(req).then(res => {
-    if (res.ok) c.put(clave(req.url), res.clone());
+    if (res.ok) {
+      const guardar = conHora(res.clone()).then(r => c.put(clave(req.url), r)).then(() => podar(c)).catch(() => {});
+      try { e.waitUntil(guardar); } catch { /* la respuesta ya se dio: se guarda igual */ }
+    }
     return res;
   });
   const guardada = await c.match(clave(req.url));
@@ -78,9 +129,9 @@ async function redPrimero(req) {
   const espera = new Promise(ok => setTimeout(() => ok(null), 5000));
   try {
     const res = await Promise.race([red, espera]);
-    return res || guardada;
+    return res || desdeCache(guardada);
   } catch {
-    return guardada;
+    return desdeCache(guardada);
   }
 }
 
@@ -117,7 +168,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (GUARDAR.some(rx => rx.test(url.pathname))) {
-    e.respondWith(redPrimero(req));
+    e.respondWith(redPrimero(req, e));
   }
 });
 

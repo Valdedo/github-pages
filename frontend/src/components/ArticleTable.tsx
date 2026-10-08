@@ -9,18 +9,49 @@ import {
 } from '@tanstack/react-table';
 import { updateArticle, deleteArticle, createArticle, bulkDeleteArticles, bulkUpdateMargin, listArticles } from '../api/client';
 import { useConfirm } from './ConfirmModal';
+import { borrarArticuloYa, mensajeError } from '../lib/descargas';
 import type { Article } from '../types/index';
 
-// Validate numeric fields before sending to API
+const NUMERICOS = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
+const OPCIONALES = ['descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'recargo_pct'];
+
+/** «12,50» o «12.50» → 12.5; vacío → null; texto → NaN */
+const leerNumero = (raw: string): number | null => {
+  const t = raw.trim().replace(/\s/g, '');
+  if (!t) return null;
+  const limpio = /,\d+$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  return /^-?\d*\.?\d+$/.test(limpio) ? parseFloat(limpio) : NaN;
+};
+
+/** Comprueba un dato antes de mandarlo. Devuelve el mensaje de error o null si está bien. */
 function validateField(field: string, value: number | null): string | null {
-  if (value === null) return null;
-  if (field === 'cantidad' && value <= 0) return 'La cantidad debe ser mayor que 0';
-  if (field === 'precio_unitario_bruto' && value < 0) return 'El precio no puede ser negativo';
+  if (value !== null && isNaN(value)) return 'Escribe solo un número (por ejemplo 12,50)';
+  if (value === null) {
+    if (OPCIONALES.includes(field)) return null;
+    if (field === 'cantidad') return 'Escribe la cantidad (tiene que ser mayor que 0)';
+    if (field === 'precio_unitario_bruto') return 'Escribe el precio de compra';
+    if (field === 'margen_pct') return 'Escribe el margen en %';
+    return 'Este dato no puede quedar vacío';
+  }
+  if (field === 'cantidad' && value <= 0) return 'La cantidad tiene que ser mayor que 0';
+  if (field === 'precio_unitario_bruto' && value < 0) return 'El precio de compra no puede ser negativo';
   if (['descuento_1','descuento_2','descuento_3','descuento_4'].includes(field) && (value < 0 || value > 100))
-    return 'El descuento debe estar entre 0 y 100';
-  if (field === 'iva_pct' && ![0,4,5,10,21].includes(value)) return 'IVA debe ser 0, 4, 5, 10 o 21';
-  if (field === 'margen_pct' && (value < 0 || value > 500)) return 'Margen entre 0% y 500%';
+    return 'El descuento tiene que estar entre 0 y 100 %';
+  if (field === 'iva_pct' && ![0,4,5,10,21].includes(value)) return 'El IVA tiene que ser 0, 4, 5, 10 o 21 %';
+  if (field === 'margen_pct' && (value < 0 || value > 500)) return 'El margen tiene que estar entre 0 y 500 %';
   return null;
+}
+
+/** Comprueba un PVP con IVA para un artículo; devuelve el error o el margen resultante. */
+function revisarPvp(art: Article, pvp: number | null): { error: string } | { margen: number } {
+  if (pvp === null || isNaN(pvp)) return { error: 'Escribe el precio de venta con IVA (por ejemplo 24,90)' };
+  if (pvp <= 0) return { error: 'El precio de venta tiene que ser mayor que 0' };
+  if (!art.coste_neto_unitario || art.coste_neto_unitario <= 0)
+    return { error: 'Este artículo no tiene coste (precio de compra 0). Pon primero el precio de compra para poder fijar el precio de venta.' };
+  const sin = pvp / (1 + (art.iva_pct ?? 21) / 100);
+  const margen = (sin / art.coste_neto_unitario - 1) * 100;
+  if (margen < 0) return { error: `Ese precio está por debajo del coste (${art.coste_neto_unitario.toFixed(2)} € sin IVA): perderías dinero` };
+  return { margen };
 }
 
 interface Props {
@@ -88,23 +119,22 @@ const ch = createColumnHelper<Article>();
 
 export function ArticleTable({ documentId, articles, onArticlesChanged, onSelectedIdsChange, onToast, verifiedIds, onVerify }: Props) {
   const [saving, setSaving] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState<number | null>(null);
-  const [addingRow, setAddingRow] = useState(false);
+  const [nuevo, setNuevo] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
   const [bulkMarginModal, setBulkMarginModal] = useState(false);
   const [bulkMarginValue, setBulkMarginValue] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
-  const [undoQueue, setUndoQueue] = useState<{ id: number; article: Article; timer: ReturnType<typeof setTimeout> } | null>(null);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Borrado pendiente (5 s para deshacer). Si se sale antes, se borra igualmente.
+  const [undoQueue, setUndoQueue] = useState<{ id: number; article: Article } | null>(null);
+  const pendienteRef = useRef<{ id: number; article: Article; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const articlesRef = useRef(articles);
+  articlesRef.current = articles;
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pvpEditId, setPvpEditId] = useState<number | null>(null);
   const [pvpEditValue, setPvpEditValue] = useState('');
   const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
-  const [cardPvpValue, setCardPvpValue] = useState('');
-  const [cardMarginValue, setCardMarginValue] = useState('');
-  const [cardEanValue, setCardEanValue] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -124,21 +154,18 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     return () => window.removeEventListener('beforeunload', handler);
   }, [saving]);
 
-  // Clear undo timer on unmount to prevent deleting after navigation
+  // Si se sale de la página (o se cierra la app) con un borrado pendiente, se hace ya.
   useEffect(() => {
-    return () => {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    const hacerYa = () => {
+      const p = pendienteRef.current;
+      if (!p) return;
+      clearTimeout(p.timer);
+      pendienteRef.current = null;
+      borrarArticuloYa(p.id);
     };
+    window.addEventListener('pagehide', hacerYa);
+    return () => { window.removeEventListener('pagehide', hacerYa); hacerYa(); };
   }, []);
-
-  // Seed EAN input with existing value when a card is expanded
-  useEffect(() => {
-    if (expandedCardId !== null) {
-      const art = articles.find(a => a.id === expandedCardId);
-      setCardEanValue(art?.ean ?? '');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedCardId]);
 
   const filtered = useMemo(() => {
     if (!searchDebounced.trim()) return articles;
@@ -171,14 +198,15 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     }
   };
 
-  const handleUpdate = useCallback(async (id: number, field: string, rawValue: string) => {
-    const numericFields = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
+  /** Guarda un dato de un artículo. Devuelve true si se guardó. */
+  const handleUpdate = useCallback(async (id: number, field: string, rawValue: string): Promise<boolean> => {
     let value: string | number | null = rawValue;
-    if (numericFields.includes(field)) {
-      const n = parseFloat(rawValue.replace(',', '.'));
-      value = isNaN(n) ? null : n;
-      const err = validateField(field, value as number | null);
-      if (err) { onToast?.(err, 'error'); return; }
+    if (NUMERICOS.includes(field)) {
+      value = leerNumero(rawValue);
+      const err = validateField(field, value);
+      if (err) { onToast?.(err, 'error'); return false; }
+    } else if (field === 'descripcion' && !rawValue.trim()) {
+      onToast?.('La descripción no puede quedar vacía', 'error'); return false;
     }
     if (field === 'margen_pct' && value === 0) {
       onToast?.('Atención: margen 0% significa vender al precio de coste, sin beneficio.', 'info');
@@ -187,20 +215,21 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     try {
       if (field === 'margen_pct' && value !== null) {
         const { data } = await updateArticle(id, { margen_pct: value as number, margen_override: true });
-        onArticlesChanged(articles.map(a => a.id === id ? data : a));
+        onArticlesChanged(articlesRef.current.map(a => a.id === id ? data : a));
         onToast?.('Margen actualizado');
-        return;
+        return true;
       }
-      const { data } = await updateArticle(id, { [field]: value });
-      onArticlesChanged(articles.map(a => a.id === id ? data : a));
+      const { data } = await updateArticle(id, { [field]: typeof value === 'string' ? value.trim() : value });
+      onArticlesChanged(articlesRef.current.map(a => a.id === id ? data : a));
       onToast?.('Guardado');
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'Error al guardar';
-      onToast?.(msg, 'error');
+      return true;
+    } catch (err) {
+      onToast?.(mensajeError(err), 'error');
+      return false;
     } finally {
       setSaving(null);
     }
-  }, [articles, onArticlesChanged]);
+  }, [onArticlesChanged, onToast]);
 
   const handleBulkDelete = async () => {
     const ids = [...selectedIds];
@@ -215,18 +244,18 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     try {
       await bulkDeleteArticles(ids);
       setSelectedIds(new Set());
-      onArticlesChanged(articles.filter(a => !ids.includes(a.id)));
+      onArticlesChanged(articlesRef.current.filter(a => !ids.includes(a.id)));
       onToast?.(`${ids.length} artículo${ids.length > 1 ? 's' : ''} eliminado${ids.length > 1 ? 's' : ''}`, 'info');
-    } catch {
-      onToast?.('Error al eliminar', 'error');
+    } catch (e) {
+      onToast?.(mensajeError(e, 'No se pudieron eliminar'), 'error');
     } finally {
       setBulkWorking(false);
     }
   };
 
   const handleBulkMargin = async () => {
-    const pct = parseFloat(bulkMarginValue.replace(',', '.'));
-    if (isNaN(pct) || pct < 0 || pct > 500) { onToast?.('Margen inválido (0-500%)', 'error'); return; }
+    const pct = leerNumero(bulkMarginValue);
+    if (pct === null || isNaN(pct) || pct < 0 || pct > 500) { onToast?.('Escribe un margen entre 0 y 500 %', 'error'); return; }
     const ids = [...selectedIds];
     setBulkWorking(true);
     try {
@@ -237,30 +266,26 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       setBulkMarginModal(false);
       setBulkMarginValue('');
       onToast?.(`Margen ${pct}% aplicado a ${ids.length} artículo${ids.length > 1 ? 's' : ''}`, 'success');
-    } catch {
-      onToast?.('Error al actualizar márgenes', 'error');
+    } catch (e) {
+      onToast?.(mensajeError(e, 'No se pudieron cambiar los márgenes'), 'error');
     } finally {
       setBulkWorking(false);
     }
   };
 
-  const handlePvpOverride = async (article: Article, targetPvpConIva: number) => {
-    if (targetPvpConIva <= 0 || article.coste_neto_unitario <= 0) {
-      onToast?.('PVP inválido', 'error'); return;
-    }
-    const pvpSinIva = targetPvpConIva / (1 + (article.iva_pct || 21) / 100);
-    const impliedMargen = (pvpSinIva / article.coste_neto_unitario - 1) * 100;
-    if (impliedMargen < 0) {
-      onToast?.('Ese PVP está por debajo del coste — el margen sería negativo', 'error'); return;
-    }
+  const handlePvpOverride = async (article: Article, raw: string): Promise<boolean> => {
+    const r = revisarPvp(article, leerNumero(raw));
+    if ('error' in r) { onToast?.(r.error, 'error'); return false; }
     setSaving(article.id);
     try {
-      const { data } = await updateArticle(article.id, { margen_pct: Math.round(impliedMargen * 100) / 100, margen_override: true });
-      onArticlesChanged(articles.map(a => a.id === article.id ? data : a));
+      const { data } = await updateArticle(article.id, { margen_pct: Math.round(r.margen * 100) / 100, margen_override: true });
+      onArticlesChanged(articlesRef.current.map(a => a.id === article.id ? data : a));
       setPvpEditId(null);
-      onToast?.(`PVP fijado — margen resultante: ${impliedMargen.toFixed(1)}%`);
-    } catch {
-      onToast?.('Error al guardar', 'error');
+      onToast?.(`Precio fijado — margen resultante: ${r.margen.toFixed(1)}%`);
+      return true;
+    } catch (e) {
+      onToast?.(mensajeError(e), 'error');
+      return false;
     } finally {
       setSaving(null);
     }
@@ -270,10 +295,28 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     setSaving(article.id);
     try {
       const { data } = await updateArticle(article.id, { margen_override: false });
-      onArticlesChanged(articles.map(a => a.id === article.id ? data : a));
+      onArticlesChanged(articlesRef.current.map(a => a.id === article.id ? data : a));
       onToast?.('Margen restablecido');
+    } catch (e) {
+      onToast?.(mensajeError(e), 'error');
     } finally {
       setSaving(null);
+    }
+  };
+
+  /** Hace ya el borrado que estaba esperando por si se deshacía. */
+  const confirmarPendiente = async () => {
+    const p = pendienteRef.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendienteRef.current = null;
+    setUndoQueue(null);
+    try { await deleteArticle(p.id); }
+    catch (e) {
+      const st = (e as { response?: { status?: number } })?.response?.status;
+      if (st === 404) return; // ya estaba borrado
+      onArticlesChanged([...articlesRef.current, p.article].sort((a, b) => a.line_number - b.line_number));
+      onToast?.(`No se pudo borrar «${p.article.descripcion}»: ${mensajeError(e, 'error')}`, 'error');
     }
   };
 
@@ -286,48 +329,38 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     });
     if (!ok) return;
 
-    const article = articles.find(a => a.id === id)!;
-    // Optimistic remove
-    onArticlesChanged(articles.filter(a => a.id !== id));
+    const article = articlesRef.current.find(a => a.id === id);
+    if (!article) return;
+    // Si había otro borrado esperando, se hace ya (solo un «Deshacer» a la vez)
+    await confirmarPendiente();
+    onArticlesChanged(articlesRef.current.filter(a => a.id !== id));
     setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+    setExpandedCardId(null);
 
-    // Cancel previous undo if pending
-    if (undoQueue) { clearTimeout(undoQueue.timer); await deleteArticle(undoQueue.id); }
-
-    const timer = setTimeout(async () => {
-      try { await deleteArticle(id); } catch { /* already deleted */ }
-      undoTimerRef.current = null;
-      setUndoQueue(null);
-    }, 5000);
-    undoTimerRef.current = timer;
-    setUndoQueue({ id, article, timer });
-    onToast?.('Artículo eliminado — Deshacer', 'info');
+    const timer = setTimeout(() => { confirmarPendiente(); }, 5000);
+    pendienteRef.current = { id, article, timer };
+    setUndoQueue({ id, article });
   };
 
   const handleUndo = () => {
-    if (!undoQueue) return;
-    clearTimeout(undoQueue.timer);
-    undoTimerRef.current = null;
-    onArticlesChanged([...articles, undoQueue.article].sort((a, b) => a.line_number - b.line_number));
+    const p = pendienteRef.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendienteRef.current = null;
+    onArticlesChanged([...articlesRef.current, p.article].sort((a, b) => a.line_number - b.line_number));
     setUndoQueue(null);
     onToast?.('Eliminación deshecha', 'success');
   };
 
-  const handleAddRow = async () => {
-    setAddingRow(true);
-    try {
-      const { data } = await createArticle({
-        document_id: documentId,
-        descripcion: 'Nuevo artículo',
-        cantidad: 1,
-        precio_unitario_bruto: 0,
-        line_number: articles.length + 1,
-      });
-      onArticlesChanged([...articles, data]);
-      onToast?.('Artículo añadido');
-    } finally {
-      setAddingRow(false);
-    }
+  const crearArticulo = async (datos: Partial<Article>) => {
+    const { data } = await createArticle({
+      document_id: documentId,
+      line_number: Math.max(0, ...articlesRef.current.map(a => a.line_number || 0)) + 1,
+      ...datos,
+    });
+    onArticlesChanged([...articlesRef.current, data]);
+    setNuevo(false);
+    onToast?.('Artículo añadido', 'success');
   };
 
   const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
@@ -453,9 +486,9 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
       cell: info => {
         const id = info.row.original.id;
         return (
-          <button onClick={() => handleDelete(id)} disabled={deleting === id}
-            className="btn btn-danger btn-sm" title="Eliminar artículo">
-            {deleting === id ? '…' : '✕'}
+          <button onClick={() => handleDelete(id)}
+            className="btn btn-danger btn-sm" title="Eliminar artículo" aria-label="Eliminar artículo">
+            ✕
           </button>
         );
       },
@@ -479,230 +512,63 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // Mobile card view for small screens — with full inline editing
+  // Móvil: tarjetas; al tocar una se abre su ficha para cambiar cualquier dato
   const MobileCards = () => (
     <div className="article-cards">
       {filtered.length === 0 ? (
         <div style={{ padding: '32px', textAlign: 'center', color: 'var(--grey-500)' }}>
-          {searchDebounced ? 'No hay artículos que coincidan.' : 'Sin artículos. Reprocesa o añade manualmente.'}
+          {searchDebounced ? 'No hay artículos que coincidan.' : 'Sin artículos. Vuelve a leer el albarán o añádelos con «+ Añadir artículo».'}
         </div>
       ) : filtered.map(a => {
         const isExpanded = expandedCardId === a.id;
-        const isSavingThis = saving === a.id;
-
-        const openCard = () => {
-          setExpandedCardId(isExpanded ? null : a.id);
-          setCardPvpValue(a.pvp_con_iva != null ? a.pvp_con_iva.toFixed(2) : '');
-          setCardMarginValue(a.margen_pct != null ? a.margen_pct.toFixed(1) : '');
-        };
-
-        // Live margin preview from PVP input
-        const pvpNum = parseFloat(cardPvpValue.replace(',', '.'));
-        const previewMargin = !isNaN(pvpNum) && pvpNum > 0 && a.coste_neto_unitario > 0
-          ? ((pvpNum / (1 + (a.iva_pct || 21) / 100)) / a.coste_neto_unitario - 1) * 100
-          : null;
-
         const isVerified = verifiedIds?.has(a.id) ?? false;
         return (
-          <div key={a.id} style={{
-            borderBottom: '1px solid var(--border)',
+          <div key={a.id} className="art-tarjeta" style={{
             borderLeft: isVerified ? '4px solid #22c55e' : verifiedIds ? '4px solid transparent' : undefined,
             background: isVerified ? '#f0fdf4' : isExpanded ? 'var(--brand-pale)' : selectedIds.has(a.id) ? '#fff8e1' : 'var(--surface)',
-            transition: 'background 0.2s',
           }}>
-            {/* Card header row — tap to expand editor */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', cursor: 'pointer' }}
-              onClick={verifiedIds ? () => onVerify?.(a.id) : openCard}>
+            {/* Cabecera — tocar abre la ficha */}
+            <div className="art-tarjeta-cab" onClick={verifiedIds ? () => onVerify?.(a.id) : () => setExpandedCardId(isExpanded ? null : a.id)}
+              role="button" aria-expanded={isExpanded}>
               {verifiedIds ? (
-                <span style={{
-                  width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
-                  background: isVerified ? '#22c55e' : '#e5e7eb',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '13px', color: '#fff', fontWeight: 700,
-                }}>
-                  {isVerified ? '✓' : ''}
-                </span>
+                <span className={`art-verif${isVerified ? ' on' : ''}`}>{isVerified ? '✓' : ''}</span>
               ) : (
                 <input type="checkbox" checked={selectedIds.has(a.id)}
                   onChange={() => toggleSelect(a.id)}
                   onClick={e => e.stopPropagation()}
+                  aria-label="Seleccionar"
                   style={{ accentColor: 'var(--primary)', flexShrink: 0 }}
                 />
               )}
-              <span style={{ flex: 1, fontWeight: 600, fontSize: '14px', lineHeight: 1.3 }}>
-                {a.descripcion || '—'}
-              </span>
-              <span style={{
-                background: a.margen_override ? 'var(--accent)' : 'var(--brand)',
-                color: '#fff',
-                padding: '4px 10px', borderRadius: '20px', fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', flexShrink: 0,
-              }}>
+              <span className="art-tarjeta-desc">{a.descripcion || '—'}</span>
+              <span className="art-tarjeta-pvp" style={{ background: a.margen_override ? 'var(--accent)' : 'var(--brand)' }}>
                 {a.pvp_con_iva != null ? `${a.pvp_con_iva.toFixed(2)} €` : '—'}
               </span>
-              {!verifiedIds && <span style={{ fontSize: '12px', color: 'var(--text-3)', flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>}
+              {!verifiedIds && <span className="art-tarjeta-flecha">{isExpanded ? '▲' : '▼'}</span>}
             </div>
 
-            {/* Meta row */}
-            <div className="article-card-meta" style={{ paddingLeft: '36px', paddingTop: 0, paddingBottom: isExpanded ? 0 : '10px' }}>
-              <span title="Cantidad">📦 {a.cantidad ?? '—'}</span>
-              <span title="Coste neto">💰 {a.coste_neto_unitario != null ? `${a.coste_neto_unitario.toFixed(2)} €` : '—'}</span>
-              <span title="Margen" style={{ color: a.margen_override ? 'var(--accent)' : 'var(--success)', fontWeight: 600 }}>
-                {a.margen_override ? '●' : '◉'} {a.margen_pct != null ? `${a.margen_pct.toFixed(1)}%` : '—'}
+            {/* Datos */}
+            <div className="art-tarjeta-meta">
+              <span>Cant. <b>{a.cantidad ?? '—'}</b></span>
+              <span>Coste <b className={!a.coste_neto_unitario ? 'art-sin-coste' : ''}>{a.coste_neto_unitario ? `${a.coste_neto_unitario.toFixed(2)} €` : 'sin coste'}</b></span>
+              <span style={{ color: a.margen_override ? 'var(--accent)' : 'var(--success)' }}>
+                Margen <b>{a.margen_pct != null ? `${a.margen_pct.toFixed(1)}%` : '—'}</b>{a.margen_override ? ' (a mano)' : ''}
               </span>
-              {a.codigo_principal && <span title="Referencia">REF: {a.codigo_principal}</span>}
-              {a.ean && <span title="EAN">EAN: {a.ean}</span>}
+              {a.codigo_principal && <span>Ref. {a.codigo_principal}</span>}
+              {a.ean && <span>EAN {a.ean}</span>}
             </div>
 
-            {/* Expanded edit panel */}
             {isExpanded && (
-              <div style={{ padding: '12px 14px 16px', borderTop: '1px solid var(--brand-light)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-                {/* PVP override */}
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-dark)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                    Fijar precio de venta (c/IVA)
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="text" inputMode="decimal"
-                      value={cardPvpValue}
-                      onChange={e => setCardPvpValue(e.target.value)}
-                      style={{ flex: 1, padding: '9px 12px', border: '2px solid var(--brand)', borderRadius: '8px', fontSize: '16px', fontWeight: 700, fontFamily: 'inherit' }}
-                    />
-                    <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>€</span>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={isSavingThis || !cardPvpValue}
-                      onClick={async () => {
-                        const v = parseFloat(cardPvpValue.replace(',', '.'));
-                        if (!isNaN(v)) {
-                          await handlePvpOverride(a, v);
-                          setExpandedCardId(null);
-                        }
-                      }}
-                    >{isSavingThis ? '…' : 'Guardar'}</button>
-                  </div>
-                  {previewMargin !== null && (
-                    <div style={{ fontSize: '12px', marginTop: '4px', color: previewMargin < 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
-                      {previewMargin < 0 ? '⚠ Por debajo del coste' : `→ Margen resultante: ${previewMargin.toFixed(1)}%`}
-                    </div>
-                  )}
-                </div>
-
-                {/* Margin % */}
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                    Margen %
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="text" inputMode="decimal"
-                      value={cardMarginValue}
-                      onChange={e => setCardMarginValue(e.target.value)}
-                      style={{ flex: 1, padding: '9px 12px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' }}
-                    />
-                    <span style={{ color: 'var(--text-2)', fontWeight: 600 }}>%</span>
-                    <button
-                      className="btn btn-accent btn-sm"
-                      disabled={isSavingThis || !cardMarginValue}
-                      onClick={async () => {
-                        const v = parseFloat(cardMarginValue.replace(',', '.'));
-                        if (!isNaN(v)) {
-                          await handleUpdate(a.id, 'margen_pct', String(v));
-                          setExpandedCardId(null);
-                        }
-                      }}
-                    >{isSavingThis ? '…' : 'Aplicar'}</button>
-                    {a.margen_override && (
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        disabled={isSavingThis}
-                        onClick={async () => { await handleResetMargin(a); setExpandedCardId(null); }}
-                        title="Restablecer margen automático"
-                      >↺ Auto</button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Quantity + IVA row */}
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Cantidad</div>
-                    <input
-                      type="number" step="1" min="0.001"
-                      defaultValue={a.cantidad ?? ''}
-                      onBlur={e => { if (e.target.value !== String(a.cantidad ?? '')) handleUpdate(a.id, 'cantidad', e.target.value); }}
-                      style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' }}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>IVA %</div>
-                    <select
-                      defaultValue={a.iva_pct ?? 21}
-                      onChange={e => handleUpdate(a.id, 'iva_pct', e.target.value)}
-                      style={{ width: '100%', padding: '9px 10px', border: '1.5px solid var(--grey-300)', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit', background: 'var(--surface)' }}
-                    >
-                      {[0, 4, 5, 10, 21].map(v => <option key={v} value={v}>{v}%</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* EAN / Barcode scan */}
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                    EAN / Código de barras
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={cardEanValue}
-                      placeholder="Escanear o escribir EAN…"
-                      onChange={e => setCardEanValue(e.target.value)}
-                      onFocus={e => (e.target as HTMLInputElement).select()}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          const v = cardEanValue.trim();
-                          if (v && v !== (a.ean ?? '')) handleUpdate(a.id, 'ean', v);
-                        }
-                      }}
-                      onBlur={() => {
-                        const v = cardEanValue.trim();
-                        if (v && v !== (a.ean ?? '')) handleUpdate(a.id, 'ean', v);
-                      }}
-                      style={{
-                        flex: 1, padding: '10px 12px',
-                        border: `2px solid ${cardEanValue && cardEanValue !== (a.ean ?? '') ? 'var(--brand)' : 'var(--grey-300)'}`,
-                        borderRadius: '8px', fontSize: '16px',
-                        fontFamily: 'monospace', letterSpacing: '0.04em',
-                        background: 'var(--surface)',
-                      }}
-                    />
-                    {cardEanValue !== (a.ean ?? '') && cardEanValue.trim() && (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={isSavingThis}
-                        onClick={() => handleUpdate(a.id, 'ean', cardEanValue.trim())}
-                        title="Guardar EAN"
-                      >{isSavingThis ? '…' : '✓'}</button>
-                    )}
-                  </div>
-                  {a.ean && (
-                    <div style={{ fontSize: '11px', color: 'var(--success)', marginTop: '5px', fontWeight: 600 }}>
-                      ✓ Guardado: {a.ean}
-                    </div>
-                  )}
-                </div>
-
-                {/* Delete + close */}
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', paddingTop: '4px' }}>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={async () => { await handleDelete(a.id); setExpandedCardId(null); }}
-                  >✕ Eliminar artículo</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setExpandedCardId(null)}>Cerrar</button>
-                </div>
-              </div>
+              <FichaArticulo
+                key={a.id}
+                art={a}
+                guardando={saving === a.id}
+                onUpdate={(campo, v) => handleUpdate(a.id, campo, v)}
+                onPvp={v => handlePvpOverride(a, v)}
+                onResetMargin={() => handleResetMargin(a)}
+                onDelete={() => handleDelete(a.id)}
+                onClose={() => setExpandedCardId(null)}
+              />
             )}
           </div>
         );
@@ -714,48 +580,32 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
     <>
       {ConfirmDialog}
       {/* Undo banner */}
+      {nuevo && <NuevoArticulo onCrear={crearArticulo} onCancelar={() => setNuevo(false)} onError={m => onToast?.(m, 'error')} />}
       {undoQueue && (
-        <div style={{
-          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
-          background: '#1e293b', color: '#fff', padding: '12px 20px',
-          borderRadius: '10px', display: 'flex', gap: '14px', alignItems: 'center',
-          zIndex: 1500, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', fontSize: '14px',
-          animation: 'slideUp 0.2s ease',
-        }}>
+        <div className="art-deshacer" role="status">
           <span>Artículo eliminado</span>
-          <button onClick={handleUndo}
-            style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '13px' }}>
-            Deshacer
-          </button>
+          <button onClick={handleUndo}>Deshacer</button>
         </div>
       )}
     <div className="card">
-      <div className="card-header" style={{ justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          
+      <div className="card-header art-cabecera">
+        <span className="art-cabecera-tit">
           Artículos ({filtered.length}{filtered.length !== articles.length ? ` / ${articles.length}` : ''})
           {selectedIds.size > 0 && (
             <span className="badge badge-grey">{selectedIds.size} sel.</span>
           )}
           {saving && <span style={{ fontSize: '11px', color: 'var(--grey-500)', fontWeight: 400 }}>Guardando…</span>}
         </span>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="art-cabecera-acc">
           <input
-            type="text"
+            type="search"
             placeholder="Buscar descripción, código, EAN…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{
-              padding: '5px 10px',
-              border: '1.5px solid var(--grey-300)',
-              borderRadius: '7px',
-              fontSize: '13px',
-              width: '240px',
-              fontFamily: 'inherit',
-              outline: 'none',
-            }}
+            className="art-buscar"
+            aria-label="Buscar artículos"
           />
-          <button className="btn btn-success btn-sm" onClick={handleAddRow} disabled={addingRow}>
+          <button className="btn btn-success btn-sm" onClick={() => setNuevo(true)}>
             + Añadir artículo
           </button>
         </div>
@@ -789,7 +639,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '28px', width: '320px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: '12px', padding: '24px', width: '320px', maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 16px', fontSize: '16px', color: 'var(--primary)' }}>
               Cambiar margen a {selectedIds.size} artículo{selectedIds.size > 1 ? 's' : ''}
             </h3>
@@ -798,7 +648,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
             </p>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
-                type="number" min="0" max="500" step="1"
+                type="text" inputMode="decimal"
                 placeholder="ej: 35"
                 value={bulkMarginValue}
                 onChange={e => setBulkMarginValue(e.target.value)}
@@ -895,14 +745,11 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <input
-                              type="number" step="0.10" min="0"
+                              type="text" inputMode="decimal"
                               value={pvpEditValue}
                               onChange={e => setPvpEditValue(e.target.value)}
                               onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                  const v = parseFloat(pvpEditValue.replace(',', '.'));
-                                  if (!isNaN(v)) handlePvpOverride(art, v);
-                                }
+                                if (e.key === 'Enter') handlePvpOverride(art, pvpEditValue);
                                 if (e.key === 'Escape') setPvpEditId(null);
                               }}
                               autoFocus
@@ -912,20 +759,15 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
                           </div>
                           <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>
                             Coste neto: {fmtEur(art.coste_neto_unitario)} · IVA {art.iva_pct ?? 21}%
-                            {pvpEditValue && !isNaN(parseFloat(pvpEditValue)) && art.coste_neto_unitario > 0 && (() => {
-                              const pv = parseFloat(pvpEditValue);
-                              const sin = pv / (1 + (art.iva_pct || 21) / 100);
-                              const m = (sin / art.coste_neto_unitario - 1) * 100;
-                              return m >= 0 ? ` → margen ${m.toFixed(1)}%` : ' ⚠ por debajo del coste';
+                            {pvpEditValue.trim() && (() => {
+                              const r = revisarPvp(art, leerNumero(pvpEditValue));
+                              return 'error' in r ? <b style={{ color: 'var(--danger)' }}> — {r.error}</b> : ` → margen ${r.margen.toFixed(1)}%`;
                             })()}
                           </span>
                           <button
                             className="btn btn-primary btn-sm"
                             disabled={saving === art.id}
-                            onClick={() => {
-                              const v = parseFloat(pvpEditValue.replace(',', '.'));
-                              if (!isNaN(v)) handlePvpOverride(art, v);
-                            }}
+                            onClick={() => handlePvpOverride(art, pvpEditValue)}
                           >{saving === art.id ? '…' : 'Guardar'}</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => setPvpEditId(null)}>Cancelar</button>
                         </div>
@@ -949,9 +791,191 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
         <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', marginRight: '4px' }} />Margen automático</span>
         <span><span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)', marginRight: '4px' }} />Margen manual (↺ para restablecer)</span>
         <span className="article-table-desktop">Pulsa un dato para cambiarlo · Enter para guardar · Esc para dejarlo como estaba</span>
-        <span className="article-table-mobile" style={{ display: 'none' }}>Toca un artículo para cambiar su precio o margen</span>
+        <span className="article-table-mobile" style={{ display: 'none' }}>Toca un artículo para cambiar su descripción, coste, precio o margen</span>
       </div>
     </div>
     </>
+  );
+}
+
+const txt = (n: number | null | undefined, d?: number) => (n == null ? '' : d != null ? n.toFixed(d) : String(n));
+
+/** Campo de la ficha que se guarda al salir de él (si cambió). Si no se puede guardar, vuelve a lo que había. */
+function CampoFicha({ etiqueta, valor, onGuardar, tipo = 'decimal', sufijo, ayuda, multilinea }: {
+  etiqueta: string; valor: string; onGuardar: (v: string) => Promise<boolean>;
+  tipo?: 'decimal' | 'texto' | 'numerico'; sufijo?: string; ayuda?: React.ReactNode; multilinea?: boolean;
+}) {
+  const [v, setV] = useState(valor);
+  useEffect(() => { setV(valor); }, [valor]);
+  const guardar = async () => {
+    if (v.trim() === valor.trim()) return;
+    const ok = await onGuardar(v);
+    if (!ok) setV(valor);
+  };
+  const props = {
+    value: v,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setV(e.target.value),
+    onBlur: guardar,
+    className: 'art-ficha-input',
+  };
+  return (
+    <label className="art-ficha-campo">
+      <span className="art-ficha-et">{etiqueta}</span>
+      <span className="art-ficha-fila">
+        {multilinea
+          ? <textarea rows={2} {...props} />
+          : <input type={tipo === 'texto' ? 'text' : 'text'} inputMode={tipo === 'texto' ? 'text' : tipo === 'numerico' ? 'numeric' : 'decimal'}
+              {...props} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />}
+        {sufijo && <span className="art-ficha-suf">{sufijo}</span>}
+      </span>
+      {ayuda && <span className="art-ficha-ayuda">{ayuda}</span>}
+    </label>
+  );
+}
+
+/** Ficha de un artículo en el móvil: todos sus datos se pueden cambiar aquí. */
+function FichaArticulo({ art, guardando, onUpdate, onPvp, onResetMargin, onDelete, onClose }: {
+  art: Article; guardando: boolean;
+  onUpdate: (campo: string, v: string) => Promise<boolean>;
+  onPvp: (v: string) => Promise<boolean>;
+  onResetMargin: () => Promise<void>;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [pvp, setPvp] = useState(txt(art.pvp_con_iva, 2));
+  const [margen, setMargen] = useState(txt(art.margen_pct, 1));
+  useEffect(() => { setPvp(txt(art.pvp_con_iva, 2)); setMargen(txt(art.margen_pct, 1)); }, [art.pvp_con_iva, art.margen_pct]);
+  const r = pvp.trim() && pvp !== txt(art.pvp_con_iva, 2) ? revisarPvp(art, leerNumero(pvp)) : null;
+  const sinCoste = !art.coste_neto_unitario || art.coste_neto_unitario <= 0;
+
+  return (
+    <div className="art-ficha">
+      <CampoFicha etiqueta="Descripción" tipo="texto" multilinea valor={art.descripcion || ''} onGuardar={v => onUpdate('descripcion', v)} />
+
+      <div className="art-ficha-2">
+        <CampoFicha etiqueta="Precio de compra" sufijo="€" valor={txt(art.precio_unitario_bruto)} onGuardar={v => onUpdate('precio_unitario_bruto', v)} />
+        <CampoFicha etiqueta="Descuento" sufijo="%" valor={txt(art.descuento_1)} onGuardar={v => onUpdate('descuento_1', v)} />
+      </div>
+      <div className={`art-ficha-coste${sinCoste ? ' mal' : ''}`}>
+        {sinCoste
+          ? 'Sin coste: pon el precio de compra para poder calcular el precio de venta.'
+          : <>Coste por unidad (con descuentos, sin IVA): <b>{art.coste_neto_unitario.toFixed(2)} €</b></>}
+      </div>
+
+      <div className="art-ficha-2">
+        <CampoFicha etiqueta="Cantidad" valor={txt(art.cantidad)} onGuardar={v => onUpdate('cantidad', v)} />
+        <label className="art-ficha-campo">
+          <span className="art-ficha-et">IVA</span>
+          <select className="art-ficha-input" value={art.iva_pct ?? 21} onChange={e => onUpdate('iva_pct', e.target.value)}>
+            {[0, 4, 5, 10, 21].map(v => <option key={v} value={v}>{v} %</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="art-ficha-campo">
+        <span className="art-ficha-et">Precio de venta (con IVA)</span>
+        <span className="art-ficha-fila">
+          <input className="art-ficha-input fuerte" type="text" inputMode="decimal" value={pvp} onChange={e => setPvp(e.target.value)} aria-label="Precio de venta con IVA" />
+          <span className="art-ficha-suf">€</span>
+          <button className="btn btn-primary btn-sm" disabled={guardando || !pvp.trim() || pvp === txt(art.pvp_con_iva, 2)}
+            onClick={async () => { if (await onPvp(pvp)) onClose(); }}>{guardando ? '…' : 'Fijar'}</button>
+        </span>
+        {r && <span className={`art-ficha-ayuda ${'error' in r ? 'mal' : 'bien'}`}>{'error' in r ? r.error : `Margen resultante: ${r.margen.toFixed(1)} %`}</span>}
+      </div>
+
+      <div className="art-ficha-campo">
+        <span className="art-ficha-et">Margen (recargo sobre el coste)</span>
+        <span className="art-ficha-fila">
+          <input className="art-ficha-input" type="text" inputMode="decimal" value={margen} onChange={e => setMargen(e.target.value)} aria-label="Margen en %" />
+          <span className="art-ficha-suf">%</span>
+          <button className="btn btn-accent btn-sm" disabled={guardando || !margen.trim() || margen === txt(art.margen_pct, 1)}
+            onClick={async () => { if (await onUpdate('margen_pct', margen)) onClose(); }}>{guardando ? '…' : 'Aplicar'}</button>
+          {art.margen_override && (
+            <button className="btn btn-ghost btn-sm" disabled={guardando} onClick={async () => { await onResetMargin(); }}
+              title="Volver al margen automático de Ajustes">Automático</button>
+          )}
+        </span>
+      </div>
+
+      <div className="art-ficha-2">
+        <CampoFicha etiqueta="Referencia" tipo="texto" valor={art.codigo_principal || ''} onGuardar={v => onUpdate('codigo_principal', v)} />
+        <CampoFicha etiqueta="EAN (código de barras)" tipo="numerico" valor={art.ean || ''} onGuardar={v => onUpdate('ean', v)} />
+      </div>
+
+      <div className="art-ficha-pie">
+        <button className="btn btn-danger btn-sm" onClick={onDelete}>Eliminar artículo</button>
+        <button className="btn btn-ghost btn-sm" onClick={onClose}>Cerrar</button>
+      </div>
+    </div>
+  );
+}
+
+/** Ventana para añadir un artículo a mano: no se crea nada hasta pulsar «Añadir». */
+function NuevoArticulo({ onCrear, onCancelar, onError }: {
+  onCrear: (d: Partial<Article>) => Promise<void>; onCancelar: () => void; onError: (m: string) => void;
+}) {
+  const [d, setD] = useState({ descripcion: '', cantidad: '1', precio: '', dto: '', iva: '21', codigo: '', ean: '' });
+  const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const set = (k: keyof typeof d) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => { setD(p => ({ ...p, [k]: e.target.value })); setError(''); };
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancelar(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [onCancelar]);
+
+  const enviar = async () => {
+    const cant = leerNumero(d.cantidad), precio = leerNumero(d.precio), dto = leerNumero(d.dto);
+    const err = !d.descripcion.trim() ? 'Escribe la descripción del artículo'
+      : validateField('cantidad', cant)
+      || (precio === null ? 'Escribe el precio de compra (sin él no se puede calcular el precio de venta)' : validateField('precio_unitario_bruto', precio))
+      || (precio === 0 ? 'El precio de compra tiene que ser mayor que 0' : null)
+      || validateField('descuento_1', dto);
+    if (err) { setError(err); return; }
+    setEnviando(true);
+    try {
+      await onCrear({
+        descripcion: d.descripcion.trim(), cantidad: cant as number, precio_unitario_bruto: precio as number,
+        ...(dto ? { descuento_1: dto } : {}), iva_pct: Number(d.iva),
+        ...(d.codigo.trim() ? { codigo_principal: d.codigo.trim() } : {}), ...(d.ean.trim() ? { ean: d.ean.trim() } : {}),
+      });
+    } catch (e) {
+      const m = mensajeError(e, 'No se pudo añadir el artículo');
+      setError(m); onError(m);
+    } finally { setEnviando(false); }
+  };
+
+  return (
+    <div className="modal-overlay art-nuevo-fondo" onClick={e => { if (e.target === e.currentTarget) onCancelar(); }}>
+      <div className="modal art-nuevo" role="dialog" aria-modal="true" aria-label="Añadir artículo">
+        <h3>Añadir artículo</h3>
+        <label className="art-ficha-campo"><span className="art-ficha-et">Descripción</span>
+          <input className="art-ficha-input" value={d.descripcion} onChange={set('descripcion')} autoFocus placeholder="Ej.: Tornillo SPAX 4x40 caja 200" /></label>
+        <div className="art-ficha-2">
+          <label className="art-ficha-campo"><span className="art-ficha-et">Cantidad</span>
+            <input className="art-ficha-input" inputMode="decimal" value={d.cantidad} onChange={set('cantidad')} /></label>
+          <label className="art-ficha-campo"><span className="art-ficha-et">IVA</span>
+            <select className="art-ficha-input" value={d.iva} onChange={set('iva')}>{[0, 4, 5, 10, 21].map(v => <option key={v} value={v}>{v} %</option>)}</select></label>
+        </div>
+        <div className="art-ficha-2">
+          <label className="art-ficha-campo"><span className="art-ficha-et">Precio de compra (€)</span>
+            <input className="art-ficha-input" inputMode="decimal" value={d.precio} onChange={set('precio')} placeholder="0,00" /></label>
+          <label className="art-ficha-campo"><span className="art-ficha-et">Descuento (%)</span>
+            <input className="art-ficha-input" inputMode="decimal" value={d.dto} onChange={set('dto')} placeholder="0" /></label>
+        </div>
+        <div className="art-ficha-2">
+          <label className="art-ficha-campo"><span className="art-ficha-et">Referencia</span>
+            <input className="art-ficha-input" value={d.codigo} onChange={set('codigo')} /></label>
+          <label className="art-ficha-campo"><span className="art-ficha-et">EAN</span>
+            <input className="art-ficha-input" inputMode="numeric" value={d.ean} onChange={set('ean')} /></label>
+        </div>
+        <p className="art-ficha-ayuda">El precio de venta se calcula con los márgenes de Ajustes; luego puedes cambiarlo.</p>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <div className="art-ficha-pie">
+          <button className="btn btn-ghost" onClick={onCancelar}>Cancelar</button>
+          <button className="btn btn-primary" onClick={enviar} disabled={enviando}>{enviando ? 'Añadiendo…' : 'Añadir'}</button>
+        </div>
+      </div>
+    </div>
   );
 }

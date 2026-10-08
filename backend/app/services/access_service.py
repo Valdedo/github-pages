@@ -165,6 +165,23 @@ def cerrar_todas() -> None:
 
 
 # ── Entrar ───────────────────────────────────────────────────────
+def ip_real(request) -> str:
+    """IP de quien llama. En Railway todo llega por su proxy: se usa la IP que pone el proxy
+    (X-Real-IP o el primer valor de X-Forwarded-For); si no, la de la conexión (que con
+    uvicorn --proxy-headers ya es la del cliente)."""
+    h = request.headers
+    ip = (h.get("x-real-ip") or "").strip() or (h.get("x-forwarded-for") or "").split(",")[0].strip()
+    if not ip:
+        ip = request.client.host if request.client else "?"
+    return ip[:64]
+
+
+def es_su_codigo(persona: str, codigo: str) -> bool:
+    cfg = config(fresh=True)
+    v = (cfg or {}).get("codigos", {}).get(persona)
+    return bool(v and codigo and _check(codigo, v["hash"]))
+
+
 def demasiados_intentos(ip: str) -> bool:
     ahora = time.time()
     lst = [t for t in _fails.get(ip, []) if ahora - t < 600]

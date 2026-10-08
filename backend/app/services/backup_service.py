@@ -93,7 +93,7 @@ def _hojas_de_entrega(db) -> int:
         try:
             leer = lambda n: (d / n).read_bytes() if n and (d / n).exists() else None
             pdf = carga_service.hoja_pdf(e, leer(e.firma_archivo), leer(e.foto_entrega))
-            mes = (e.firmado_at or datetime.utcnow()).strftime("%Y-%m")
+            mes = ((e.firmado_at or datetime.utcnow()).replace(tzinfo=ZoneInfo("UTC")).astimezone(TZ)).strftime("%Y-%m")  # firmado_at va en UTC
             mail_service.backup_pdf(f"Hojas de entrega/{_clean(e.cliente or 'Sin cliente')}/{mes}",
                                     f"{_clean(e.numero or str(e.id))} - {_clean(e.cliente or 'cliente')}.pdf", pdf)
             e.drive_at = datetime.now(TZ).replace(tzinfo=None)

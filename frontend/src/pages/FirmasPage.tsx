@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Upload, Search, PenLine, ChevronRight, FileDown, Mail, MessageCircle, HandHelping, Receipt, Check, X, Truck,
 } from 'lucide-react';
@@ -37,15 +37,20 @@ export const fmtEuros = (v?: number | null) =>
 
 const enviado = (n: ClientDeliveryNote) => !!(n.emailed_at || n.whatsapp_at || n.copia_at);
 
-/** Las cinco marcas de seguimiento: en color si está hecho, en gris si no. */
-export function Marcas({ n }: { n: ClientDeliveryNote }) {
-  const items = [
+/** Las cinco marcas de seguimiento: en color si está hecho, en gris si no.
+ *  Sin firmar solo se enseña lo que ya está hecho (lo demás aún no aplica).
+ *  `sinEstado`: sin la marca «Firmado / Sin firmar» (cuando la pantalla ya lo dice). */
+export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: boolean }) {
+  const firmado = n.status === 'firmado';
+  const todas = [
     { on: n.status === 'firmado', label: n.status === 'firmado' ? 'Firmado' : 'Sin firmar', icon: PenLine, cls: 'firmado' },
     { on: !!n.emailed_at, label: 'Correo', icon: Mail, cls: 'correo' },
     { on: !!n.whatsapp_at, label: 'WhatsApp', icon: MessageCircle, cls: 'whatsapp' },
     { on: !!n.copia_at, label: 'Copia', icon: HandHelping, cls: 'copia' },
     { on: !!n.facturado_at, label: n.factura_ref ? `Facturado ${n.factura_ref}` : 'Facturado', icon: Receipt, cls: 'facturado' },
   ];
+  const items = todas.filter(m => (m.cls === 'firmado' ? !sinEstado : firmado || m.on));
+  if (!items.length) return null;
   return (
     <div className="marcas">
       {items.map(({ on, label, icon: Icon, cls }) => (
@@ -57,9 +62,9 @@ export function Marcas({ n }: { n: ClientDeliveryNote }) {
   );
 }
 
-function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion }: {
+function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado }: {
   n: ClientDeliveryNote; selectable: boolean; selected: boolean;
-  onToggle: () => void; onOpen: () => void; onCamion?: () => void;
+  onToggle: () => void; onOpen: () => void; onCamion?: () => void; camionOcupado?: boolean;
 }) {
   return (
     <div className={`card firma-card${selected ? ' selected' : ''}`} onClick={onOpen} role="button" tabIndex={0}
@@ -82,7 +87,8 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion }: {
         {n.nota && <div style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
       </div>
       {onCamion && (
-        <button className={`camion-btn${n.reparto_at ? ' on' : ''}`} onClick={e => { e.stopPropagation(); onCamion(); }}
+        <button className={`camion-btn${n.reparto_at ? ' on' : ''}`} disabled={camionOcupado} aria-busy={camionOcupado}
+          onClick={e => { e.stopPropagation(); if (!camionOcupado) onCamion(); }}
           title={n.reparto_at ? 'Sacar del camión de reparto' : 'Mandar al camión de reparto'}
           aria-label={n.reparto_at ? `Sacar ${n.numero} del camión` : `Mandar ${n.numero} al camión`}>
           <Truck size={17} /> <span>{n.reparto_at ? 'En el camión' : 'Al camión'}</span>
@@ -93,54 +99,18 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion }: {
   );
 }
 
-/** Ventana para marcar como facturados, con nº de factura opcional. */
-function FacturarModal({ notes, onClose, onDone }: {
-  notes: ClientDeliveryNote[]; onClose: () => void; onDone: (n: ClientDeliveryNote[]) => void;
-}) {
-  const [ref, setRef] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const total = notes.reduce((s, n) => s + (n.importe ?? 0), 0);
-  const clientes = [...new Set(notes.map(n => n.cliente || n.codigo_cliente || 'Sin cliente'))];
-  const ok = async () => {
-    setSaving(true); setError(null);
-    try {
-      const { data } = await marcarFirmas(notes.map(n => n.id), { facturado: true, factura_ref: ref });
-      onDone(data);
-    } catch (err) { setError(describeApiError(err)); setSaving(false); }
-  };
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 420, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700 }}>Marcar como facturados</h3>
-        <p style={{ fontSize: 14, color: 'var(--text-2)' }}>
-          {notes.length} {notes.length !== 1 ? 'albaranes' : 'albarán'} de {clientes.join(', ')}
-          {total > 0 && <> · <strong>{fmtEuros(total)}</strong></>}
-        </p>
-        <label className="form-label">Nº de factura (opcional)
-          <input className="form-input" value={ref} onChange={e => setRef(e.target.value)} autoFocus
-            onKeyDown={e => { if (e.key === 'Enter') ok(); }} />
-        </label>
-        {error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={ok} disabled={saving}>
-            <Check size={15} /> {saving ? 'Guardando…' : 'Marcar facturados'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+/** En el ordenador se puede arrastrar; en el móvil, no. */
+const conRaton = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
 
 export function FirmasPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState<ClientDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [vista, setVista] = useState<Vista>(() => {
     const v = params.get('vista') as Vista | null;
@@ -152,13 +122,24 @@ export function FirmasPage() {
   const [cliente, setCliente] = useState(() => params.get('cliente') || '');
   const [mes, setMes] = useState('');
   const [sel, setSel] = useState<Set<number>>(new Set());
-  const [facturar, setFacturar] = useState<ClientDeliveryNote[] | null>(null);
+  const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
   const { toast, show } = useCfToast();
+  const raton = conRaton();
 
   const cambiarVista = (v: Vista) => {
     setVista(v); setSel(new Set());
     try { sessionStorage.setItem('firmasVista', v); } catch { /* nada */ }
   };
+  const quitarFiltros = () => { setSearch(''); setCliente(''); setMes(''); setEnvio(''); setSel(new Set()); };
+
+  // Los avisos enlazan a /firmas?vista=…&cliente=…: se aplica aunque ya se esté en Firmas
+  useEffect(() => {
+    const v = params.get('vista') as Vista | null;
+    const cl = params.get('cliente');
+    if (!v && !cl) return;
+    if (v && VISTAS.some(x => x.value === v)) cambiarVista(v);
+    setCliente(cl || ''); setSearch(''); setMes(''); setEnvio(''); setSel(new Set());
+  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setLoading(true);
@@ -181,16 +162,22 @@ export function FirmasPage() {
     return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [notes]);
 
-  const count = {
-    firmar: notes.filter(n => n.status === 'pendiente').length,
-    facturar: notes.filter(n => n.status === 'firmado' && !n.facturado_at).length,
+  const enLaVista = (v: Vista, n: ClientDeliveryNote) =>
+    v === 'firmar' ? n.status === 'pendiente'
+    : v === 'facturar' ? n.status === 'firmado' && !n.facturado_at
+    : v === 'facturados' ? !!n.facturado_at
+    : true;
+  const count: Record<Vista, number> = {
+    firmar: notes.filter(n => enLaVista('firmar', n)).length,
+    facturar: notes.filter(n => enLaVista('facturar', n)).length,
+    facturados: notes.filter(n => enLaVista('facturados', n)).length,
+    todos: notes.length,
   };
+  const hayFiltros = !!(search.trim() || cliente || mes || envio);
 
   const q = search.trim().toLowerCase();
   const filtered = notes.filter(n => {
-    if (vista === 'firmar' && n.status !== 'pendiente') return false;
-    if (vista === 'facturar' && (n.status !== 'firmado' || n.facturado_at)) return false;
-    if (vista === 'facturados' && !n.facturado_at) return false;
+    if (!enLaVista(vista, n)) return false;
     if (envio === 'sin' && enviado(n)) return false;
     if (envio === 'correo' && !n.emailed_at) return false;
     if (envio === 'whatsapp' && !n.whatsapp_at) return false;
@@ -233,13 +220,20 @@ export function FirmasPage() {
 
   // Se marca al momento y se ofrece «Deshacer» (sin preguntar «¿seguro?»)
   const marcarFacturados = async (list: ClientDeliveryNote[], facturado: boolean) => {
-    const ids = list.filter(n => n.status === 'firmado').map(n => n.id);
-    if (!ids.length) return;
+    // Solo se factura lo firmado y aún sin facturar; solo se quita lo que está facturado
+    const validos = list.filter(n => facturado ? n.status === 'firmado' && !n.facturado_at : !!n.facturado_at);
+    const sinFirmar = facturado ? list.filter(n => n.status !== 'firmado').length : 0;
+    const ids = validos.map(n => n.id);
+    if (!ids.length) {
+      show(sinFirmar ? `${sinFirmar === 1 ? 'El albarán seleccionado está' : 'Los seleccionados están'} sin firmar: no se puede${sinFirmar !== 1 ? 'n' : ''} marcar como facturado${sinFirmar !== 1 ? 's' : ''}` : 'No hay nada que cambiar en lo seleccionado', { error: true });
+      return;
+    }
     try {
       const { data } = await marcarFirmas(ids, { facturado });
       applyUpdated(data);
       const n = ids.length;
-      show(`${n} ${n !== 1 ? 'albaranes' : 'albarán'}${quien(list)} ${facturado ? `marcado${n !== 1 ? 's' : ''} como facturado${n !== 1 ? 's' : ''}` : `vuelve${n !== 1 ? 'n' : ''} a «Por facturar»`}`, {
+      const aviso = sinFirmar ? `. ${sinFirmar} sin firmar no se ${sinFirmar !== 1 ? 'han' : 'ha'} marcado` : '';
+      show(`${n} ${n !== 1 ? 'albaranes' : 'albarán'}${quien(validos)} ${facturado ? `marcado${n !== 1 ? 's' : ''} como facturado${n !== 1 ? 's' : ''}` : `vuelve${n !== 1 ? 'n' : ''} a «Por facturar»`}${aviso}`, {
         undo: async () => {
           const { data: back } = await marcarFirmas(ids, { facturado: !facturado });
           applyUpdated(back);
@@ -252,36 +246,47 @@ export function FirmasPage() {
   const quitarFacturado = () => marcarFacturados(selNotes, false);
 
   const onFiles = async (list: FileList | null) => {
-    const files = Array.from(list || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    const todos = Array.from(list || []);
+    const esPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+    const files = todos.filter(esPdf);
+    const noPdf = todos.filter(f => !esPdf(f)).map(f => `${f.name} (no es un PDF)`);
     if (!files.length) {
-      if (list?.length) setUploadMsg('Solo se pueden subir archivos PDF');
+      if (todos.length) setUploadMsg({ text: `Solo se pueden subir archivos PDF. No se pudo: ${noPdf.join(', ')}`, error: true });
       return;
     }
     setUploading(true);
     setUploadMsg(null);
     try {
-      const { data } = await uploadFirmas(files);
+      const { data, rechazados } = await uploadFirmas(files);
       const pend = data.filter(d => d.status === 'pendiente');
       const yaFirmados = data.filter(d => d.status === 'firmado');
       const partes: string[] = [];
-      if (pend.length) partes.push(pend.length === 1 ? `Albarán ${pend[0].numero} listo para firmar` : `${pend.length} albaranes listos para firmar`);
+      if (pend.length) partes.push(pend.length === 1 ? `Albarán ${pend[0].numero} listo para firmar` : `Subidos ${pend.length}: listos para firmar`);
       if (yaFirmados.length) partes.push(yaFirmados.length === 1
         ? `El ${yaFirmados[0].numero} ya estaba subido y firmado`
         : `${yaFirmados.length} ya estaban subidos y firmados`);
-      setUploadMsg(partes.join(' · '));
-      cambiarVista(pend.length ? 'firmar' : 'todos');
-      if (pend.length) { setCliente(''); setMes(''); setSearch(''); setEnvio(''); }
+      const fallos = [...rechazados.map(r => `${r.nombre} (${(r.motivo || 'no vale').replace(/^./, ch => ch.toLowerCase())})`), ...noPdf];
+      if (fallos.length) partes.push(`No se pudo: ${fallos.join(', ')}`);
+      setUploadMsg({ text: partes.join('. '), error: !data.length });
+      if (data.length) {
+        cambiarVista(pend.length ? 'firmar' : 'todos');
+        if (pend.length) quitarFiltros();
+      }
       load(true);
     } catch (err) {
-      setUploadMsg(`No se pudo subir: ${describeApiError(err)}`);
+      setUploadMsg({ text: `No se pudo subir: ${describeApiError(err)}`, error: true });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
   };
 
+  // Meter o sacar del camión (bloqueado mientras se guarda, para que un doble toque no lo deshaga)
   const camion = async (n: ClientDeliveryNote) => {
+    if (camionOcupado.has(n.id)) return;
     const en = !n.reparto_at;
+    const ocupar = (on: boolean) => setCamionOcupado(s => { const c = new Set(s); if (on) c.add(n.id); else c.delete(n.id); return c; });
+    ocupar(true);
     try {
       const { data } = await repartoFirmas([n.id], en);
       applyUpdated(data);
@@ -289,17 +294,18 @@ export function FirmasPage() {
         undo: async () => { const { data: d } = await repartoFirmas([n.id], !en); applyUpdated(d); },
       });
     } catch (err) { show(describeApiError(err), { error: true }); }
+    finally { ocupar(false); }
   };
   const enCamion = notes.filter(n => n.status === 'pendiente' && n.reparto_at).length;
 
   const row = (n: ClientDeliveryNote) => (
     <NoteRow key={n.id} n={n} selectable={selectable} selected={sel.has(n.id)}
       onToggle={() => toggle(n.id)} onOpen={() => navigate(`/firmas/${n.id}`)}
-      onCamion={n.status === 'pendiente' ? () => camion(n) : undefined} />
+      onCamion={n.status === 'pendiente' ? () => camion(n) : undefined} camionOcupado={camionOcupado.has(n.id)} />
   );
 
   return (
-    <div className="page"
+    <div className="page firmas-page"
       onDragOver={e => e.preventDefault()}
       onDrop={e => { e.preventDefault(); onFiles(e.dataTransfer.files); }}>
       {loadError && <ConnectionError message={loadError} onRetry={() => load()} />}
@@ -307,7 +313,7 @@ export function FirmasPage() {
       <div className="inicio-head firmas-head">
         <div>
           <h1>Firmar albaranes</h1>
-          <p>Arrastra aquí los PDF de treyFACT o pulsa el botón.</p>
+          <p>{raton ? 'Arrastra aquí los PDF de treyFACT o pulsa el botón.' : 'Sube aquí los PDF de treyFACT.'}</p>
         </div>
         <button className="btn btn-primary btn-lg" disabled={uploading}
           onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } }}>
@@ -320,7 +326,10 @@ export function FirmasPage() {
       <div className="firmas-avisos"><FirmasAvisos /></div>
 
       {uploadMsg && (
-        <div className="firmas-msg" role="status">{uploadMsg}</div>
+        <div className={`firmas-msg${uploadMsg.error ? ' error' : ''}`} role={uploadMsg.error ? 'alert' : 'status'}>
+          <span>{uploadMsg.text}</span>
+          <button className="firmas-msg-x" onClick={() => setUploadMsg(null)} aria-label="Cerrar el aviso"><X size={16} /></button>
+        </div>
       )}
 
       <div className="firma-vistas" role="tablist" aria-label="Qué albaranes ver">
@@ -328,9 +337,7 @@ export function FirmasPage() {
           <button key={v.value} role="tab" aria-selected={vista === v.value} onClick={() => cambiarVista(v.value)}
             className={`firma-vista${vista === v.value ? ' on' : ''}`}>
             {v.label}
-            {(v.value === 'firmar' || v.value === 'facturar') && (
-              <span className="firma-vista-n">{count[v.value]}</span>
-            )}
+            <span className="firma-vista-n">{count[v.value]}</span>
           </button>
         ))}
       </div>
@@ -354,8 +361,13 @@ export function FirmasPage() {
           <option value="whatsapp">Enviados por WhatsApp</option>
           <option value="copia">Copia entregada</option>
         </select>
-        <input className="form-input" type="month" value={mes} onChange={e => setMes(e.target.value)}
-          style={{ margin: 0, width: 160 }} aria-label="Mes" />
+        <label className="firmas-mes">
+          <span>Mes</span>
+          <input className="form-input" type="month" value={mes} onChange={e => setMes(e.target.value)} />
+        </label>
+        {hayFiltros && (
+          <button className="btn btn-ghost btn-sm" onClick={quitarFiltros}><X size={14} /> Quitar filtros</button>
+        )}
       </div>
 
       {selectable && filtered.length > 0 && (
@@ -369,20 +381,29 @@ export function FirmasPage() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
-      ) : loadError ? null : filtered.length === 0 && notes.length > 0 && vista === 'firmar' ? (
-        <Vacio dibujo="albaranOk" titulo="Todo firmado" texto="No queda ningún albarán pendiente de firmar." />
-      ) : filtered.length === 0 && notes.length > 0 && vista === 'facturar' ? (
-        <Vacio dibujo="facturaOk" titulo="Nada por facturar" texto="Todos los albaranes firmados están ya facturados." />
-      ) : filtered.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 && notes.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><PenLine size={36} style={{ opacity: 0.3 }} /></div>
           <div className="empty-state-text">
-            {notes.length === 0
+            {raton
               ? 'Exporta el albarán en PDF desde treyFACT y súbelo aquí (o arrástralo a esta pantalla).'
-              : vista === 'firmar' ? 'No hay albaranes por firmar.'
-              : vista === 'facturar' ? 'No hay albaranes pendientes de facturar.'
-              : 'Ningún albarán coincide con el filtro.'}
+              : 'Exporta el albarán en PDF desde treyFACT y súbelo con el botón «Subir albaranes».'}
           </div>
+        </div>
+      ) : filtered.length === 0 && count[vista] > 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Search size={36} style={{ opacity: 0.3 }} /></div>
+          <div className="empty-state-text">Ningún albarán coincide con la búsqueda o los filtros.</div>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={quitarFiltros}><X size={15} /> Quitar filtros</button>
+        </div>
+      ) : filtered.length === 0 && vista === 'firmar' ? (
+        <Vacio dibujo="albaranOk" titulo="Todo firmado" texto="No queda ningún albarán pendiente de firmar." />
+      ) : filtered.length === 0 && vista === 'facturar' ? (
+        <Vacio dibujo="facturaOk" titulo="Nada por facturar" texto="Todos los albaranes firmados están ya facturados." />
+      ) : filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Receipt size={36} style={{ opacity: 0.3 }} /></div>
+          <div className="empty-state-text">Todavía no hay albaranes facturados.</div>
         </div>
       ) : vista === 'facturar' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -426,7 +447,7 @@ export function FirmasPage() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
         {vista !== 'firmar' && firmadosFiltro.length > 0 && (
-          <a className="btn btn-ghost" href={firmasCombinadoUrl(firmadosFiltro.map(n => n.id))}>
+          <a className="btn btn-ghost btn-largo" href={firmasCombinadoUrl(firmadosFiltro.map(n => n.id))}>
             <FileDown size={15} /> Descargar en un PDF los {firmadosFiltro.length} firmados de esta lista
           </a>
         )}
@@ -451,7 +472,9 @@ export function FirmasPage() {
               </a>
             )}
             {selNotes.some(n => n.facturado_at) && (
-              <button className="btn btn-ghost btn-sm" onClick={quitarFacturado}>Quitar facturado</button>
+              <button className="btn btn-ghost btn-sm" onClick={quitarFacturado}>
+                Quitar facturado{selNotes.filter(n => n.facturado_at).length !== sel.size ? ` (${selNotes.filter(n => n.facturado_at).length})` : ''}
+              </button>
             )}
             <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())} aria-label="Cancelar"><X size={14} /></button>
           </div>
@@ -459,10 +482,6 @@ export function FirmasPage() {
       )}
 
       {toast}
-      {facturar && facturar.length > 0 && (
-        <FacturarModal notes={facturar} onClose={() => setFacturar(null)}
-          onDone={d => { applyUpdated(d); setFacturar(null); }} />
-      )}
     </div>
   );
 }

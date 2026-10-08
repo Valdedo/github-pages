@@ -2,6 +2,7 @@
 Main extraction orchestrator.
 Combines PDF/OCR raw extraction with Claude AI intelligent parsing.
 """
+import asyncio
 import json
 import logging
 import re
@@ -295,12 +296,16 @@ async def extract_with_claude_vision(
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     # Build image content blocks (Claude allows up to 20 images per request)
-    content: list = []
-    for src in image_sources[:20]:
-        try:
-            content.append(_image_to_base64_block(src))
-        except Exception as e:
-            logger.warning(f"Could not encode image {src}: {e}")
+    def _bloques() -> list:  # abrir y redimensionar fotos con PIL bloquea: se hace aparte
+        out = []
+        for src in image_sources[:20]:
+            try:
+                out.append(_image_to_base64_block(src))
+            except Exception as e:
+                logger.warning(f"Could not encode image {src}: {e}")
+        return out
+
+    content: list = await asyncio.to_thread(_bloques)
 
     if not content:
         raise ValueError("No se pudo cargar ninguna imagen para el análisis.")
@@ -357,7 +362,7 @@ async def extract_multi_images(
     if suppliers:
         try:
             from app.services import ocr_service
-            quick_raw = ocr_service.extract(file_paths[0], lang)
+            quick_raw = await asyncio.to_thread(ocr_service.extract, file_paths[0], lang)
             supplier_detected = detect_supplier(quick_raw.get("full_text", ""), suppliers)
             if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
                 supplier_template = json.loads(supplier_detected["template_config"])
@@ -408,10 +413,10 @@ async def extract_document(
     # Step 1: Determine extraction strategy
     if doc_type == "pdf":
         from app.services.pdf_service import is_scanned_pdf, pdf_to_images
-        if is_scanned_pdf(file_path):
+        if await asyncio.to_thread(is_scanned_pdf, file_path):
             # Scanned PDF → convert pages to images → Claude Vision
             logger.info(f"Detected scanned PDF, using Claude Vision for {file_path}")
-            images = pdf_to_images(file_path)
+            images = await asyncio.to_thread(pdf_to_images, file_path)
             if not images:
                 raise ValueError("No se pudieron extraer páginas del PDF escaneado.")
 
@@ -420,7 +425,7 @@ async def extract_document(
             supplier_template = None
             if suppliers:
                 try:
-                    quick_text = ocr_service.extract_text_from_pil_image(images[0], lang)
+                    quick_text = await asyncio.to_thread(ocr_service.extract_text_from_pil_image, images[0], lang)
                     supplier_detected = detect_supplier(quick_text, suppliers)
                     if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
                         supplier_template = json.loads(supplier_detected["template_config"])
@@ -444,11 +449,11 @@ async def extract_document(
         else:
             # Digital PDF → pdfplumber text extraction → Claude text
             logger.info(f"Detected digital PDF, using pdfplumber for {file_path}")
-            raw_data = pdf_service.extract_text_and_tables(file_path)
+            raw_data = await asyncio.to_thread(pdf_service.extract_text_and_tables, file_path)
             # Fallback: if little text was extracted, try Vision
             if len(raw_data.get("full_text", "")) < 100:
                 logger.info("Low text yield from pdfplumber, falling back to Claude Vision")
-                images = pdf_to_images(file_path)
+                images = await asyncio.to_thread(pdf_to_images, file_path)
                 if images:
                     supplier_detected = None
                     supplier_template = None
@@ -495,7 +500,7 @@ async def extract_document(
         supplier_template = None
         if suppliers:
             try:
-                quick_raw = ocr_service.extract(file_path, lang)
+                quick_raw = await asyncio.to_thread(ocr_service.extract, file_path, lang)
                 supplier_detected = detect_supplier(quick_raw.get("full_text", ""), suppliers)
                 if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
                     supplier_template = json.loads(supplier_detected["template_config"])

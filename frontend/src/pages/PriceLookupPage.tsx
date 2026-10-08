@@ -1,7 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Camera, Image as ImageIcon, X, Plus, Minus, ShoppingBasket, Trash2, FileText } from 'lucide-react';
-import { getCatalog, decodeBarcodeImage, describeApiError } from '../api/client';
+import { Search, Camera, Image as ImageIcon, X, Plus, Minus, ShoppingBasket, Trash2, FileText, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { decodeBarcodeImage, describeApiError } from '../api/client';
+import { buscarCatalogo, cargarCatalogo } from '../lib/catalogo';
+import { fechaES } from '../lib/texto';
+import { getRol } from '../auth';
 import { useCfToast } from '../components/CfToast';
 import { nombreProveedor } from '../lib/proveedor';
 import type { CatalogArticle } from '../types';
@@ -31,6 +34,9 @@ export function PriceLookupPage() {
   const [error, setError] = useState<string | null>(null);
   const [cuenta, setCuentaRaw] = useState<Linea[]>(leerCuenta);
   const [verTotal, setVerTotal] = useState(false);
+  const [cuentaAbierta, setCuentaAbierta] = useState(false);
+  const [costeVisible, setCosteVisible] = useState<number | null>(null);
+  const puedeVerCoste = getRol() === 'admin' || getRol() === 'tienda';
   const { toast, show } = useCfToast();
 
   // Cámara
@@ -49,7 +55,7 @@ export function PriceLookupPage() {
     return next;
   });
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => { inputRef.current?.focus(); cargarCatalogo().catch(() => { /* se reintenta al buscar */ }); }, []);
 
   const search = useCallback(async (q: string, desdeLector = false) => {
     const clean = q.trim();
@@ -57,8 +63,8 @@ export function PriceLookupPage() {
     if (!clean) { setResults([]); setSearched(false); setError(null); return; }
     setLoading(true); setSearched(true); setError(null);
     try {
-      const { data } = await getCatalog({ q: clean, limit: 20 });
-      setResults(data);
+      setResults(await buscarCatalogo(clean, 20));
+      setCosteVisible(null);
     } catch (e) {
       setResults([]); setError(describeApiError(e));
     } finally {
@@ -145,7 +151,8 @@ export function PriceLookupPage() {
     const antes = cuenta;
     setCuenta(() => []);
     setVerTotal(false);
-    show('Cuenta vaciada', { undo: () => setCuenta(() => antes) });
+    setCuentaAbierta(false);
+    show('Cuenta vaciada', { undo: () => { try { setCuenta(() => antes); } catch { /* nada */ } } });
   };
 
   const total = cuenta.reduce((s, l) => s + l.pvp_con_iva * l.qty, 0);
@@ -223,10 +230,16 @@ export function PriceLookupPage() {
                   {a.ean && a.ean !== a.codigo_principal && <span className="mono">{a.ean}</span>}
                   {a.supplier_name && <span>{nombreProveedor(a.supplier_name)}</span>}
                 </div>
-                <small>
-                  Coste {eur(a.coste_neto_unitario)} · sin IVA {eur(a.pvp_sin_iva)} ({a.margen_pct.toFixed(0)} %)
-                  {a.doc_date && <> · <button className="turnos-link" onClick={() => navigate(`/documento/${a.document_id}`)}><FileText size={12} /> albarán del {a.doc_date}</button></>}
-                </small>
+                {/* El coste y el margen no se enseñan al cliente: solo tras tocar «Ver coste» */}
+                {puedeVerCoste && (costeVisible === a.id ? (
+                  <small className="consulta-coste">
+                    Coste {eur(a.coste_neto_unitario)} · sin IVA {eur(a.pvp_sin_iva)} · margen {a.margen_pct.toFixed(0)} %
+                    {a.doc_date && <> · <button className="turnos-link" onClick={() => navigate(`/documento/${a.document_id}`)}><FileText size={12} /> albarán del {fechaES(a.doc_date)}</button></>}
+                    <button className="consulta-ver-coste" onClick={() => setCosteVisible(null)}><EyeOff size={13} /> Ocultar</button>
+                  </small>
+                ) : (
+                  <button className="consulta-ver-coste" onClick={() => setCosteVisible(a.id)}><Eye size={13} /> Ver coste</button>
+                ))}
               </div>
               <div className="consulta-art-precio">
                 <span className="consulta-pvp">{eur(a.pvp_con_iva)}</span>
@@ -242,30 +255,41 @@ export function PriceLookupPage() {
         <p className="consulta-vacio">Lista para leer códigos. También puedes sumar varios artículos con «A la cuenta» para decir el total al cliente.</p>
       )}
 
-      {cuenta.length > 0 && (
-        <section className="card consulta-cuenta" aria-label="Cuenta">
-          <div className="consulta-cuenta-cab">
-            <ShoppingBasket size={20} />
-            <b>Cuenta · {unidades} artículo{unidades !== 1 ? 's' : ''}</b>
-            <button className="btn btn-ghost btn-sm" onClick={vaciar} aria-label="Vaciar la cuenta"><Trash2 size={15} /> Vaciar</button>
-          </div>
-          <ul>
-            {cuenta.map(l => (
-              <li key={l.id}>
-                <span className="consulta-cuenta-desc">{l.descripcion}<small>{eur(l.pvp_con_iva)} c/u</small></span>
-                <span className="consulta-qty">
-                  <button onClick={() => cambiarQty(l.id, -1)} aria-label="Uno menos"><Minus size={18} /></button>
-                  <b>{l.qty}</b>
-                  <button onClick={() => cambiarQty(l.id, 1)} aria-label="Uno más"><Plus size={18} /></button>
-                </span>
-                <span className="consulta-cuenta-imp">{eur(l.pvp_con_iva * l.qty)}</span>
-              </li>
-            ))}
-          </ul>
-          <button className="btn btn-primary btn-lg consulta-total" onClick={() => setVerTotal(true)}>
-            Total {eur(total)} <small>· enseñar al cliente</small>
-          </button>
+      {/* Cuenta: barra pequeña abajo; se despliega al tocar «Ver cuenta» */}
+      {cuenta.length > 0 && !cuentaAbierta && (
+        <section className="card consulta-cuenta mini" aria-label="Cuenta">
+          <ShoppingBasket size={20} />
+          <span className="consulta-mini-txt"><b>{eur(total)}</b><small>{unidades} artículo{unidades !== 1 ? 's' : ''} en la cuenta</small></span>
+          <button className="btn btn-primary btn-sm" onClick={() => setCuentaAbierta(true)}><ChevronUp size={16} /> Ver cuenta</button>
         </section>
+      )}
+      {cuenta.length > 0 && cuentaAbierta && (
+        <div className="consulta-cuenta-fondo" onClick={e => { if (e.target === e.currentTarget) setCuentaAbierta(false); }}>
+          <section className="card consulta-cuenta abierta" aria-label="Cuenta" role="dialog">
+            <div className="consulta-cuenta-cab">
+              <ShoppingBasket size={20} />
+              <b>Cuenta · {unidades} artículo{unidades !== 1 ? 's' : ''}</b>
+              <button className="btn btn-ghost btn-sm" onClick={vaciar} aria-label="Vaciar la cuenta"><Trash2 size={15} /> Vaciar</button>
+              <button className="modal-close" onClick={() => setCuentaAbierta(false)} aria-label="Cerrar la cuenta"><X size={20} /></button>
+            </div>
+            <ul>
+              {cuenta.map(l => (
+                <li key={l.id}>
+                  <span className="consulta-cuenta-desc">{l.descripcion}<small>{eur(l.pvp_con_iva)} c/u</small></span>
+                  <span className="consulta-qty">
+                    <button onClick={() => cambiarQty(l.id, -1)} aria-label="Uno menos"><Minus size={18} /></button>
+                    <b>{l.qty}</b>
+                    <button onClick={() => cambiarQty(l.id, 1)} aria-label="Uno más"><Plus size={18} /></button>
+                  </span>
+                  <span className="consulta-cuenta-imp">{eur(l.pvp_con_iva * l.qty)}</span>
+                </li>
+              ))}
+            </ul>
+            <button className="btn btn-primary btn-lg consulta-total" onClick={() => setVerTotal(true)}>
+              Total {eur(total)} <small>· enseñar al cliente</small>
+            </button>
+          </section>
+        </div>
       )}
       {toast}
     </div>

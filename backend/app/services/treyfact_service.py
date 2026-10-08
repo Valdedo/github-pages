@@ -6,7 +6,6 @@ Column names match the TreyFact import wizard field labels (Spanish).
 """
 import io
 import logging
-from typing import List
 
 logger = logging.getLogger(__name__)
 

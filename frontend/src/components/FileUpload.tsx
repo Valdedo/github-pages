@@ -6,7 +6,19 @@ import type { Document } from '../types';
 
 interface Props {
   onUploaded: (doc: Document) => void;
+  /** Cuando se suben varios albaranes de golpe (varios PDF): se llama con todos los que se subieron. */
+  onUploadedMany?: (docs: Document[], fallidos: string[]) => void;
 }
+
+const errorSubida = (e: unknown, porDefecto: string) => {
+  const status = (e as { response?: { status?: number } })?.response?.status;
+  const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  const det = typeof detail === 'string' ? detail : null;
+  if (status === 413) return 'El archivo es demasiado grande para el servidor. Máximo 20 MB.';
+  if (status === 409) return det || 'Ya hay una extracción en curso para este documento.';
+  if ((e as { code?: string })?.code === 'ERR_NETWORK') return 'Sin conexión con el servidor. Esto necesita cobertura.';
+  return det || porDefecto;
+};
 
 const ACCEPTED = {
   'application/pdf': ['.pdf'],
@@ -51,7 +63,7 @@ async function compressImage(file: File, maxSizeMB = 3): Promise<File> {
   });
 }
 
-export function FileUpload({ onUploaded }: Props) {
+export function FileUpload({ onUploaded, onUploadedMany }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +81,7 @@ export function FileUpload({ onUploaded }: Props) {
       const { data } = await uploadDocument(compressed);
       onUploaded(data);
     } catch (e: unknown) {
-      const status = (e as { response?: { status?: number } })?.response?.status;
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      if (status === 413) setError('El archivo es demasiado grande para el servidor. Máximo 20 MB.');
-      else if (status === 409) setError(detail || 'Ya hay una extracción en curso para este documento.');
-      else setError(detail || 'Error al subir el archivo. Comprueba tu conexión e inténtalo de nuevo.');
+      setError(errorSubida(e, 'Error al subir el archivo. Comprueba tu conexión e inténtalo de nuevo.'));
     } finally {
       setUploading(false);
       setUploadStatus(null);
@@ -90,23 +98,57 @@ export function FileUpload({ onUploaded }: Props) {
       const { data } = await uploadMultiImages(compressed);
       onUploaded(data);
     } catch (e: unknown) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(detail || 'Error al subir las imágenes. Comprueba tu conexión e inténtalo de nuevo.');
+      setError(errorSubida(e, 'Error al subir las imágenes. Comprueba tu conexión e inténtalo de nuevo.'));
     } finally {
       setUploading(false);
       setUploadStatus(null);
     }
   }, [onUploaded]);
 
+  /**
+   * Varios archivos con algún PDF: cada PDF es un albarán distinto (se suben uno detrás de otro)
+   * y, si además hay fotos, todas las fotos juntas forman otro albarán.
+   */
+  const processVarios = useCallback(async (files: File[]) => {
+    const pdfs = files.filter(f => !IMAGE_TYPES.has(f.type));
+    const fotos = files.filter(f => IMAGE_TYPES.has(f.type));
+    const total = pdfs.length + (fotos.length ? 1 : 0);
+    setUploading(true);
+    setError(null);
+    const subidos: Document[] = [];
+    const fallidos: string[] = [];
+    let n = 0;
+    for (const f of pdfs) {
+      n++;
+      setUploadStatus(`Subiendo albarán ${n} de ${total}…`);
+      try { subidos.push((await uploadDocument(f)).data); }
+      catch (e) { fallidos.push(`${f.name}: ${errorSubida(e, 'no se pudo subir')}`); }
+    }
+    if (fotos.length) {
+      n++;
+      setUploadStatus(`Subiendo albarán ${n} de ${total} (${fotos.length} foto${fotos.length > 1 ? 's' : ''})…`);
+      try {
+        const comp = await Promise.all(fotos.map(f => compressImage(f)));
+        subidos.push((comp.length > 1 ? await uploadMultiImages(comp) : await uploadDocument(comp[0])).data);
+      } catch (e) { fallidos.push(`Fotos: ${errorSubida(e, 'no se pudieron subir')}`); }
+    }
+    setUploading(false);
+    setUploadStatus(null);
+    if (fallidos.length) {
+      setError(`Se ${subidos.length === 1 ? 'subió 1 albarán' : `subieron ${subidos.length} albaranes`} de ${total}. No se pudo subir: ${fallidos.join(' · ')}`);
+    }
+    if (subidos.length === 0) return;
+    if (onUploadedMany) onUploadedMany(subidos, fallidos);
+    else if (!fallidos.length) onUploaded(subidos[subidos.length - 1]);
+  }, [onUploaded, onUploadedMany]);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     const allImages = acceptedFiles.every(f => IMAGE_TYPES.has(f.type));
-    if (acceptedFiles.length > 1 && allImages) {
-      processMultipleImages(acceptedFiles);
-    } else {
-      processFile(acceptedFiles[0]);
-    }
-  }, [processFile, processMultipleImages]);
+    if (acceptedFiles.length === 1) processFile(acceptedFiles[0]);
+    else if (allImages) processMultipleImages(acceptedFiles);
+    else processVarios(acceptedFiles);
+  }, [processFile, processMultipleImages, processVarios]);
 
   const onDropRejected = useCallback((rejections: FileRejection[]) => {
     const codes = rejections.flatMap(r => r.errors.map(e => e.code));
@@ -115,7 +157,7 @@ export function FileUpload({ onUploaded }: Props) {
     } else if (codes.includes('file-invalid-type')) {
       setError('Tipo de archivo no admitido. Solo se aceptan PDF, JPG o PNG.');
     } else if (codes.includes('too-many-files')) {
-      setError('Demasiados archivos. Puedes seleccionar un máximo de 10 imágenes a la vez.');
+      setError('Demasiados archivos. Puedes elegir como mucho 10 a la vez.');
     } else {
       setError('No se pudo procesar el archivo seleccionado.');
     }
@@ -214,7 +256,7 @@ export function FileUpload({ onUploaded }: Props) {
               Arrastra aquí el albarán o pulsa para elegirlo
             </p>
             <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>
-              PDF o fotos (JPG, PNG). Si el albarán tiene varias hojas, elige todas las fotos a la vez.
+              PDF o fotos (JPG, PNG). Si el albarán tiene varias hojas, elige todas las fotos a la vez. Varios PDF a la vez se suben como albaranes distintos.
             </p>
           </>
         )}

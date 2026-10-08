@@ -2,6 +2,7 @@
 Export endpoints: Excel and PDF labels.
 """
 import logging
+import re
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.document import Document
 from app.models.article import Article
-from app.models.app_settings import AppSettings
+from app.models.app_settings import get_or_create_settings as get_settings
 
 # Marker used in supplier_name to identify the hidden manual-entries document
 MANUAL_MARKER = "__manual__"
@@ -36,14 +37,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
-def get_settings(db: Session) -> AppSettings:
-    s = db.query(AppSettings).filter(AppSettings.id == 1).first()
-    if not s:
-        s = AppSettings(id=1)
-        db.add(s)
-        db.commit()
-        db.refresh(s)
-    return s
+def _adjunto(nombre: str) -> dict:
+    """Content-Disposition con nombre UTF-8 (tildes, eñes…) y uno ASCII de reserva."""
+    from urllib.parse import quote
+    import unicodedata
+    ascii_ = unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode()
+    ascii_ = re.sub(r'[^A-Za-z0-9._ -]+', "_", ascii_) or "archivo"
+    return {"Content-Disposition": f"attachment; filename=\"{ascii_}\"; filename*=UTF-8''{quote(nombre)}"}
 
 
 def _get_or_create_manual_document(db: Session) -> Document:
@@ -81,7 +81,8 @@ def _upsert_manual_article(
             .first()
         )
 
-    iva_divisor = 1.0 + ((getattr(item, 'iva_pct', None) or 21.0) / 100.0)
+    iva = item.iva_pct if item.iva_pct is not None else 21.0
+    iva_divisor = 1.0 + (iva / 100.0)
     pvp_sin_iva = round((item.pvp_con_iva or 0.0) / iva_divisor, 4)
     coste = item.coste_neto_unitario or 0.0
 
@@ -91,6 +92,7 @@ def _upsert_manual_article(
         existing.pvp_sin_iva = pvp_sin_iva
         existing.coste_neto_unitario = coste
         existing.coste_neto_total = coste
+        existing.iva_pct = iva
         if item.ean:
             existing.ean = item.ean
         db.commit()
@@ -105,7 +107,7 @@ def _upsert_manual_article(
         precio_unitario_bruto=coste,
         coste_neto_unitario=coste,
         coste_neto_total=coste,
-        iva_pct=21.0,
+        iva_pct=iva,
         margen_pct=0.0,
         pvp_sin_iva=pvp_sin_iva,
         pvp_con_iva=item.pvp_con_iva or 0.0,
@@ -145,7 +147,7 @@ def export_excel(document_id: int, db: Session = Depends(get_db)):
     return Response(
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=_adjunto(filename),
     )
 
 
@@ -176,7 +178,7 @@ def export_pdf_report(document_id: int, db: Session = Depends(get_db)):
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=_adjunto(filename),
     )
 
 
@@ -237,7 +239,7 @@ def export_labels(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=_adjunto(filename),
     )
 
 
@@ -259,18 +261,16 @@ def export_treyfact(document_id: int, db: Session = Depends(get_db)):
     if not articles:
         raise HTTPException(404, "No articles found for this document")
 
+    # Solo descarga: un GET no cambia nada. Para marcar el albarán como terminado,
+    # PUT /api/documents/{id}/terminado {"terminado": true}
     excel_bytes = generate_treyfact_excel(articles, supplier_name=doc.supplier_name or "")
-    if not doc.terminado_at:  # pasado a TreyFACT: el albarán queda como terminado
-        from datetime import datetime as _dt
-        doc.terminado_at = _dt.now()
-        db.commit()
     safe_name = doc.original_filename.rsplit(".", 1)[0]
     filename = f"treyfact_{safe_name}_{doc.id}.xlsx"
 
     return Response(
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=_adjunto(filename),
     )
 
 
@@ -323,7 +323,7 @@ def export_custom_labels(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="etiquetas_custom.pdf"'},
+        headers=_adjunto("etiquetas_custom.pdf"),
     )
 
 
@@ -360,7 +360,7 @@ def export_price_list(document_id: int, db: Session = Depends(get_db)):
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=_adjunto(filename),
     )
 
 

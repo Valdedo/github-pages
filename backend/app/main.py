@@ -53,6 +53,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # nunca debe impedir arrancar
         logger.warning(f"No se pudieron rellenar importes de albaranes: {e}")
     try:
+        from app.api.documents import marcar_interrumpidos
+        marcar_interrumpidos()
+    except Exception as e:
+        logger.warning(f"No se pudieron revisar los documentos a medias: {e}")
+    try:
         from app.database import SessionLocal
         from app.services.turnos_service import ajustes as _ajustes_turnos
         _db = SessionLocal()
@@ -90,11 +95,43 @@ app.add_middleware(
 # ── Acceso por código ────────────────────────────────────────────
 # Mientras no se hayan creado los códigos, la app está abierta (como antes).
 # Con códigos: /api/* pide sesión; «reparto» solo puede usar /api/firmas y ver los turnos.
+import re
+from typing import Optional
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from app.services import access_service as _acc
 
-_LIBRES = ("/api/acceso", "/api/firmas/compartir/")
+_LIBRES = ("/api/acceso", "/api/firmas/compartir/", "/api/products/ficha/")
+
+# Lo que puede usar el móvil de reparto (Melchor) en /api/firmas: ver la lista y cada albarán,
+# firmarlo y, ya firmado, imprimir/enviar la copia al cliente. Lo demás (subir, borrar, editar,
+# meter en el camión, facturar, ZIP…) no.
+_REPARTO_FIRMAS = (
+    ("GET", re.compile(r"^/api/firmas/?$")),
+    ("GET", re.compile(r"^/api/firmas/(stats|avisos)$")),
+    ("GET", re.compile(r"^/api/firmas/\d+$")),
+    ("GET", re.compile(r"^/api/firmas/\d+/(pdf|contacto)$")),
+    ("GET", re.compile(r"^/api/firmas/\d+/page/\d+\.png$")),
+    ("POST", re.compile(r"^/api/firmas/\d+/(sign|email|enlace)$")),
+    ("PUT", re.compile(r"^/api/firmas/\d+/(contacto|marcas)$")),  # marcas: solo copia/WhatsApp (se comprueba allí)
+)
+
+
+def _reparto_puede(method: str, path: str) -> bool:
+    if path.startswith("/api/push"):
+        return True
+    if path.startswith("/api/turnos"):
+        return method == "GET"
+    return any(m == method and rx.match(path) for m, rx in _REPARTO_FIRMAS)
+
+
+def _token(request: Request) -> Optional[str]:
+    """Sesión por cabecera; por ?t= solo en GET (imágenes, PDF y descargas que abre el navegador)."""
+    tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not tok and request.method in ("GET", "HEAD"):
+        tok = request.query_params.get("t")
+    return tok or None
 
 
 @app.middleware("http")
@@ -104,16 +141,14 @@ async def control_de_acceso(request: Request, call_next):
         return await call_next(request)
     if not _acc.config():
         return await call_next(request)
-    tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or request.query_params.get("t")
-    ses = _acc.sesion(tok)
+    ses = _acc.sesion(_token(request))
     rol = ses["rol"] if ses else None
     if not rol:
         return JSONResponse({"detail": "Hace falta el código de acceso"}, status_code=401)
     request.state.rol = rol
     request.state.persona = ses["persona"]
-    if rol == "reparto" and not (path.startswith("/api/firmas") or path.startswith("/api/push")
-                                 or (path.startswith("/api/turnos") and request.method == "GET")):
-        return JSONResponse({"detail": "El código de reparto solo da acceso a las firmas"}, status_code=403)
+    if rol == "reparto" and not _reparto_puede(request.method, path):
+        return JSONResponse({"detail": "El código de reparto no da acceso a esto"}, status_code=403)
     return await call_next(request)
 
 
@@ -139,18 +174,4 @@ app.include_router(cargas.router)
 
 @app.get("/health")
 def health():
-    from app.config import settings as app_settings
-    import os
-    upload_ok = os.path.isdir(app_settings.upload_dir)
-    export_ok = os.path.isdir(app_settings.export_dir)
-    data_writable = os.access("/data", os.W_OK) if os.path.exists("/data") else False
-    routes = sorted({r.path for r in app.routes})
-    return {
-        "status": "ok",
-        "version": APP_VERSION,
-        "service": "Albarán Processor API",
-        "upload_dir_exists": upload_ok,
-        "export_dir_exists": export_ok,
-        "data_writable": data_writable,
-        "routes": routes,
-    }
+    return {"status": "ok", "version": APP_VERSION}

@@ -2,11 +2,7 @@
 PDF text and table extraction using pdfplumber.
 Handles digital PDFs only. For scanned PDFs, use ocr_service.
 """
-import io
-import json
 import logging
-from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

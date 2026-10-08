@@ -2,7 +2,6 @@
 Analytics endpoints: price history and supplier comparison.
 """
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session

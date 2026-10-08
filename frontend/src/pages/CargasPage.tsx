@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, Images, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
-  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud,
+  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search,
 } from 'lucide-react';
 import {
   listarCargas, verCarga, borrarCarga, leerCarga, fotoCargaUrl, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
@@ -13,7 +13,9 @@ import {
 import { ConnectionError } from '../components/ConnectionError';
 import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
-import { numES } from '../components/AvisoCliente';
+import { leerImporte } from '../components/AvisoCliente';
+import { coincide, fechaES, plural } from '../lib/texto';
+import { mensajeError } from '../lib/descargas';
 import { SignaturePad } from './FirmaDetailPage';
 import { HojaVisor } from '../components/HojaVisor';
 import { CamionPegatina, SelloHecho, Vacio } from '../components/Pegatinas';
@@ -24,10 +26,30 @@ const cant = (n: number | null | undefined) => (n == null ? '' : String(+n.toFix
 const fechaHora = (iso?: string | null) => {
   if (!iso) return '';
   const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
-  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' }) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return fechaES(d) + ' ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 };
 const ESTADO: Record<OrdenCarga['estado'], string> = { preparando: 'Por cargar', cargado: 'Cargado', entregado: 'Entregado' };
 const lineasDe = (o: OrdenCarga) => o.entregas.flatMap(e => e.lineas);
+
+/** Unidad en singular o plural según la cantidad («1 palé», «3 palés»). */
+const UNIDADES: [string, string][] = [['palé', 'palés'], ['saco', 'sacos'], ['bolsa', 'bolsas'], ['barra', 'barras'], ['rollo', 'rollos'],
+  ['metro', 'metros'], ['caja', 'cajas'], ['bidón', 'bidones'], ['unidad', 'unidades'], ['varilla', 'varillas'], ['tubo', 'tubos'],
+  ['placa', 'placas'], ['plancha', 'planchas'], ['viaje', 'viajes'], ['big bag', 'big bags'], ['cubo', 'cubos']];
+function unidad(n: number | null | undefined, u?: string | null): string {
+  const t = (u || '').trim();
+  if (!t || n == null) return t;
+  const low = t.toLowerCase();
+  for (const [uno, varios] of UNIDADES) {
+    if (n === 1 && low === varios) return uno;
+    if (n !== 1 && low === uno) return varios;
+  }
+  return t;
+}
+const cantUd = (n: number | null | undefined, u?: string | null) => `${cant(n)} ${unidad(n, u)}`.trim();
+const materiales = (n: number) => plural(n, 'material', 'materiales');
+
+/** Señal de «cargado solo una parte» (medio círculo relleno, visible en cualquier móvil). */
+const Medio = () => <span className="carga-medio" aria-hidden="true" />;
 
 // ─── Nueva orden: foto o texto ───────────────────────────────────────────────
 
@@ -52,7 +74,7 @@ function NuevaOrden({ ordenId, onHecho, compacto }: { ordenId?: number; onHecho:
       const r = err as { response?: { status?: number; data?: { detail?: { repetida?: number; mensaje?: string } } } };
       const det = r.response?.data?.detail;
       if (r.response?.status === 409 && det?.repetida) setRepetida({ id: det.repetida, mensaje: det.mensaje || 'Esta foto ya se subió.', fotos });
-      else setError(describeApiError(err));
+      else setError(mensajeError(err, describeApiError(err)));
     } finally {
       setLeyendo(false);
       if (camara.current) camara.current.value = '';
@@ -140,6 +162,7 @@ export function CargasPage() {
   const [hoja, setHoja] = useState<number | null>(null);
   const cerrarHoja = useCallback(() => setHoja(null), []);
   const { toast, show } = useCfToast();
+  const [buscar, setBuscar] = useState('');
 
   const load = useCallback(() => {
     listarCargas().then(r => {
@@ -153,16 +176,19 @@ export function CargasPage() {
   const enCurso = (ordenes || []).filter(o => o.estado !== 'entregado');
   // Los que se marcan como pasados se quedan a la vista (en verde) hasta salir de la pantalla
   const [recien, setRecien] = useState<Set<number>>(new Set());
-  const porPasar = (ordenes || []).flatMap(o => o.entregas.filter(e => e.estado === 'entregada' && (!e.treyfact_at || recien.has(e.id))));
-  const quedan = porPasar.filter(e => !e.treyfact_at).length;
-  const lista = vista === 'curso' ? enCurso : ordenes || [];
+  const porPasarTodas = (ordenes || []).flatMap(o => o.entregas.filter(e => e.estado === 'entregada' && (!e.treyfact_at || recien.has(e.id))));
+  const quedan = porPasarTodas.filter(e => !e.treyfact_at).length;
+  // Buscador: cliente, pueblo, número de albarán, teléfono o material
+  const coincideEntrega = (e: EntregaCarga) => coincide(buscar, e.cliente, e.lugar, e.numero, e.telefono, ...e.lineas.map(l => l.descripcion));
+  const porPasar = buscar.trim() ? porPasarTodas.filter(coincideEntrega) : porPasarTodas;
+  const lista = (vista === 'curso' ? enCurso : ordenes || []).filter(o => !buscar.trim() || String(o.id) === buscar.trim() || o.entregas.some(coincideEntrega));
 
   const marcarPasado = async (e: EntregaCarga) => {
     try {
       await treyfactEntregaCarga(e.id, true);
       setRecien(r => new Set(r).add(e.id));
       load();
-    } catch (err) { show(`No se pudo guardar: ${describeApiError(err)}`, { error: true }); }
+    } catch (err) { show(`No se pudo guardar: ${mensajeError(err, describeApiError(err))}`, { error: true }); }
   };
   const desmarcar = async (e: EntregaCarga) => {
     try { await treyfactEntregaCarga(e.id, false); load(); }
@@ -191,18 +217,26 @@ export function CargasPage() {
         ))}
       </div>
 
+      <div className="carga-buscar search-bar">
+        <Search size={17} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+        <input type="search" value={buscar} onChange={ev => setBuscar(ev.target.value)} placeholder="Buscar cliente, pueblo o número…" aria-label="Buscar órdenes de carga" />
+        {buscar && <button className="search-bar-clear" onClick={() => setBuscar('')} aria-label="Borrar búsqueda"><X size={16} /></button>}
+      </div>
+
       {ordenes == null ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
       ) : vista === 'treyfact' ? (
         porPasar.length === 0 ? (
-          <Vacio dibujo="facturaOk" titulo="Todo pasado a TreyFACT" texto="No queda ninguna entrega firmada por pasar." />
+          buscar.trim()
+            ? <div className="empty-state"><div className="empty-state-text">Nada por pasar con «{buscar.trim()}».</div></div>
+            : <Vacio dibujo="facturaOk" titulo="Todo pasado a TreyFACT" texto="No queda ninguna entrega firmada por pasar." />
         ) : (
           <div className="card ana-lista">
             {porPasar.map(e => (
               <div key={e.id} className="ana-fila estatica treyfact-fila">
                 <span className="ana-txt">
                   <b>{e.cliente || 'Sin nombre'}</b>
-                  <small>{e.numero} · firmado {fechaHora(e.firmado_at)} · {e.lineas.filter(l => l.cargado_ok || l.cargado).length} materiales</small>
+                  <small>{[e.numero, `firmado ${fechaHora(e.firmado_at)}`, materiales(e.lineas.filter(l => l.cargado_ok || l.cargado).length)].filter(Boolean).join(' · ')}</small>
                 </span>
                 <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)}><FileText size={15} /> Hoja</button>
                 {e.treyfact_at ? (
@@ -220,7 +254,7 @@ export function CargasPage() {
       ) : lista.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><ClipboardCheck size={40} style={{ color: 'var(--text-3)' }} /></div>
-          <div className="empty-state-text">{vista === 'curso' ? 'No hay nada por cargar ni por entregar.' : 'Todavía no hay órdenes de carga.'}</div>
+          <div className="empty-state-text">{buscar.trim() ? `Ninguna orden con «${buscar.trim()}».` : vista === 'curso' ? 'No hay nada por cargar ni por entregar.' : 'Todavía no hay órdenes de carga.'}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -233,7 +267,7 @@ export function CargasPage() {
                   <b>{o.entregas.map(e => e.cliente || 'Sin nombre').join(' · ') || 'Sin pedidos'}</b>
                   <small>
                     {[...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].join(', ')}
-                    {o.entregas.some(e => e.lugar) ? ' · ' : ''}{ls.length} material{ls.length !== 1 ? 'es' : ''} · {fechaHora(o.created_at)}
+                    {o.entregas.some(e => e.lugar) ? ' · ' : ''}{materiales(ls.length)} · {fechaHora(o.created_at)}
                   </small>
                   <span className="carga-card-chips">
                     <span className={`status-chip carga-${o.estado}`}>{ESTADO[o.estado]}</span>
@@ -260,27 +294,28 @@ function DatosModal({ e, onClose, onSaved }: { e: EntregaCarga; onClose: () => v
   const set = (k: 'cliente' | 'lugar' | 'telefono' | 'notas') => (ev: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF(v => ({ ...v, [k]: ev.target.value }));
   const guardar = async (ev: React.FormEvent) => {
     ev.preventDefault();
-    setSaving(true);
+    if (!f.cliente.trim()) { setError('Falta el nombre del cliente'); return; }
+    setSaving(true); setError('');
     try {
       const { data } = await editarEntregaCarga(e.id, {
         cliente: f.cliente.trim(), lugar: f.lugar.trim() || null, telefono: f.telefono.trim() || null,
         cuando: null, notas: f.notas.trim() || null, servir: f.servir, pagado: f.pagado, dudas: null,
       });
       onSaved(data);
-    } catch (err) { setError(describeApiError(err)); } finally { setSaving(false); }
+    } catch (err) { setError(mensajeError(err, describeApiError(err))); } finally { setSaving(false); }
   };
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 500 }} onClick={ev => ev.stopPropagation()}>
+      <div className="modal rep-modal" style={{ maxWidth: 500 }} onClick={ev => ev.stopPropagation()}>
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 17 }}>Datos del cliente</span>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <form onSubmit={guardar}>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {error && <div className="doc-aviso error">{error}</div>}
+            {error && <div className="doc-aviso error" role="alert">{error}</div>}
             <div className="campos-2">
-              <div><label className="form-label">Cliente</label><input className="form-input" value={f.cliente} onChange={set('cliente')} /></div>
+              <div><label className="form-label">Cliente *</label><input className="form-input" value={f.cliente} onChange={set('cliente')} /></div>
               <div><label className="form-label">Pueblo u obra</label><input className="form-input" value={f.lugar} onChange={set('lugar')} /></div>
               <div><label className="form-label">Teléfono</label><input className="form-input" type="tel" value={f.telefono} onChange={set('telefono')} /></div>
             </div>
@@ -312,29 +347,35 @@ function LineaModal({ entregaId, ln, onClose, onSaved, onDelete }: {
   const guardar = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!d.trim()) { setError('Falta qué material es'); return; }
-    const cn = numES(c), pn = numES(parte);
-    if (c.trim() && cn == null) { setError('La cantidad tiene que ser un número'); return; }
-    if (parte.trim() && pn == null) { setError('Lo cargado tiene que ser un número'); return; }
-    setSaving(true);
+    const lc = leerImporte(c), lp = leerImporte(parte);
+    if (!lc.ok) { setError(`Cantidad: ${lc.error.replace('El importe', 'la cantidad')}`); return; }
+    if (!lp.ok) { setError(`Lo cargado: ${lp.error.replace('El importe', 'lo cargado')}`); return; }
+    const cn = lc.n, pn = lp.n;
+    if (cn != null && cn <= 0) { setError('La cantidad tiene que ser mayor que 0 (si no va, quita el material)'); return; }
+    if (pn != null && pn <= 0) { setError('Lo cargado tiene que ser mayor que 0. Si no se carga nada, deja la casilla vacía y no marques el material.'); return; }
+    setSaving(true); setError('');
     try {
       const datos = { cantidad: cn, unidad: u.trim() || null, descripcion: d.trim() };
       if (ln) {
         const completo = pn != null && cn != null && pn >= cn;
-        await editarLineaCarga(ln.id, { ...datos, duda: null, ...(parte.trim() ? { cargado: completo ? null : pn, cargado_ok: completo } : {}) });
+        // Vacío = va todo: se quita lo de «cargado solo una parte»
+        const parcial = pn != null ? { cargado: completo ? null : pn, cargado_ok: completo }
+          : ln.cargado != null && !ln.cargado_ok ? { cargado: null } : {};
+        await editarLineaCarga(ln.id, { ...datos, duda: null, ...parcial });
       } else await nuevaLineaCarga(entregaId, datos);
       onSaved();
-    } catch (err) { setError(describeApiError(err)); } finally { setSaving(false); }
+    } catch (err) { setError(mensajeError(err, describeApiError(err))); } finally { setSaving(false); }
   };
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 460 }} onClick={ev => ev.stopPropagation()}>
+      <div className="modal rep-modal" style={{ maxWidth: 460 }} onClick={ev => ev.stopPropagation()}>
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 17 }}>{ln ? 'Material' : 'Añadir material'}</span>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <form onSubmit={guardar}>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {error && <div className="doc-aviso error">{error}</div>}
+            {error && <div className="doc-aviso error" role="alert">{error}</div>}
             {ln?.duda && <div className="doc-aviso subidas"><AlertTriangle size={18} /><div><b>Revisar</b>{ln.duda}</div></div>}
             {ln?.original && <small style={{ color: 'var(--text-3)' }}>En la libreta pone: «{ln.original}»</small>}
             <div className="campos-2">
@@ -347,14 +388,16 @@ function LineaModal({ entregaId, ln, onClose, onSaved, onDelete }: {
               <div>
                 <label className="form-label">¿Solo se carga una parte? ¿Cuánto?</label>
                 <input className="form-input" type="text" inputMode="decimal" value={parte} onChange={ev => setParte(ev.target.value)} placeholder="Déjalo vacío si va todo" style={{ maxWidth: 200 }} />
+                <small style={{ color: 'var(--text-3)', display: 'block', marginTop: 4 }}>{parte.trim() ? 'Se cargará solo esa cantidad; el resto queda pendiente.' : 'Vacío: va todo.'}</small>
               </div>
             )}
           </div>
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {ln && onDelete && <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={onDelete}><Trash2 size={14} /> Quitar</button>}
-            <span style={{ flex: 1 }} />
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : ln ? 'Guardar' : 'Añadir'}</button>
+          <div className="modal-pie">
+            {ln && onDelete && <button type="button" className="btn btn-ghost btn-sm modal-pie-quitar" onClick={onDelete}><Trash2 size={14} /> Quitar</button>}
+            <span className="modal-pie-botones">
+              <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando…' : ln ? 'Guardar' : 'Añadir'}</button>
+            </span>
           </div>
         </form>
       </div>
@@ -404,7 +447,7 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
           await firmaSinRed({ entregaId: e.id, ordenId, cliente: e.cliente, nombre, dni, cargadas }, blob, foto?.blob || null);
           onFirmado(true);
         } catch (e2) { setError((e2 as Error).message); }
-      } else setError(describeApiError(err));
+      } else setError(mensajeError(err, describeApiError(err)));
     } finally { setSaving(false); }
   };
 
@@ -419,7 +462,7 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
           <div className="seccion-titulo">Se entrega</div>
           <ul className="carga-firma-lista">
             {llevados.map(l => (
-              <li key={l.id}><b>{cant(l.cargado_ok ? l.cantidad : l.cargado)} {l.unidad || ''}</b> {l.descripcion}</li>
+              <li key={l.id}><b>{cantUd(l.cargado_ok ? l.cantidad : l.cargado, l.unidad)}</b> {l.descripcion}</li>
             ))}
           </ul>
           {faltan.length > 0 && <small style={{ color: 'var(--warning)' }}>Sin cargar o a medias: {faltan.map(l => l.descripcion).join(', ')}. Saldrá como pendiente en la hoja.</small>}
@@ -473,11 +516,11 @@ function ResumenViaje({ o }: { o: OrdenCarga }) {
   const lista = [...grupos.values()].sort((a, b) => a.desc.localeCompare(b.desc, 'es'));
   return (
     <details className="card carga-resumen" open>
-      <summary><Truck size={17} /> Resumen del viaje <small>{lista.length} material{lista.length !== 1 ? 'es' : ''} · {o.entregas.length} clientes</small></summary>
+      <summary><Truck size={17} /> Resumen del viaje <small>{materiales(lista.length)} · {plural(o.entregas.length, 'cliente')}</small></summary>
       <div>
         {lista.map(g => (
           <div key={g.desc + g.unidad} className={`carga-resumen-fila${g.cargadas === g.n ? ' hecho' : ''}`}>
-            <span className="carga-cant">{g.sinCant && !g.total ? '' : cant(g.total)} {g.unidad}</span>
+            <span className="carga-cant">{g.sinCant && !g.total ? g.unidad : cantUd(g.total, g.unidad)}</span>
             <span className="carga-resumen-txt">
               <b>{g.desc}</b>
               {g.por.length > 1 && <small>{g.por.map(p => `${cant(p.c)} ${p.cliente}`).join(' + ')}</small>}
@@ -564,13 +607,16 @@ export function OrdenCargaPage() {
     catch (err) { show(`No se pudo quitar: ${describeApiError(err)}`, { error: true }); }
   };
 
+  const sinCobertura = () => { show('Esto necesita cobertura. Prueba cuando vuelva la señal.', { error: true }); };
+
   const mover = async (e: EntregaCarga, dir: -1 | 1) => {
     if (!o) return;
+    if (!online) { sinCobertura(); return; }
     const ids = o.entregas.map(x => x.id), i = ids.indexOf(e.id), j = i + dir;
     if (j < 0 || j >= ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
     try { setO((await ordenarEntregasCarga(o.id, ids)).data); }
-    catch (err) { show(`No se pudo cambiar el orden: ${describeApiError(err)}`, { error: true }); }
+    catch (err) { show(sinRed(err) ? 'Esto necesita cobertura. Prueba cuando vuelva la señal.' : `No se pudo cambiar el orden: ${mensajeError(err, describeApiError(err))}`, { error: true }); }
   };
 
   const borrarOrden = async () => {
@@ -606,11 +652,14 @@ export function OrdenCargaPage() {
         <div style={{ flex: '1 1 100%', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <button className="doc-volver" onClick={() => navigate('/cargas')}><ArrowLeft size={16} /> Órdenes</button>
-            <h1>Orden de carga</h1>
+            <h1>{o.entregas.map(e => e.cliente || 'Sin nombre').join(' · ') || 'Orden de carga'}</h1>
             <span className={`status-chip carga-${o.estado}`}>{ESTADO[o.estado]}</span>
           </div>
           <div className="pedido-sub">
-            <span><Truck size={15} /> {o.entregas.length} pedido{o.entregas.length !== 1 ? 's' : ''}</span>
+            {[...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].length > 0 && (
+              <span><MapPin size={15} /> {[...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].join(', ')}</span>
+            )}
+            <span><Truck size={15} /> Orden de carga · {plural(o.entregas.length, 'pedido')}</span>
             <span>Cargado {hechas} de {ls.length}</span>
             <span>{fechaHora(o.created_at)}</span>
           </div>
@@ -626,16 +675,20 @@ export function OrdenCargaPage() {
         <div className="doc-aviso subidas" style={{ marginTop: 12 }}>
           <AlertTriangle size={18} />
           <div>
-            <b>¿Pedido repetido?</b>
-            {[...new Map(o.parecidas.map(p => [p.orden_id, p])).values()].slice(0, 3).map(p => {
-              const nombres = [...new Set(o.parecidas.filter(x => x.orden_id === p.orden_id).map(x => x.cliente))];
+            {(() => {
+              const otras = [...new Map(o.parecidas.map(p => [p.orden_id, p])).values()];
+              const nombres = [...new Set(o.parecidas.map(x => x.cliente))];
               return (
-                <span key={p.orden_id}>
-                  {nombres.join(' y ')} {nombres.length > 1 ? 'tienen' : 'tiene'} otra orden sin entregar del {fechaHora(p.creada)}.{' '}
-                  <button className="turnos-link" onClick={() => navigate(`/cargas/${p.orden_id}`)}>Ver esa orden</button>
+                <span>
+                  <b>¿Pedido repetido?</b> {nombres.slice(0, 2).join(' y ')}{nombres.length > 2 ? ` y ${nombres.length - 2} más` : ''} {nombres.length > 1 ? 'tienen' : 'tiene'} {otras.length > 1 ? `otras ${otras.length} órdenes` : 'otra orden'} sin entregar.{' '}
+                  {otras.slice(0, 2).map((p, i) => (
+                    <span key={p.orden_id}>{i > 0 && ' · '}
+                      <button className="turnos-link" onClick={() => navigate(`/cargas/${p.orden_id}`)}>Ver la del {fechaHora(p.creada)}</button>
+                    </span>
+                  ))}
                 </span>
               );
-            })}
+            })()}
           </div>
         </div>
       )}
@@ -686,7 +739,7 @@ export function OrdenCargaPage() {
               </div>
               <div className="carga-entrega-acc">
                 {e.lugar && e.servir && <a className="btn btn-ghost btn-sm" href={mapa(e.lugar)} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> Cómo llegar</a>}
-                {!firmada && <button className="btn btn-ghost btn-sm" onClick={() => setDatos(e)}><Pencil size={14} /> Datos</button>}
+                {!firmada && <button className="btn btn-ghost btn-sm" onClick={() => (online ? setDatos(e) : sinCobertura())}><Pencil size={14} /> Datos</button>}
               </div>
             </div>
 
@@ -702,11 +755,11 @@ export function OrdenCargaPage() {
                 <div key={l.id} className={`pedido-linea${l.cargado_ok ? ' llego' : ''}${medio ? ' medio' : ''}${l.duda ? ' duda' : ''}`}>
                   <button className="pedido-check" onClick={() => tocar(l)} disabled={firmada}
                     aria-pressed={l.cargado_ok} aria-label={l.cargado_ok ? `${l.descripcion}: cargado. Toca para desmarcar` : `Marcar ${l.descripcion} como cargado`}>
-                    {l.cargado_ok ? <Check size={22} strokeWidth={3} /> : medio ? '◑' : null}
+                    {l.cargado_ok ? <Check size={22} strokeWidth={3} /> : medio ? <Medio /> : null}
                   </button>
                   <button className="pedido-linea-txt" onClick={() => !firmada && setLinea({ entregaId: e.id, ln: l })} disabled={firmada}>
-                    <b><span className="carga-cant">{cant(l.cantidad)} {l.unidad || ''}</span> {l.descripcion}</b>
-                    {medio && <small>Cargado solo {cant(l.cargado)}</small>}
+                    <b><span className="carga-cant">{cantUd(l.cantidad, l.unidad)}</span> {l.descripcion}</b>
+                    {medio && <small className="carga-parcial"><Medio /> Cargado solo {cantUd(l.cargado, l.unidad)}</small>}
                     {l.duda && <small className="carga-duda"><AlertTriangle size={13} /> {l.duda}</small>}
                   </button>
                 </div>
@@ -746,7 +799,7 @@ export function OrdenCargaPage() {
               ) : (
                 <>
                   {nada && e.lineas.length > 0 && <span className="pedido-pista">Marca lo que se carga para poder firmar.</span>}
-                  {!nada && faltan > 0 && <span className="pedido-pista">Faltan {faltan} por cargar.</span>}
+                  {!nada && faltan > 0 && <span className="pedido-pista">{faltan === 1 ? 'Falta 1 por cargar.' : `Faltan ${faltan} por cargar.`}</span>}
                   <button className={`btn btn-lg ${faltan === 0 && e.lineas.length > 0 ? 'btn-primary' : 'btn-ghost'}`} disabled={nada} onClick={() => setFirmando(e)}>
                     <PenLine size={18} /> Firma del cliente
                   </button>

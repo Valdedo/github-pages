@@ -16,11 +16,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/repairs", tags=["repairs"])
 
 
+_ORDEN = {"recibida": 0, "en_taller": 1, "reparada": 2, "entregada": 3}
+
+
+def _dia(v):
+    return v.date() if hasattr(v, "date") else v
+
+
+def _validar(data: dict, recibida=None) -> None:
+    for campo in ("estimated_price", "final_price"):
+        if data.get(campo) is not None and data[campo] < 0:
+            raise HTTPException(422, "El importe no puede ser negativo")
+    rec = data.get("date_received") or recibida
+    if rec:
+        for campo in ("date_returned", "date_estimated_return"):
+            if data.get(campo) and _dia(data[campo]) < _dia(rec):
+                raise HTTPException(422, "La fecha de entrega no puede ser anterior a la de recepción")
+
+
 @router.get("", response_model=List[RepairResponse])
 def list_repairs(
     status: Optional[str] = None,
     skip: int = 0,
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int = Query(default=1000, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     q = db.query(Repair).order_by(Repair.created_at.desc())
@@ -49,6 +67,7 @@ def repair_stats(db: Session = Depends(get_db)):
 def create_repair(repair_in: RepairCreate, db: Session = Depends(get_db)):
     if repair_in.status not in VALID_STATUSES:
         raise HTTPException(400, f"Estado inválido. Valores: {VALID_STATUSES}")
+    _validar(repair_in.model_dump())
     repair = Repair(**repair_in.model_dump(exclude_none=True))
     db.add(repair)
     db.commit()
@@ -79,9 +98,22 @@ def update_repair(repair_id: int, update: RepairUpdate, db: Session = Depends(ge
     if "status" in data and data["status"] not in VALID_STATUSES:
         raise HTTPException(400, f"Estado inválido. Valores: {VALID_STATUSES}")
 
+    _validar(data, repair.date_received)
+    if "date_received" in data:  # al cambiar la recepción, se revisan las fechas ya guardadas
+        _validar({"date_returned": repair.date_returned, "date_estimated_return": repair.date_estimated_return,
+                  **{k: v for k, v in data.items() if k in ("date_returned", "date_estimated_return")}},
+                 data["date_received"])
+
     # Auto-set tracking dates when status advances
     from datetime import datetime as _dt
     new_status = data.get("status")
+    if new_status and new_status in _ORDEN and repair.status in _ORDEN:
+        # Vuelve a un estado anterior: se quita lo que ya no es cierto
+        if _ORDEN[new_status] < 2 <= _ORDEN[repair.status]:
+            data.setdefault("aviso_at", None)
+            data.setdefault("date_repaired", None)
+        if _ORDEN[new_status] < 3 == _ORDEN[repair.status]:
+            data.setdefault("date_returned", None)
     if new_status == "en_taller" and not repair.date_sent_to_repair:
         data.setdefault("date_sent_to_repair", _dt.utcnow())
     if new_status == "reparada" and not repair.date_repaired:

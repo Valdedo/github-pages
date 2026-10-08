@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff } from 'lucide-react';
+import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff, ChevronLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
   getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, repartoFirmas, type MarcasFirma,
 } from '../api/client';
-import { enCola, ponerEnCola, sinRed } from '../lib/offline';
+import { firmaGuardada, ponerEnCola, sinRed, reintentarFirma, descartarFirma } from '../lib/offline';
 import { ConnectionError } from '../components/ConnectionError';
+import { useCfToast } from '../components/CfToast';
 import { SelloHecho } from '../components/Pegatinas';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
 import { isReparto } from '../reparto';
+import { getRol } from '../auth';
 import { fmtFecha, fmtFirmado, fmtEuros, Marcas } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
 
@@ -114,13 +116,19 @@ export function SignaturePad({ padRef, onChange }: {
   );
 }
 
+const MAX_NOMBRE = 80;
+const MAX_DNI = 20;
+const hayAtras = () => { try { return ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0; } catch { return false; } };
+
 export function FirmaDetailPage() {
   const { id } = useParams();
   const noteId = Number(id);
   const navigate = useNavigate();
-  const reparto = isReparto();
+  const reparto = isReparto() || getRol() === 'reparto';
   const volver = reparto ? '/reparto' : '/firmas';
+  const irALista = () => (!reparto && hayAtras() ? navigate(-1) : navigate(volver));
   const padRef = useRef<{ clear: () => void; toBlob: () => Promise<Blob | null>; isEmpty: () => boolean } | null>(null);
+  const { toast, show } = useCfToast();
 
   const [note, setNote] = useState<ClientDeliveryNote | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -130,14 +138,17 @@ export function FirmaDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [impreso, setImpreso] = useState(false);
   const [hecho, setHecho] = useState(false);
-  const [guardadaSinRed, setGuardadaSinRed] = useState(() => enCola(noteId));
-  useEffect(() => { setGuardadaSinRed(enCola(noteId)); }, [noteId]);
-  const [factRef, setFactRef] = useState('');
+  const [guardada, setGuardada] = useState(() => firmaGuardada(noteId));
+  useEffect(() => { setGuardada(firmaGuardada(noteId)); }, [noteId]);
+  const [factRef, setFactRef] = useState<string | null>(null); // null: sin tocar
   const [printPages, setPrintPages] = useState<string[]>([]);
+  const [camionGuardando, setCamionGuardando] = useState(false);
+  const [borrando, setBorrando] = useState(false);
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
   // En el reparto siempre se firma en la pantalla del móvil
-  const esPC = !isReparto() && typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches;
+  const esPC = !reparto && typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
   const [modo, setModo] = useState<'pantalla' | 'tableta'>(() => {
     // En el PC, la tableta Topaz por defecto (salvo que se haya elegido Pantalla)
     if (!esPC) return 'pantalla';
@@ -179,17 +190,23 @@ export function FirmaDetailPage() {
     getFirma(noteId).then(({ data }) => setNote(data)).catch(err => setLoadError(describeApiError(err)));
   }, [noteId]);
   useEffect(() => { load(); }, [load]);
-  // Cuando se envía la firma guardada sin cobertura, se recarga
+  // Cuando se envía (o se rechaza) la firma guardada sin cobertura, se actualiza
   useEffect(() => {
-    const f = () => { if (!enCola(noteId)) { setGuardadaSinRed(false); load(); } };
+    const f = () => {
+      const g = firmaGuardada(noteId);
+      setGuardada(g);
+      if (!g) load();
+    };
     window.addEventListener('cf-cola', f);
     return () => window.removeEventListener('cf-cola', f);
   }, [noteId, load]);
 
   const camion = async () => {
-    if (!note) return;
+    if (!note || camionGuardando) return;
+    setCamionGuardando(true); setError(null);
     try { const { data } = await repartoFirmas([note.id], !note.reparto_at); setNote(data[0] ?? note); }
     catch (err) { setError(describeApiError(err)); }
+    finally { setCamionGuardando(false); }
   };
 
   const version = note ? `${note.status}-${note.signed_at ?? ''}` : '';
@@ -197,7 +214,7 @@ export function FirmaDetailPage() {
   const firmado = note?.status === 'firmado';
 
   const onSign = async () => {
-    if (!note) return;
+    if (!note || saving) return;
     setError(null);
     if (!padRef.current || padRef.current.isEmpty()) { setError('Falta la firma.'); return; }
     if (!nombre.trim()) { setError('Escribe el nombre de quien recibe.'); return; }
@@ -219,7 +236,7 @@ export function FirmaDetailPage() {
         if (blob) {
           try { await ponerEnCola(note, blob, nombre.trim(), dni.trim()); }
           catch (e) { setError(`${(e as Error).message}. No hay cobertura: vuelve a intentarlo cuando haya señal.`); return; }
-          setGuardadaSinRed(true);
+          setGuardada(firmaGuardada(note.id));
           setHecho(true);
           setTimeout(() => setHecho(false), 1500);
           return;
@@ -231,24 +248,26 @@ export function FirmaDetailPage() {
     }
   };
 
-  // Imprimir: se cargan las páginas firmadas en alta resolución y se manda a la impresora
   const marcar = async (m: MarcasFirma) => {
     if (!note) return;
     try { const { data } = await marcarFirma(note.id, m); setNote(data); }
     catch (err) { setEnvioMsg({ ok: false, text: describeApiError(err) }); }
   };
 
+  // Imprimir: se cargan las páginas firmadas en alta resolución y se manda a la impresora.
+  // No se marca «Copia entregada» sola (no se sabe si se imprimió o se canceló): se marca a mano.
   const onPrint = () => {
     if (!note) return;
-    if (!note.copia_at) marcar({ copia: true }); // la copia impresa es para el cliente
     setPrinting(true);
     setPrintPages(Array.from({ length: note.page_count || 1 }, (_, i) => firmaPageUrl(note.id, i + 1, 200, version)));
   };
   useEffect(() => {
     if (!printing || !printPages.length) return;
     const imgs = Array.from(document.querySelectorAll<HTMLImageElement>('#firma-print img'));
+    const despues = () => { setImpreso(true); window.removeEventListener('afterprint', despues); };
     Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = () => r(null); })))
-      .then(() => { window.print(); setPrinting(false); });
+      .then(() => { window.addEventListener('afterprint', despues); window.print(); setPrinting(false); });
+    return () => window.removeEventListener('afterprint', despues);
   }, [printing, printPages]);
 
   const onEmail = async () => {
@@ -261,19 +280,20 @@ export function FirmaDetailPage() {
       setNote(data);
       setEnvioMsg({ ok: true, text: `Enviado a ${to}` });
     } catch (err) {
-      const ax = err as { response?: { data?: { detail?: string } } };
-      setEnvioMsg({ ok: false, text: ax.response?.data?.detail || describeApiError(err) });
+      setEnvioMsg({ ok: false, text: describeApiError(err) });
     } finally {
       setEnviando(false);
     }
   };
 
-  // WhatsApp: abre el chat del cliente con el mensaje y el enlace al PDF firmado
+  // WhatsApp: abre el chat del cliente con el mensaje y el enlace al PDF firmado.
+  // Se marca «Enviado por WhatsApp», pero con «Deshacer» por si al final no se mandó.
   const onWhatsApp = async () => {
     if (!note) return;
     let tel = telefono.replace(/[^\d+]/g, '').replace(/^\+/, '').replace(/^00/, '');
     if (tel.length === 9) tel = `34${tel}`;
     if (tel.length < 11) { setEnvioMsg({ ok: false, text: 'Escribe el móvil del cliente.' }); return; }
+    const yaMarcado = !!note.whatsapp_at;
     const win = window.open('', '_blank'); // se abre ya para que el navegador no lo bloquee
     try {
       await putFirmaContacto(note.id, { telefono });
@@ -283,6 +303,8 @@ export function FirmaDetailPage() {
       const text = `Buenas, le enviamos el albarán ${note.numero} firmado:\n${url}\n\nCasa Fonso · Materiales de construcción`;
       const wa = `https://wa.me/${tel}?text=${encodeURIComponent(text)}`;
       if (win) win.location.href = wa; else window.location.href = wa;
+      setEnvioMsg(null);
+      if (!yaMarcado) show('Marcado como enviado por WhatsApp', { undo: () => marcar({ whatsapp: false }) });
     } catch (err) {
       win?.close();
       setEnvioMsg({ ok: false, text: describeApiError(err) });
@@ -290,23 +312,67 @@ export function FirmaDetailPage() {
   };
 
   const onDelete = async () => {
-    if (!note || !window.confirm(`¿Borrar el albarán ${note.numero}${firmado ? ' FIRMADO' : ''}? No se puede deshacer.`)) return;
-    await deleteFirma(note.id);
-    navigate(volver);
+    if (!note || borrando || !window.confirm(`¿Borrar el albarán ${note.numero}${firmado ? ' FIRMADO' : ''}? No se puede deshacer.`)) return;
+    setBorrando(true); setError(null); setEnvioMsg(null);
+    try {
+      await deleteFirma(note.id);
+      navigate(volver, { replace: true });
+    } catch (err) {
+      const text = sinRed(err) ? 'Sin cobertura: no se ha borrado. Vuelve a probar cuando haya señal.' : `No se pudo borrar: ${describeApiError(err)}`;
+      if (firmado) setEnvioMsg({ ok: false, text }); else setError(text);
+      show(text, { error: true });
+    } finally { setBorrando(false); }
+  };
+
+  const guardarFactRef = () => {
+    if (!note || factRef === null) return;
+    const v = factRef.trim();
+    if (v !== (note.factura_ref || '')) marcar({ factura_ref: v }); // vacío = quitar el nº
+    setFactRef(null);
   };
 
   if (loadError) return <div className="page"><ConnectionError message={loadError} onRetry={load} /></div>;
   if (!note) return <div className="page" style={{ textAlign: 'center', color: 'var(--text-3)' }}>Cargando…</div>;
 
+  const movil = !esPC;
+  const imprimir = !reparto && (
+    <button className={`btn ${movil ? 'btn-ghost' : 'btn-primary'} firma-big`} onClick={onPrint} disabled={printing}>
+      <Printer size={18} /> {printing ? 'Preparando…' : impreso ? 'Impreso · imprimir otra vez' : 'Imprimir copia firmada'}
+    </button>
+  );
+  const envio = (
+    <>
+      {movil && <div className="firma-envio-tit">Mandar al cliente</div>}
+      <div className="firma-envio">
+        <input className="form-input" type="tel" placeholder="Móvil del cliente" value={telefono} autoComplete="off"
+          onChange={e => setTelefono(e.target.value)} aria-label="Móvil del cliente" />
+        <button className={`btn ${movil ? 'btn-primary' : 'btn-ghost'}`} onClick={onWhatsApp}>
+          <MessageCircle size={16} /> WhatsApp
+        </button>
+      </div>
+      <div className="firma-envio">
+        <input className="form-input" type="email" placeholder="Correo del cliente" value={email} autoComplete="off"
+          onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onEmail(); }} aria-label="Correo del cliente" />
+        <button className={`btn ${movil ? 'btn-primary' : 'btn-ghost'}`} onClick={onEmail} disabled={enviando}>
+          <Mail size={16} /> {enviando ? 'Enviando…' : 'Correo'}
+        </button>
+      </div>
+      {envioMsg && <div role={envioMsg.ok ? 'status' : 'alert'} style={{ fontSize: 13, color: envioMsg.ok ? 'var(--success)' : 'var(--danger)' }}>{envioMsg.text}</div>}
+    </>
+  );
+
   return (
     <div className="page-wide">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <button className="btn btn-ghost btn-sm firma-volver-pc" onClick={irALista}>
+        <ChevronLeft size={16} /> Volver a la lista
+      </button>
+      <div className="firma-cabecera">
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Albarán {note.numero}</h1>
           <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
             {[note.cliente, note.obra, fmtFecha(note.fecha), fmtEuros(note.importe)].filter(Boolean).join(' · ')}
           </p>
-          <Marcas n={note} />
+          <Marcas n={note} sinEstado />
         </div>
         <span className={`status-chip ${firmado ? 'firmado' : 'pendiente'}`} style={{ marginLeft: 'auto' }}>
           {firmado ? 'Firmado' : 'Por firmar'}
@@ -321,49 +387,51 @@ export function FirmaDetailPage() {
         </div>
 
         <div className="card firma-panel">
-          {!firmado && guardadaSinRed ? (
+          {!firmado && guardada?.error ? (
+            <div className="firma-cola error" role="alert">
+              <AlertTriangle size={26} />
+              <div>
+                <b>No se pudo enviar la firma: {guardada.error}</b>
+                <small>Firmó {guardada.nombre}. La firma sigue guardada en este móvil.</small>
+              </div>
+              <div className="firma-cola-botones">
+                <button className="btn btn-primary" onClick={() => reintentarFirma(note.id)}><RefreshCw size={16} /> Reintentar</button>
+                <button className="btn btn-ghost" onClick={() => {
+                  if (window.confirm('¿Descartar la firma guardada en el móvil? Habrá que volver a firmar.')) descartarFirma(note.id);
+                }}>Descartar</button>
+              </div>
+            </div>
+          ) : !firmado && guardada ? (
             <div className="firma-cola">
               <CloudOff size={26} />
               <div>
                 <b>Firmado. Se enviará al recuperar cobertura</b>
                 <small>La firma está guardada en este móvil. No hace falta hacer nada más.</small>
               </div>
-              <button className="btn btn-primary firma-big" onClick={() => navigate(volver)}>Volver a la lista</button>
+              <button className="btn btn-primary firma-big" onClick={() => navigate(volver)}>{reparto ? 'Siguiente entrega' : 'Volver a la lista'}</button>
             </div>
           ) : firmado ? (
             <>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <CheckCircle size={22} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontWeight: 600 }}>Firmado por {note.signed_by}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>Recibió {note.signed_by}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
                     {fmtFirmado(note.signed_at)}{note.signer_dni ? ` · DNI ${note.signer_dni}` : ''}
                   </div>
                 </div>
               </div>
-              <button className="btn btn-primary firma-big" onClick={onPrint} disabled={printing}>
-                <Printer size={18} /> {printing ? 'Preparando…' : 'Imprimir copia firmada'}
-              </button>
-              <div className="firma-envio">
-                <input className="form-input" type="email" placeholder="Correo del cliente" value={email}
-                  onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onEmail(); }} />
-                <button className="btn btn-ghost" onClick={onEmail} disabled={enviando}>
-                  <Mail size={16} /> {enviando ? 'Enviando…' : 'Enviar'}
+              {movil ? <>{envio}{imprimir}</> : <>{imprimir}{envio}</>}
+              {impreso && !note.copia_at && !reparto && (
+                <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => marcar({ copia: true })}>
+                  <Check size={14} /> Se la he dado al cliente: marcar «Copia entregada»
                 </button>
-              </div>
-              <div className="firma-envio">
-                <input className="form-input" type="tel" placeholder="Móvil del cliente" value={telefono}
-                  onChange={e => setTelefono(e.target.value)} />
-                <button className="btn btn-ghost" onClick={onWhatsApp}>
-                  <MessageCircle size={16} /> WhatsApp
-                </button>
-              </div>
-              {envioMsg && <div style={{ fontSize: 13, color: envioMsg.ok ? 'var(--success)' : 'var(--danger)' }}>{envioMsg.text}</div>}
+              )}
 
               <a className="btn btn-ghost firma-big" href={firmaPdfUrl(note.id, true)}>
                 <Download size={18} /> Descargar PDF
               </a>
-              {note.codigo_cliente && (
+              {note.codigo_cliente && !reparto && (
                 <label className="firma-auto">
                   <input type="checkbox" checked={auto.on} onChange={e => cambiarAuto(e.target.checked)} />
                   Enviar siempre por correo a este cliente al firmar
@@ -376,7 +444,7 @@ export function FirmaDetailPage() {
                   { key: 'whatsapp', label: 'Enviado por WhatsApp', at: note.whatsapp_at },
                   { key: 'facturado', label: note.factura_ref ? `Facturado (${note.factura_ref})` : 'Facturado', at: note.facturado_at },
                 ] as const).map(t => (
-                  <button key={t.key} className={`firma-toggle${t.at ? ' on' : ''}`}
+                  <button key={t.key} className={`firma-toggle${t.at ? ' on' : ''}`} aria-pressed={!!t.at}
                     onClick={() => marcar({ [t.key]: !t.at })}>
                     <span className="box">{t.at && <Check size={14} />}</span>
                     {t.label}
@@ -385,9 +453,9 @@ export function FirmaDetailPage() {
                 ))}
                 {note.facturado_at && (
                   <label className="form-label" style={{ margin: '2px 0 0' }}>Nº de factura (opcional)
-                    <input className="form-input" value={factRef || note.factura_ref || ''} placeholder="Por ejemplo, F-2026/0145"
-                      onChange={e => setFactRef(e.target.value)}
-                      onBlur={() => { if (factRef && factRef !== note.factura_ref) marcar({ factura_ref: factRef }); }} />
+                    <input className="form-input" value={factRef ?? note.factura_ref ?? ''} placeholder="Por ejemplo, F-2026/0145" maxLength={50}
+                      onChange={e => setFactRef(e.target.value)} onBlur={guardarFactRef}
+                      onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
                   </label>
                 )}
                 <div className={`firma-toggle${note.emailed_at ? ' on' : ''}`} style={{ cursor: 'default' }}>
@@ -396,7 +464,7 @@ export function FirmaDetailPage() {
                   {note.emailed_at && <small>{fmtFirmado(note.emailed_at).replace(' a las', ',')}</small>}
                 </div>
               </div>}
-              <button className="btn btn-ghost firma-big" onClick={() => navigate(volver)}>Volver a la lista</button>
+              <button className="btn btn-ghost firma-big" onClick={() => navigate(volver)}>{reparto ? 'Siguiente entrega' : 'Volver a la lista'}</button>
             </>
           ) : (
             <>
@@ -413,36 +481,37 @@ export function FirmaDetailPage() {
                 ? <TopazPad ref={padRef as React.MutableRefObject<TopazHandle | null>} onChange={setHasInk} />
                 : <SignaturePad padRef={padRef} onChange={setHasInk} />}
               <label className="form-label">Nombre de quien recibe
-                <input className="form-input" value={nombre} onChange={e => setNombre(e.target.value)} autoComplete="off" />
+                <input className="form-input" value={nombre} maxLength={MAX_NOMBRE} onChange={e => setNombre(e.target.value)} autoComplete="off" />
+                {nombre.length > MAX_NOMBRE - 15 && <small className="firma-limite">{nombre.length}/{MAX_NOMBRE}</small>}
               </label>
               <label className="form-label">DNI (opcional)
-                <input className="form-input" value={dni} onChange={e => setDni(e.target.value)} autoComplete="off" />
+                <input className="form-input" value={dni} maxLength={MAX_DNI} onChange={e => setDni(e.target.value)} autoComplete="off" autoCapitalize="characters" />
               </label>
               {auto.on && auto.email && (
-                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                <div style={{ fontSize: 13, color: 'var(--text-2)', overflowWrap: 'anywhere' }}>
                   <Mail size={13} style={{ verticalAlign: -2 }} /> Al firmar se enviará solo a {auto.email}
                 </div>
               )}
-              {error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
+              {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
               {!reparto && (
-                <button className={`firma-toggle${note.reparto_at ? ' on' : ''}`} onClick={camion}>
+                <button className={`firma-toggle${note.reparto_at ? ' on' : ''}`} onClick={camion} disabled={camionGuardando} aria-busy={camionGuardando} aria-pressed={!!note.reparto_at}>
                   <span className="box">{note.reparto_at && <Check size={14} />}</span>
-                  <Truck size={16} /> {note.reparto_at ? 'En el camión de reparto' : 'Mandar al camión de reparto'}
+                  <Truck size={16} /> {camionGuardando ? 'Guardando…' : note.reparto_at ? 'En el camión de reparto' : 'Mandar al camión de reparto'}
                 </button>
               )}
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="firma-acciones">
                 <button className="btn btn-ghost" onClick={() => padRef.current?.clear()} disabled={!hasInk}>
                   <Eraser size={15} /> Borrar firma
                 </button>
-                <button className="btn btn-primary firma-big" style={{ flex: 1 }} onClick={onSign} disabled={saving}>
+                <button className="btn btn-primary firma-big" onClick={onSign} disabled={saving}>
                   {saving ? 'Guardando…' : 'Firmar albarán'}
                 </button>
               </div>
             </>
           )}
           {note.nota && <div style={{ fontSize: 12, color: 'var(--warning)' }}>{note.nota}</div>}
-          {!reparto && <button className="btn btn-danger btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onDelete}>
-            <Trash2 size={13} /> Borrar albarán
+          {!reparto && <button className="btn btn-danger btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onDelete} disabled={borrando}>
+            <Trash2 size={13} /> {borrando ? 'Borrando…' : 'Borrar albarán'}
           </button>}
         </div>
       </div>
@@ -452,6 +521,7 @@ export function FirmaDetailPage() {
         <div id="firma-print">{printPages.map(src => <img key={src} src={src} alt="" />)}</div>,
         document.body,
       )}
+      {toast}
     </div>
   );
 }

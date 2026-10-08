@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vacio } from '../components/Pegatinas';
-import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff } from 'lucide-react';
+import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff, AlertTriangle } from 'lucide-react';
 import { listFirmas, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
@@ -10,7 +10,7 @@ import { getRol, cerrarSesion, getYo, sesionPersonal } from '../auth';
 import { MiCodigoModal } from '../components/MiCodigoModal';
 import { fmtFecha, fmtEuros } from './FirmasPage';
 import { TurnoHoy } from '../components/TurnoHoy';
-import { cola, enviarCola, prepararSinCobertura, type FirmaEnCola } from '../lib/offline';
+import { cola, enviarCola, prepararSinCobertura, reintentarFirma, descartarFirma, type FirmaEnCola } from '../lib/offline';
 import type { ClientDeliveryNote } from '../types';
 
 const hoy = () => {
@@ -56,7 +56,13 @@ export function RepartoPage() {
   const camion = pendientes.filter(n => n.reparto_at)
     .sort((a, b) => (a.reparto_orden ?? 0) - (b.reparto_orden ?? 0));
   const lista = verTodos ? pendientes : camion;
-  const firmadosHoy = notes.filter(n => n.status === 'firmado' && (n.signed_at || '').startsWith(hoy()));
+  // Solo los del reparto (los que iban en el camión), no los que se firman en la tienda
+  const firmadosHoy = notes.filter(n => n.status === 'firmado' && n.reparto_at && (n.signed_at || '').startsWith(hoy()));
+  const esperando = guardadas.filter(g => !g.error);
+  const rechazadas = guardadas.filter(g => g.error);
+  const entregadoHoy = firmadosHoy.length + esperando.length;
+  const otros = pendientes.length - (verTodos ? 0 : camion.length);
+  const verPendientes = (n: number) => n === 1 ? 'Ver el pendiente de la tienda' : `Ver los ${n} pendientes de la tienda`;
 
   // Deja los del camión guardados en el móvil para abrirlos sin cobertura
   const idsCamion = camion.map(n => n.id).join(',');
@@ -70,7 +76,7 @@ export function RepartoPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div>
             <span>Hola, {nombre}</span>
-            <h1>{camion.length ? `${camion.length} en el camión` : 'Camión vacío'}</h1>
+            <h1>{camion.length ? `${camion.length} en el camión` : entregadoHoy > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
           </div>
           <button className="btn btn-sm" style={{ marginLeft: 'auto', background: 'rgb(255 255 255 / .14)', color: '#fff' }} onClick={() => load()} aria-label="Actualizar">
             <RefreshCw size={16} /> Actualizar
@@ -81,12 +87,29 @@ export function RepartoPage() {
       {!online && (
         <div className="reparto-sinred"><CloudOff size={20} /> Sin cobertura. Puedes abrir y firmar los albaranes del camión igualmente.</div>
       )}
-      {guardadas.length > 0 && (
+      {rechazadas.map(g => (
+        <div key={g.id} className="reparto-cola error" role="alert">
+          <AlertTriangle size={20} />
+          <div>
+            <b>No se pudo enviar la firma de {g.cliente || g.numero}: {g.error}</b>
+            <small>Albarán {g.numero} · firmó {g.nombre}. Sigue guardada en el móvil.</small>
+            <div className="reparto-cola-botones">
+              <button className="btn btn-primary btn-sm" onClick={() => reintentarFirma(g.id).then(() => load(true))}>
+                <RefreshCw size={14} /> Reintentar
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => {
+                if (window.confirm(`¿Descartar la firma de ${g.cliente || g.numero} guardada en el móvil? Habrá que volver a firmar.`)) descartarFirma(g.id);
+              }}>Descartar</button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {esperando.length > 0 && (
         <div className="reparto-cola">
           <CloudOff size={20} />
           <div>
-            <b>{guardadas.length} firma{guardadas.length !== 1 ? 's' : ''} esperando cobertura</b>
-            <small>{guardadas.map(g => g.cliente || g.numero).join(', ')}. Se enviarán solas.</small>
+            <b>{esperando.length} firma{esperando.length !== 1 ? 's' : ''} esperando cobertura</b>
+            <small>{esperando.map(g => g.cliente || g.numero).join(', ')}. Se enviarán solas.</small>
           </div>
         </div>
       )}
@@ -101,11 +124,14 @@ export function RepartoPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
       ) : lista.length === 0 ? (
-        <Vacio camion="aparcado" titulo={pendientes.length === 0 ? 'Hoy no hay entregas' : 'Camión vacío'}
-          texto={pendientes.length === 0 ? 'Todo firmado. Cuando haya carga para ti, te aviso.' : 'No te han puesto albaranes en el camión.'}>
+        <Vacio camion="aparcado"
+          titulo={!verTodos && entregadoHoy > 0 ? 'Todo entregado hoy' : pendientes.length === 0 ? 'Hoy no hay entregas' : 'Camión vacío'}
+          texto={!verTodos && entregadoHoy > 0
+            ? `${entregadoHoy === 1 ? 'Has entregado 1 albarán' : `Has entregado ${entregadoHoy} albaranes`}. Cuando haya más carga para ti, te aviso.`
+            : pendientes.length === 0 ? 'Cuando haya carga para ti, te aviso.' : 'No te han puesto albaranes en el camión.'}>
           {!verTodos && pendientes.length > 0 && (
             <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={() => setVerTodos(true)}>
-              Ver los {pendientes.length} pendientes de la tienda
+              {verPendientes(pendientes.length)}
             </button>
           )}
         </Vacio>
@@ -126,9 +152,9 @@ export function RepartoPage() {
               <span className="reparto-firmar"><PenLine size={20} /> Firmar</span>
             </button>
           ))}
-          {!verTodos && pendientes.length > camion.length && (
+          {!verTodos && otros > 0 && (
             <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'center', color: 'var(--text-3)' }} onClick={() => setVerTodos(true)}>
-              Ver también los otros pendientes de la tienda
+              {otros === 1 ? 'Ver también el otro pendiente de la tienda' : `Ver también los otros ${otros} pendientes de la tienda`}
             </button>
           )}
         </div>
@@ -137,14 +163,14 @@ export function RepartoPage() {
       {firmadosHoy.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8 }}>
-            Firmados hoy ({firmadosHoy.length})
+            Entregados hoy ({firmadosHoy.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {firmadosHoy.map(n => (
               <button key={n.id} className="card reparto-card hecho" onClick={() => navigate(`/firmas/${n.id}`)}>
                 <CheckCircle size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 14 }}>
-                  <strong>{n.cliente}</strong> · {n.numero}
+                  <strong>{n.cliente || 'Cliente sin identificar'}</strong> · {n.numero}
                 </div>
                 <ChevronRight size={16} style={{ color: 'var(--text-3)' }} />
               </button>

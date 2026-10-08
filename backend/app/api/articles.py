@@ -3,14 +3,14 @@ Article CRUD and margin recalculation endpoints.
 """
 import json
 import logging
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.article import Article
-from app.models.app_settings import AppSettings
+from app.models.app_settings import AppSettings, decimales, get_or_create_settings as get_settings
 from app.schemas.article import ArticleCreate, ArticleUpdate, ArticleResponse
 from app.services.margin_service import compute_article_pricing
 
@@ -18,22 +18,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/articles", tags=["articles"])
 
 
-def get_settings(db: Session) -> AppSettings:
-    s = db.query(AppSettings).filter(AppSettings.id == 1).first()
-    if not s:
-        s = AppSettings(id=1)
-        db.add(s)
-        db.commit()
-        db.refresh(s)
-    return s
+_DEL_DOCUMENTO = object()
 
 
 def recalc_article(
     article: Article,
     settings: AppSettings,
-    pronto_pago_pct: Optional[float] = None,
+    pronto_pago_pct=_DEL_DOCUMENTO,
 ) -> Article:
-    """Recalculate pricing for an article based on current settings."""
+    """Recalcula coste neto y PVP con los ajustes actuales. Si no se indica el pronto pago,
+    se usa siempre el del albarán del artículo (igual que /recalculate)."""
+    if pronto_pago_pct is _DEL_DOCUMENTO:
+        doc = article.document
+        if doc is None and article.document_id:
+            from sqlalchemy.orm import object_session
+            from app.models.document import Document as Doc
+            ses = object_session(article)
+            doc = ses.get(Doc, article.document_id) if ses else None
+        pronto_pago_pct = doc.pronto_pago_pct if doc else None
     tiers = json.loads(settings.margin_tiers) if isinstance(settings.margin_tiers, str) else []
 
     pricing = compute_article_pricing(
@@ -47,7 +49,7 @@ def recalc_article(
         margen_pct_override=article.margen_pct if article.margen_override else None,
         tiers=tiers,
         rounding_mode=settings.rounding_mode,
-        decimals=settings.rounding_decimals,
+        decimals=decimales(settings),
         pronto_pago_pct=pronto_pago_pct,
     )
 
@@ -101,7 +103,9 @@ def create_article(article_in: ArticleCreate, db: Session = Depends(get_db)):
         pvp_sin_iva=0,
         pvp_con_iva=0,
     )
-    article = recalc_article(article, settings)
+    from app.models.document import Document as Doc
+    doc = db.get(Doc, article_in.document_id)
+    article = recalc_article(article, settings, pronto_pago_pct=doc.pronto_pago_pct if doc else None)
     db.add(article)
     db.commit()
     db.refresh(article)
@@ -160,12 +164,16 @@ def update_article(
     update_data = update.model_dump(exclude_unset=True)
 
     # Validate numeric fields
-    if "cantidad" in update_data and update_data["cantidad"] is not None:
-        if update_data["cantidad"] <= 0:
-            raise HTTPException(400, "La cantidad debe ser mayor que 0")
-    if "precio_unitario_bruto" in update_data and update_data["precio_unitario_bruto"] is not None:
+    if "cantidad" in update_data:
+        if update_data["cantidad"] is None or update_data["cantidad"] <= 0:
+            raise HTTPException(422, "La cantidad debe ser mayor que 0")
+    if "precio_unitario_bruto" in update_data:
+        if update_data["precio_unitario_bruto"] is None:
+            raise HTTPException(422, "Falta el precio")
         if update_data["precio_unitario_bruto"] < 0:
-            raise HTTPException(400, "El precio no puede ser negativo")
+            raise HTTPException(422, "El precio no puede ser negativo")
+    if "iva_pct" in update_data and update_data["iva_pct"] is None:
+        raise HTTPException(422, "Falta el IVA")
     for dto_field in ["descuento_1", "descuento_2", "descuento_3", "descuento_4"]:
         if dto_field in update_data and update_data[dto_field] is not None:
             if not (0 <= update_data[dto_field] <= 100):

@@ -18,6 +18,10 @@ export const setSesion = (token: string, rol: Rol, persona?: string | null) => {
 };
 export const cerrarSesion = () => {
   try { localStorage.removeItem(KEY); localStorage.removeItem(ROL); localStorage.removeItem(PERSONA); } catch { /* nada */ }
+  // Los datos guardados para usar sin cobertura (service worker) no se quedan en el dispositivo
+  try {
+    if ('caches' in window) caches.keys().then(ks => ks.filter(k => k.endsWith('-datos')).forEach(k => caches.delete(k))).catch(() => { /* nada */ });
+  } catch { /* nada */ }
 };
 /** Persona del código con el que se entró ('tienda' si es el dispositivo compartido). */
 export const getPersona = (): string => { try { return localStorage.getItem(PERSONA) || ''; } catch { return ''; } };

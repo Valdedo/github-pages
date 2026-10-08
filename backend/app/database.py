@@ -109,6 +109,9 @@ def _run_migrations():
         # Reparto en el camión (v3.1.0)
         ("client_delivery_notes", "reparto_at",   "DATETIME"),
         ("client_delivery_notes", "reparto_orden", "INTEGER"),
+        # Albaranes de proveedor en varias fotos: todas las rutas (v3.3.0)
+        ("documents", "file_paths",       "TEXT"),
+        ("supplier_orders", "marcado_pedido", "BOOLEAN"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:
@@ -118,6 +121,22 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 pass  # column already exists
+
+        # Arreglo puntual (una sola vez): las hojas de entrega con foto se subieron a Drive sin la
+        # firma. La columna marca que ya se hizo; si se crea ahora, es la primera vez → se vuelven a subir.
+        try:
+            conn.execute(sa.text("ALTER TABLE entregas_carga ADD COLUMN hoja_foto_ok INTEGER"))
+            conn.commit()
+            primera_vez = True
+        except Exception:
+            conn.rollback()
+            primera_vez = False
+        if primera_vez:
+            try:
+                conn.execute(sa.text("UPDATE entregas_carga SET drive_at = NULL WHERE foto_entrega IS NOT NULL"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
         # Fix existing rows that still have NULL after ALTER TABLE ADD COLUMN
         # (SQLite only sets DEFAULT for new rows, not existing ones)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell, BellOff, Share } from 'lucide-react';
-import { activarAvisos, desactivarAvisos, estadoAvisos, type EstadoAvisos } from '../lib/avisos';
+import { activarAvisos, desactivarAvisos, estadoAvisos, esIOS, instalada, type EstadoAvisos } from '../lib/avisos';
 import { getRol } from '../auth';
 
 const QUE = {
@@ -38,7 +38,9 @@ export function AvisosCard({ grande }: { grande?: boolean }) {
         ) : estado === 'bloqueados' ? (
           <>
             <b>Los avisos están bloqueados</b>
-            <small>Actívalos en los ajustes del navegador para esta página (Notificaciones → Permitir).</small>
+            <small>{esIOS() && instalada()
+              ? <>En el iPhone: abre <b>Ajustes</b> → <b>Notificaciones</b> → <b>Casa Fonso</b> y activa «Permitir notificaciones».</>
+              : 'Actívalos en los ajustes del navegador para esta página (Notificaciones → Permitir).'}</small>
           </>
         ) : (
           <>

@@ -1,47 +1,40 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Wrench, Search, Phone, ChevronRight, MessageCircle, CheckCheck } from 'lucide-react';
+import { Plus, Search, Phone, ChevronRight, MessageCircle, CheckCheck, X } from 'lucide-react';
 import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { Vacio } from '../components/Pegatinas';
 import { useCfToast } from '../components/CfToast';
-import { ImporteModal, numES, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
+import { ImporteModal, leerImporte, fmtEur, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
+import { coincide, fechaES } from '../lib/texto';
+import { mensajeError } from '../lib/descargas';
+import { REPARACION_ESTADO, REPARACION_SIGUIENTE } from '../lib/estados';
 import type { Repair, RepairStatus } from '../types';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
   { value: '', label: 'Todas' },
-  { value: 'recibida', label: 'Recibida' },
-  { value: 'en_taller', label: 'En el taller' },
-  { value: 'reparada', label: 'Listas' },
+  { value: 'recibida', label: REPARACION_ESTADO.recibida },
+  { value: 'en_taller', label: REPARACION_ESTADO.en_taller },
+  { value: 'reparada', label: REPARACION_ESTADO.reparada },
 ];
 
-const STATUS_STEPS: RepairStatus[] = ['recibida', 'en_taller', 'reparada', 'entregada'];
 const STATUS_NEXT: Record<RepairStatus, RepairStatus | null> = {
   recibida: 'en_taller',
   en_taller: 'reparada',
   reparada: 'entregada',
   entregada: null,
 };
-const STATUS_NEXT_LABEL: Record<RepairStatus, string> = {
-  recibida: 'Enviar al taller',
-  en_taller: 'Ya ha vuelto',
-  reparada: 'Entregar',
-  entregada: '',
-};
 
 function StatusChip({ status }: { status: RepairStatus }) {
-  const labels: Record<RepairStatus, string> = {
-    recibida: 'Recibida', en_taller: 'En el taller', reparada: 'Lista', entregada: 'Entregada',
-  };
-  return <span className={`status-chip ${status}`}>{labels[status]}</span>;
+  return <span className={`status-chip ${status}`}>{REPARACION_ESTADO[status]}</span>;
 }
 
-// Format a stored datetime string for display (e.g. "11/04/2026")
-function fmtDate(dt?: string | null): string {
-  if (!dt) return '';
-  const [y, m, d] = dt.split('T')[0].split('-');
-  return `${d}/${m}/${y}`;
-}
+/** Busca en todo lo de la reparación: cliente, teléfono, herramienta, marca, modelo, problema y notas. */
+const coincideReparacion = (r: Repair, q: string) =>
+  coincide(q, r.client_name, r.client_phone, r.tool_description, r.tool_brand, r.tool_model, r.problem_description, r.notes);
+
+// Fecha guardada → «11/04/2026»
+const fmtDate = (dt?: string | null) => fechaES(dt ? dt.split('T')[0] : dt);
 
 function relativeDate(dt?: string | null): string {
   if (!dt) return '';
@@ -128,17 +121,31 @@ function RepairModal({
     } : EMPTY_FORM
   );
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setErrorRaw] = useState('');
+  const errorRef = useRef<HTMLDivElement>(null);
+  // Al salir un error, se lleva a la vista para que se vea (el formulario tiene scroll)
+  const setError = (m: string) => { setErrorRaw(m); if (m) requestAnimationFrame(() => errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })); };
 
   const set = (k: keyof RepairFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
+  // Escape cierra; en el ordenador, tocar fuera también
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [onClose]);
+
+  const presupuesto = leerImporte(form.estimated_price);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.client_name.trim()) { setError('El nombre del cliente es obligatorio'); return; }
-    if (!form.tool_description.trim()) { setError('La descripción de la herramienta es obligatoria'); return; }
-    if (!form.problem_description.trim()) { setError('La descripción del problema es obligatoria'); return; }
-    if (form.estimated_price.trim() && numES(form.estimated_price) == null) { setError('El presupuesto tiene que ser un número, por ejemplo 35,50'); return; }
+    if (!form.client_name.trim()) { setError('Falta el nombre del cliente'); return; }
+    if (!form.tool_description.trim()) { setError('Falta qué herramienta es'); return; }
+    if (!form.problem_description.trim()) { setError('Falta qué le pasa a la herramienta'); return; }
+    if (!presupuesto.ok) { setError(`Presupuesto: ${presupuesto.error}`); return; }
+    if (form.date_estimated_return && form.date_received && form.date_estimated_return < form.date_received) {
+      setError('La fecha prevista no puede ser anterior a cuando se recibió'); return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -149,7 +156,7 @@ function RepairModal({
         tool_model: form.tool_model.trim() || undefined,
         tool_description: form.tool_description.trim(),
         problem_description: form.problem_description.trim(),
-        estimated_price: numES(form.estimated_price) ?? undefined,
+        estimated_price: presupuesto.ok ? presupuesto.n ?? undefined : undefined,
         notes: form.notes.trim() || undefined,
         status: repair?.status ?? 'recibida' as RepairStatus,
         date_received: fromDateInput(form.date_received),
@@ -159,30 +166,29 @@ function RepairModal({
         ? await updateRepair(repair.id, payload)
         : await createRepair(payload as any);
       onSaved(data);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setError(detail ? `Error: ${detail}` : 'Error al guardar la reparación');
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo guardar la reparación'));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && window.innerWidth > 768) onClose(); }}>
+      <div className="modal rep-modal" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 16 }}>
             {repair ? 'Editar reparación' : 'Nueva reparación'}
           </span>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
             {error && (
-              <div className="doc-aviso error">{error}</div>
+              <div className="doc-aviso error" ref={errorRef} role="alert">{error}</div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="rep-modal-2">
               <div>
                 <label className="form-label">Cliente *</label>
                 <input className="form-input" value={form.client_name} onChange={set('client_name')} placeholder="Nombre del cliente" required />
@@ -193,7 +199,7 @@ function RepairModal({
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="rep-modal-2">
               <div>
                 <label className="form-label">Marca</label>
                 <input className="form-input" value={form.tool_brand} onChange={set('tool_brand')} placeholder="Bosch, DeWalt…" />
@@ -222,7 +228,7 @@ function RepairModal({
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="rep-modal-fechas">
               <div>
                 <label className="form-label">Recibida el</label>
                 <input className="form-input" type="date" value={form.date_received} onChange={set('date_received')} />
@@ -233,7 +239,8 @@ function RepairModal({
               </div>
               <div>
                 <label className="form-label">Presupuesto (€)</label>
-                <input className="form-input" value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" type="text" inputMode="decimal" />
+                <input className="form-input" value={form.estimated_price} onChange={set('estimated_price')} placeholder="0,00" type="text" inputMode="decimal" aria-invalid={!presupuesto.ok} />
+                {!presupuesto.ok && <small className="campo-error">{presupuesto.error}</small>}
               </div>
             </div>
 
@@ -280,11 +287,13 @@ function RepairCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, fontSize: 14 }}>{repair.client_name}</span>
-            {repair.client_phone && (
+            {repair.client_phone ? (
               <a href={`tel:${repair.client_phone}`} style={{ color: 'var(--text-3)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}
                 onClick={e => e.stopPropagation()}>
                 <Phone size={12} /> {repair.client_phone}
               </a>
+            ) : repair.status !== 'entregada' && (
+              <span className="aviso-chip">Falta el teléfono para avisar</span>
             )}
             <StatusChip status={repair.status} />
           </div>
@@ -303,8 +312,10 @@ function RepairCard({
             {repair.date_returned && (
               <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· entregada {fmtDate(repair.date_returned)}</span>
             )}
-            {repair.final_price != null && (
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· {repair.final_price.toFixed(2).replace('.', ',')} €</span>
+            {repair.final_price != null ? (
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>· cobrado {fmtEur(repair.final_price)}</span>
+            ) : repair.estimated_price != null && (
+              <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600 }}>· presupuesto {fmtEur(repair.estimated_price)}</span>
             )}
             {repair.status === 'reparada' && (repair.aviso_at
               ? <span className="aviso-chip hecho"><CheckCheck size={13} /> Cliente avisado</span>
@@ -324,9 +335,9 @@ function RepairCard({
             <button
               className={`btn ${repair.status === 'reparada' && !repair.aviso_at ? 'btn-ghost' : 'btn-primary'}`}
               onClick={() => onAdvance(repair)}
-              title={STATUS_NEXT_LABEL[repair.status]}
+              title={REPARACION_SIGUIENTE[repair.status]}
             >
-              {STATUS_NEXT_LABEL[repair.status]} <ChevronRight size={13} />
+              {REPARACION_SIGUIENTE[repair.status]} <ChevronRight size={13} />
             </button>
           )}
         </div>
@@ -345,6 +356,7 @@ export function RepairsPage() {
   const [showModal, setShowModal] = useState(searchParams.get('new') === '1');
   const [showHistory, setShowHistory] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const { toast, show } = useCfToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -361,15 +373,10 @@ export function RepairsPage() {
   const active  = repairs.filter(r => r.status !== 'entregada');
   const history = repairs.filter(r => r.status === 'entregada');
 
-  // Filter + search apply only to active items
-  const filtered = active.filter(r => {
-    const matchStatus = !filter || r.status === filter;
-    const matchSearch = !search ||
-      r.client_name.toLowerCase().includes(search.toLowerCase()) ||
-      r.tool_description.toLowerCase().includes(search.toLowerCase()) ||
-      (r.tool_brand ?? '').toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchSearch;
-  });
+  // El filtro de estado es para las que están en curso; la búsqueda mira también en el historial
+  const filtered = active.filter(r => (!filter || r.status === filter) && (!search.trim() || coincideReparacion(r, search)));
+  const historyFiltered = search.trim() ? history.filter(r => coincideReparacion(r, search)) : history;
+  const verHistorial = showHistory || (!!search.trim() && historyFiltered.length > 0);
 
   const handleSaved = (r: Repair) => {
     setRepairs(prev => {
@@ -378,10 +385,10 @@ export function RepairsPage() {
       return [r, ...prev];
     });
     setShowModal(false);
+    show(`Reparación de ${r.client_name} apuntada`);
   };
 
-  const { toast, show } = useCfToast();
-  const NOMBRE: Record<RepairStatus, string> = { recibida: 'recibida', en_taller: 'en el taller', reparada: 'reparada', entregada: 'entregada' };
+  const NOMBRE: Record<RepairStatus, string> = { recibida: 'recibida', en_taller: 'en el taller', reparada: 'lista', entregada: 'entregada' };
   const [entregar, setEntregar] = useState<Repair | null>(null);
   const pedirAvance = (repair: Repair) => {
     if (STATUS_NEXT[repair.status] === 'entregada') setEntregar(repair);
@@ -401,15 +408,19 @@ export function RepairsPage() {
       setRepairs(prev => prev.map(r => r.id === data.id ? data : r));
       show(`${repair.tool_description} de ${repair.client_name}: ${NOMBRE[next]}`, {
         undo: async () => {
-          const { data: back } = await updateRepair(repair.id, {
-            status: repair.status,
-            ...(next === 'en_taller' ? { date_sent_to_repair: null } : next === 'reparada' ? { date_repaired: null } : { date_returned: null, final_price: repair.final_price ?? null }),
-          });
-          setRepairs(prev => prev.map(r => r.id === back.id ? back : r));
+          try {
+            const { data: back } = await updateRepair(repair.id, {
+              status: repair.status,
+              ...(next === 'en_taller' ? { date_sent_to_repair: null } : next === 'reparada' ? { date_repaired: null } : { date_returned: null, final_price: repair.final_price ?? null }),
+            });
+            setRepairs(prev => prev.map(r => r.id === back.id ? back : r));
+          } catch (err) {
+            show(`No se pudo deshacer: ${mensajeError(err, 'error')}`, { error: true });
+          }
         },
       });
     } catch (err) {
-      show(`No se pudo guardar: ${describeApiError(err)}`, { error: true });
+      show(`No se pudo guardar: ${mensajeError(err, describeApiError(err))}`, { error: true });
     }
   };
 
@@ -445,7 +456,8 @@ export function RepairsPage() {
           <Search size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input
             className="form-input"
-            placeholder="Buscar cliente o herramienta…"
+            type="search"
+            placeholder="Buscar cliente, teléfono, herramienta, modelo…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }}
@@ -462,7 +474,11 @@ export function RepairsPage() {
         </Vacio>
       ) : filtered.length === 0 ? (
         <div className="empty-state" style={{ padding: '28px 0' }}>
-          <div className="empty-state-text">Sin resultados para este filtro</div>
+          <div className="empty-state-text">
+            {search.trim()
+              ? historyFiltered.length ? `Nada en curso con «${search.trim()}»; mira en el historial de abajo.` : `Nada con «${search.trim()}»`
+              : 'Sin resultados para este filtro'}
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -473,7 +489,7 @@ export function RepairsPage() {
       )}
 
       {/* Historial — entregadas */}
-      {!loading && history.length > 0 && (
+      {!loading && historyFiltered.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <button
             onClick={() => setShowHistory(v => !v)}
@@ -484,12 +500,12 @@ export function RepairsPage() {
               borderTop: '1px solid var(--border)',
             }}
           >
-            <ChevronRight size={14} style={{ transform: showHistory ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
-            Historial — {history.length} entregada{history.length !== 1 ? 's' : ''}
+            <ChevronRight size={14} style={{ transform: verHistorial ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+            Historial — {historyFiltered.length} entregada{historyFiltered.length !== 1 ? 's' : ''}{search.trim() ? ` con «${search.trim()}»` : ''}
           </button>
-          {showHistory && (
+          {verHistorial && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-              {history.map(repair => (
+              {historyFiltered.map(repair => (
                 <RepairCard key={repair.id} repair={repair} onNavigate={() => navigate(`/reparaciones/${repair.id}`)} onAdvance={pedirAvance} onAvisado={avisado} muted />
               ))}
             </div>
@@ -503,7 +519,7 @@ export function RepairsPage() {
           titulo="Entregar al cliente"
           texto={`¿Cuánto se le cobra a ${entregar.client_name}?`}
           inicial={entregar.final_price ?? entregar.estimated_price}
-          boton="Entregada"
+          boton="Marcar como entregada"
           onCancel={() => setEntregar(null)}
           onOk={importe => { const r = entregar; setEntregar(null); advanceStatus(r, importe); }}
         />

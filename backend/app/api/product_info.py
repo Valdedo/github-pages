@@ -4,10 +4,9 @@ Used for QR code landing pages and product spec management.
 """
 import json
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -60,81 +59,6 @@ def scan_product(code: str, db: Session = Depends(get_db)):
         "codigo_principal": article.codigo_principal,
         "ean": article.ean,
     }
-
-
-@router.get("/ficha/{code}", response_class=HTMLResponse)
-def product_ficha(code: str, db: Session = Depends(get_db)):
-    """QR code landing page — returns a mobile-friendly HTML page with product info.
-
-    Looks up the article by EAN or codigo_principal (most recently updated wins).
-    """
-    article = (
-        db.query(Article)
-        .filter((Article.ean == code) | (Article.codigo_principal == code))
-        .order_by(Article.updated_at.desc())
-        .first()
-    )
-
-    settings = db.query(AppSettings).filter(AppSettings.id == 1).first()
-    company = (settings.company_name if settings else "") or "Almacén"
-
-    _CSS = """
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-           background:#f0fdf4;min-height:100vh;display:flex;flex-direction:column;
-           align-items:center;padding:24px 16px}
-      .card{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;
-            box-shadow:0 4px 24px rgba(0,0,0,.09);margin-bottom:16px}
-      .badge{display:inline-block;background:#1B5E20;color:#fff;font-weight:700;
-             font-size:13px;padding:3px 14px;border-radius:20px;margin-bottom:16px}
-      h1{font-size:21px;font-weight:700;color:#0f172a;line-height:1.3;margin-bottom:20px}
-      .price{font-size:44px;font-weight:800;color:#1B5E20;letter-spacing:-.03em;margin-bottom:20px}
-      hr{border:none;border-top:1px solid #e2e8f0;margin-bottom:16px}
-      table{width:100%;border-collapse:collapse}
-      td{padding:10px 0;font-size:15px;border-bottom:1px solid #f1f5f9}
-      tr:last-child td{border-bottom:none}
-      .lbl{color:#94a3b8;font-weight:500}
-      .val{color:#0f172a;font-weight:600;text-align:right}
-      .footer{font-size:12px;color:#94a3b8;text-align:center}
-      .not-found{text-align:center;padding:40px 0;color:#94a3b8}
-      .not-found h2{font-size:18px;color:#475569;margin-bottom:8px}
-    """
-
-    if not article:
-        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Producto no encontrado</title><style>{_CSS}</style></head>
-        <body><div class="card"><div class="not-found">
-          <h2>Producto no encontrado</h2>
-          <p>Código: <strong>{code}</strong></p>
-        </div></div>
-        <div class="footer">{company}</div></body></html>"""
-        return HTMLResponse(html, status_code=404)
-
-    pvp = f"{article.pvp_con_iva:.2f}".replace(".", ",")
-
-    rows_html = ""
-    if article.codigo_principal:
-        rows_html += f'<tr><td class="lbl">Referencia</td><td class="val">{article.codigo_principal}</td></tr>'
-    if article.ean:
-        rows_html += f'<tr><td class="lbl">EAN</td><td class="val">{article.ean}</td></tr>'
-    if article.familia:
-        rows_html += f'<tr><td class="lbl">Familia</td><td class="val">{article.familia}</td></tr>'
-
-    html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>{article.descripcion}</title><style>{_CSS}</style></head>
-    <body>
-      <div class="card">
-        <div class="badge">{company}</div>
-        <h1>{article.descripcion}</h1>
-        <div class="price">{pvp}&nbsp;€</div>
-        <hr>
-        <table>{rows_html}</table>
-      </div>
-      <div class="footer">{company} &middot; Gestión de almacén</div>
-    </body></html>"""
-    return HTMLResponse(html)
 
 
 @router.get("/{product_id}", response_model=ProductInfoResponse)
@@ -247,16 +171,19 @@ async def ensure_product_info(
 def product_sheet(
     code: str,
     background_tasks: BackgroundTasks,
+    estado: bool = False,
     db: Session = Depends(get_db),
 ):
-    """Public HTML product sheet — linked from QR codes on labels."""
-    from app.models.app_settings import AppSettings
+    """Ficha pública (sin sesión) del QR de las etiquetas: solo lo que ve un cliente
+    (descripción, PVP con IVA, referencias y especificaciones), nunca costes ni márgenes.
+    Con ?estado=1 devuelve JSON {listo} para que la página se recargue al terminar la búsqueda."""
+    from html import escape as e
 
     # Find article by codigo_principal or EAN
     article = (
         db.query(Article)
         .filter((Article.codigo_principal == code) | (Article.ean == code))
-        .order_by(Article.id.desc())
+        .order_by(Article.updated_at.desc(), Article.id.desc())
         .first()
     )
 
@@ -266,7 +193,7 @@ def product_sheet(
     if not article:
         html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>Producto no encontrado — {company}</title>
+        <title>Producto no encontrado — {e(company)}</title>
         <style>
           *{{box-sizing:border-box;margin:0;padding:0}}
           body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0fdf4;color:#555;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px}}
@@ -277,9 +204,13 @@ def product_sheet(
         </head><body>
           <div class="icon">📦</div>
           <h2>Producto no encontrado</h2>
-          <p>Código: {code}</p>
+          <p>Código: {e(code)}</p>
         </body></html>"""
         return HTMLResponse(content=html, status_code=404)
+
+    if estado:
+        pi = db.get(ProductInfo, article.product_info_id) if article.product_info_id else None
+        return JSONResponse({"listo": bool(pi and pi.search_attempted)})
 
     # Auto-create / auto-trigger web search if not done yet
     if not article.product_info_id:
@@ -302,8 +233,8 @@ def product_sheet(
             )
 
     pvp = f"{article.pvp_con_iva:.2f}".replace(".", ",") + " €" if article.pvp_con_iva else "—"
-    ean_row = f"<tr><td>EAN</td><td>{article.ean}</td></tr>" if article.ean else ""
-    cod_fab = f"<tr><td>Cód. Fabricante</td><td>{article.codigo_fabricante}</td></tr>" if article.codigo_fabricante else ""
+    ean_row = f"<tr><td>EAN</td><td>{e(article.ean)}</td></tr>" if article.ean else ""
+    cod_fab = f"<tr><td>Cód. Fabricante</td><td>{e(article.codigo_fabricante)}</td></tr>" if article.codigo_fabricante else ""
     iva_row = f"<tr><td>IVA</td><td>{article.iva_pct:.0f} %</td></tr>" if article.iva_pct is not None else ""
 
     # Specs and AI description from ProductInfo if linked
@@ -315,12 +246,12 @@ def product_sheet(
         pi = db.query(ProductInfo).filter(ProductInfo.id == article.product_info_id).first()
         if pi:
             if pi.ficha_ia:
-                ficha_html = f'<div class="card"><h3>Descripción</h3><p class="ficha-text">{pi.ficha_ia}</p></div>'
+                ficha_html = f'<div class="card"><h3>Descripción</h3><p class="ficha-text">{e(str(pi.ficha_ia))}</p></div>'
             if pi.specs:
                 try:
                     specs = json.loads(pi.specs) if isinstance(pi.specs, str) else pi.specs
                     if specs:
-                        rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in specs.items())
+                        rows = "".join(f"<tr><td>{e(str(k))}</td><td>{e(str(v))}</td></tr>" for k, v in specs.items())
                         specs_html = f'<div class="card"><h3>Especificaciones técnicas</h3><table class="t">{rows}</table></div>'
                 except Exception:
                     pass
@@ -334,16 +265,16 @@ def product_sheet(
         poll_script = f"""
 <script>
 (function() {{
-  var piId = {pi_id_for_poll};
+  var url = window.location.pathname + '?estado=1';
   var attempts = 0;
   var maxAttempts = 30;
   function poll() {{
     if (attempts >= maxAttempts) return;
     attempts++;
-    fetch('/api/products/' + piId)
+    fetch(url)
       .then(function(r) {{ return r.json(); }})
       .then(function(data) {{
-        if (data.search_attempted) {{
+        if (data.listo) {{
           window.location.reload();
         }} else {{
           setTimeout(poll, 3000);
@@ -377,7 +308,7 @@ def product_sheet(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{article.descripcion} — {company}</title>
+  <title>{e(article.descripcion or "")} — {e(company)}</title>
   <style>
     *{{box-sizing:border-box;margin:0;padding:0}}
     body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0fdf4;color:#0f172a;min-height:100vh}}
@@ -402,8 +333,8 @@ def product_sheet(
 </head>
 <body>
   <div class="header">
-    <div class="brand">{company}</div>
-    <h1>{article.descripcion}</h1>
+    <div class="brand">{e(company)}</div>
+    <h1>{e(article.descripcion or "")}</h1>
   </div>
 
   <div class="body">
@@ -416,7 +347,7 @@ def product_sheet(
     <div class="card">
       <h3>Referencia</h3>
       <table class="t">
-        <tr><td>Código</td><td>{article.codigo_principal or "—"}</td></tr>
+        <tr><td>Código</td><td>{e(article.codigo_principal or "—")}</td></tr>
         {ean_row}
         {cod_fab}
         {iva_row}
@@ -428,7 +359,7 @@ def product_sheet(
     {pending_banner}
   </div>
 
-  <div class="footer">{company} · Ficha de producto</div>
+  <div class="footer">{e(company)} · Ficha de producto</div>
 {poll_script}
 </body>
 </html>"""

@@ -12,10 +12,29 @@ import {
   iso, deIso, sumar, lunes, hoyIso, diaCorto, diaLargo, cap, fechaLarga, fechaCorta, rangoSemana, mesNombre, textoWhatsApp,
 } from '../lib/turnos';
 
-const errorDe = (err: unknown) => {
-  const ax = err as { response?: { data?: { detail?: string } } };
-  return ax.response?.data?.detail || describeApiError(err);
-};
+/** «Patricia entra a las 9:30», «sale a las 17:30», «hace jornada completa»… */
+function queHace(tp: { id: string; nombre: string } | undefined): string {
+  if (!tp) return 'cambia de turno';
+  const entra = tp.nombre.match(/^entra\s+(.+)$/i);
+  if (entra) return `entra a las ${entra[1]}`;
+  const sale = tp.nombre.match(/^sale\s+(.+)$/i);
+  if (sale) return `sale a las ${sale[1]}`;
+  if (tp.id === 'jornada') return 'hace jornada completa';
+  if (tp.id === 'manana') return 'trabaja solo por la mañana';
+  if (tp.id === 'tarde') return 'trabaja solo por la tarde';
+  return `hace el turno de ${tp.nombre.toLowerCase()}`;
+}
+
+/** Texto corto para la casilla del mes en el móvil (que se lea entero). */
+function corto(d: TurnoDia): string {
+  if (d.clase === 'libre') return 'Libre';
+  if (d.clase === 'festivo') return 'Fiesta';
+  if (d.clase === 'vacaciones') return 'Vac.';
+  const hora = d.nombre.match(/\d{1,2}:\d{2}/);
+  if (hora) return hora[0];
+  const ab: Record<string, string> = { jornada: 'Jorn.', sabado: 'Sáb.', manana: 'Mañ.', tarde: 'Tarde' };
+  return (d.tipo && ab[d.tipo]) || d.nombre.slice(0, 4);
+}
 
 /* ── Celda de un día ─────────────────────────────────────────── */
 function Celda({ t, onClick, compacta }: { t: TurnoDia; onClick?: () => void; compacta?: boolean }) {
@@ -50,12 +69,13 @@ function EditarDia({ emp, t, aj, onClose, onSaved }: {
     try {
       await putTurnoCambio(emp.id, t.fecha, tipo, nota);
       const tp = aj.tipos.find(x => x.id === tipo);
-      const qué = tipo === null ? 'vuelve a su turno normal' : tipo === 'libre' ? 'libra' : `hace ${tp?.nombre.toLowerCase()} (${tp?.horario})`;
+      const qué = tipo === null ? 'vuelve a su turno normal' : tipo === 'libre' ? 'libra' : `${queHace(tp)} (${tp?.horario})`;
       onSaved(`${emp.nombre} ${qué} el ${fechaLarga(t.fecha)}`, async () => { await putTurnoCambio(emp.id, t.fecha, anterior, antNota); });
-    } catch (e) { setError(errorDe(e)); setGuardando(false); }
+    } catch (e) { setError(describeApiError(e)); setGuardando(false); }
   };
 
-  const actual = t.cambio ? t.tipo : null;
+  // El turno que tiene ese día (cambiado a mano o el normal de su semana)
+  const actual = t.clase === 'libre' ? 'libre' : t.clase === 'trabajo' ? t.tipo : null;
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal turno-modal" role="dialog" aria-label={`Cambiar turno de ${emp.nombre}`}>
@@ -76,12 +96,14 @@ function EditarDia({ emp, t, aj, onClose, onSaved }: {
         </label>
         <div className="turno-opciones">
           {aj.tipos.map(tp => (
-            <button key={tp.id} disabled={guardando} className={`turno-opcion${actual === tp.id ? ' on' : ''}`} onClick={() => poner(tp.id)}>
+            <button key={tp.id} disabled={guardando || actual === tp.id} aria-current={actual === tp.id} className={`turno-opcion${actual === tp.id ? ' on' : ''}`} onClick={() => poner(tp.id)}>
               <b>{tp.nombre}</b><small>{tp.horario}</small>
+              {actual === tp.id && <em className="turno-opcion-ahora">Ahora</em>}
             </button>
           ))}
-          <button disabled={guardando} className={`turno-opcion libre${actual === 'libre' ? ' on' : ''}`} onClick={() => poner('libre')}>
+          <button disabled={guardando || actual === 'libre'} aria-current={actual === 'libre'} className={`turno-opcion libre${actual === 'libre' ? ' on' : ''}`} onClick={() => poner('libre')}>
             <b>Libre</b><small>No trabaja</small>
+            {actual === 'libre' && <em className="turno-opcion-ahora">Ahora</em>}
           </button>
         </div>
         {error && <p className="acceso-error" role="alert">{error}</p>}
@@ -107,7 +129,7 @@ function CrearEncargado({ onHecho }: { onHecho: () => void }) {
       const { data } = await accesoEncargado(codigo.trim());
       if (data.token && data.rol) setSesion(data.token, data.rol, data.persona);
       onHecho();
-    } catch (err) { setError(errorDe(err)); } finally { setEnviando(false); }
+    } catch (err) { setError(describeApiError(err)); } finally { setEnviando(false); }
   };
   return (
     <form className="card turnos-encargado" onSubmit={guardar}>
@@ -116,7 +138,7 @@ function CrearEncargado({ onHecho }: { onHecho: () => void }) {
         <b>Andrés: crea tu código de encargado</b>
         <small>Solo con ese código se pueden cambiar turnos, vacaciones y festivos. El resto solo los ve. Este dispositivo quedará con tu sesión.</small>
       </div>
-      <input className="form-input" type="password" inputMode="numeric" autoComplete="new-password" placeholder="Tu código (mín. 4)"
+      <input className="form-input" type="password" autoComplete="new-password" autoCapitalize="off" placeholder="Tu código (mín. 4)"
         value={codigo} onChange={e => setCodigo(e.target.value)} aria-label="Tu código de encargado" />
       <button className="btn btn-primary" disabled={enviando || codigo.trim().length < 4}>{enviando ? 'Guardando…' : 'Crear código'}</button>
       {error && <p className="acceso-error" role="alert" style={{ flexBasis: '100%' }}>{error}</p>}
@@ -147,7 +169,7 @@ function Vacaciones({ aj, editable, recargar, show }: {
       show(`Vacaciones de ${nombre(emp)?.nombre} guardadas`);
       setIni(''); setFin(''); setNota('');
       recargar();
-    } catch (err) { setError(errorDe(err)); }
+    } catch (err) { setError(describeApiError(err)); }
   };
   const borrar = async (v: TurnosAjustes['vacaciones'][number]) => {
     try {
@@ -156,7 +178,7 @@ function Vacaciones({ aj, editable, recargar, show }: {
       show(`Vacaciones de ${nombre(v.empleado)?.nombre} quitadas`, {
         undo: async () => { await postVacaciones(v.empleado, v.inicio, v.fin, v.nota || undefined); recargar(); },
       });
-    } catch (err) { show(errorDe(err), { error: true }); }
+    } catch (err) { show(describeApiError(err), { error: true }); }
   };
 
   return (
@@ -205,8 +227,8 @@ function Vacaciones({ aj, editable, recargar, show }: {
 }
 
 /* ── Festivos ────────────────────────────────────────────────── */
-function Festivos({ aj, editable, recargar, show }: {
-  aj: TurnosAjustes; editable: boolean; recargar: () => void; show: ReturnType<typeof useCfToast>['show'];
+function Festivos({ aj, editable, recargar, show, avisado }: {
+  aj: TurnosAjustes; editable: boolean; recargar: () => void; show: ReturnType<typeof useCfToast>['show']; avisado: string[];
 }) {
   const [fecha, setFecha] = useState('');
   const [nombre, setNombre] = useState('');
@@ -216,16 +238,17 @@ function Festivos({ aj, editable, recargar, show }: {
   const añadir = async (e: React.FormEvent) => {
     e.preventDefault();
     try { await postFestivo(fecha, nombre || 'Festivo'); setFecha(''); setNombre(''); recargar(); show('Festivo añadido'); }
-    catch (err) { show(errorDe(err), { error: true }); }
+    catch (err) { show(describeApiError(err), { error: true }); }
   };
   const borrar = async (f: TurnosAjustes['festivos'][number]) => {
     try {
       await deleteFestivo(f.id); recargar();
       show(`Quitado el festivo del ${fechaCorta(f.fecha)}`, { undo: async () => { await postFestivo(f.fecha, f.nombre); recargar(); } });
-    } catch (err) { show(errorDe(err), { error: true }); }
+    } catch (err) { show(describeApiError(err), { error: true }); }
   };
   const ultimo = aj.festivos[aj.festivos.length - 1]?.fecha.slice(0, 4);
-  const faltaAño = !ultimo || Number(ultimo) <= new Date().getFullYear() && new Date().getMonth() >= 10;
+  const faltaAño = (!ultimo || Number(ultimo) <= new Date().getFullYear() && new Date().getMonth() >= 10)
+    && !avisado.includes(String(new Date().getFullYear() + 1));
   return (
     <section className="card turnos-bloque" aria-label="Festivos">
       <h2>Festivos</h2>
@@ -269,16 +292,20 @@ function Rotacion({ aj, recargar, show }: { aj: TurnosAjustes; recargar: () => v
     try {
       await putTurnosAjustes({ empleados: aj.empleados, tipos, semanas, ancla: aj.ancla, inicio: aj.inicio });
       show('Rotación guardada'); recargar();
-    } catch (err) { show(errorDe(err), { error: true }); } finally { setGuardando(false); }
+    } catch (err) { show(describeApiError(err), { error: true }); } finally { setGuardando(false); }
   };
   const moverEmp = async (emp: string, semana: number) => {
     const antes = aj.esta_semana[emp];
+    if (antes === semana) return;
+    const quien = aj.empleados.find(e => e.id === emp)?.nombre ?? emp;
+    // Cambia el turno de esta semana y de todas las siguientes: se pregunta antes
+    if (!window.confirm(`¿Poner a ${quien} en la semana ${letras[semana]} desde esta semana? Cambian sus turnos de esta semana y de las siguientes.`)) return;
     try {
       await putEstaSemana(emp, semana); recargar();
-      show(`Desde esta semana a ${aj.empleados.find(e => e.id === emp)?.nombre} le toca la ${letras[semana]}`, {
+      show(`Desde esta semana a ${quien} le toca la ${letras[semana]}`, {
         undo: async () => { await putEstaSemana(emp, antes); recargar(); },
       });
-    } catch (err) { show(errorDe(err), { error: true }); }
+    } catch (err) { show(describeApiError(err), { error: true }); }
   };
 
   return (
@@ -414,6 +441,14 @@ export function TurnosPage() {
   })();
   const selT = personaMes?.dias.find(d => d.fecha === diaSel);
 
+  // El servidor avisa (sin_festivos) si faltan los festivos del año que se está viendo
+  const añoDe = (v: unknown, hasta?: string) =>
+    typeof v === 'number' || (typeof v === 'string' && /^\d{4}$/.test(v)) ? String(v) : (hasta || hoy).slice(0, 4);
+  const faltanFestivos = [...new Set([
+    ...[c, cm].filter(x => x?.sin_festivos).map(x => añoDe(x!.sin_festivos, x!.hasta)),
+    ...(aj?.sin_festivos ? [añoDe(aj.sin_festivos)] : []),
+  ])].sort();
+
   return (
     <div className="page turnos">
       {error && <ConnectionError message={error} onRetry={cargar} />}
@@ -441,6 +476,12 @@ export function TurnosPage() {
           </div>
         )}
       </header>
+
+      {admin && faltanFestivos.length > 0 && (
+        <p className="turnos-aviso" role="alert">
+          <AlertTriangle size={17} /> Faltan los festivos de {faltanFestivos.join(' y ')}. Añádelos abajo, en «Festivos», cuando salga el calendario laboral.
+        </p>
+      )}
 
       {!hayEncargado && getRol() !== 'reparto' && <CrearEncargado onHecho={() => { setHayEncargado(true); setAdmin(true); show('Código de encargado creado. Ya puedes cambiar los turnos.'); }} />}
 
@@ -549,7 +590,6 @@ export function TurnosPage() {
               <h2>{persona.nombre}</h2>
               <p>{estaSemana}</p>
             </div>
-            
           </div>
           <div className="turnos-cal" role="grid">
             {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => <span key={d} className="turnos-cal-cab">{d}</span>)}
@@ -559,9 +599,10 @@ export function TurnosPage() {
                 <button key={d.fecha}
                   className={`turnos-cal-dia tc-${d.clase}${d.fecha === hoy ? ' hoy' : ''}${fuera ? ' fuera' : ''}${diaSel === d.fecha ? ' sel' : ''}`}
                   onClick={() => setDiaSel(d.fecha === diaSel ? null : d.fecha)}
-                  aria-label={`${fechaLarga(d.fecha)}: ${d.nombre}`}>
+                  aria-label={`${fechaLarga(d.fecha)}: ${d.clase === 'trabajo' ? `${d.nombre}, ${d.horario}` : d.nombre}`}>
                   <b>{deIso(d.fecha).getDate()}</b>
-                  <span>{d.clase === 'trabajo' ? d.nombre : d.clase === 'libre' ? 'Libre' : d.clase === 'festivo' ? 'Festivo' : 'Vacac.'}</span>
+                  <span className="tcal-largo">{d.clase === 'trabajo' ? d.nombre : d.clase === 'libre' ? 'Libre' : d.clase === 'festivo' ? 'Festivo' : 'Vacac.'}</span>
+                  <span className="tcal-corto" aria-hidden="true">{corto(d)}</span>
                   {d.cambio && <i className="tc-cambio" />}
                 </button>
               );
@@ -584,7 +625,7 @@ export function TurnosPage() {
       {aj && admin && (
         <div className="turnos-gestion">
           <Vacaciones aj={aj} editable={admin} recargar={cargar} show={show} />
-          <Festivos aj={aj} editable={admin} recargar={cargar} show={show} />
+          <Festivos aj={aj} editable={admin} recargar={cargar} show={show} avisado={faltanFestivos} />
         </div>
       )}
       {aj && admin && <Rotacion aj={aj} recargar={cargar} show={show} />}

@@ -1,5 +1,5 @@
 """Turnos del personal. Todos pueden verlos; solo el encargado (código de Andrés) los cambia."""
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -87,6 +87,7 @@ def get_ajustes(db: Session = Depends(get_db)):
         "esta_semana": {e["id"]: ts.semana_tipo(cfg, e["id"], ts.hoy()) for e in cfg["empleados"]},
         "festivos": [{"id": f.id, "fecha": f.fecha, "nombre": f.nombre}
                      for f in db.query(Festivo).order_by(Festivo.fecha)],
+        "anios_sin_festivos": ts.anios_sin_festivos(db, ts.hoy(), ts.hoy().replace(month=12, day=31) + timedelta(days=1)),
         "vacaciones": [{"id": v.id, "empleado": v.empleado, "inicio": v.inicio, "fin": v.fin, "nota": v.nota,
                         "dias": ts.dias_laborables(v.inicio, v.fin, fest)} for v in vacs],
     }

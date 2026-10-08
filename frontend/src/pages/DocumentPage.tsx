@@ -10,6 +10,7 @@ import { DriveEstado } from '../components/DriveEstado';
 import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
 import type { Document, Article, Supplier, PriceAlert } from '../types/index';
+import { fechaES, ORDEN_ALBARANES } from '../lib/texto';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
   uploaded:   { label: 'Subido',       dot: 'var(--text-3)' },
@@ -113,8 +114,13 @@ export function DocumentPage() {
       setLoading(true);
       const [docStatus] = await Promise.all([
         loadDocument(),
-        listSuppliers().then(r => setSuppliers(r.data)),
-        listDocuments().then(r => setDocIds(r.data.map((d: { id: number }) => d.id).reverse())),
+        listSuppliers().then(r => setSuppliers(r.data)).catch(() => {}),
+        listDocuments().then(r => {
+          // Mismo orden que la lista de albaranes que se estaba viendo (pestaña y búsqueda)
+          let orden: number[] = [];
+          try { orden = JSON.parse(sessionStorage.getItem(ORDEN_ALBARANES) || '[]'); } catch { orden = []; }
+          setDocIds(Array.isArray(orden) && orden.includes(docId) ? orden : r.data.map((d: { id: number }) => d.id));
+        }).catch(() => {}),
       ]);
       setLoading(false);
       // Load price alerts if document is already completed
@@ -256,10 +262,9 @@ export function DocumentPage() {
               <span className="doc-hero-chip">Nº {document.doc_number}</span>
             )}
             {document.doc_date && (
-              <span className="doc-hero-chip">{document.doc_date}</span>
+              <span className="doc-hero-chip">{fechaES(document.doc_date)}</span>
             )}
             {document.status !== 'completed' && <span className="doc-hero-chip">{st.label}</span>}
-            {document.terminado_at && <span className="doc-hero-chip">Terminado</span>}
             {polling && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-3)' }}>
                 <span className="spinner spinner-sm" />
@@ -324,6 +329,7 @@ export function DocumentPage() {
           document={document}
           suppliers={suppliers}
           selectedArticleIds={selectedIds}
+          articleCount={articles.length}
           onChanged={d => setDocument(prev => prev ? { ...prev, ...d } : prev)}
           onReload={loadDocument}
           onReprocessed={() => { setArticles([]); loadDocument(); }}

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash2, Download, Copy } from 'lucide-react';
-import { downloadCustomLabels } from '../api/client';
+import { descargarPost } from '../lib/descargas';
 import { useConfirm } from '../components/ConfirmModal';
 import { useIsMobile } from '../hooks';
 import type { CustomLabelItem } from '../api/client';
@@ -13,7 +13,16 @@ interface Row {
   codigo_principal: string;
   ean: string;
   coste_neto_unitario: string; // raw string, parsed on generate
-  copies: number;
+  copies: string;              // texto: se puede vaciar mientras se escribe; se comprueba al sacar el PDF
+}
+
+const GUARDADO = 'cfEtiquetasLista';
+function leerGuardado(): Row[] | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(GUARDADO) || 'null');
+    if (!Array.isArray(v) || !v.length) return null;
+    return v.map((r: Partial<Row>) => ({ ...newRow(), ...r, copies: String(r.copies ?? '1') }));
+  } catch { return null; }
 }
 
 const newRow = (): Row => ({
@@ -23,13 +32,16 @@ const newRow = (): Row => ({
   codigo_principal: '',
   ean: '',
   coste_neto_unitario: '',
-  copies: 1,
+  copies: '1',
 });
 
-function parseNum(s: string, fallback: number): number {
-  const n = parseFloat(String(s).replace(',', '.'));
-  return isNaN(n) ? fallback : n;
+/** «12,50» o «12.50» → 12.5; vacío o texto → NaN */
+function parseNum(s: string): number {
+  const t = String(s).trim().replace(/\s/g, '');
+  const limpio = /,\d+$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  return /^-?\d*\.?\d+$/.test(limpio) ? parseFloat(limpio) : NaN;
 }
+const copiasDe = (r: Row) => { const n = Number(r.copies); return Number.isInteger(n) && n >= 1 ? Math.min(n, 50) : 1; };
 
 // ─── Desktop table ────────────────────────────────────────────────────────────
 
@@ -93,7 +105,7 @@ function DesktopTable({ rows, setField, addRow, duplicateRow, removeRow }: Table
                 placeholder="—" value={row.coste_neto_unitario}
                 onChange={e => setField(row._id, 'coste_neto_unitario', e.target.value)} />
               <input style={{ ...inputStyle(), textAlign: 'center' }} type="number" min={1} max={50} step={1}
-                value={row.copies || 1} onChange={e => setField(row._id, 'copies', e.target.value)} />
+                value={row.copies} onChange={e => setField(row._id, 'copies', e.target.value)} />
               <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                 <button className="btn btn-ghost btn-sm" title="Duplicar" style={{ color: 'var(--text-3)' }}
                   onClick={() => duplicateRow(row._id)}><Copy size={12} /></button>
@@ -175,7 +187,7 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
                 <div>
                   {label('Copias')}
                   <input style={{ ...inputCls(), textAlign: 'center' }} type="number" min={1} max={50} step={1}
-                    inputMode="numeric" value={row.copies || 1}
+                    inputMode="numeric" value={row.copies}
                     onChange={e => setField(row._id, 'copies', e.target.value)} />
                 </div>
               </div>
@@ -218,19 +230,21 @@ function MobileCards({ rows, setField, addRow, duplicateRow, removeRow }: TableP
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function CustomLabelsPage() {
-  const [rows, setRows] = useState<Row[]>([newRow()]);
+  // La lista se guarda mientras dure la sesión: si se sale a otra página no se pierde
+  const [rows, setRows] = useState<Row[]>(() => leerGuardado() || [newRow()]);
+  useEffect(() => { try { sessionStorage.setItem(GUARDADO, JSON.stringify(rows)); } catch { /* nada */ } }, [rows]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const isMobile = useIsMobile();
   const { confirm, ConfirmDialog } = useConfirm();
 
-  const totalLabels = rows.reduce((s, r) => s + Math.max(1, r.copies || 1), 0);
   const validRows = rows.filter(r => r.descripcion.trim());
+  const totalLabels = validRows.reduce((s, r) => s + copiasDe(r), 0);
 
   const setField = (id: string, key: keyof Row, value: string) => {
     setRows(prev => prev.map(r => {
       if (r._id !== id) return r;
-      if (key === 'copies') return { ...r, copies: Math.max(1, Math.min(50, parseInt(value) || 1)) };
+      if (key === 'copies') return { ...r, copies: value.replace(/[^\d]/g, '').slice(0, 2) };
       return { ...r, [key]: value };  // prices stored as raw strings
     }));
   };
@@ -256,19 +270,39 @@ export function CustomLabelsPage() {
   const handleGenerate = async () => {
     setError('');
     if (validRows.length === 0) { setError('Añade al menos un artículo con descripción.'); return; }
+    // Se comprueba todo antes de mandar nada
+    const fallos: string[] = [];
+    rows.forEach((r, i) => {
+      const n = `Artículo ${i + 1}${r.descripcion.trim() ? ` («${r.descripcion.trim().slice(0, 30)}»)` : ''}`;
+      if (!r.descripcion.trim()) {
+        if (r.pvp_con_iva.trim() || r.ean.trim() || r.codigo_principal.trim()) fallos.push(`${n}: falta el nombre del artículo`);
+        return;
+      }
+      const pvp = parseNum(r.pvp_con_iva);
+      if (!r.pvp_con_iva.trim()) fallos.push(`${n}: falta el PVP`);
+      else if (isNaN(pvp)) fallos.push(`${n}: el PVP tiene que ser un número (por ejemplo 12,50)`);
+      else if (pvp <= 0) fallos.push(`${n}: el PVP tiene que ser mayor que 0`);
+      if (r.coste_neto_unitario.trim()) {
+        const c = parseNum(r.coste_neto_unitario);
+        if (isNaN(c) || c < 0) fallos.push(`${n}: el coste tiene que ser un número de 0 o más`);
+      }
+      const cp = Number(r.copies);
+      if (!r.copies.trim() || !Number.isInteger(cp) || cp < 1 || cp > 50) fallos.push(`${n}: las copias tienen que ser de 1 a 50`);
+    });
+    if (fallos.length) { setError(fallos.join(' · ')); return; }
     setGenerating(true);
     try {
       const items: CustomLabelItem[] = validRows.map(r => ({
         descripcion:         r.descripcion.trim(),
-        pvp_con_iva:         parseNum(r.pvp_con_iva, 0),
+        pvp_con_iva:         parseNum(r.pvp_con_iva),
         codigo_principal:    r.codigo_principal.trim() || undefined,
         ean:                 r.ean.trim() || undefined,
-        coste_neto_unitario: r.coste_neto_unitario.trim() ? parseNum(r.coste_neto_unitario, 0) : undefined,
-        copies:              Math.max(1, r.copies || 1),
+        coste_neto_unitario: r.coste_neto_unitario.trim() ? parseNum(r.coste_neto_unitario) : undefined,
+        copies:              copiasDe(r),
       }));
-      await downloadCustomLabels(items);
-    } catch {
-      setError('Error al generar el PDF. Comprueba la conexión con el servidor.');
+      await descargarPost('/api/export/labels/custom', { items }, 'etiquetas.pdf');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al generar el PDF. Comprueba la conexión con el servidor.');
     } finally {
       setGenerating(false);
     }
@@ -284,6 +318,7 @@ export function CustomLabelsPage() {
         <div>
           <h1>Etiquetas</h1>
           <p>Escribe los artículos a mano y saca un PDF listo para imprimir.</p>
+          {isMobile && <p className="etq-ayuda-movil">Hace falta el <b>nombre</b> y el <b>PVP</b>. Al sacar el PDF quedan guardados para «Consultar precio».</p>}
         </div>
         <div className="cab-botones">
           <span className="cat-cuenta">{validRows.length} artículo{validRows.length !== 1 ? 's' : ''} · {totalLabels} etiqueta{totalLabels !== 1 ? 's' : ''}</span>
@@ -300,7 +335,7 @@ export function CustomLabelsPage() {
       </div>
 
       {error && (
-        <div className="doc-aviso error">{error}</div>
+        <div className="doc-aviso error" role="alert">{error}</div>
       )}
 
       {/* Desktop table / Mobile cards — only one is mounted at a time */}

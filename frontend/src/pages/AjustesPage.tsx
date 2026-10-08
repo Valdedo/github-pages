@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getSettings } from '../api/client';
+import { getSettings, describeApiError } from '../api/client';
 import { MarginSettings } from '../components/MarginSettings';
 import { ConnectionError } from '../components/ConnectionError';
 import { useToast } from '../components/Toast';
@@ -10,7 +10,7 @@ export function AjustesPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { showToast, ToastContainer } = useToast();
-  const cargar = () => getSettings().then(r => { setSettings(r.data); setError(null); }).catch(e => setError(String(e?.message || e)));
+  const cargar = () => getSettings().then(r => { setSettings(r.data); setError(null); }).catch(e => setError(describeApiError(e)));
   useEffect(() => { cargar(); }, []);
   return (
     <div className="page" style={{ maxWidth: 820 }}>
@@ -22,7 +22,7 @@ export function AjustesPage() {
         </div>
       </div>
       {error && <ConnectionError message={error} onRetry={cargar} />}
-      {settings && <MarginSettings settings={settings} abierto onUpdated={setSettings} onToast={showToast} />}
+      {settings && <MarginSettings settings={settings} onUpdated={setSettings} onToast={showToast} />}
     </div>
   );
 }

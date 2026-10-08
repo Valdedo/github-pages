@@ -105,12 +105,17 @@ async def leer(db, fotos: List[str], texto: Optional[str] = None) -> dict:
     import anthropic
     from app.services.extraction_service import _image_to_base64_block
 
-    contenido: list = []
-    for f in fotos[:10]:
-        try:
-            contenido.append(_image_to_base64_block(f))
-        except Exception as e:
-            logger.warning("No se pudo abrir la foto %s: %s", f, e)
+    def _bloques() -> list:  # PIL bloquea: se hace fuera del bucle de la app
+        out = []
+        for f in fotos[:10]:
+            try:
+                out.append(_image_to_base64_block(f))
+            except Exception as e:
+                logger.warning("No se pudo abrir la foto %s: %s", f, e)
+        return out
+
+    import asyncio
+    contenido: list = await asyncio.to_thread(_bloques)
     if fotos and not contenido:
         raise ValueError("No se pudo abrir la foto. Prueba a sacarla otra vez.")
     pedir = "Pasa a limpio " + ("esta hoja de la libreta" if len(contenido) == 1 else "estas hojas de la libreta" if contenido else "este pedido")
@@ -144,12 +149,18 @@ def _num(n: Optional[float]) -> str:
     return (f"{n:.2f}".rstrip("0").rstrip(".")).replace(".", ",")
 
 
-LOPD = ("De conformidad con la Ley Orgánica 15/1999, de 13 de diciembre, de Protección de Datos de Carácter Personal, "
-        "se informa que los datos personales facilitados por usted están incorporados a un fichero titularidad de "
-        "MANUEL FERNANDEZ FERNANDEZ cuya finalidad es el mantenimiento, gestión y prestación de los servicios solicitados, "
-        "así como el mantenimiento de comunicaciones de carácter informativo. Por último, se le informa de que le asisten "
-        "los derechos de acceso, modificación, oposición y cancelación, que podrá ejercitar mediante petición escrita gratuita "
-        "dirigida a MANUEL FERNANDEZ FERNANDEZ LLAVIADA S/N 33720 BOAL (ASTURIAS), a la atención del Responsable del Tratamiento")
+LOPD = ("Protección de datos: de acuerdo con el Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018, de Protección de "
+        "Datos Personales y garantía de los derechos digitales, le informamos de que el responsable del tratamiento de sus datos "
+        "es MANUEL FERNANDEZ FERNANDEZ (CIF 10770071E). Los datos se tratan para gestionar la entrega del material y los servicios "
+        "solicitados, en base a la relación comercial, y se conservan durante los plazos legales. No se ceden a terceros salvo "
+        "obligación legal. Puede ejercer sus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad "
+        "por escrito a MANUEL FERNANDEZ FERNANDEZ, LLAVIADA S/N, 33720 BOAL (ASTURIAS) o en casafonsomc@gmail.com, y reclamar "
+        "ante la Agencia Española de Protección de Datos (www.aepd.es).")
+
+
+def _sin_sup(t: str) -> str:
+    """Las fuentes base del PDF no siempre muestran «²/³»: se escriben m2 / m3."""
+    return (t or "").replace("³", "3").replace("²", "2")
 
 
 def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> bytes:
@@ -174,15 +185,15 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
         llevado = ln.cantidad if ln.cargado_ok else ln.cargado
         if ln.cantidad is not None and (llevado or 0) < ln.cantidad:
             falta = ln.cantidad - (llevado or 0)
-            pendientes.append(f"{_num(falta)} {ln.unidad or ''} {ln.descripcion}".replace("  ", " ").strip())
+            pendientes.append(_sin_sup(f"{_num(falta)} {ln.unidad or ''} {ln.descripcion}".replace("  ", " ").strip()))
         if ln.cargado_ok or ln.cargado:
             filas.append((ln, llevado))
 
     # Reparto en páginas: unas 17 filas por página; la firma va en la última
     lineas_txt = []
     for ln, llevado in filas:
-        partes = simpleSplit((ln.descripcion or "").upper(), "Helvetica", 7.6, 230) or [""]
-        lineas_txt.append((partes, llevado, ln.unidad or ""))
+        partes = simpleSplit(_sin_sup(ln.descripcion).upper(), "Helvetica", 7.6, 230) or [""]
+        lineas_txt.append((partes, llevado, _sin_sup(ln.unidad or "")))
     paginas, actual, alto = [], [], 0
     LIMITE = 340  # alto útil de la tabla (pt)
     for item in lineas_txt:

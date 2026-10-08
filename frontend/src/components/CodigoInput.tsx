@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
-/** Campo para el código con el botón del ojo para verlo mientras se escribe. */
-export function CodigoInput({ value, onChange, autoFocus, nuevo, label = 'Código' }: {
-  value: string; onChange: (v: string) => void; autoFocus?: boolean; nuevo?: boolean; label?: string;
+/** Campo para el código con el botón del ojo para verlo mientras se escribe.
+ *  `numerico`: teclado de números (solo para el código propio, que es de 4 a 8 números;
+ *  los que pone Andrés pueden llevar letras). */
+export function CodigoInput({ value, onChange, autoFocus, nuevo, numerico, label = 'Código' }: {
+  value: string; onChange: (v: string) => void; autoFocus?: boolean; nuevo?: boolean; numerico?: boolean; label?: string;
 }) {
   const [ver, setVer] = useState(false);
   return (
     <div className="codigo-input">
-      <input className="form-input acceso-codigo" type={ver ? 'text' : 'password'} inputMode="numeric"
+      <input className="form-input acceso-codigo" type={ver ? 'text' : 'password'} inputMode={numerico ? 'numeric' : 'text'}
+        autoCapitalize="off" autoCorrect="off" spellCheck={false}
         autoComplete={nuevo ? 'new-password' : 'current-password'} autoFocus={autoFocus}
         value={value} onChange={e => onChange(e.target.value)} aria-label={label} />
       <button type="button" className="codigo-ojo" onClick={() => setVer(v => !v)}

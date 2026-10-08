@@ -1,11 +1,9 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 sqlalchemy==2.0.36
-alembic==1.14.0
 pydantic==2.10.3
 pydantic-settings==2.6.1
 python-multipart==0.0.20
-aiofiles==24.1.0
 
 # PDF & OCR
 pdfplumber==0.11.4
@@ -35,5 +33,4 @@ cryptography>=42  # avisos en el móvil (Web Push)
 beautifulsoup4==4.12.3
 
 # Utils
-python-dateutil==2.9.0.post0
 tzdata==2024.2

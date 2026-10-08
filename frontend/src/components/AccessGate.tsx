@@ -2,17 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Lock } from 'lucide-react';
 import { accesoEstado, accesoEntrar, accesoConfigurar, accesoMiCodigo, describeApiError } from '../api/client';
 import { CodigoInput } from './CodigoInput';
-import { getToken, setSesion, cerrarSesion, type Rol } from '../auth';
+import { getToken, getRol, getPersona, setSesion, cerrarSesion, type Rol } from '../auth';
 import { setReparto } from '../reparto';
 import { Logo } from './Logo';
 import { PegatinaDefs, CamionPegatina } from './Pegatinas';
 
 type Fase = 'cargando' | 'crear' | 'entrar' | 'propio' | 'dentro' | 'sin-conexion';
-
-function errorDe(err: unknown): string {
-  const ax = err as { response?: { data?: { detail?: string } } };
-  return ax.response?.data?.detail || describeApiError(err);
-}
 
 /**
  * Pide el código de acceso antes de mostrar la app.
@@ -22,6 +17,7 @@ function errorDe(err: unknown): string {
 export function AccessGate({ children }: { children: ReactNode }) {
   const [fase, setFase] = useState<Fase>('cargando');
   const [codigo, setCodigo] = useState('');
+  const [entrada, setEntrada] = useState(''); // el código con el que se acaba de entrar (para poner el propio)
   const [tienda, setTienda] = useState('');
   const [reparto, setRepartoCod] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +34,15 @@ export function AccessGate({ children }: { children: ReactNode }) {
           setFase('dentro');
         } else { cerrarSesion(); setFase('entrar'); }
       })
-      .catch(() => setFase('sin-conexion'));
+      .catch(err => {
+        // Sin cobertura pero con sesión guardada: se entra igual (en el reparto se firma sin señal)
+        const rol = getRol();
+        if (!(err as { response?: unknown })?.response && getToken() && rol) {
+          if (rol === 'reparto') setReparto(true);
+          setSesion(getToken(), rol, getPersona() || null);
+          setFase('dentro');
+        } else setFase('sin-conexion');
+      });
   };
 
   useEffect(() => {
@@ -63,9 +67,9 @@ export function AccessGate({ children }: { children: ReactNode }) {
       const { data } = await accesoEntrar(codigo.trim());
       entrarCon(data.token, data.rol, data.persona);
       // Primera vez con el código que le dieron: se le ofrece poner el suyo
-      if (!data.codigo_propio && data.persona !== 'tienda') { setCodigo(''); setFase('propio'); }
+      if (!data.codigo_propio && data.persona !== 'tienda') { setEntrada(codigo.trim()); setCodigo(''); setFase('propio'); }
     } catch (err) {
-      setError(errorDe(err)); setCodigo('');
+      setError(describeApiError(err)); setCodigo('');
     } finally { setEnviando(false); }
   };
 
@@ -73,11 +77,11 @@ export function AccessGate({ children }: { children: ReactNode }) {
     e.preventDefault();
     setEnviando(true); setError(null);
     try {
-      const { data } = await accesoMiCodigo(codigo);
+      const { data } = await accesoMiCodigo(entrada, codigo);
       setSesion(data.token, data.rol, data.persona);
-      setCodigo(''); setFase('dentro');
+      setCodigo(''); setEntrada(''); setFase('dentro');
     } catch (err) {
-      setError(errorDe(err));
+      setError(describeApiError(err));
     } finally { setEnviando(false); }
   };
 
@@ -88,7 +92,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
       const { data } = await accesoConfigurar(tienda.trim(), reparto.trim());
       entrarCon(data.token, data.rol, data.persona);
     } catch (err) {
-      setError(errorDe(err));
+      setError(describeApiError(err));
     } finally { setEnviando(false); }
   };
 
@@ -118,14 +122,15 @@ export function AccessGate({ children }: { children: ReactNode }) {
             <button className="btn btn-primary btn-lg" disabled={enviando || !codigo.trim()}>
               {enviando ? 'Comprobando…' : 'Entrar'}
             </button>
+            <p className="acceso-txt acceso-ayuda">Si no sabes tu código, pídeselo a Andrés.</p>
           </form>
         )}
 
         {fase === 'propio' && (
           <form onSubmit={onPropio} className="acceso-form">
             <h1>Pon tu propio código</h1>
-            <p className="acceso-txt">Si quieres, cambia el código que te dieron por uno tuyo de 4 números, fácil de recordar. Solo lo sabrás tú.</p>
-            <CodigoInput value={codigo} onChange={v => setCodigo(v.replace(/\D/g, '').slice(0, 8))} autoFocus nuevo label="Tu código nuevo" />
+            <p className="acceso-txt">Si quieres, cambia el código que te dieron por uno tuyo de 4 a 8 números, fácil de recordar. Solo lo sabrás tú.</p>
+            <CodigoInput value={codigo} onChange={v => setCodigo(v.replace(/\D/g, '').slice(0, 8))} autoFocus nuevo numerico label="Tu código nuevo" />
             {error && <p className="acceso-error" role="alert">{error}</p>}
             <button className="btn btn-primary btn-lg" disabled={enviando || codigo.length < 4}>
               {enviando ? 'Guardando…' : 'Guardar mi código'}
@@ -139,11 +144,11 @@ export function AccessGate({ children }: { children: ReactNode }) {
             <h1>Crea los códigos de acceso</h1>
             <p className="acceso-txt">Solo se hace una vez. Después, cada ordenador o móvil pedirá su código la primera vez que se abra la app.</p>
             <label className="form-label">Código de la tienda <small>(Patricia, Oscar, Andrés)</small>
-              <input className="form-input acceso-codigo" type="text" inputMode="numeric" autoComplete="off" autoFocus
+              <input className="form-input acceso-codigo" type="text" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} autoFocus
                 value={tienda} onChange={e => setTienda(e.target.value)} />
             </label>
             <label className="form-label">Código de reparto <small>(Melchor: solo ve los albaranes para firmar)</small>
-              <input className="form-input acceso-codigo" type="text" inputMode="numeric" autoComplete="off"
+              <input className="form-input acceso-codigo" type="text" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false}
                 value={reparto} onChange={e => setRepartoCod(e.target.value)} />
             </label>
             <p className="acceso-txt" style={{ fontSize: 14 }}>Mínimo 4 números o letras. Apúntalos en un sitio seguro.</p>

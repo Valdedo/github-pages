@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.api.turnos import solo_encargado  # márgenes de la tienda: solo Andrés
-from app.models.app_settings import AppSettings
+from app.models.app_settings import AppSettings, get_or_create_settings
 from app.models.supplier import Supplier
 from app.schemas.settings import (
     AppSettingsResponse, AppSettingsUpdate,
@@ -20,16 +20,6 @@ from app.schemas.settings import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
-
-
-def get_or_create_settings(db: Session) -> AppSettings:
-    s = db.query(AppSettings).filter(AppSettings.id == 1).first()
-    if not s:
-        s = AppSettings(id=1)
-        db.add(s)
-        db.commit()
-        db.refresh(s)
-    return s
 
 
 def settings_to_response(s: AppSettings) -> AppSettingsResponse:

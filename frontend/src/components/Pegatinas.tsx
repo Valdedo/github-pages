@@ -130,11 +130,19 @@ export function SelloHecho({ texto, titulo }: { texto: string; titulo: string })
   );
 }
 
+/** Parte redonda de la rueda: igual la gire o no, así que puede ir dentro del filtro sin animarse. */
+const ruedaFija = (cx: number) =>
+  `<circle cx="${cx}" cy="128" r="23" fill="#1A1A1A"/><circle cx="${cx}" cy="128" r="12.5" fill="#C9CEC9"/><circle cx="${cx}" cy="128" r="5" fill="#8D948F"/>`;
+/** Los tornillos de la llanta: lo único que se ve girar. */
+const tornillos = (cx: number) => {
+  let h = '';
+  for (let a = 0; a < 360; a += 45) h += `<circle cx="${cx}" cy="119.5" r="1.6" fill="#8D948F" transform="rotate(${a} ${cx} 128)"/>`;
+  return h;
+};
+
 function rueda(cx: number, pinchada: boolean) {
   if (pinchada) return `<ellipse cx="${cx}" cy="138" rx="30" ry="13" fill="#1A1A1A"/><ellipse cx="${cx}" cy="136" rx="13" ry="7" fill="#C9CEC9"/><circle cx="${cx}" cy="136" r="3.5" fill="#8D948F"/>`;
-  let h = `<circle cx="${cx}" cy="128" r="23" fill="#1A1A1A"/><circle cx="${cx}" cy="128" r="12.5" fill="#C9CEC9"/><circle cx="${cx}" cy="128" r="5" fill="#8D948F"/>`;
-  for (let a = 0; a < 360; a += 45) h += `<circle cx="${cx}" cy="119.5" r="1.6" fill="#8D948F" transform="rotate(${a} ${cx} 128)"/>`;
-  return `<g class="peg-rueda">${h}</g>`;
+  return `<g class="peg-rueda">${ruedaFija(cx)}${tornillos(cx)}</g>`;
 }
 
 const CALCO = '<g transform="translate(268 68) scale(.24)" filter="url(#cfs-pega)">'
@@ -143,9 +151,19 @@ const CALCO = '<g transform="translate(268 68) scale(.24)" filter="url(#cfs-pega
 /** El camión de Casa Fonso como pegatina. modo: rodando (se mueve), aparcado (con cono) o pinchado. */
 export function CamionPegatina({ modo, ancho = 260 }: { modo: 'rodando' | 'aparcado' | 'pinchado'; ancho?: number }) {
   const pinchada = modo === 'pinchado';
-  const camion = (x: number, y: number, esc: number, rot = 0) =>
-    `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc}) translate(-172 -151)"><g class="peg-bote"><g filter="url(#cfs-pegaCam)">`
-    + CAMION_CUERPO + rueda(98, pinchada) + rueda(258, false) + CALCO + '</g></g></g>';
+  const camion = (x: number, y: number, esc: number, rot = 0) => {
+    const abre = `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc}) translate(-172 -151)"><g class="peg-bote">`;
+    if (modo === 'rodando') {
+      // El borde blanco (filtro) se calcula sobre un dibujo que no cambia; encima, sin filtro, solo giran los
+      // tornillos de las ruedas. Así el navegador no recalcula el filtro en cada fotograma y se ve igual.
+      // La rueda girando mide lo mismo que parada, así que su borde blanco es el mismo.
+      // El rectángulo de la rueda se fija con transform-box para que gire sobre su centro.
+      const giran = (cx: number) => `<g class="peg-rueda"><circle cx="${cx}" cy="128" r="23" fill="none"/>${tornillos(cx)}</g>`;
+      return abre + `<g filter="url(#cfs-pegaCam)">${CAMION_CUERPO}${ruedaFija(98)}${ruedaFija(258)}${CALCO}</g>`
+        + giran(98) + giran(258) + '</g></g>';
+    }
+    return abre + '<g filter="url(#cfs-pegaCam)">' + CAMION_CUERPO + rueda(98, pinchada) + rueda(258, false) + CALCO + '</g></g></g>';
+  };
   let s = '';
   if (modo === 'rodando') {
     s += '<path class="peg-carretera" d="M0 104 H260" stroke="#C9D1C5" stroke-width="2" stroke-dasharray="10 9" stroke-linecap="round"/>';

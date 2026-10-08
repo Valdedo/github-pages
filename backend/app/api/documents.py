@@ -3,7 +3,6 @@ Document upload and management endpoints.
 """
 import json
 import logging
-import shutil
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -19,24 +18,49 @@ from app.database import get_db
 from app.models.document import Document
 from app.models.article import Article
 from app.models.supplier import Supplier
-from app.models.app_settings import AppSettings
+from app.models.app_settings import AppSettings, decimales
 from app.schemas.document import (
     DocumentResponse, DocumentWithArticles, DocumentListItem,
     DocumentUpdate, ReprocessRequest
 )
-from app.schemas.article import ArticleResponse
-from app.services import margin_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
-def _build_article(art_data: dict, doc_id: int, tiers: list, rounding_mode: str, rounding_decimals: int) -> Article:
-    """Build an Article ORM object from extraction data. Does NOT add to session."""
-    from app.services.margin_service import compute_article_pricing, calculate_pricing, get_margin_for_cost
+def _build_article(art_data: dict, doc_id: int, tiers: list, rounding_mode: str, rounding_decimals: int,
+                   pronto_pago_pct: Optional[float] = None) -> Article:
+    """Build an Article ORM object from extraction data. Does NOT add to session.
+
+    Precios: siempre se aplica el pronto pago del albarán (como en /recalculate). Si la IA leyó
+    un coste neto distinto del bruto sin descuentos, ese neto se guarda como un descuento
+    equivalente en descuento_1: así cualquier recálculo posterior da el mismo coste."""
+    from app.services.margin_service import compute_article_pricing
+
+    def _num(v):
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    art_data = dict(art_data)
+    bruto = _num(art_data.get("precio_unitario_bruto")) or 0.0
+    neto_ia = _num(art_data.get("coste_neto_unitario"))
+    cantidad = _num(art_data.get("cantidad"))
+    if not cantidad or cantidad <= 0:
+        cantidad = 1.0
+    art_data["cantidad"] = cantidad
+    sin_dtos = not any(_num(art_data.get(f"descuento_{i}")) for i in range(1, 5))
+    if neto_ia and neto_ia > 0 and sin_dtos and abs(neto_ia - bruto) > 0.00005:
+        if bruto > neto_ia:
+            art_data["descuento_1"] = round((1 - neto_ia / bruto) * 100, 4)
+        else:  # sin bruto (o neto mayor que el bruto): el neto pasa a ser el precio
+            bruto = neto_ia
+    art_data["precio_unitario_bruto"] = bruto
+
     pricing = compute_article_pricing(
-        precio_bruto=art_data.get("precio_unitario_bruto", 0),
-        cantidad=art_data.get("cantidad", 1),
+        precio_bruto=bruto,
+        cantidad=cantidad,
         descuento_1=art_data.get("descuento_1"),
         descuento_2=art_data.get("descuento_2"),
         descuento_3=art_data.get("descuento_3"),
@@ -46,28 +70,16 @@ def _build_article(art_data: dict, doc_id: int, tiers: list, rounding_mode: str,
         tiers=tiers,
         rounding_mode=rounding_mode,
         decimals=rounding_decimals,
+        pronto_pago_pct=pronto_pago_pct,
     )
-    if art_data.get("coste_neto_unitario") and not any([
-        art_data.get("descuento_1"), art_data.get("descuento_2"),
-        art_data.get("descuento_3"), art_data.get("descuento_4"),
-    ]):
-        pricing["coste_neto_unitario"] = art_data["coste_neto_unitario"]
-        pricing["coste_neto_total"] = art_data["coste_neto_unitario"] * art_data.get("cantidad", 1)
-        pricing["margen_pct"] = get_margin_for_cost(pricing["coste_neto_unitario"], tiers)
-        pvp = calculate_pricing(
-            pricing["coste_neto_unitario"], pricing["margen_pct"],
-            art_data.get("iva_pct", 21.0), rounding_mode, rounding_decimals,
-        )
-        pricing["pvp_sin_iva"] = pvp["pvp_sin_iva"]
-        pricing["pvp_con_iva"] = pvp["pvp_con_iva"]
 
     otros = art_data.get("otros_codigos", {})
     return Article(
         document_id=doc_id,
         line_number=art_data.get("line_number", 0),
         descripcion=art_data.get("descripcion", ""),
-        cantidad=art_data.get("cantidad", 1),
-        precio_unitario_bruto=art_data.get("precio_unitario_bruto", 0),
+        cantidad=cantidad,
+        precio_unitario_bruto=bruto,
         descuento_1=art_data.get("descuento_1"),
         descuento_2=art_data.get("descuento_2"),
         descuento_3=art_data.get("descuento_3"),
@@ -88,14 +100,29 @@ def _build_article(art_data: dict, doc_id: int, tiers: list, rounding_mode: str,
     )
 
 
-def get_or_create_settings(db: Session) -> AppSettings:
-    s = db.query(AppSettings).filter(AppSettings.id == 1).first()
-    if not s:
-        s = AppSettings(id=1)
-        db.add(s)
+def _rutas(doc: Document) -> List[str]:
+    """Todas las rutas del albarán (varias si se subió en varias fotos; los antiguos solo tienen una)."""
+    try:
+        lista = json.loads(doc.file_paths) if doc.file_paths else []
+    except (TypeError, ValueError):
+        lista = []
+    lista = [p for p in lista if p]
+    return lista or ([doc.file_path] if doc.file_path else [])
+
+
+def marcar_interrumpidos() -> None:
+    """Al arrancar: los albaranes que se estaban leyendo cuando se paró el servidor quedan en error."""
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        n = (db.query(Document).filter(Document.status.in_(("processing", "uploaded")))
+             .update({Document.status: "error", Document.error_message: "Se interrumpió, vuelve a procesar"},
+                     synchronize_session=False))
         db.commit()
-        db.refresh(s)
-    return s
+        if n:
+            logger.info("%s albarán(es) a medias pasados a error", n)
+    finally:
+        db.close()
 
 
 @router.post("/upload", response_model=DocumentResponse)
@@ -113,8 +140,8 @@ async def upload_document(
             400, f"File type '{suffix}' not allowed. Allowed: {settings.allowed_ext_list}"
         )
 
-    # Validate size
-    content = await file.read()
+    # Validate size (sin leer más de la cuenta)
+    content = await file.read(settings.max_upload_size_bytes + 1)
     if len(content) > settings.max_upload_size_bytes:
         raise HTTPException(413, f"File too large. Max: {settings.max_upload_size_mb}MB")
 
@@ -166,7 +193,7 @@ async def upload_multi_images(
             suffix = Path(file.filename).suffix.lower().lstrip(".")
             if suffix not in IMAGE_EXTS:
                 raise HTTPException(400, f"Solo imágenes (JPG/PNG) en subida múltiple. Archivo: {file.filename}")
-            content = await file.read()
+            content = await file.read(settings.max_upload_size_bytes + 1)
             if len(content) > settings.max_upload_size_bytes:
                 raise HTTPException(413, f"Archivo demasiado grande: {file.filename}")
             stored_name = f"{uuid.uuid4().hex}.{suffix}"
@@ -185,6 +212,7 @@ async def upload_multi_images(
         filename=Path(saved_paths[0]).name,
         original_filename=display_name,
         file_path=saved_paths[0],
+        file_paths=json.dumps(saved_paths),
         doc_type="image",
         status="uploaded",
         supplier_id=supplier_id,
@@ -200,11 +228,11 @@ async def upload_multi_images(
 @router.get("", response_model=List[DocumentListItem])
 def list_documents(
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=500),
+    limit: int = Query(default=500, ge=1, le=2000),
     db: Session = Depends(get_db),
 ):
     """List all documents with article counts (single query, no N+1)."""
-    from sqlalchemy import func, outerjoin, or_
+    from sqlalchemy import func, or_
     rows = (
         db.query(Document, func.count(Article.id).label("article_count"))
         .outerjoin(Article, Article.document_id == Document.id)
@@ -242,7 +270,7 @@ def marcar_terminado(doc_id: int, data: Terminado, db: Session = Depends(get_db)
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "Albarán no encontrado")
-    doc.terminado_at = datetime.now() if data.terminado else None
+    doc.terminado_at = datetime.utcnow() if data.terminado else None  # UTC, como created_at
     db.commit()
     db.refresh(doc)
     return doc
@@ -282,11 +310,12 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    # Delete file from disk
-    try:
-        Path(doc.file_path).unlink(missing_ok=True)
-    except Exception as e:
-        logger.warning(f"Could not delete file {doc.file_path}: {e}")
+    # Borrar del disco todas las fotos/páginas del albarán
+    for p in _rutas(doc):
+        try:
+            Path(p).unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Could not delete file {p}: {e}")
 
     db.delete(doc)
     db.commit()
@@ -317,7 +346,11 @@ async def reprocess_document(
         doc.supplier_id = request.supplier_id
     db.commit()
 
-    background_tasks.add_task(_process_document, doc_id, request.supplier_id or doc.supplier_id)
+    rutas = _rutas(doc)
+    if len(rutas) > 1:  # albarán de varias fotos: se vuelven a leer todas
+        background_tasks.add_task(_process_multi_document, doc_id, rutas, request.supplier_id or doc.supplier_id)
+    else:
+        background_tasks.add_task(_process_document, doc_id, request.supplier_id or doc.supplier_id)
 
     return {"ok": True, "message": "Reprocessing started"}
 
@@ -447,7 +480,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             db.commit()
         tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
         rounding_mode = app_settings.rounding_mode or "ceil_5cents"
-        rounding_decimals = app_settings.rounding_decimals or 2
+        rounding_decimals = decimales(app_settings)
     finally:
         db.close()
 
@@ -511,7 +544,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                 pass
 
         for art_data in result.get("articulos", []):
-            db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals))
+            db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals, doc.pronto_pago_pct))
 
         _apply_validation(doc, result)
         doc.status = "completed"
@@ -586,7 +619,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
             db.commit()
         tiers = json.loads(app_settings.margin_tiers) if isinstance(app_settings.margin_tiers, str) else []
         rounding_mode = app_settings.rounding_mode or "ceil_5cents"
-        rounding_decimals = app_settings.rounding_decimals or 2
+        rounding_decimals = decimales(app_settings)
     finally:
         db.close()  # release DB lock before long extraction
 
@@ -655,7 +688,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
 
         # Save articles
         for art_data in result.get("articulos", []):
-            db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals))
+            db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals, doc.pronto_pago_pct))
 
         # Validation: store totals and check if they match
         _apply_validation(doc, result)

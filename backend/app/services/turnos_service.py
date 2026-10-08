@@ -61,17 +61,61 @@ _SEMANAS_V1 = [
     ["jornada", "jornada", "jornada", "jornada", LIBRE, LIBRE, LIBRE],
 ]
 
-FESTIVOS_2026 = [
-    ("2026-01-01", "Año Nuevo"), ("2026-01-06", "Reyes"),
-    ("2026-04-02", "Jueves Santo"), ("2026-04-03", "Viernes Santo"),
-    ("2026-05-01", "Fiesta del Trabajo"), ("2026-05-29", "San Fernando (local Boal)"),
-    ("2026-06-29", "San Pedro (local Villayón)"), ("2026-07-24", "Santiago (local Boal)"),
-    ("2026-08-15", "La Asunción"), ("2026-09-08", "Día de Asturias"),
-    ("2026-09-09", "Santa María de Oneta (local Villayón)"),
-    ("2026-10-12", "Fiesta Nacional"), ("2026-11-02", "Todos los Santos (trasladado)"),
-    ("2026-12-07", "Constitución (trasladado)"), ("2026-12-08", "Inmaculada"),
-    ("2026-12-25", "Navidad"),
-]
+# Festivos que se cargan solos, por año. Para añadir un año nuevo basta con otra entrada:
+# nacionales + Asturias (BOE/BOPA) y los locales de Boal y Villayón (BOPA, fiestas locales).
+# Cada año se carga una sola vez (luego se pueden quitar o añadir a mano en Turnos).
+FESTIVOS = {
+    2026: [
+        ("2026-01-01", "Año Nuevo"), ("2026-01-06", "Reyes"),
+        ("2026-04-02", "Jueves Santo"), ("2026-04-03", "Viernes Santo"),
+        ("2026-05-01", "Fiesta del Trabajo"), ("2026-05-29", "San Fernando (local Boal)"),
+        ("2026-06-29", "San Pedro (local Villayón)"), ("2026-07-24", "Santiago (local Boal)"),
+        ("2026-08-15", "La Asunción"), ("2026-09-08", "Día de Asturias"),
+        ("2026-09-09", "Santa María de Oneta (local Villayón)"),
+        ("2026-10-12", "Fiesta Nacional"), ("2026-11-02", "Todos los Santos (trasladado)"),
+        ("2026-12-07", "Constitución (trasladado)"), ("2026-12-08", "Inmaculada"),
+        ("2026-12-25", "Navidad"),
+    ],
+    # 2027: locales según la resolución del BOPA de 10/06/2026; Día de Asturias según el
+    # Decreto 7/2026. El resto, fechas fijas y Semana Santa (Pascua: 28/03/2027). El BOE de
+    # 2027 aún no había salido: la Asunción cae en domingo y se pone el lunes 16 (por confirmar).
+    2027: [
+        ("2027-01-01", "Año Nuevo"), ("2027-01-06", "Reyes"),
+        ("2027-02-09", "Martes de Carnaval (local Boal)"),
+        ("2027-03-25", "Jueves Santo"), ("2027-03-26", "Viernes Santo"),
+        ("2027-05-01", "Fiesta del Trabajo"),
+        ("2027-07-26", "Santiago (local Boal) · Santa Ana (local Villayón)"),
+        ("2027-08-16", "La Asunción (trasladado, por confirmar)"), ("2027-09-08", "Día de Asturias"),
+        ("2027-09-09", "Santa María de Oneta (local Villayón)"),
+        ("2027-10-12", "Fiesta Nacional"), ("2027-11-01", "Todos los Santos"),
+        ("2027-12-06", "Constitución"), ("2027-12-08", "Inmaculada"),
+        ("2027-12-25", "Navidad"),
+    ],
+}
+FESTIVOS_2026 = FESTIVOS[2026]  # compatibilidad
+
+
+def _cargar_festivos(db: Session, datos: dict) -> bool:
+    """Carga (una vez por año) los festivos de FESTIVOS que aún no estén. Devuelve si cambió algo."""
+    cargados = set(datos.get("festivos_cargados") or [])
+    cambio = False
+    for anio, lista in FESTIVOS.items():
+        if anio in cargados:
+            continue
+        if not db.query(Festivo).filter(Festivo.fecha.like(f"{anio}-%")).first():
+            for f, n in lista:
+                db.add(Festivo(fecha=f, nombre=n))
+        cargados.add(anio)
+        cambio = True
+    if cambio:
+        datos["festivos_cargados"] = sorted(cargados)
+    return cambio
+
+
+def anios_sin_festivos(db: Session, desde: date, hasta: date) -> list:
+    """Años del intervalo sin ningún festivo apuntado (para avisar en la pantalla de turnos)."""
+    return [a for a in range(desde.year, hasta.year + 1)
+            if not db.query(Festivo).filter(Festivo.fecha.like(f"{a}-%")).first()]
 
 
 def ajustes(db: Session) -> dict:
@@ -80,14 +124,17 @@ def ajustes(db: Session) -> dict:
         try:
             row = TurnoAjustes(id=1, datos=json.dumps(DEFAULT, ensure_ascii=False))
             db.add(row)
-            if not db.query(Festivo).first():
-                for f, n in FESTIVOS_2026:
-                    db.add(Festivo(fecha=f, nombre=n))
             db.commit()
         except IntegrityError:  # otra petición lo creó a la vez
             db.rollback()
             row = db.get(TurnoAjustes, 1)
     datos = json.loads(row.datos)
+    if _cargar_festivos(db, datos):
+        try:
+            row.datos = json.dumps(datos, ensure_ascii=False)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
     if datos.get("v", 1) < 2 and datos.get("semanas") == _SEMANAS_V1:
         # Rotación real (7/10/2026): sustituye a la provisional si nadie la había tocado
         datos.update(tipos=DEFAULT["tipos"], semanas=DEFAULT["semanas"], v=2)
@@ -100,6 +147,11 @@ def ajustes(db: Session) -> dict:
 
 def guardar_ajustes(db: Session, datos: dict) -> dict:
     row = db.get(TurnoAjustes, 1) or TurnoAjustes(id=1)
+    if row.datos and "festivos_cargados" not in datos:
+        try:
+            datos["festivos_cargados"] = json.loads(row.datos).get("festivos_cargados", [])
+        except ValueError:
+            pass
     row.datos = json.dumps(datos, ensure_ascii=False)
     db.merge(row)
     db.commit()
@@ -151,9 +203,12 @@ def cuadrante(db: Session, desde: date, dias: int) -> dict:
         return {**out, "tipo": tid, "clase": "trabajo", "nombre": t["nombre"], "horario": t["horario"],
                 "horas": t.get("horas") or 0}
 
+    sin = anios_sin_festivos(db, desde, hasta)
     return {
         "desde": d0, "hasta": d1,
         "festivos": festivos,
+        # Algún año del cuadrante no tiene festivos apuntados: la pantalla debe avisar
+        "sin_festivos": bool(sin), "anios_sin_festivos": sin,
         "empleados": [
             {**e, "dias": [dia(e["id"], d) for d in fechas]} for e in cfg["empleados"]
         ],

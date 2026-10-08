@@ -3,8 +3,6 @@ OCR service using OpenCV (preprocessing) + pytesseract.
 Used for scanned PDFs and images (JPG, PNG).
 """
 import logging
-from pathlib import Path
-from typing import Optional
 
 import numpy as np
 

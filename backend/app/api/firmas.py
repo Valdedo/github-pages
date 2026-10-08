@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from pydantic import BaseModel
 from pypdf import PdfReader, PdfWriter
 from sqlalchemy.orm import Session
 
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/firmas", tags=["firmas"])
 
 TZ = ZoneInfo("Europe/Madrid")
+MAX_FIRMA_PNG = 2 * 1024 * 1024  # una firma dibujada ocupa unas decenas de KB
 
 
 def _dir() -> Path:
@@ -88,10 +90,11 @@ def list_notes(
 @router.get("/stats")
 def stats(db: Session = Depends(get_db)):
     q = db.query(ClientDeliveryNote)
-    pend = q.filter(ClientDeliveryNote.status == "pendiente").count()
+    pend = q.filter(ClientDeliveryNote.status.in_(("pendiente", "firmando"))).count()  # «firmando» aún no está firmado
+    firm = q.filter(ClientDeliveryNote.status == "firmado").count()
     total = q.count()
     sin_facturar = q.filter(ClientDeliveryNote.status == "firmado", ClientDeliveryNote.facturado_at.is_(None)).count()
-    return {"pendiente": pend, "firmado": total - pend, "sin_facturar": sin_facturar, "total": total}
+    return {"pendiente": pend, "firmado": firm, "sin_facturar": sin_facturar, "total": total}
 
 
 def _mismo_pdf(path: Optional[str], data: bytes) -> bool:
@@ -102,16 +105,35 @@ def _mismo_pdf(path: Optional[str], data: bytes) -> bool:
         return False
 
 
-@router.post("/upload", response_model=List[ClientDeliveryNoteResponse])
+def _leer_limitado(f: UploadFile, maximo: int) -> Optional[bytes]:
+    """Lee el archivo sin pasar de `maximo` bytes; None si es más grande."""
+    if f.size is not None and f.size > maximo:
+        return None
+    data = f.file.read(maximo + 1)
+    return None if len(data) > maximo else data
+
+
+class SubidaFirmas(BaseModel):
+    albaranes: List[ClientDeliveryNoteResponse]
+    rechazados: List[dict]
+
+
+@router.post("/upload", response_model=SubidaFirmas)
 def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
+    """Sube varios PDF. Los buenos se guardan aunque haya alguno malo; los malos vuelven en
+    `rechazados: [{nombre, motivo}]`. Si no vale ninguno → 400."""
     # Síncrono a propósito: FastAPI lo ejecuta aparte y no bloquea al resto de la app
     out = []
+    rechazados = []
     for f in files:
-        data = f.file.read()
+        nombre_arch = f.filename or "archivo"
+        data = _leer_limitado(f, settings.max_upload_size_bytes)
+        if data is None:
+            rechazados.append({"nombre": nombre_arch, "motivo": f"Supera {settings.max_upload_size_mb} MB"})
+            continue
         if data[:5] != b"%PDF-":
-            raise HTTPException(400, f"{f.filename}: no es un PDF")
-        if len(data) > settings.max_upload_size_bytes:
-            raise HTTPException(400, f"{f.filename}: supera {settings.max_upload_size_mb} MB")
+            rechazados.append({"nombre": nombre_arch, "motivo": "No es un PDF"})
+            continue
         try:
             meta = parse_albaran(data, f.filename or "")
         except Exception as e:  # PDF raro o escaneado: se guarda igual para revisarlo a mano
@@ -152,7 +174,9 @@ def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
         db.commit()
         db.refresh(note)
         out.append(note)
-    return out
+    if not out and rechazados:
+        raise HTTPException(400, "; ".join(f"{r['nombre']}: {r['motivo']}" for r in rechazados))
+    return {"albaranes": out, "rechazados": rechazados}
 
 
 @router.get("/export.zip")
@@ -174,8 +198,9 @@ def export_zip(codigo_cliente: Optional[str] = None, mes: Optional[str] = None,
                 z.write(p, f"{n.numero} firmado.pdf")
     buf.seek(0)
     nombre = "Albaranes firmados" + (f" {codigo_cliente}" if codigo_cliente else "") + (f" {mes}" if mes else "")
+    from urllib.parse import quote
     return StreamingResponse(buf, media_type="application/zip",
-                             headers={"Content-Disposition": f'attachment; filename="{nombre}.zip"'})
+                             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nombre + '.zip')}"})
 
 
 def liberar_firmas_a_medias():
@@ -262,9 +287,10 @@ def combinado(ids: str = Query(..., description="ids separados por comas"), db: 
 def avisos(db: Session = Depends(get_db)):
     """Lo que se está quedando atrás: sin firmar más de 2 días y meses anteriores sin facturar."""
     ahora = datetime.now(TZ).replace(tzinfo=None)
+    ahora_utc = datetime.utcnow()  # created_at se guarda en UTC
     sin_firmar = []
     for n in db.query(ClientDeliveryNote).filter(ClientDeliveryNote.status == "pendiente").all():
-        dias = (ahora - n.created_at).days if n.created_at else 0
+        dias = (ahora_utc - n.created_at).days if n.created_at else 0
         if dias >= 2:
             sin_firmar.append({"id": n.id, "numero": n.numero, "cliente": n.cliente, "dias": dias})
     sin_firmar.sort(key=lambda x: -x["dias"])
@@ -351,9 +377,16 @@ def sign(
     if n.status != "pendiente":
         raise HTTPException(409, f"El albarán {n.numero} ya está firmado")
     nombre = nombre.strip()
+    dni = (dni or "").strip()
     if not nombre:
         raise HTTPException(400, "Falta el nombre de quien recibe")
-    png = firma.file.read()
+    if len(nombre) > 80:
+        raise HTTPException(422, "El nombre es demasiado largo (máximo 80 caracteres)")
+    if len(dni) > 20:
+        raise HTTPException(422, "El DNI es demasiado largo (máximo 20 caracteres)")
+    png = _leer_limitado(firma, MAX_FIRMA_PNG)
+    if png is None:
+        raise HTTPException(413, "La imagen de la firma es demasiado grande")
     if png[:8] != b"\x89PNG\r\n\x1a\n":
         raise HTTPException(400, "La firma no es válida")
 
@@ -546,8 +579,10 @@ def _aplicar_marcas(n: ClientDeliveryNote, m: Marcas):
 
 
 @router.put("/{note_id}/marcas", response_model=ClientDeliveryNoteResponse)
-def marcas(note_id: int, data: Marcas, db: Session = Depends(get_db)):
+def marcas(note_id: int, data: Marcas, request: Request, db: Session = Depends(get_db)):
     n = _get(db, note_id)
+    if getattr(request.state, "rol", None) == "reparto" and (data.facturado is not None or data.factura_ref is not None):
+        raise HTTPException(403, "El código de reparto no puede marcar facturas")
     _aplicar_marcas(n, data)
     db.commit()
     db.refresh(n)

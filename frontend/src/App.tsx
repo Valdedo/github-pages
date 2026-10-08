@@ -1,38 +1,61 @@
 import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
   BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck
 } from 'lucide-react';
 
+// Siempre a mano (también sin cobertura en el reparto): Inicio, firmas y reparto
 import { DashboardPage } from './pages/DashboardPage';
-import { ArranquePegatina, debeArrancar } from './components/CabeceraPegatina';
-import { CargasPage, OrdenCargaPage } from './pages/CargasPage';
-import { HomePage } from './pages/HomePage';
-import { DocumentPage } from './pages/DocumentPage';
-import { AnalyticsPage } from './pages/AnalyticsPage';
-import { RepairsPage } from './pages/RepairsPage';
-import { OrdersPage } from './pages/OrdersPage';
-import { OrderDetailPage } from './pages/OrderDetailPage';
-import { CatalogPage } from './pages/CatalogPage';
-import { PriceLookupPage } from './pages/PriceLookupPage';
-import { CustomLabelsPage } from './pages/CustomLabelsPage';
-import { RepairDetailPage } from './pages/RepairDetailPage';
 import { FirmasPage } from './pages/FirmasPage';
 import { FirmaDetailPage } from './pages/FirmaDetailPage';
 import { RepartoPage } from './pages/RepartoPage';
-import { TurnosPage } from './pages/TurnosPage';
-import { AjustesPage } from './pages/AjustesPage';
+import { ArranquePegatina, debeArrancar } from './components/CabeceraPegatina';
 import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
 import { CodigosModal } from './components/CodigosModal';
 import { MiCodigoModal } from './components/MiCodigoModal';
 import { AvisosLink } from './components/AvisosCard';
+import { useCfToast } from './components/CfToast';
 import { arrancarCola } from './lib/offline';
 import { arrancarColaCargas } from './lib/offlineCargas';
 import { getRol, cerrarSesion, sesionPersonal } from './auth';
 import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
+
+/** Carga por partes: cada apartado se descarga al abrirlo. Si tras una actualización
+ *  ya no existe la parte vieja, se recarga la app una vez para coger la nueva. */
+function porPartes<T extends Record<string, unknown>, K extends keyof T>(cargar: () => Promise<T>, nombre: K) {
+  return lazy(async () => {
+    try {
+      const m = await cargar();
+      try { sessionStorage.removeItem('cfRecargaPartes'); } catch { /* nada */ }
+      return { default: m[nombre] as ComponentType };
+    } catch (err) {
+      let ya = false;
+      try { ya = sessionStorage.getItem('cfRecargaPartes') === '1'; sessionStorage.setItem('cfRecargaPartes', '1'); } catch { /* nada */ }
+      if (!ya && navigator.onLine) { window.location.reload(); return new Promise<never>(() => {}); }
+      throw err;
+    }
+  });
+}
+const HomePage = porPartes(() => import('./pages/HomePage'), 'HomePage');
+const DocumentPage = porPartes(() => import('./pages/DocumentPage'), 'DocumentPage');
+const AnalyticsPage = porPartes(() => import('./pages/AnalyticsPage'), 'AnalyticsPage');
+const RepairsPage = porPartes(() => import('./pages/RepairsPage'), 'RepairsPage');
+const RepairDetailPage = porPartes(() => import('./pages/RepairDetailPage'), 'RepairDetailPage');
+const OrdersPage = porPartes(() => import('./pages/OrdersPage'), 'OrdersPage');
+const OrderDetailPage = porPartes(() => import('./pages/OrderDetailPage'), 'OrderDetailPage');
+const CatalogPage = porPartes(() => import('./pages/CatalogPage'), 'CatalogPage');
+const PriceLookupPage = porPartes(() => import('./pages/PriceLookupPage'), 'PriceLookupPage');
+const CustomLabelsPage = porPartes(() => import('./pages/CustomLabelsPage'), 'CustomLabelsPage');
+const TurnosPage = porPartes(() => import('./pages/TurnosPage'), 'TurnosPage');
+const AjustesPage = porPartes(() => import('./pages/AjustesPage'), 'AjustesPage');
+const CargasPage = porPartes(() => import('./pages/CargasPage'), 'CargasPage');
+const OrdenCargaPage = porPartes(() => import('./pages/CargasPage'), 'OrdenCargaPage');
+
+/** Mientras llega un apartado: discreto (solo aparece si tarda). */
+const Cargando = () => <div className="cf-suspense" role="status" aria-live="polite">Cargando…</div>;
 
 interface NavBadge {
   repairs: number;
@@ -68,6 +91,8 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   ] },
 ];
 const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
+const soloAdmin = (el: JSX.Element) => getRol() === 'admin' ? el : <Navigate to="/" replace />;
+const cuenta = (n: number, max = 99) => n > max ? `${max}+` : String(n);
 const navItems = navGroups.flatMap(g => g.items);
 const INICIO: NavItem = { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true, badge: 'correo' };
 // Móvil: lo más usado abajo; el resto, en «Más» por grupos
@@ -83,7 +108,7 @@ function SidebarNavGroup({ items, badges, collapsed }: {
 }) {
   return (
     <>
-      {items.filter(i => !i.soloEncargado || getRol() === 'admin').map(({ to, label, icon: Icon, badge, exact }) => {
+      {items.filter(visible).map(({ to, label, icon: Icon, badge, exact }) => {
         const count = badge ? badges[badge as keyof NavBadge] : 0;
         return (
           <NavLink
@@ -95,10 +120,10 @@ function SidebarNavGroup({ items, badges, collapsed }: {
           >
             <span className="sidebar-item-icon">
               <Icon size={20} />
-              {collapsed && count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
+              {collapsed && count > 0 && <span className="sidebar-badge">{cuenta(count)}</span>}
             </span>
             {!collapsed && <span className="sidebar-item-label">{label}</span>}
-            {!collapsed && count > 0 && <span className="sidebar-badge">{count > 99 ? '99+' : count}</span>}
+            {!collapsed && count > 0 && <span className="sidebar-badge">{cuenta(count)}</span>}
           </NavLink>
         );
       })}
@@ -189,38 +214,32 @@ function ScrollRestoration() {
   return null;
 }
 
+/** Apartado padre de una ficha (para «Volver» cuando se entra directo, p. ej. desde un aviso). */
+const PADRE: Record<string, string> = { documento: '/albaranes', pedidos: '/pedidos', reparaciones: '/reparaciones', firmas: '/firmas', cargas: '/cargas' };
+/** ¿Hay pantallas anteriores dentro de la app? (React Router guarda la posición en history.state.idx) */
+const hayAtras = () => { try { return ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0; } catch { return false; } };
+
 function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isDoc = location.pathname.startsWith('/documento/') || location.pathname.startsWith('/pedidos/') || location.pathname.startsWith('/reparaciones/') || location.pathname.startsWith('/firmas/') || location.pathname.startsWith('/cargas/');
-
-  // Find current section (for title + clickable root link)
-  const section = navItems.find(n => location.pathname.startsWith(n.to) && n.to !== '/');
-  const title = location.pathname === '/' ? '' : (section?.label ?? '');
+  const seccion = location.pathname.split('/')[1] || '';
+  const isDoc = location.pathname.split('/').length > 2 && seccion in PADRE;
 
   // En Inicio, la cabecera es el logo pegatina (dentro de la página) en lugar de la barra de arriba
   if (location.pathname === '/') return null;
 
+  // Sin título: cada página ya lo pone en grande
   return (
     <header className="mobile-header">
       {isDoc ? (
-        <button className="mobile-back-btn" onClick={() => navigate(-1)}>
+        <button className="mobile-back-btn" onClick={() => hayAtras() ? navigate(-1) : navigate(PADRE[seccion], { replace: true })}>
           <ChevronLeft size={20} /> Volver
         </button>
       ) : (
         <Link to="/" style={{ textDecoration: 'none' }} aria-label="Inicio">
-          <Logo size={location.pathname === "/" ? 24 : 30} compact={location.pathname !== "/"} />
+          <Logo size={30} compact />
         </Link>
       )}
-      {/* Title is a link to section root — tapping it resets filters/scroll */}
-      {section && !isDoc ? (
-        <Link to={section.to} className="mobile-header-title" style={{ textDecoration: 'none', color: 'inherit' }}>
-          {title}
-        </Link>
-      ) : (
-        <span className="mobile-header-title">{title}</span>
-      )}
-      <div style={{ width: 28 }} />
     </header>
   );
 }
@@ -235,6 +254,8 @@ function BottomNav({ badges }: { badges: NavBadge }) {
   const isSecondaryActive = drawerItems.some(
     n => location.pathname === n.to || location.pathname.startsWith(n.to + '/')
   );
+  // Los avisos de los apartados del cajón también se ven en el botón «Más»
+  const enCajon = drawerItems.filter(visible).reduce((s, n) => s + (n.badge ? badges[n.badge] : 0), 0);
 
   return (
     <>
@@ -251,12 +272,18 @@ function BottomNav({ badges }: { badges: NavBadge }) {
           <div key={g.titulo}>
             <div className="more-drawer-grupo">{g.titulo}</div>
             <div className="more-drawer-grid">
-              {g.items.filter(i => !i.soloEncargado || getRol() === 'admin').map(({ to, label, icon: Icon }) => (
-                <NavLink key={to} to={to} className={({ isActive }) => `more-drawer-item${isActive ? ' active' : ''}`}>
-                  <Icon size={26} />
-                  <span>{label}</span>
-                </NavLink>
-              ))}
+              {g.items.filter(visible).map(({ to, label, icon: Icon, badge }) => {
+                const count = badge ? badges[badge] : 0;
+                return (
+                  <NavLink key={to} to={to} className={({ isActive }) => `more-drawer-item${isActive ? ' active' : ''}`}>
+                    <span className="bn-icon">
+                      <Icon size={26} />
+                      {count > 0 && <span className="bottom-badge">{cuenta(count, 9)}</span>}
+                    </span>
+                    <span>{label}</span>
+                  </NavLink>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -277,9 +304,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
             >
               <span className="bn-icon">
                 <Icon size={22} />
-                {count > 0 && (
-                  <span className="bottom-badge">{count > 9 ? '9+' : count}</span>
-                )}
+                {count > 0 && <span className="bottom-badge">{cuenta(count, 9)}</span>}
               </span>
               <span>{short ?? label}</span>
             </NavLink>
@@ -289,8 +314,13 @@ function BottomNav({ badges }: { badges: NavBadge }) {
         <button
           className={`bottom-nav-item${isSecondaryActive || drawerOpen ? ' active' : ''}`}
           onClick={() => setDrawerOpen(v => !v)}
+          aria-expanded={drawerOpen}
+          aria-label={enCajon > 0 ? `Más apartados (${enCajon} avisos)` : 'Más apartados'}
         >
-          <span className="bn-icon"><MoreHorizontal size={22} /></span>
+          <span className="bn-icon">
+            <MoreHorizontal size={22} />
+            {enCajon > 0 && !drawerOpen && <span className="bottom-badge">{cuenta(enCajon, 9)}</span>}
+          </span>
           <span>Más</span>
         </button>
       </nav>
@@ -319,22 +349,37 @@ function RepartoShell() {
       </header>
       <main id="app-main" className="reparto-main">
         <ScrollRestoration />
-        <Routes>
-          <Route path="/reparto" element={<RepartoPage />} />
-          <Route path="/firmas/:id" element={<FirmaDetailPage />} />
-          <Route path="/turnos" element={<TurnosPage />} />
-          <Route path="*" element={<Navigate to="/reparto" replace />} />
-        </Routes>
+        <Suspense fallback={<Cargando />}>
+          <Routes>
+            <Route path="/reparto" element={<RepartoPage />} />
+            <Route path="/firmas/:id" element={<FirmaDetailPage />} />
+            <Route path="/turnos" element={<TurnosPage />} />
+            <Route path="*" element={<Navigate to="/reparto" replace />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );
 }
 
+/** Avisos que pueden llegar desde cualquier pantalla. */
+function AvisosGlobales() {
+  const { toast, show } = useCfToast();
+  useEffect(() => {
+    const cache = () => show('Sin cobertura: datos de hace un rato', { aviso: true });
+    const cola = (e: Event) => show(String((e as CustomEvent).detail || ''), { aviso: true });
+    window.addEventListener('cf-desde-cache', cache);
+    window.addEventListener('cf-cola-aviso', cola);
+    return () => { window.removeEventListener('cf-desde-cache', cache); window.removeEventListener('cf-cola-aviso', cola); };
+  }, [show]);
+  return toast;
+}
+
 function AppShell() {
   const location = useLocation();
   useEffect(() => { arrancarCola(); if (getRol() === 'admin') arrancarColaCargas(); }, []);
-  if (getRol() === 'reparto' || location.pathname === '/reparto' || isReparto()) return <RepartoShell />;
-  return <FullShell />;
+  const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
+  return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /></>;
 }
 
 function FullShell() {
@@ -370,26 +415,28 @@ function FullShell() {
         <MobileHeader />
         <main id="app-main" className="app-main">
           <ScrollRestoration />
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/albaranes" element={<HomePage />} />
-            <Route path="/documento/:id" element={<DocumentPage />} />
-            <Route path="/analisis" element={<AnalyticsPage />} />
-            <Route path="/venta" element={<Navigate to="/consulta" replace />} />
-            <Route path="/reparaciones" element={<RepairsPage />} />
-            <Route path="/reparaciones/:id" element={<RepairDetailPage />} />
-            <Route path="/pedidos" element={<OrdersPage />} />
-            <Route path="/pedidos/:id" element={<OrderDetailPage />} />
-            <Route path="/catalogo" element={<CatalogPage />} />
-            <Route path="/consulta" element={<PriceLookupPage />} />
-            <Route path="/etiquetas" element={<CustomLabelsPage />} />
-            <Route path="/firmas" element={<FirmasPage />} />
-            <Route path="/firmas/:id" element={<FirmaDetailPage />} />
-            <Route path="/turnos" element={<TurnosPage />} />
-            <Route path="/ajustes" element={<AjustesPage />} />
-            <Route path="/cargas" element={getRol() === 'admin' ? <CargasPage /> : <Navigate to="/" replace />} />
-            <Route path="/cargas/:id" element={getRol() === 'admin' ? <OrdenCargaPage /> : <Navigate to="/" replace />} />
-          </Routes>
+          <Suspense fallback={<Cargando />}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/albaranes" element={<HomePage />} />
+              <Route path="/documento/:id" element={<DocumentPage />} />
+              <Route path="/analisis" element={<AnalyticsPage />} />
+              <Route path="/venta" element={<Navigate to="/consulta" replace />} />
+              <Route path="/reparaciones" element={<RepairsPage />} />
+              <Route path="/reparaciones/:id" element={<RepairDetailPage />} />
+              <Route path="/pedidos" element={<OrdersPage />} />
+              <Route path="/pedidos/:id" element={<OrderDetailPage />} />
+              <Route path="/catalogo" element={<CatalogPage />} />
+              <Route path="/consulta" element={<PriceLookupPage />} />
+              <Route path="/etiquetas" element={<CustomLabelsPage />} />
+              <Route path="/firmas" element={<FirmasPage />} />
+              <Route path="/firmas/:id" element={<FirmaDetailPage />} />
+              <Route path="/turnos" element={<TurnosPage />} />
+              <Route path="/ajustes" element={soloAdmin(<AjustesPage />)} />
+              <Route path="/cargas" element={soloAdmin(<CargasPage />)} />
+              <Route path="/cargas/:id" element={soloAdmin(<OrdenCargaPage />)} />
+            </Routes>
+          </Suspense>
         </main>
         <BottomNav badges={badges} />
       </div>

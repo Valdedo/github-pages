@@ -29,3 +29,19 @@ class AppSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+def get_or_create_settings(db) -> "AppSettings":
+    """Ajustes únicos de la app (fila id=1); se crean la primera vez."""
+    s = db.query(AppSettings).filter(AppSettings.id == 1).first()
+    if not s:
+        s = AppSettings(id=1)
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+    return s
+
+
+def decimales(s: "AppSettings") -> int:
+    """Decimales de redondeo (respeta el 0)."""
+    return s.rounding_decimals if s.rounding_decimals is not None else 2

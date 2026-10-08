@@ -1256,14 +1256,6 @@ select.form-input { cursor: pointer; }
     flex-shrink: 0;
   }
 
-  .mobile-header-title {
-    flex: 1;
-    text-align: center;
-    font-weight: 700;
-    font-size: 15px;
-    letter-spacing: -0.02em;
-  }
-
   .mobile-back-btn {
     display: flex;
     align-items: center;
@@ -1599,7 +1591,7 @@ select.form-input { cursor: pointer; }
 .firma-pad-hint { position: absolute; left: 22px; bottom: 24px; font-size: 13px; color: var(--text-3); pointer-events: none; }
 #firma-print { display: none; }
 @media (max-width: 900px) {
-  .firma-layout { grid-template-columns: 1fr; }
+  .firma-layout { grid-template-columns: minmax(0, 1fr); }
   .firma-panel { position: static; }
   .firma-preview { max-height: 40vh; overflow: auto; border-radius: var(--r); }
 }

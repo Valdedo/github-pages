@@ -9,11 +9,11 @@ Price alerts compare each article in a newly-processed document against the
 last known cost from the same supplier, flagging increases above a threshold.
 """
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, text
+from sqlalchemy import desc, text
 
 from app.database import get_db
 from app.models.article import Article

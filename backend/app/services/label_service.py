@@ -3,11 +3,8 @@ PDF label generation using reportlab.
 Labels: 10cm × 5cm, multiple per A4 page.
 """
 import io
-import json
 import logging
-import tempfile
-from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +63,6 @@ def generate_qr_image(url: str, size: int = 150) -> Optional[bytes]:
     """Generate QR code as PNG bytes."""
     try:
         import qrcode
-        from PIL import Image as PILImage
 
         qr = qrcode.QRCode(
             version=None,
@@ -133,11 +129,8 @@ def generate_labels_pdf(
         PDF as bytes
     """
     try:
-        from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import mm
         from reportlab.pdfgen import canvas
-        from reportlab.lib.utils import ImageReader
     except ImportError:
         logger.error("reportlab not installed")
         return b""
@@ -360,7 +353,8 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
     # ── Draw QR code ───────────────────────────────────────────────
     qr_sz    = min(qr_zone_w, bot_h) - pad * 2
     qr_code  = article.ean if (article.ean and len(article.ean) >= 8) else (article.codigo_principal or "N/A")
-    qr_url   = f"{base_url}/api/products/ficha/{qr_code}"
+    from urllib.parse import quote
+    qr_url   = f"{base_url}/api/products/ficha/{quote(str(qr_code), safe='')}"
     qr_bytes = generate_qr_image(qr_url)
 
     if qr_bytes:

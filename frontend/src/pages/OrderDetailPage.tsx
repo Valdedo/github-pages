@@ -1,16 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw, Phone, ShoppingCart, HandCoins } from 'lucide-react';
+import { ArrowLeft, Plus, Check, Pencil, Trash2, Package, FileText, Link, RotateCcw, Phone, ShoppingCart, HandCoins, Unlink } from 'lucide-react';
 import { getOrder, updateOrder, addOrderLine, updateOrderLine, deleteOrderLine, deleteOrder, listDocuments, describeApiError } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
-import { BotonWhatsApp, textoPedido, numES, fmtEur } from '../components/AvisoCliente';
+import { BotonWhatsApp, textoPedido, leerImporte, leerCantidad, fmtEur } from '../components/AvisoCliente';
+import { PEDIDO_ESTADO } from '../lib/estados';
+import { fechaES } from '../lib/texto';
+import { mensajeError } from '../lib/descargas';
+import { ES_MANUAL } from '../lib/proveedor';
 import type { SupplierOrder, SupplierOrderLine, DocumentListItem, OrderStatus } from '../types';
 
-const STATUS_LABELS: Record<string, string> = {
-  pendiente: 'Por pedir', pedido: 'Pedido', parcial: 'Llegando',
-  recibido: 'Ha llegado', entregado: 'Entregado', cancelado: 'Cancelado',
-};
+const STATUS_LABELS: Record<string, string> = PEDIDO_ESTADO;
+const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 const STATUS_PREV: Record<string, { status: OrderStatus; label: string } | null> = {
   pendiente: null,
@@ -21,16 +23,16 @@ const STATUS_PREV: Record<string, { status: OrderStatus; label: string } | null>
   cancelado: { status: 'pendiente', label: 'Recuperar el pedido' },
 };
 
-const fmtFecha = (d?: string | null) => (d ? new Date(d.split('T')[0] + 'T12:00:00').toLocaleDateString('es-ES') : '');
+const fmtFecha = (d?: string | null) => fechaES(d ? d.split('T')[0] : d);
 const cant = (n: number) => String(n).replace('.', ',');
 
 // ─── Pasos ────────────────────────────────────────────────────────────────────
 
 const PASOS = [
-  { key: 'pendiente', label: 'Por pedir' },
-  { key: 'pedido',    label: 'Pedido' },
-  { key: 'recibido',  label: 'Ha llegado' },
-  { key: 'entregado', label: 'Entregado' },
+  { key: 'pendiente', label: PEDIDO_ESTADO.pendiente },
+  { key: 'pedido',    label: PEDIDO_ESTADO.pedido },
+  { key: 'recibido',  label: PEDIDO_ESTADO.recibido },
+  { key: 'entregado', label: PEDIDO_ESTADO.entregado },
 ];
 
 function Pasos({ status, recibidas, total }: { status: string; recibidas: number; total: number }) {
@@ -42,7 +44,7 @@ function Pasos({ status, recibidas, total }: { status: string; recibidas: number
       {PASOS.map((p, i) => (
         <div key={p.key} className={`paso${i < idx ? ' hecho' : ''}${i === idx || (idx === 4 && i === 3) ? ' actual' : ''}${parcial && i === 2 ? ' medio' : ''}`}>
           <span className="paso-bola">{i < idx ? '✓' : i + 1}</span>
-          <span className="paso-txt">{parcial && i === 2 ? `Llegando ${recibidas}/${total}` : p.label}</span>
+          <span className="paso-txt">{parcial && i === 2 ? `${PEDIDO_ESTADO.parcial} ${recibidas}/${total}` : p.label}</span>
         </div>
       ))}
     </div>
@@ -68,6 +70,7 @@ function EditarPedidoModal({ order, onClose, onSaved }: { order: SupplierOrder; 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.client_name.trim()) { setError('Falta el nombre del cliente'); return; }
+    if (f.expected_date && f.order_date && f.expected_date < f.order_date) { setError('La llegada prevista no puede ser antes de la fecha del pedido'); return; }
     setSaving(true); setError('');
     try {
       const { data } = await updateOrder(order.id, {
@@ -81,20 +84,20 @@ function EditarPedidoModal({ order, onClose, onSaved }: { order: SupplierOrder; 
       });
       onSaved(data);
     } catch (err) {
-      setError(`No se pudo guardar: ${describeApiError(err)}`);
+      setError(`No se pudo guardar: ${mensajeError(err, describeApiError(err))}`);
     } finally { setSaving(false); }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
+      <div className="modal rep-modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 17 }}>Datos del pedido</span>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <form onSubmit={guardar}>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
-            {error && <div className="doc-aviso error">{error}</div>}
+            {error && <div className="doc-aviso error" role="alert">{error}</div>}
             <div className="campos-2">
               <div>
                 <label className="form-label">Cliente *</label>
@@ -118,7 +121,7 @@ function EditarPedidoModal({ order, onClose, onSaved }: { order: SupplierOrder; 
               </div>
               <div>
                 <label className="form-label">Llegada prevista</label>
-                <input className="form-input" type="date" value={f.expected_date} onChange={set('expected_date')} />
+                <input className="form-input" type="date" value={f.expected_date} min={f.order_date || undefined} onChange={set('expected_date')} />
               </div>
             </div>
             <div>
@@ -155,40 +158,42 @@ function LineaModal({ orderId, line, orderSupplierName, onClose, onSaved, onDele
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
 
-  const qtyNum = numES(qty), priceNum = numES(price), recNum = numES(received) ?? 0;
+  const lq = leerCantidad(qty), lp = leerImporte(price), lr = leerImporte(received);
+  const qtyNum = lq.ok ? lq.n : null, priceNum = lp.ok ? lp.n : null, recNum = lr.ok ? lr.n ?? 0 : 0;
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc.trim()) { setError('Falta qué artículo es'); return; }
-    if (qtyNum == null || qtyNum <= 0) { setError('La cantidad tiene que ser un número mayor que 0'); return; }
-    if (price.trim() && priceNum == null) { setError('El precio tiene que ser un número, por ejemplo 12,50'); return; }
+    if (!lq.ok) { setError(`Cantidad: ${lq.error}`); return; }
+    if (!lp.ok) { setError(`Precio: ${lp.error}`); return; }
+    if (line && !lr.ok) { setError(`Han llegado: ${lr.error}`); return; }
+    if (line && qtyNum != null && recNum > qtyNum) { setError(`No pueden haber llegado más (${received}) de las pedidas (${qty})`); return; }
     setSaving(true); setError('');
     try {
       const datos = {
         descripcion: desc.trim(),
-        cantidad: qtyNum,
         precio_unitario: priceNum ?? undefined,
         supplier_name: supplier.trim() || undefined,
         notes: notes.trim() || undefined,
       };
-      if (line) await updateOrderLine(orderId, line.id, { ...datos, cantidad_recibida: Math.max(0, Math.min(recNum, qtyNum)) });
-      else await addOrderLine(orderId, datos);
+      if (line) await updateOrderLine(orderId, line.id, { ...datos, cantidad: qtyNum as number, cantidad_recibida: Math.max(0, Math.min(recNum, qtyNum as number)) });
+      else await addOrderLine(orderId, { ...datos, cantidad: qtyNum as number });
       onSaved();
     } catch (err) {
-      setError(`No se pudo guardar: ${describeApiError(err)}`);
+      setError(`No se pudo guardar: ${mensajeError(err, describeApiError(err))}`);
     } finally { setSaving(false); }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} onKeyDown={e => { if (e.key === 'Escape') onClose(); }}>
+      <div className="modal rep-modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 17 }}>{line ? 'Artículo del pedido' : 'Añadir artículo'}</span>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <form onSubmit={handle}>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {error && <div className="doc-aviso error">{error}</div>}
+            {error && <div className="doc-aviso error" role="alert">{error}</div>}
             <div>
               <label className="form-label">Artículo *</label>
               <input className="form-input" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Nombre del artículo" autoFocus={!line} />
@@ -280,7 +285,11 @@ export function OrderDetailPage() {
       await updateOrderLine(order.id, line.id, { cantidad_recibida: nuevo });
       await load(true);
       show(llego ? `${line.descripcion}: sin recibir` : `${line.descripcion}: recibido`, {
-        undo: async () => { await updateOrderLine(order.id, line.id, { cantidad_recibida: line.cantidad_recibida }); await load(true); },
+        undo: async () => {
+          try { await updateOrderLine(order.id, line.id, { cantidad_recibida: line.cantidad_recibida }); }
+          catch (err) { show(`No se pudo deshacer: ${mensajeError(err, 'error')}`, { error: true }); }
+          await load(true);
+        },
       });
     } catch (err) {
       show(`No se pudo guardar: ${describeApiError(err)}`, { error: true });
@@ -291,15 +300,22 @@ export function OrderDetailPage() {
   const cambiarEstado = async (status: OrderStatus, texto: string) => {
     if (!order) return;
     const antes = order.status;
+    const fechaAntes = order.order_date;
     const recibidasAntes = order.lines.map(l => [l.id, l.cantidad_recibida] as const);
+    // Al marcarlo como pedido, la fecha del pedido pasa a ser hoy
+    const extra = status === 'pedido' && antes === 'pendiente' ? { order_date: hoyISO() } : {};
     try {
-      setOrder((await updateOrder(order.id, { status })).data);
+      setOrder((await updateOrder(order.id, { status, ...extra })).data);
       show(texto, {
         undo: async () => {
-          await updateOrder(order.id, { status: antes });
-          // Devuelve las cantidades recibidas tal como estaban
-          await Promise.all(recibidasAntes.map(([lid, c]) => updateOrderLine(order.id, lid, { cantidad_recibida: c })));
-          if (antes === 'pedido' || antes === 'pendiente' || antes === 'entregado') await updateOrder(order.id, { status: antes });
+          try {
+            await updateOrder(order.id, { status: antes, ...(extra.order_date ? { order_date: fechaAntes } : {}) });
+            // Devuelve las cantidades recibidas tal como estaban
+            await Promise.all(recibidasAntes.map(([lid, c]) => updateOrderLine(order.id, lid, { cantidad_recibida: c })));
+            if (antes === 'pedido' || antes === 'pendiente' || antes === 'entregado') await updateOrder(order.id, { status: antes });
+          } catch (err) {
+            show(`No se pudo deshacer del todo: ${mensajeError(err, 'error')}`, { error: true });
+          }
           await load(true);
         },
       });
@@ -339,21 +355,50 @@ export function OrderDetailPage() {
 
   const handleLinkDoc = async (docId: number) => {
     if (!order) return;
-    await updateOrder(order.id, { document_id: docId });
-    setLinkingDoc(false);
-    load(true);
+    try {
+      await updateOrder(order.id, { document_id: docId });
+      setLinkingDoc(false);
+      show('Albarán vinculado al pedido');
+      load(true);
+    } catch (err) {
+      show(`No se pudo vincular: ${mensajeError(err, describeApiError(err))}`, { error: true });
+    }
+  };
+
+  const desvincular = async () => {
+    if (!order?.document_id) return;
+    const docAntes = order.document_id;
+    try {
+      setOrder((await updateOrder(order.id, { document_id: null })).data);
+      show('Albarán desvinculado', {
+        undo: async () => {
+          try { setOrder((await updateOrder(order.id, { document_id: docAntes })).data); }
+          catch (err) { show(`No se pudo deshacer: ${mensajeError(err, 'error')}`, { error: true }); }
+        },
+      });
+    } catch (err) {
+      show(`No se pudo desvincular: ${mensajeError(err, describeApiError(err))}`, { error: true });
+    }
   };
 
   const handleCancelOrder = async () => {
     if (!order) return;
-    const ok = await confirm({ title: 'Cancelar pedido', message: '¿Cancelar este pedido? Pasará al historial.', confirmLabel: 'Cancelar pedido', danger: true });
+    const ok = await confirm({
+      title: '¿Cancelar el pedido?',
+      message: 'Se queda en el historial como «Cancelado» (por ejemplo, si el cliente ya no lo quiere) y se puede recuperar. «Borrar» en cambio lo quita del todo.',
+      confirmLabel: 'Sí, cancelar el pedido', cancelLabel: 'No', danger: true,
+    });
     if (!ok) return;
     cambiarEstado('cancelado', 'Pedido cancelado');
   };
 
   const handleDeleteOrder = async () => {
     if (!order) return;
-    const ok = await confirm({ title: 'Borrar pedido', message: '¿Borrar este pedido? No se puede deshacer.', confirmLabel: 'Borrar', danger: true });
+    const ok = await confirm({
+      title: '¿Borrar el pedido?',
+      message: 'Se borra del todo y no se puede recuperar. Si solo es que el cliente ya no lo quiere, mejor «Cancelar el pedido» (queda en el historial).',
+      confirmLabel: 'Sí, borrarlo', cancelLabel: 'No', danger: true,
+    });
     if (!ok) return;
     try {
       await deleteOrder(order.id);
@@ -363,12 +408,17 @@ export function OrderDetailPage() {
     }
   };
 
+  const [docsError, setDocsError] = useState('');
   const openLinkModal = async () => {
     setLinkingDoc(true);
     setLoadingDocs(true);
+    setDocsError('');
     try {
       const { data } = await listDocuments();
-      setDocuments(data.filter(d => d.status === 'completed'));
+      setDocuments(data.filter(d => d.status === 'completed' && !ES_MANUAL(d.supplier_name)));
+    } catch (err) {
+      setDocuments([]);
+      setDocsError(`No se pudieron cargar los albaranes: ${mensajeError(err, describeApiError(err))}`);
     } finally {
       setLoadingDocs(false);
     }
@@ -406,7 +456,7 @@ export function OrderDetailPage() {
             {order.client_phone && <a href={`tel:${order.client_phone}`}><Phone size={15} /> {order.client_phone}</a>}
             {order.supplier_name && <span><ShoppingCart size={15} /> {order.supplier_name}</span>}
             {order.reference && <span className="pedido-ref">{order.reference}</span>}
-            <span>Pedido el {fmtFecha(order.order_date)}</span>
+            {order.status !== 'pendiente' && <span>Pedido el {fmtFecha(order.order_date)}</span>}
             {order.expected_date && !order.received_date && <span>Llegada prevista {fmtFecha(order.expected_date)}</span>}
             {order.received_date && <span>Llegó el {fmtFecha(order.received_date)}</span>}
           </div>
@@ -474,7 +524,7 @@ export function OrderDetailPage() {
                 onClick={() => toggleLinea(line)}
                 aria-pressed={done}
                 aria-label={done ? `${line.descripcion}: recibido. Toca para desmarcar` : `Marcar ${line.descripcion} como recibido`}>
-                {done ? <Check size={22} strokeWidth={3} /> : partial ? '◑' : null}
+                {done ? <Check size={22} strokeWidth={3} /> : partial ? <span className="carga-medio" aria-hidden="true" /> : null}
               </button>
               <button className="pedido-linea-txt" onClick={() => canEdit && setEditingLine(line)} disabled={!canEdit}>
                 <b>{line.descripcion}</b>
@@ -510,13 +560,14 @@ export function OrderDetailPage() {
         <div className="pedido-albaran">
           <FileText size={16} /> Albarán del proveedor vinculado
           <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/documento/${order.document_id}`)}>Ver albarán</button>
+          <button className="btn btn-ghost btn-sm" onClick={desvincular} style={{ color: 'var(--text-3)' }}><Unlink size={14} /> Desvincular</button>
         </div>
       )}
 
       <details className="mas-opciones pedido-mas" style={{ marginTop: 16 }}>
         <summary>Más opciones</summary>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-          <button className="btn btn-ghost" onClick={openLinkModal}><Link size={16} /> Vincular albarán del proveedor</button>
+          <button className="btn btn-ghost" onClick={openLinkModal}><Link size={16} /> {order.document_id ? 'Cambiar el albarán vinculado' : 'Vincular albarán del proveedor'}</button>
           {order.status !== 'cancelado' && order.status !== 'entregado' && (
             <button className="btn btn-ghost" onClick={handleCancelOrder}>Cancelar el pedido</button>
           )}
@@ -524,6 +575,7 @@ export function OrderDetailPage() {
             <Trash2 size={15} /> Borrar pedido
           </button>
         </div>
+        <p className="pedido-mas-nota"><b>Cancelar</b>: el pedido queda en el historial y se puede recuperar. <b>Borrar</b>: desaparece del todo.</p>
       </details>
 
       {editando && (
@@ -551,12 +603,14 @@ export function OrderDetailPage() {
             <div style={{ padding: '12px 0', maxHeight: 360, overflowY: 'auto' }}>
               {loadingDocs ? (
                 <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>Cargando albaranes…</div>
+              ) : docsError ? (
+                <div className="doc-aviso error" style={{ margin: 16 }}>{docsError}</div>
               ) : documents.length === 0
                 ? <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>No hay albaranes leídos</div>
                 : documents.map(doc => (
                   <button key={doc.id} className="vincular-doc" onClick={() => handleLinkDoc(doc.id)}>
                     <b>{doc.supplier_name || doc.original_filename}</b>
-                    <small>{doc.supplier_name ? `${doc.original_filename} · ` : ''}{new Date(doc.created_at).toLocaleDateString('es-ES')}</small>
+                    <small>{[doc.doc_number && `N.º ${doc.doc_number}`, fechaES(doc.doc_date || doc.created_at)].filter(Boolean).join(' · ')}</small>
                   </button>
                 ))
               }

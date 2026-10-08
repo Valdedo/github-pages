@@ -1,25 +1,24 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Wrench, Phone, Trash2, ChevronRight, RotateCcw, Save, ArrowLeft, HandCoins } from 'lucide-react';
 import { getRepair, updateRepair, deleteRepair, describeApiError } from '../api/client';
 import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
-import { useIsMobile } from '../hooks';
-import { BotonWhatsApp, ImporteModal, textoReparacion, numES, fmtEur } from '../components/AvisoCliente';
+import { BotonWhatsApp, ImporteModal, textoReparacion, numES, leerImporte, fmtEur } from '../components/AvisoCliente';
+import { REPARACION_ESTADO, REPARACION_SIGUIENTE } from '../lib/estados';
+import { mensajeError } from '../lib/descargas';
 import type { Repair, RepairStatus } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_STEPS: RepairStatus[] = ['recibida', 'en_taller', 'reparada', 'entregada'];
 
-const STATUS_LABELS: Record<RepairStatus, string> = {
-  recibida: 'Recibida', en_taller: 'En el taller', reparada: 'Lista', entregada: 'Entregada',
-};
+const STATUS_LABELS = REPARACION_ESTADO;
 
 const STATUS_NEXT: Record<RepairStatus, { status: RepairStatus; label: string } | null> = {
-  recibida:  { status: 'en_taller', label: 'Enviar al taller' },
-  en_taller: { status: 'reparada',  label: 'Ya ha vuelto reparada' },
-  reparada:  { status: 'entregada', label: 'Entregar al cliente' },
+  recibida:  { status: 'en_taller', label: REPARACION_SIGUIENTE.recibida },
+  en_taller: { status: 'reparada',  label: REPARACION_SIGUIENTE.en_taller },
+  reparada:  { status: 'entregada', label: REPARACION_SIGUIENTE.reparada },
   entregada: null,
 };
 
@@ -121,7 +120,6 @@ function repairToForm(r: Repair): FormState {
 export function RepairDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
 
   const { confirm, ConfirmDialog } = useConfirm();
   const { toast, show } = useCfToast();
@@ -130,7 +128,10 @@ export function RepairDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setErrorRaw] = useState('');
+  const errorRef = useRef<HTMLDivElement>(null);
+  // Los errores se llevan a la vista: si no, con la página bajada no se ven
+  const setError = (m: string) => { setErrorRaw(m); if (m) requestAnimationFrame(() => errorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })); };
   const [entregando, setEntregando] = useState(false);
 
   const load = useCallback(async () => {
@@ -169,9 +170,12 @@ export function RepairDetailPage() {
     if (!form.client_name.trim()) { setError('Falta el nombre del cliente'); return null; }
     if (!form.tool_description.trim()) { setError('Falta qué herramienta es'); return null; }
     if (!form.problem_description.trim()) { setError('Falta qué le pasa'); return null; }
-    const est = numES(form.estimated_price), fin = numES(form.final_price);
-    if ((form.estimated_price.trim() && est == null) || (form.final_price.trim() && fin == null)) {
-      setError('Los precios tienen que ser números, por ejemplo 35,50'); return null;
+    const le = leerImporte(form.estimated_price), lf = leerImporte(form.final_price);
+    if (!le.ok) { setError(`Presupuesto: ${le.error}`); return null; }
+    if (!lf.ok) { setError(`Cobrado: ${lf.error}`); return null; }
+    const est = le.n, fin = lf.n;
+    if (form.date_estimated_return && form.date_received && form.date_estimated_return < form.date_received) {
+      setError('La fecha prevista no puede ser anterior a cuando se recibió'); return null;
     }
     setError('');
     return {
@@ -207,7 +211,9 @@ export function RepairDetailPage() {
       guardarRespuesta((await updateRepair(repair.id, datos)).data);
       show('Cambios guardados');
     } catch (err) {
-      setError(`No se pudo guardar: ${describeApiError(err)}`);
+      const m = `No se pudo guardar: ${mensajeError(err, describeApiError(err))}`;
+      setError(m);
+      show(m, { error: true });
     } finally {
       setSaving(false);
     }
@@ -230,12 +236,16 @@ export function RepairDetailPage() {
     try {
       guardarRespuesta((await updateRepair(repair.id, { ...datos, ...extra, status })).data);
       show(`${repair.tool_description}: ${STATUS_LABELS[status].toLowerCase()}`, {
-        undo: async () => guardarRespuesta((await updateRepair(repair.id, {
-          status: antes,
-          ...(status === 'en_taller' ? { date_sent_to_repair: null } : {}),
-          ...(status === 'reparada' ? { date_repaired: null } : {}),
-          ...(status === 'entregada' ? { date_returned: null } : {}),
-        })).data),
+        undo: async () => {
+          try {
+            guardarRespuesta((await updateRepair(repair.id, {
+              status: antes,
+              ...(status === 'en_taller' ? { date_sent_to_repair: null } : {}),
+              ...(status === 'reparada' ? { date_repaired: null } : {}),
+              ...(status === 'entregada' ? { date_returned: null } : {}),
+            })).data);
+          } catch (err) { show(`No se pudo deshacer: ${mensajeError(err, 'error')}`, { error: true }); }
+        },
       });
     } catch (err) {
       show(`No se pudo cambiar: ${describeApiError(err)}`, { error: true });
@@ -291,7 +301,7 @@ export function RepairDetailPage() {
   const importeAviso = numES(form.final_price) ?? null;
 
   return (
-    <div className="page rep-detalle">
+    <div className={`page rep-detalle${dirty ? ' con-barra' : ''}`}>
       {ConfirmDialog}
       {toast}
 
@@ -309,7 +319,7 @@ export function RepairDetailPage() {
         </div>
       </div>
 
-      {error && <div className="doc-aviso error" style={{ marginTop: 12 }}>{error}</div>}
+      {error && <div className="doc-aviso error" style={{ marginTop: 12 }} ref={errorRef} role="alert">{error}</div>}
 
       {/* ── Estado y siguiente paso ── */}
       <div className="card seccion" style={{ marginTop: 12 }}>

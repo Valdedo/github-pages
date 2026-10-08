@@ -4,7 +4,9 @@ import { Upload, Search, X, ChevronRight, FileText } from 'lucide-react';
 import { FileUpload } from '../components/FileUpload';
 import { listDocuments, describeApiError } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
+import { useCfToast } from '../components/CfToast';
 import type { Document, DocumentListItem } from '../types';
+import { coincide, fechaES, ORDEN_ALBARANES } from '../lib/texto';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -14,6 +16,7 @@ export function HomePage() {
   const [search, setSearch] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [vista, setVista] = useState<'pendientes' | 'todos'>('pendientes');
+  const { toast, show } = useCfToast();
 
   const loadDocuments = async () => {
     try {
@@ -46,6 +49,13 @@ export function HomePage() {
     setShowUpload(false);
     navigate(`/documento/${doc.id}`);
   };
+  // Varios PDF a la vez: se quedan en la lista leyéndose
+  const handleUploadedMany = (docs: Document[], fallidos: string[]) => {
+    if (!fallidos.length) setShowUpload(false);
+    setVista('pendientes');
+    loadDocuments();
+    show(`${docs.length === 1 ? 'Se ha subido 1 albarán' : `Se han subido ${docs.length} albaranes`}; se están leyendo`);
+  };
 
   const completed  = documents.filter(d => d.status === 'completed').length;
   const processing = documents.filter(d => d.status === 'processing' || d.status === 'uploaded').length;
@@ -54,19 +64,20 @@ export function HomePage() {
   // Pendientes: los que aún no se han terminado (revisados y pasados a TreyFACT)
   const esPendiente = (d: DocumentListItem) => !d.terminado_at;
   const nPendientes = documents.filter(esPendiente).length;
+  // La búsqueda mira en la pestaña elegida (Por terminar / Todos)
+  const base = useMemo(() => (vista === 'pendientes' ? documents.filter(esPendiente) : documents), [documents, vista]);
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const base = vista === 'pendientes' && !q ? documents.filter(d => !d.terminado_at) : documents;
+    const q = search.trim();
     if (!q) return base;
-    return base.filter(d =>
-      d.original_filename.toLowerCase().includes(q) ||
-      (d.supplier_name && d.supplier_name.toLowerCase().includes(q)) ||
-      (d.doc_number && d.doc_number.toLowerCase().includes(q))
-    );
-  }, [documents, search, vista]);
+    return base.filter(d => coincide(q, d.original_filename, d.supplier_name, d.doc_number));
+  }, [base, search]);
+  useEffect(() => {
+    try { sessionStorage.setItem(ORDEN_ALBARANES, JSON.stringify(filtered.map(d => d.id))); } catch { /* nada */ }
+  }, [filtered]);
 
   return (
     <div className="page">
+      {toast}
 
       {loadError && (
         <ConnectionError message={loadError} onRetry={loadDocuments} />
@@ -140,8 +151,8 @@ export function HomePage() {
             </div>
             <span style={{ fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 500 }}>
               {search
-                ? `${filtered.length} de ${documents.length}`
-                : `${documents.length} albaranes`
+                ? `${filtered.length} de ${base.length}`
+                : `${base.length} albarán${base.length === 1 ? '' : 'es'}`
               }
             </span>
           </div>
@@ -151,11 +162,18 @@ export function HomePage() {
               <div className="empty-state-icon"><Search size={36} style={{ opacity: 0.35 }} /></div>
               <div className="empty-state-text">{search ? 'Sin resultados' : 'Todo terminado'}</div>
               <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>
-                {search ? `No hay albaranes que coincidan con «${search}».` : 'No queda ningún albarán por revisar y pasar a TreyFACT.'}
+                {search
+                  ? `No hay albaranes ${vista === 'pendientes' ? 'por terminar ' : ''}que coincidan con «${search}».`
+                  : 'No queda ningún albarán por revisar y pasar a TreyFACT.'}
               </p>
               {search && <button className="btn btn-ghost btn-sm" style={{ marginTop: '12px' }} onClick={() => setSearch('')}>
                 Limpiar búsqueda
               </button>}
+              {search && vista === 'pendientes' && documents.length > base.length && (
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: '8px' }} onClick={() => setVista('todos')}>
+                  Buscar en todos
+                </button>
+              )}
             </div>
           ) : (
             <div className="firma-lista cf-enter">
@@ -176,7 +194,7 @@ export function HomePage() {
               <h3 style={{ fontSize: 22, margin: 0 }}>Subir albarán de proveedor</h3>
               <button className="modal-close" style={{ marginLeft: 'auto' }} onClick={() => setShowUpload(false)} aria-label="Cerrar"><X size={20} /></button>
             </div>
-            <FileUpload onUploaded={handleUploaded} />
+            <FileUpload onUploaded={handleUploaded} onUploadedMany={handleUploadedMany} />
           </div>
         </div>
       )}
@@ -204,7 +222,7 @@ function DocCard({ doc, onOpen }: { doc: DocumentListItem; onOpen: () => void })
     : doc.status === 'completed' ? { label: 'Por terminar', cls: 'badge badge-success' }
     : statusConfig[doc.status] || statusConfig.uploaded;
   const isProcessing = doc.status === 'processing' || doc.status === 'uploaded';
-  const dateStr = new Date(doc.doc_date || doc.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  const dateStr = fechaES(doc.doc_date || doc.created_at);
   return (
     <button className="card firma-card doc-fila" onClick={onOpen}>
       <span className="doc-fila-dot" style={{ background: DOT_COLOR[doc.status] ?? 'var(--text-3)' }} />

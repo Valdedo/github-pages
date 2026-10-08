@@ -4,8 +4,8 @@ Generates a clean, printable A4 report with all article data.
 """
 import io
 import logging
-from datetime import date
-from typing import List
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def generate_pdf_report(document, articles) -> bytes:
             Spacer, HRFlowable,
         )
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+        from reportlab.lib.enums import TA_RIGHT, TA_CENTER
     except ImportError:
         logger.error("reportlab not installed")
         return b""
@@ -105,7 +105,7 @@ def generate_pdf_report(document, articles) -> bytes:
     supplier = document.supplier_name or "—"
     doc_number = document.doc_number or "—"
     doc_date = document.doc_date.isoformat() if document.doc_date else "—"
-    generated = date.today().isoformat()
+    generated = datetime.now(ZoneInfo("Europe/Madrid")).date().isoformat()
 
     header_data = [[
         Paragraph(f"Albarán de proveedor — {supplier}", title_style),

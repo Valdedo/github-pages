@@ -1,3 +1,4 @@
+import { fechaES } from '../lib/texto';
 import { useEffect, useState } from 'react';
 import { updateDocument } from '../api/client';
 import type { Document, Supplier } from '../types';
@@ -74,7 +75,7 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
           <Field label="Fecha" editing={editing}
             value={values.doc_date}
             onChange={v => setValues(p => ({ ...p, doc_date: v }))}
-            display={document.doc_date || '—'}
+            display={fechaES(document.doc_date) || '—'}
             type="date"
           />
           <Field label="Pronto pago (%)" editing={editing}

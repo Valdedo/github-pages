@@ -2,7 +2,9 @@
 Foto de la libreta → entregas con materiales → cargar marcando → firma del cliente → hoja de entrega PDF."""
 import json
 import logging
+import threading
 import uuid
+from zoneinfo import ZoneInfo
 from urllib.parse import quote
 from datetime import datetime
 from pathlib import Path
@@ -19,9 +21,12 @@ from app.database import get_db
 from app.models.carga import EntregaCarga, LineaCarga, OrdenCarga
 from app.services import carga_service
 
+MADRID = ZoneInfo("Europe/Madrid")
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/cargas", tags=["cargas"], dependencies=[Depends(solo_encargado)])
 
+MAX_FOTO = 25 * 1024 * 1024
 TIPOS_FOTO = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
 
@@ -124,9 +129,14 @@ def _entrega(db: Session, eid: int) -> EntregaCarga:
     return e
 
 
+# Los números HE- se calculan con lo que ya hay guardado: este cerrojo evita que dos peticiones
+# a la vez saquen el mismo número (se mantiene hasta guardar).
+_NUMERANDO = threading.RLock()
+
+
 def _numero(db: Session) -> str:
-    """HE-26-0001: número correlativo de hoja de entrega por año."""
-    pref = f"HE-{datetime.now():%y}-"
+    """HE-26-0001: número correlativo de hoja de entrega por año (año de Madrid)."""
+    pref = f"HE-{datetime.now(MADRID):%y}-"
     ult = (db.query(EntregaCarga.numero).filter(EntregaCarga.numero.like(pref + "%"))
            .order_by(EntregaCarga.numero.desc()).first())
     n = int(ult[0].split("-")[-1]) + 1 if ult and ult[0] else 1
@@ -162,6 +172,8 @@ def _anadir_entregas(db: Session, o: OrdenCarga, datos: dict) -> None:
                 cant = float(ln["cantidad"]) if ln.get("cantidad") not in (None, "") else None
             except (TypeError, ValueError):
                 cant = None
+            if cant is not None and cant <= 0:
+                cant = None  # se revisa a mano
             db.add(LineaCarga(
                 entrega_id=e.id, orden_n=j, cantidad=cant, unidad=(ln.get("unidad") or None),
                 descripcion=(ln.get("descripcion") or "").strip(), original=ln.get("original") or None,
@@ -177,8 +189,8 @@ async def _guardar_fotos(fotos: List[UploadFile]) -> tuple:
         ext = Path(f.filename or "").suffix.lower() or ".jpg"
         if ext not in TIPOS_FOTO:
             raise HTTPException(400, "Solo fotos (JPG o PNG)")
-        datos = await f.read()
-        if len(datos) > 25 * 1024 * 1024:
+        datos = await f.read(MAX_FOTO + 1)
+        if len(datos) > MAX_FOTO:
             raise HTTPException(400, "La foto es demasiado grande")
         nombre = f"{uuid.uuid4().hex}{ext}"
         (_dir() / nombre).write_bytes(datos)
@@ -190,7 +202,11 @@ async def _guardar_fotos(fotos: List[UploadFile]) -> tuple:
 # ── Órdenes ──────────────────────────────────────────────────────────────
 @router.get("", response_model=List[OrdenOut])
 def listar(db: Session = Depends(get_db)):
-    return [_out(o) for o in db.query(OrdenCarga).order_by(OrdenCarga.created_at.desc()).limit(200).all()]
+    from sqlalchemy.orm import selectinload
+    q = (db.query(OrdenCarga)
+         .options(selectinload(OrdenCarga.entregas).selectinload(EntregaCarga.lineas))
+         .order_by(OrdenCarga.created_at.desc()).limit(200))
+    return [_out(o) for o in q.all()]
 
 
 @router.post("/leer", response_model=OrdenOut)
@@ -225,20 +241,21 @@ async def leer(
     if not datos.get("entregas"):
         raise HTTPException(422, "No se encontró ningún pedido en la hoja. Prueba con otra foto más cerca.")
 
-    o = _orden(db, orden_id) if orden_id else OrdenCarga(creado_por=getattr(request.state, "persona", None))
-    if not orden_id:
-        db.add(o)
+    with _NUMERANDO:
+        o = _orden(db, orden_id) if orden_id else OrdenCarga(creado_por=getattr(request.state, "persona", None))
+        if not orden_id:
+            db.add(o)
+            db.flush()
+        o.fotos = json.dumps(json.loads(o.fotos or "[]") + nombres)
+        if huellas:
+            o.huellas = ",".join([h for h in (o.huellas or "").split(",") if h] + huellas)
+        if texto.strip():
+            o.texto = ((o.texto + "\n") if o.texto else "") + texto.strip()
+        _anadir_entregas(db, o, datos)
         db.flush()
-    o.fotos = json.dumps(json.loads(o.fotos or "[]") + nombres)
-    if huellas:
-        o.huellas = ",".join([h for h in (o.huellas or "").split(",") if h] + huellas)
-    if texto.strip():
-        o.texto = ((o.texto + "\n") if o.texto else "") + texto.strip()
-    _anadir_entregas(db, o, datos)
-    db.flush()
-    db.refresh(o)
-    _estado(o)
-    db.commit()
+        db.refresh(o)
+        _estado(o)
+        db.commit()
     db.refresh(o)
     return _out(o, db)
 
@@ -316,9 +333,13 @@ class EntregaIn(BaseModel):
 def nueva_entrega(oid: int, data: EntregaIn, db: Session = Depends(get_db)):
     """Entrega vacía para rellenar a mano."""
     o = _orden(db, oid)
-    _anadir_entregas(db, o, {"entregas": [{**data.model_dump(exclude_none=True), "lineas": []}]})
-    db.flush(); db.refresh(o); _estado(o)
-    db.commit(); db.refresh(o)
+    if data.cliente is not None and not data.cliente.strip():
+        raise HTTPException(422, "Falta el nombre del cliente")
+    with _NUMERANDO:
+        _anadir_entregas(db, o, {"entregas": [{**data.model_dump(exclude_none=True), "lineas": []}]})
+        db.flush(); db.refresh(o); _estado(o)
+        db.commit()
+    db.refresh(o)
     return _out(o)
 
 
@@ -328,6 +349,8 @@ def editar_entrega(eid: int, data: EntregaIn, db: Session = Depends(get_db)):
     for k, v in data.model_dump(exclude_unset=True).items():
         if k == "cliente":
             v = (v or "").strip()
+            if not v:
+                raise HTTPException(422, "Falta el nombre del cliente")
             if v != e.cliente and e.cliente_leido is None:
                 e.cliente_leido = e.cliente or ""  # para aprender cómo se lee
         setattr(e, k, v)
@@ -362,6 +385,8 @@ async def firmar(
         raise HTTPException(409, "Esta entrega ya está firmada")
     if not nombre.strip():
         raise HTTPException(400, "Falta el nombre de quien firma")
+    if not (e.cliente or "").strip():
+        raise HTTPException(422, "Falta el nombre del cliente")
     if cargadas:
         # Firmada sin cobertura: lo que se marcó como cargado en el móvil
         try:
@@ -375,8 +400,8 @@ async def firmar(
             pass
     if not any(ln.cargado_ok or ln.cargado for ln in e.lineas):
         raise HTTPException(400, "No hay nada marcado como cargado. Marca lo que se entrega antes de firmar.")
-    png = await firma.read()
-    if not png or len(png) > 3 * 1024 * 1024:
+    png = await firma.read(3 * 1024 * 1024 + 1)
+    if not png or len(png) > 3 * 1024 * 1024 or png[:8] != b"\x89PNG\r\n\x1a\n":
         raise HTTPException(400, "La firma no es válida")
     archivo = f"firma_{e.id}_{uuid.uuid4().hex[:8]}.png"
     (_dir() / archivo).write_bytes(png)
@@ -395,8 +420,8 @@ async def firmar(
         except ValueError:
             pass
     if foto is not None and foto.filename:
-        datos = await foto.read()
-        if datos and len(datos) <= 25 * 1024 * 1024:
+        datos = await foto.read(MAX_FOTO + 1)
+        if datos and len(datos) <= MAX_FOTO:
             e.foto_entrega = f"entrega_{e.id}_{uuid.uuid4().hex[:8]}{Path(foto.filename).suffix.lower() or '.jpg'}"
             (_dir() / e.foto_entrega).write_bytes(datos)
     e.entregado_por = getattr(request.state, "persona", None)
@@ -404,10 +429,11 @@ async def firmar(
     e.drive_at = None
     for ln in e.lineas:
         ln.confirmada = True  # entregado y firmado: ya se puede aprender de ello
-    if not e.numero:
-        e.numero = _numero(db)
-    db.flush(); db.refresh(e.orden); _estado(e.orden)
-    db.commit()
+    with _NUMERANDO:
+        if not e.numero:
+            e.numero = _numero(db)
+        db.flush(); db.refresh(e.orden); _estado(e.orden)
+        db.commit()
     db.refresh(e)
     from app.services.backup_service import backup_en_segundo_plano
     backup_en_segundo_plano()
@@ -418,8 +444,8 @@ async def firmar(
 async def subir_foto_entrega(eid: int, foto: UploadFile = File(...), db: Session = Depends(get_db)):
     """Añadir o cambiar la foto del material descargado (también después de firmar)."""
     e = _entrega(db, eid)
-    datos = await foto.read()
-    if not datos or len(datos) > 25 * 1024 * 1024:
+    datos = await foto.read(MAX_FOTO + 1)
+    if not datos or len(datos) > MAX_FOTO:
         raise HTTPException(400, "La foto no es válida")
     if e.foto_entrega:
         (_dir() / e.foto_entrega).unlink(missing_ok=True)
@@ -519,8 +545,16 @@ class LineaIn(BaseModel):
     cargado_ok: Optional[bool] = None
 
 
+def _validar_linea(data: LineaIn) -> None:
+    if data.cantidad is not None and data.cantidad <= 0:
+        raise HTTPException(422, "La cantidad tiene que ser mayor que 0")
+    if data.cargado is not None and data.cargado < 0:
+        raise HTTPException(422, "Lo cargado no puede ser negativo")
+
+
 @router.post("/entregas/{eid}/lineas", response_model=LineaOut)
 def nueva_linea(eid: int, data: LineaIn, db: Session = Depends(get_db)):
+    _validar_linea(data)
     e = _entrega(db, eid)
     if e.estado == "entregada":
         raise HTTPException(409, "Esta entrega ya está firmada")
@@ -535,6 +569,7 @@ def nueva_linea(eid: int, data: LineaIn, db: Session = Depends(get_db)):
 
 @router.put("/lineas/{lid}", response_model=LineaOut)
 def editar_linea(lid: int, data: LineaIn, db: Session = Depends(get_db)):
+    _validar_linea(data)
     ln = db.get(LineaCarga, lid)
     if not ln:
         raise HTTPException(404, "Línea no encontrada")

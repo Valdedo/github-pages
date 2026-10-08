@@ -15,7 +15,16 @@ api.interceptors.request.use(cfg => {
   if (t) cfg.headers.Authorization = `Bearer ${t}`;
   return cfg;
 });
-api.interceptors.response.use(r => r, (err: AxiosError) => {
+// Aviso discreto cuando el móvil enseña datos guardados porque no hay cobertura
+// (el service worker añade la cabecera X-Desde-Cache). Como mucho, uno cada 5 minutos.
+let ultimoAvisoCache = 0;
+api.interceptors.response.use(r => {
+  if (r.headers?.['x-desde-cache'] === '1' && Date.now() - ultimoAvisoCache > 5 * 60000) {
+    ultimoAvisoCache = Date.now();
+    window.dispatchEvent(new Event('cf-desde-cache'));
+  }
+  return r;
+}, (err: AxiosError) => {
   if (err.response?.status === 401 && !String(err.config?.url || '').includes('/api/acceso')) {
     cerrarSesion();
     window.dispatchEvent(new Event('cf-sin-sesion'));
@@ -23,21 +32,27 @@ api.interceptors.response.use(r => r, (err: AxiosError) => {
   return Promise.reject(err);
 });
 
-// Turn an axios/fetch error into a short user-facing message that
-// distinguishes "no puedo hablar con el servidor" from other errors.
+// Textos por defecto de FastAPI en inglés: no se enseñan
+const DETALLE_INGLES = /^(not found|method not allowed|internal server error|not authenticated|unauthorized|forbidden|bad request)$/i;
+
+/** Convierte un error en un mensaje corto en español sencillo. Primero, lo que dice el servidor. */
 export function describeApiError(err: unknown): string {
-  const ax = err as AxiosError | undefined;
-  if (!ax) return 'Error desconocido';
-  if (ax.code === 'ECONNABORTED') return 'El servidor tardó demasiado en responder';
-  if (ax.code === 'ERR_NETWORK' || ax.message === 'Network Error') {
-    return 'No se puede conectar con el servidor';
-  }
-  const status = ax.response?.status;
-  if (status === 404) return 'La API no responde en esta URL (404). Comprueba que el backend está desplegado.';
-  if (status === 401 || status === 403) return 'Sin permiso para acceder a los datos';
-  if (status && status >= 500) return `Error en el servidor (${status})`;
-  if (status) return `Error ${status} al pedir los datos`;
-  return ax.message || 'Error al pedir los datos';
+  const ax = err as AxiosError<{ detail?: unknown }> | undefined;
+  if (!ax) return 'Algo ha fallado. Vuelve a probar.';
+  const detail = ax.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim() && !DETALLE_INGLES.test(detail.trim())) return detail.trim();
+  if (Array.isArray(detail)) return 'Falta algún dato o no es válido.';
+  if (ax.code === 'ECONNABORTED' || ax.code === 'ETIMEDOUT') return 'Sin cobertura: el servidor no contesta. Vuelve a probar.';
+  if (!ax.response) return 'Sin cobertura. Comprueba la conexión y vuelve a probar.';
+  const status = ax.response.status;
+  if (status === 404) return 'Esto ya no existe (puede que lo hayan borrado).';
+  if (status === 401) return 'Tienes que volver a entrar con tu código.';
+  if (status === 403) return 'No tienes permiso para hacer esto.';
+  if (status === 409) return 'Alguien lo ha cambiado a la vez. Recarga y vuelve a probar.';
+  if (status === 413) return 'El archivo es demasiado grande.';
+  if (status === 429) return 'Demasiados intentos. Espera un poco y vuelve a probar.';
+  if (status >= 500) return 'El servidor ha fallado. Vuelve a probar en un momento.';
+  return 'No se pudo hacer. Vuelve a probar.';
 }
 
 // Documents
@@ -252,12 +267,22 @@ export const deleteOrderLine = (orderId: number, lineId: number) =>
 export const listFirmas = () => api.get<ClientDeliveryNote[]>('/api/firmas');
 export const getFirma = (id: number) => api.get<ClientDeliveryNote>(`/api/firmas/${id}`);
 export const getFirmasStats = () => api.get<{ pendiente: number; firmado: number; total: number }>('/api/firmas/stats');
-export const uploadFirmas = (files: File[]) => {
+export interface SubidaFirmas { data: ClientDeliveryNote[]; rechazados: { nombre: string; motivo: string }[] }
+/** Sube PDF de albaranes. El servidor puede devolver la lista de albaranes (antes) o un objeto
+ *  con los albaranes y los archivos rechazados (`rechazados: [{nombre, motivo}]`).
+ *  Se devuelve siempre `{ data: albaranes, rechazados }` (compatible con `const { data } = …`). */
+export const uploadFirmas = async (files: File[]): Promise<SubidaFirmas> => {
   const form = new FormData();
   files.forEach(f => form.append('files', f));
-  return api.post<ClientDeliveryNote[]>('/api/firmas/upload', form, {
+  const { data } = await api.post<unknown>('/api/firmas/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  if (Array.isArray(data)) return { data: data as ClientDeliveryNote[], rechazados: [] };
+  const o = (data || {}) as Record<string, unknown>;
+  const rechazados = Array.isArray(o.rechazados) ? o.rechazados as SubidaFirmas['rechazados'] : [];
+  const lista = ['albaranes', 'subidos', 'notas', 'items', 'ok'].map(k => o[k]).find(Array.isArray)
+    ?? Object.entries(o).find(([k, v]) => k !== 'rechazados' && Array.isArray(v))?.[1];
+  return { data: (lista as ClientDeliveryNote[]) || [], rechazados };
 };
 export const updateFirma = (id: number, data: Partial<ClientDeliveryNote>) =>
   api.put<ClientDeliveryNote>(`/api/firmas/${id}`, data);
@@ -320,7 +345,7 @@ export const accesoConfigurar = (tienda: string, reparto: string) =>
 export const accesoCodigo = (persona: string, codigo: string) =>
   api.post<{ ok: boolean } & Partial<SesionAcceso>>('/api/acceso/codigo', { persona, codigo });
 export const accesoEncargado = (codigo: string) => accesoCodigo('andres', codigo);
-export const accesoMiCodigo = (nuevo: string) => api.post<SesionAcceso>('/api/acceso/mi-codigo', { nuevo });
+export const accesoMiCodigo = (actual: string, nuevo: string) => api.post<SesionAcceso>('/api/acceso/mi-codigo', { actual, nuevo });
 export const accesoCerrarTodas = () => api.post<SesionAcceso>('/api/acceso/cerrar-todas');
 
 // Turnos
@@ -330,10 +355,11 @@ export interface TurnoDia {
   fecha: string; semana: string; cambio: boolean; nota?: string | null;
   tipo?: string; clase: 'trabajo' | 'libre' | 'festivo' | 'vacaciones'; nombre: string; horario: string; horas: number;
 }
-export interface Cuadrante { desde: string; hasta: string; festivos: Record<string, string>; empleados: (TurnoEmpleado & { dias: TurnoDia[] })[] }
+export interface Cuadrante { desde: string; hasta: string; festivos: Record<string, string>; empleados: (TurnoEmpleado & { dias: TurnoDia[] })[]; sin_festivos?: boolean | number | string }
 export interface TurnosAjustes {
   empleados: TurnoEmpleado[]; tipos: TurnoTipo[]; semanas: string[][]; ancla: string; inicio: Record<string, number>;
   esta_semana: Record<string, number>;
+  sin_festivos?: boolean | number | string;
   vac_previas?: Record<string, Record<string, number>>;
   festivos: { id: number; fecha: string; nombre: string }[];
   vacaciones: { id: number; empleado: string; inicio: string; fin: string; nota?: string | null; dias: number }[];

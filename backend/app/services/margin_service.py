@@ -138,7 +138,8 @@ def compute_article_pricing(
         pvp_sin_iva, pvp_con_iva
     """
     discounts = [descuento_1, descuento_2, descuento_3, descuento_4]
-    coste_neto_unitario = apply_cascading_discounts(precio_bruto, discounts)
+    cantidad = cantidad or 0  # los endpoints ya exigen cantidad > 0; aquí solo no se rompe
+    coste_neto_unitario = apply_cascading_discounts(precio_bruto or 0, discounts)
     # Apply early-payment discount (pronto pago) as additional reduction on net cost
     if pronto_pago_pct and pronto_pago_pct > 0:
         coste_neto_unitario = round(coste_neto_unitario * (1 - pronto_pago_pct / 100), 6)

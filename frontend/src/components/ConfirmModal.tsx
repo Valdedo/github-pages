@@ -66,6 +66,7 @@ interface ConfirmState {
   title: string;
   message: string;
   confirmLabel: string;
+  cancelLabel: string;
   danger: boolean;
   resolve: (v: boolean) => void;
 }
@@ -77,6 +78,7 @@ export function useConfirm() {
     title: string;
     message: string;
     confirmLabel?: string;
+    cancelLabel?: string;
     danger?: boolean;
   }): Promise<boolean> => {
     return new Promise(resolve => {
@@ -85,6 +87,7 @@ export function useConfirm() {
         title: opts.title,
         message: opts.message,
         confirmLabel: opts.confirmLabel ?? 'Confirmar',
+        cancelLabel: opts.cancelLabel ?? 'Cancelar',
         danger: opts.danger ?? false,
         resolve,
       });
@@ -99,6 +102,7 @@ export function useConfirm() {
       title={state.title}
       message={state.message}
       confirmLabel={state.confirmLabel}
+      cancelLabel={state.cancelLabel}
       danger={state.danger}
       onConfirm={handleConfirm}
       onCancel={handleCancel}

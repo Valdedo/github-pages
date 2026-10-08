@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from sqlalchemy import Integer, String, Text, Float, Date, DateTime, ForeignKey
+from sqlalchemy import Boolean, Integer, String, Text, Float, Date, DateTime, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from typing import Optional, List
 
@@ -26,6 +26,8 @@ class SupplierOrder(Base):
     received_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     status: Mapped[str] = mapped_column(String(20), default="pendiente", index=True)
+    # Si alguna vez se marcó como «pedido» (para volver al estado correcto al deshacer lo recibido)
+    marcado_pedido: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
     # Cuándo se avisó al cliente (WhatsApp) de que ya llegó
     aviso_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

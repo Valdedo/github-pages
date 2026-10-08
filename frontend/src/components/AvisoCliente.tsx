@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MessageCircle, CheckCheck } from 'lucide-react';
+import { fechaES } from '../lib/texto';
 
 /** Número para wa.me: solo cifras y con el 34 delante si es un número español. */
 export function telWhatsApp(tel?: string | null): string | null {
@@ -36,12 +37,47 @@ export const textoPedido = (cliente: string, articulos: string[]) => {
 
 export const fmtEur = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
-/** Lee «12,50» o «12.50». Devuelve null si está vacío o no es un número. */
+export type LecturaImporte = { ok: true; n: number | null } | { ok: false; error: string };
+
+/**
+ * Lee un importe escrito a mano: «12,50», «12.50», «1234,56», «1.234,56» o «1234».
+ * Vacío → n = null. No acepta negativos. Si es ambiguo («1.234»: ¿mil doscientos o uno con 234?) pide aclararlo.
+ */
+export function leerImporte(s: string | null | undefined): LecturaImporte {
+  const t = String(s ?? '').trim().replace(/[\s€]/g, '');
+  if (!t) return { ok: true, n: null };
+  if (/^[-−]/.test(t)) return { ok: false, error: 'El importe no puede ser negativo' };
+  let limpio: string | null = null;
+  if (/^\d{1,3}\.\d{3}$/.test(t)) {
+    return { ok: false, error: `«${t}» no está claro: escribe ${t.replace('.', '')} si son ${t.replace('.', '')} € o ${t.replace('.', ',')} si son ${t.replace('.', ',')} €` };
+  }
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) limpio = t.replace(/\./g, '').replace(',', '.');   // 1.234,56
+  else if (/^\d+(,\d+)?$/.test(t)) limpio = t.replace(',', '.');                                  // 1234,56
+  else if (/^\d+\.\d+$/.test(t)) limpio = t;                                                      // 1234.56
+  else if (/^\d{1,3}(,\d{3})+\.\d+$/.test(t)) limpio = t.replace(/,/g, '');                         // 1,234.56
+  if (limpio == null) return { ok: false, error: 'Escribe solo el número, por ejemplo 35,50 o 1.234,56' };
+  const n = Number(limpio);
+  return Number.isFinite(n) ? { ok: true, n } : { ok: false, error: 'Escribe solo el número, por ejemplo 35,50' };
+}
+
+/** Lee «12,50», «1.234,56»… Devuelve null si está vacío, no es un número, es negativo o es ambiguo. */
 export function numES(s: string): number | null {
-  const t = s.trim().replace(/\s|€/g, '').replace(',', '.');
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
+  const r = leerImporte(s);
+  return r.ok ? r.n : null;
+}
+
+/** Cantidad de un artículo: número mayor que 0 (admite «1,5»). */
+export function leerCantidad(s: string): { ok: true; n: number } | { ok: false; error: string } {
+  const t = s.trim();
+  if (!t) return { ok: false, error: 'falta la cantidad' };
+  const r = leerImporte(t);
+  if (!r.ok) {
+    if (/negativo/.test(r.error)) return { ok: false, error: 'la cantidad no puede ser negativa' };
+    if (/no está claro/.test(r.error)) return { ok: false, error: `«${t}» no está claro: escribe ${t.replace('.', '')} o ${t.replace('.', ',')}` };
+    return { ok: false, error: 'la cantidad tiene que ser un número' };
+  }
+  if (r.n == null || r.n <= 0) return { ok: false, error: 'la cantidad tiene que ser mayor que 0' };
+  return { ok: true, n: r.n };
 }
 
 const fmtAviso = (iso: string) => {
@@ -49,7 +85,7 @@ const fmtAviso = (iso: string) => {
   const hoy = new Date();
   const mismoDia = d.toDateString() === hoy.toDateString();
   const hora = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  return mismoDia ? `hoy a las ${hora}` : `el ${d.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' })} a las ${hora}`;
+  return mismoDia ? `hoy a las ${hora}` : `el ${fechaES(d)} a las ${hora}`;
 };
 
 /**
@@ -93,10 +129,11 @@ export function ImporteModal({ titulo, texto, inicial, boton, onCancel, onOk }: 
   onOk: (importe: number | null) => void;
 }) {
   const [v, setV] = useState(inicial != null ? String(inicial).replace('.', ',') : '');
-  const n = numES(v);
-  const mal = v.trim() !== '' && n == null;
+  const lectura = leerImporte(v);
+  const n = lectura.ok ? lectura.n : null;
+  const mal = !lectura.ok;
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-overlay" onClick={onCancel} onKeyDown={e => { if (e.key === 'Escape') onCancel(); }}>
       <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 17 }}>{titulo}</span>
@@ -110,7 +147,7 @@ export function ImporteModal({ titulo, texto, inicial, boton, onCancel, onOk }: 
                 value={v} onChange={e => setV(e.target.value)} placeholder="0,00" />
               <span>€</span>
             </div>
-            {mal && <small style={{ color: 'var(--danger)' }}>Escribe solo el número, por ejemplo 35,50</small>}
+            {!lectura.ok && <small style={{ color: 'var(--danger)' }}>{lectura.error}</small>}
             <small style={{ color: 'var(--text-3)' }}>Si no se cobra nada, déjalo vacío.</small>
           </div>
           <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

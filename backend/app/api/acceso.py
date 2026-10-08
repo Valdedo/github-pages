@@ -29,7 +29,9 @@ def _valido(c: Optional[str]) -> bool:
 
 
 def _sesion(request: Request) -> Optional[dict]:
-    tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip() or request.query_params.get("t")
+    tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not tok and request.method == "GET":
+        tok = request.query_params.get("t")
     return acc.sesion(tok)
 
 
@@ -94,7 +96,7 @@ def cerrar_todas(request: Request):
 
 @router.post("/entrar")
 def entrar(data: Codigo, request: Request):
-    ip = request.client.host if request.client else "?"
+    ip = acc.ip_real(request)
     if acc.demasiados_intentos(ip):
         raise HTTPException(429, "Demasiados intentos. Espera 10 minutos y vuelve a probar.")
     persona = acc.persona_para(data.codigo.strip())
@@ -107,19 +109,28 @@ def entrar(data: Codigo, request: Request):
 
 
 class MiCodigo(BaseModel):
+    actual: str
     nuevo: str
 
 
 @router.post("/mi-codigo")
 def mi_codigo(data: MiCodigo, request: Request):
-    """Cada persona puede poner su propio código (mínimo 4 números)."""
+    """Cada persona puede poner su propio código (de 4 a 8 números), sabiendo el actual."""
     s = _sesion(request)
     if not s or s["persona"] == "tienda":
         raise HTTPException(403, "El código de la tienda solo lo cambia Andrés")
+    ip = acc.ip_real(request)
+    if acc.demasiados_intentos(ip):
+        raise HTTPException(429, "Demasiados intentos. Espera 10 minutos y vuelve a probar.")
+    if not acc.es_su_codigo(s["persona"], (data.actual or "").strip()):
+        acc.fallo(ip)
+        raise HTTPException(400, "El código actual no es correcto")
     nuevo = data.nuevo.strip()
     if not re.fullmatch(r"\d{4,8}", nuevo):
         raise HTTPException(400, "El código tiene que ser de 4 a 8 números")
     if acc.en_uso(nuevo, excepto=s["persona"]):
-        raise HTTPException(400, "Ese código no se puede usar. Prueba con otro")
+        # No se dice si lo tiene otra persona (así no se pueden adivinar códigos ajenos)
+        acc.fallo(ip)
+        raise HTTPException(400, "Ese código no vale, elige otro")
     acc.poner_codigo(s["persona"], nuevo, propio=True)
     return {"token": acc.emitir(s["persona"]), "rol": s["rol"], "persona": s["persona"]}

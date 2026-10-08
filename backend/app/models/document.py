@@ -14,6 +14,7 @@ class Document(Base):
     filename: Mapped[str] = mapped_column(String(255))           # stored filename (UUID-based)
     original_filename: Mapped[str] = mapped_column(String(255))  # original upload name
     file_path: Mapped[str] = mapped_column(String(512))          # absolute path on disk
+    file_paths: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON: todas las fotos (varias páginas)
     doc_type: Mapped[str] = mapped_column(String(20))            # "pdf" | "image"
     status: Mapped[str] = mapped_column(String(30), default="uploaded")
     # Status: uploaded | processing | completed | error

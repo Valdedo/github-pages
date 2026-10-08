@@ -5,7 +5,6 @@ Generates a professional .xlsx file with all article data.
 import io
 import json
 import logging
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ def generate_excel(document, articles) -> bytes:
     try:
         import openpyxl
         from openpyxl.styles import (
-            Font, PatternFill, Alignment, Border, Side, numbers
+            Font, PatternFill, Alignment, Border, Side
         )
         from openpyxl.utils import get_column_letter
     except ImportError:
