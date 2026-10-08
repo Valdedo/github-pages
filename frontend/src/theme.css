@@ -1295,17 +1295,26 @@ button.tc:hover .tc-lapiz { opacity: 1; }
   @media (max-width: 768px) { .bottom-nav { background: var(--surface); } }
 }
 
-/* Difuminado detrás de la barra flotante: el contenido se desvanece antes de llegar a ella */
+/* Halo difuminado alrededor de la barra flotante: igual por arriba, abajo y los lados */
 .bottom-nav-fondo { display: none; }
 @media (max-width: 768px) {
   .bottom-nav-fondo {
-    display: block; position: fixed; left: 0; right: 0; bottom: 0;
-    height: calc(var(--nav-espacio) + 26px);
-    z-index: calc(var(--z-bottom-nav) - 1); pointer-events: none;
-    background: linear-gradient(to top, rgb(242 244 240 / .96) 0%, rgb(242 244 240 / .85) 45%, rgb(242 244 240 / 0) 100%);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    -webkit-mask-image: linear-gradient(to top, #000 55%, transparent 100%);
-    mask-image: linear-gradient(to top, #000 55%, transparent 100%);
+    --halo: 12px;
+    display: block; position: fixed; pointer-events: none;
+    left: calc(12px - var(--halo)); right: calc(12px - var(--halo));
+    bottom: calc(var(--nav-abajo) - var(--halo));
+    height: calc(var(--nav-alto) + 2 * var(--halo));
+    border-radius: 999px;
+    z-index: calc(var(--z-bottom-nav) - 1);
+    background: rgb(242 244 240 / .55);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    /* bordes suaves: se desvanece hacia fuera por igual en los cuatro lados */
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--halo), #000 calc(100% - var(--halo)), transparent),
+                        linear-gradient(to bottom, transparent, #000 var(--halo), #000 calc(100% - var(--halo)), transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent, #000 var(--halo), #000 calc(100% - var(--halo)), transparent),
+                linear-gradient(to bottom, transparent, #000 var(--halo), #000 calc(100% - var(--halo)), transparent);
+    mask-composite: intersect;
   }
   .bottom-nav {
     border: 1px solid rgb(18 58 38 / .10);
