@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, use
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck
+  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck, BookMarked
 } from 'lucide-react';
 
 // Siempre a mano (también sin cobertura en el reparto): Inicio, firmas y reparto
@@ -53,6 +53,10 @@ const TurnosPage = porPartes(() => import('./pages/TurnosPage'), 'TurnosPage');
 const AjustesPage = porPartes(() => import('./pages/AjustesPage'), 'AjustesPage');
 const CargasPage = porPartes(() => import('./pages/CargasPage'), 'CargasPage');
 const OrdenCargaPage = porPartes(() => import('./pages/CargasPage'), 'OrdenCargaPage');
+const TarifasPage = porPartes(() => import('./pages/TarifasPage'), 'TarifasPage');
+const TarifaProveedorPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaProveedorPage');
+const TarifaFamiliaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFamiliaPage');
+const TarifaFichaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFichaPage');
 
 /** Mientras llega un apartado: discreto (solo aparece si tarda). */
 const Cargando = () => <div className="cf-suspense" role="status" aria-live="polite">Cargando…</div>;
@@ -88,6 +92,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   // Lo que se está probando: solo lo ve el encargado
   { titulo: 'En pruebas', items: [
     { to: '/cargas', label: 'Órdenes de carga', icon: ClipboardCheck, soloEncargado: true },
+    { to: '/tarifas', label: 'Tarifas', icon: BookMarked, soloEncargado: true },
   ] },
 ];
 const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
@@ -435,6 +440,10 @@ function FullShell() {
               <Route path="/ajustes" element={soloAdmin(<AjustesPage />)} />
               <Route path="/cargas" element={soloAdmin(<CargasPage />)} />
               <Route path="/cargas/:id" element={soloAdmin(<OrdenCargaPage />)} />
+              <Route path="/tarifas" element={soloAdmin(<TarifasPage />)} />
+              <Route path="/tarifas/:prov" element={soloAdmin(<TarifaProveedorPage />)} />
+              <Route path="/tarifas/:prov/:fam" element={soloAdmin(<TarifaFamiliaPage />)} />
+              <Route path="/tarifas/:prov/:fam/ficha" element={soloAdmin(<TarifaFichaPage />)} />
             </Routes>
           </Suspense>
         </main>

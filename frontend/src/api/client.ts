@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { getToken, withToken, cerrarSesion, type Rol } from '../auth';
+import type { Tarifa, TarifaResumen, FichaTarifa } from '../lib/tarifas';
 import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert, ClientDeliveryNote } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -445,3 +446,11 @@ export interface VencFila { id: number; proveedor: string; numero?: string | nul
 export interface VencDia { fecha: string; etiqueta: string; dia: string; finde: boolean; total: number; facturas: VencFila[] }
 export interface VencResumen { configurado: boolean; conectado: boolean; ultima?: string | null; facturas: number; dias: VencDia[]; proximos: VencFila[]; proximos_total: number; sin_fecha: VencFila[] }
 export const getVencimientos = () => api.get<VencResumen>('/api/vencimientos');
+
+// Catálogo de tarifas de proveedor (en pruebas: solo el encargado)
+export const getTarifas = () => api.get<TarifaResumen[]>('/api/tarifas');
+export const getTarifa = (prov: string) => api.get<Tarifa>(`/api/tarifas/${encodeURIComponent(prov)}`, { timeout: 120000 });
+export const actualizarTarifa = (prov: string) =>
+  api.post<Tarifa>(`/api/tarifas/${encodeURIComponent(prov)}/actualizar`, null, { timeout: 120000 });
+export const getFichaTarifa = (prov: string, ref: string) =>
+  api.get<FichaTarifa>(`/api/tarifas/${encodeURIComponent(prov)}/articulo`, { params: { ref }, timeout: 120000 });

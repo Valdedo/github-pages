@@ -51,6 +51,13 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   ordenador, oct. 2026: menú que cabe en 1366×768, tabla de artículos compacta por debajo de ~1180 px,
   original al lado del albarán desde 1600 px, panel de firma con el botón siempre a la vista). Utilidades en
   `src/lib/` (`texto.ts` búsqueda sin tildes/fechas/plurales, `descargas.ts`, `estados.ts`).
+- **Tarifas** (en pruebas, solo admin): `/tarifas` → proveedor → familia → medidas → ficha. Las tarifas siguen en
+  Google Sheets (las actualizan las tareas programadas de Claude); la app las lee con la acción `hoja` del Apps Script
+  (`tools/correo-casafonso.gs`, la hoja tiene que estar compartida con casafonsomc), guarda copia en `tarifa_copias`
+  y apunta cada precio visto en `tarifa_precios` (evolución). Lector por proveedor en `services/tarifas_service.py`
+  (`LECTORES`; hoy solo Hierros Santander). Pegatinas en `frontend/public/catalogo/` (generadas con
+  `tools/pegatinas-catalogo.py`); las fotos de referencia se enlazan desde Obramat/Leroy Merlin (`lib/tarifas.ts`),
+  no se copian al repo. La factura se abre con una búsqueda en el Drive de Andrés (los PDF son suyos).
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 

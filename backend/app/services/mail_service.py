@@ -65,3 +65,12 @@ def drive_mover(file_id: str, folder_id: str) -> None:
 
 def drive_borrar(file_id: str) -> None:
     _post({"action": "borrar", "fileId": file_id})
+
+
+# ── Tarifas de proveedor (Google Sheets compartidas con casafonsomc@gmail.com) ──
+def drive_hoja(file_id: str, pestanas: list | None = None) -> dict:
+    """Valores de las pestañas de una hoja de cálculo, tal como se ven. {nombre, modificado, hojas}."""
+    payload = {"action": "hoja", "fileId": file_id}
+    if pestanas:
+        payload["pestanas"] = pestanas
+    return _post(payload)

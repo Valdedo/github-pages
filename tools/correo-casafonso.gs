@@ -3,6 +3,7 @@
  * - Envía los albaranes firmados por correo desde este Gmail.
  * - Avisa en la pantalla de Inicio de los correos sin leer y sin contestar.
  * - Guarda los albaranes de proveedor en ALBARANES/<proveedor> en cuanto la app los lee.
+ * - Lee las tarifas de proveedor (Google Sheets compartidas con esta cuenta) para el catálogo.
  * - Guarda una copia de cada albarán firmado en Drive:
  *   Mi unidad / Albaranes firmados / <código> - <cliente> / <AAAA-MM> / <nº> firmado.pdf
  *
@@ -44,6 +45,16 @@ function doPost(e) {
     if (d.action === 'borrar') {            // a la papelera
       DriveApp.getFileById(d.fileId).setTrashed(true);
       out.ok = true;
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (d.action === 'hoja') {              // tarifa de proveedor: valores tal como se ven en cada pestaña
+      var libro = SpreadsheetApp.openById(d.fileId), hojas = {};
+      libro.getSheets().forEach(function (h) {
+        if (d.pestanas && d.pestanas.indexOf(h.getName()) < 0) return;
+        hojas[h.getName()] = h.getDataRange().getDisplayValues();
+      });
+      out.ok = true; out.nombre = libro.getName(); out.hojas = hojas;
+      out.modificado = DriveApp.getFileById(d.fileId).getLastUpdated().toISOString();
       return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
     }
     if (!d.pdf) throw new Error('Falta el PDF');

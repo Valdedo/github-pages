@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive, cargas, vencimientos
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive, cargas, vencimientos, tarifas
 
 logging.basicConfig(
     level=logging.INFO,
@@ -172,6 +172,7 @@ app.include_router(push.router)
 app.include_router(drive.router)
 app.include_router(cargas.router)
 app.include_router(vencimientos.router)
+app.include_router(tarifas.router)
 
 
 @app.get("/health")
