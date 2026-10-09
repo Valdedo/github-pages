@@ -1,21 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, CheckCircle, ClipboardCheck, MapPin } from 'lucide-react';
 import type { OrdenCarga } from '../api/client';
-import { firmaEnCola, marcaEnCola } from '../lib/offlineCargas';
+import { firmaEnCola, marcaEnCola, estaLista } from '../lib/offlineCargas';
 
 /** Lo marcado sin cobertura cuenta ya como marcado. */
 function cuentas(o: OrdenCarga) {
-  let total = 0, hechas = 0, firmadas = 0;
+  let total = 0, hechas = 0, firmadas = 0, listas = 0;
   for (const e of o.entregas) {
     const f = firmaEnCola(e.id);
     if (e.estado === 'entregada' || f) firmadas++;
+    if (e.estado === 'entregada' || f || estaLista(e)) listas++;
     for (const l of e.lineas) {
       total++;
       const ok = f?.cargadas[String(l.id)]?.ok ?? marcaEnCola(l.id)?.ok ?? l.cargado_ok;
       if (ok) hechas++;
     }
   }
-  return { total, hechas, firmadas, entregada: firmadas === o.entregas.length && o.entregas.length > 0 };
+  return { total, hechas, firmadas, lista: listas === o.entregas.length && o.entregas.length > 0, entregada: firmadas === o.entregas.length && o.entregas.length > 0 };
 }
 
 /** «Para cargar»: las órdenes que la tienda le ha mandado a Melchor. */
@@ -33,7 +34,7 @@ export function CargasReparto({ ordenes }: { ordenes: OrdenCarga[] }) {
             {pendientes.map(o => {
               const c = cuentas(o);
               const lugares = [...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].join(', ');
-              const accion = c.hechas === 0 ? 'Empezar' : c.hechas < c.total ? 'Seguir' : 'Entregar';
+              const accion = c.lista ? 'Entregar' : c.hechas === 0 ? 'Empezar a cargar' : 'Seguir cargando';
               return (
                 <button key={o.id} className="card reparto-card carga-reparto-card" onClick={() => navigate(`/reparto/cargas/${o.id}`)}>
                   <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
@@ -42,7 +43,7 @@ export function CargasReparto({ ordenes }: { ordenes: OrdenCarga[] }) {
                     </div>
                     {lugares && <div className="carga-reparto-lugar"><MapPin size={15} /> {lugares}</div>}
                     <div className="carga-reparto-progreso">
-                      <span>{c.hechas === c.total ? 'Todo cargado' : `Cargado ${c.hechas} de ${c.total}`}</span>
+                      <span>{c.lista ? 'Listo para llevar · falta la firma' : c.hechas === c.total ? 'Todo cargado · falta confirmarlo' : `Cargado ${c.hechas} de ${c.total}`}</span>
                       {o.entregas.length > 1 && <span>· {o.entregas.length} entregas</span>}
                     </div>
                     <div className="carga-barra"><span style={{ width: `${c.total ? (c.hechas / c.total) * 100 : 0}%` }} /></div>

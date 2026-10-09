@@ -1443,3 +1443,12 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .carga-reparto-card .carga-reparto-lugar { display: flex; align-items: center; gap: 5px; font-size: 16px; color: var(--text-2); margin-top: 4px; }
 .carga-reparto-progreso { display: flex; gap: 6px; flex-wrap: wrap; font-size: 14px; color: var(--text-3); margin-top: 8px; }
 .carga-reparto-card .carga-barra { margin-top: 8px; }
+
+/* «Listo para llevar»: carga confirmada y lista bloqueada */
+.carga-entrega.lista { box-shadow: 0 0 0 2px var(--cf-verde) inset; }
+.carga-entrega.lista .pedido-linea { opacity: .78; }
+.carga-entrega.lista .pedido-check:disabled, .carga-entrega.lista .pedido-linea-txt:disabled { cursor: default; }
+.carga-lista-banda { display: flex; align-items: center; gap: 8px; margin: 0 16px 10px; padding: 10px 12px; border-radius: 12px;
+  background: var(--brand-pale); color: var(--cf-bosque); font-weight: 600; font-size: 14px; line-height: 1.35; }
+.carga-lista-banda svg { flex-shrink: 0; }
+.carga-desbloquear { color: var(--text-3) !important; }

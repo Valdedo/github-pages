@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, Images, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
-  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2,
+  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2, Lock, LockOpen, PackageCheck,
 } from 'lucide-react';
 import {
   listarCargas, verCarga, borrarCarga, leerCarga, fotoCargaUrl, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
   borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, treyfactEntregaCarga,
-  nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError, enviarCarga,
+  nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError, enviarCarga, listaEntregaCarga,
   type OrdenCarga, type EntregaCarga, type LineaCarga,
 } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
@@ -20,7 +20,7 @@ import { SignaturePad } from './FirmaDetailPage';
 import { HojaVisor } from '../components/HojaVisor';
 import { CamionPegatina, SelloHecho, Vacio } from '../components/Pegatinas';
 import { sinRed } from '../lib/offline';
-import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reducirFoto } from '../lib/offlineCargas';
+import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reducirFoto, listaSinRed, estaLista } from '../lib/offlineCargas';
 
 const cant = (n: number | null | undefined) => (n == null ? '' : String(+n.toFixed(2)).replace('.', ','));
 const fechaHora = (iso?: string | null) => {
@@ -644,6 +644,27 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
     }
   };
 
+  const ponerLista = async (e: EntregaCarga, lista: boolean) => {
+    if (lista) {
+      const faltan = e.lineas.filter(l => !l.cargado_ok);
+      if (faltan.length && !await confirm({
+        title: 'Falta cargar algo',
+        message: `${faltan.map(l => l.descripcion).join(', ')}: ${faltan.length === 1 ? 'no está marcado' : 'no están marcados'}. Saldrá como pendiente en la hoja de entrega. ¿Lo dejas listo así?`,
+        confirmLabel: 'Sí, listo así',
+      })) return;
+    } else if (!await confirm({
+      title: 'Desbloquear la carga',
+      message: 'Podrás volver a marcar y desmarcar materiales. Luego vuelve a pulsar «Listo para llevar».',
+      confirmLabel: 'Desbloquear',
+    })) return;
+    setO(v => v && ({ ...v, entregas: v.entregas.map(x => x.id === e.id ? { ...x, lista_at: lista ? new Date().toISOString() : null } : x) }));
+    try { await listaEntregaCarga(e.id, lista); load(); if (lista) show('Carga lista. Ya solo falta la firma del cliente.'); }
+    catch (err) {
+      if (sinRed(err)) { try { listaSinRed(e.id, lista); if (lista) show('Carga lista. Se guardará al volver la señal.'); } catch (e2) { show((e2 as Error).message, { error: true }); } }
+      else { show(`No se pudo guardar: ${mensajeError(err, describeApiError(err))}`, { error: true }); load(); }
+    }
+  };
+
   const quitarLinea = async (ln: LineaCarga) => {
     if (!await confirm({ title: 'Quitar material', message: `¿Quitar «${ln.descripcion}»?`, confirmLabel: 'Quitar', danger: true })) return;
     try { await borrarLineaCarga(ln.id); setLinea(null); load(); }
@@ -767,11 +788,13 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
       {entregas.map((e, idx) => {
         const guardada = firmaEnCola(e.id);
         const firmada = e.estado === 'entregada' || !!guardada;
+        const lista = !firmada && estaLista(e);
+        const bloqueada = firmada || lista;
         const faltan = e.lineas.filter(l => !l.cargado_ok).length;
         const nada = !e.lineas.some(l => l.cargado_ok || l.cargado);
         const dudas = e.lineas.filter(l => l.duda);
         return (
-          <section key={e.id} className={`card carga-entrega${firmada ? ' firmada' : ''}`}>
+          <section key={e.id} className={`card carga-entrega${firmada ? ' firmada' : ''}${lista ? ' lista' : ''}`}>
             <div className="carga-entrega-head">
               {o.entregas.length > 1 && reparto && <span className="carga-num">{idx + 1}</span>}
               {o.entregas.length > 1 && !reparto && (
@@ -796,12 +819,13 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
               </div>
               <div className="carga-entrega-acc">
                 {e.lugar && e.servir && <a className="btn btn-ghost btn-sm" href={mapa(e.lugar)} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> Cómo llegar</a>}
-                {!firmada && !reparto && <button className="btn btn-ghost btn-sm" onClick={() => (online ? setDatos(e) : sinCobertura())}><Pencil size={14} /> Datos</button>}
+                {!bloqueada && !reparto && <button className="btn btn-ghost btn-sm" onClick={() => (online ? setDatos(e) : sinCobertura())}><Pencil size={14} /> Datos</button>}
               </div>
             </div>
 
             {e.dudas && !firmada && !reparto && <div className="doc-aviso subidas" style={{ margin: '0 16px 10px' }}><AlertTriangle size={18} /><div><b>Revisa</b>{e.dudas}</div></div>}
-            {dudas.length > 0 && !firmada && !reparto && (
+            {lista && <div className="carga-lista-banda"><Lock size={16} /> Carga confirmada. La lista está bloqueada para no tocarla sin querer.</div>}
+            {dudas.length > 0 && !bloqueada && !reparto && (
               <div className="carga-revisar">Hay {dudas.length} material{dudas.length !== 1 ? 'es' : ''} marcado{dudas.length !== 1 ? 's' : ''} para revisar. Tócalo para corregirlo.</div>
             )}
             {(e.cuando || e.notas) && <div className="carga-notas">{[e.cuando, e.notas].filter(Boolean).join('; ')}</div>}
@@ -810,11 +834,11 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
               const medio = !l.cargado_ok && l.cargado != null && l.cargado > 0;
               return (
                 <div key={l.id} className={`pedido-linea${l.cargado_ok ? ' llego' : ''}${medio ? ' medio' : ''}${l.duda ? ' duda' : ''}`}>
-                  <button className="pedido-check" onClick={() => tocar(l)} disabled={firmada}
+                  <button className="pedido-check" onClick={() => tocar(l)} disabled={bloqueada}
                     aria-pressed={l.cargado_ok} aria-label={l.cargado_ok ? `${l.descripcion}: cargado. Toca para desmarcar` : `Marcar ${l.descripcion} como cargado`}>
                     {l.cargado_ok ? <Check size={22} strokeWidth={3} /> : medio ? <Medio /> : null}
                   </button>
-                  <button className="pedido-linea-txt" onClick={() => (reparto ? !firmada && tocar(l) : !firmada && setLinea({ entregaId: e.id, ln: l }))} disabled={firmada}>
+                  <button className="pedido-linea-txt" onClick={() => (bloqueada ? undefined : reparto ? tocar(l) : setLinea({ entregaId: e.id, ln: l }))} disabled={bloqueada}>
                     <b><span className="carga-cant">{cantUd(l.cantidad, l.unidad)}</span> {l.descripcion}</b>
                     {medio && <small className="carga-parcial"><Medio /> Cargado solo {cantUd(l.cargado, l.unidad)}</small>}
                     {l.duda && !reparto && <small className="carga-duda"><AlertTriangle size={13} /> {l.duda}</small>}
@@ -822,7 +846,7 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                 </div>
               );
             })}
-            {!firmada && !reparto && (
+            {!bloqueada && !reparto && (
               <button className="carga-anadir" onClick={() => setLinea({ entregaId: e.id, ln: null })}><Plus size={16} /> Añadir material</button>
             )}
 
@@ -853,12 +877,21 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                   {!reparto && <span className="carga-drive">{e.drive_at ? <><Cloud size={14} /> Guardada en Drive</> : 'Guardándose en Drive…'}</span>}
                   {!reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => repetirFirma(e)}>Repetir la firma</button>}
                 </>
+              ) : lista ? (
+                <>
+                  <button className="btn btn-primary btn-lg" onClick={() => setFirmando(e)}>
+                    <PenLine size={18} /> Firma del cliente
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)} disabled={!online}><FileText size={15} /> Ver la hoja</button>
+                  <button className="btn btn-ghost btn-sm carga-desbloquear" onClick={() => ponerLista(e, false)}><LockOpen size={15} /> Desbloquear para cambiar</button>
+                </>
               ) : (
                 <>
-                  {nada && e.lineas.length > 0 && <span className="pedido-pista">Marca lo que se carga para poder firmar.</span>}
+                  {nada && e.lineas.length > 0 && <span className="pedido-pista">Marca lo que vas cargando.</span>}
                   {!nada && faltan > 0 && <span className="pedido-pista">{faltan === 1 ? 'Falta 1 por cargar.' : `Faltan ${faltan} por cargar.`}</span>}
-                  <button className={`btn btn-lg ${faltan === 0 && e.lineas.length > 0 ? 'btn-primary' : 'btn-ghost'}`} disabled={nada} onClick={() => setFirmando(e)}>
-                    <PenLine size={18} /> Firma del cliente
+                  {!nada && faltan === 0 && <span className="pedido-pista">Todo cargado. Confírmalo para dejarlo listo.</span>}
+                  <button className={`btn btn-lg ${faltan === 0 && e.lineas.length > 0 ? 'btn-primary' : 'btn-ghost'}`} disabled={nada} onClick={() => ponerLista(e, true)}>
+                    <PackageCheck size={18} /> Listo para llevar
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)} disabled={!online}><FileText size={15} /> Ver la hoja</button>
                   {o.entregas.length > 1 && !reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => quitarEntrega(e)}><Trash2 size={14} /> Quitar pedido</button>}

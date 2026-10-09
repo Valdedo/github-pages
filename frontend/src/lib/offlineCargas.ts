@@ -3,7 +3,7 @@
  * Las firmas (con su foto y lo marcado como cargado) y los «cargado» que se tocan sin señal
  * se guardan en el móvil y se envían solos al volver la cobertura.
  */
-import { editarLineaCarga, firmarEntregaCarga } from '../api/client';
+import { editarLineaCarga, firmarEntregaCarga, listaEntregaCarga, type EntregaCarga } from '../api/client';
 import { sinRed } from './offline';
 
 const KEY = 'cfColaCargas';
@@ -13,7 +13,8 @@ export interface FirmaCargaEnCola {
   png: string; foto?: string | null; cargadas: Record<string, { ok: boolean; cargado: number | null }>; at: string;
   error?: string;  // el servidor la rechazó: se guarda y se avisa, nunca se tira
 }
-type Item = MarcaEnCola | FirmaCargaEnCola;
+export interface ListaEnCola { tipo: 'lista'; entregaId: number; lista: boolean; at: string }
+type Item = MarcaEnCola | FirmaCargaEnCola | ListaEnCola;
 
 export const colaCargas = (): Item[] => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } };
 const guardar = (c: Item[]) => {
@@ -26,6 +27,15 @@ export const firmaEnCola = (entregaId: number) =>
   colaCargas().find((x): x is FirmaCargaEnCola => x.tipo === 'firma' && x.entregaId === entregaId);
 export const marcaEnCola = (lineaId: number) =>
   colaCargas().filter((x): x is MarcaEnCola => x.tipo === 'marca' && x.lineaId === lineaId).pop();
+
+/** «Listo para llevar» tocado sin cobertura (lo último que se tocó). */
+export const listaEnCola = (entregaId: number) =>
+  colaCargas().filter((x): x is ListaEnCola => x.tipo === 'lista' && x.entregaId === entregaId).pop();
+/** ¿Carga confirmada como «Listo para llevar»? (también si se tocó sin cobertura) */
+export const estaLista = (e: EntregaCarga) => { const c = listaEnCola(e.id); return c ? c.lista : !!e.lista_at; };
+export function listaSinRed(entregaId: number, lista: boolean) {
+  guardar([...colaCargas().filter(x => !(x.tipo === 'lista' && x.entregaId === entregaId)), { tipo: 'lista', entregaId, lista, at: new Date().toISOString() }]);
+}
 
 export const aDataUrl = (b: Blob) => new Promise<string>((ok, ko) => {
   const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = ko; r.readAsDataURL(b);
@@ -51,7 +61,7 @@ export async function firmaSinRed(f: Omit<FirmaCargaEnCola, 'tipo' | 'png' | 'fo
   const item: FirmaCargaEnCola = { ...f, tipo: 'firma', png: await aDataUrl(png), foto: foto ? await aDataUrl(foto) : null, at: new Date().toISOString() };
   // Las marcas de esa entrega ya van dentro de la firma
   const ids = new Set(Object.keys(f.cargadas).map(Number));
-  guardar([...colaCargas().filter(x => !(x.tipo === 'firma' && x.entregaId === f.entregaId) && !(x.tipo === 'marca' && ids.has(x.lineaId))), item]);
+  guardar([...colaCargas().filter(x => !(x.tipo === 'firma' && x.entregaId === f.entregaId) && !(x.tipo === 'lista' && x.entregaId === f.entregaId) && !(x.tipo === 'marca' && ids.has(x.lineaId))), item]);
   if (!firmaEnCola(f.entregaId)) throw new Error('No se pudo guardar la firma en el móvil');
 }
 
@@ -66,6 +76,8 @@ export async function enviarColaCargas(): Promise<number> {
       try {
         if (it.tipo === 'marca') {
           await editarLineaCarga(it.lineaId, { cargado_ok: it.ok, cargado: null });
+        } else if (it.tipo === 'lista') {
+          await listaEntregaCarga(it.entregaId, it.lista);
         } else {
           const png = await (await fetch(it.png)).blob();
           const foto = it.foto ? await (await fetch(it.foto)).blob() : null;
@@ -76,7 +88,7 @@ export async function enviarColaCargas(): Promise<number> {
         if (sinRed(err)) break; // sigue sin cobertura
         const st = (err as { response?: { status?: number } }).response?.status;
         const igual = (x: Item) => JSON.stringify(x) === JSON.stringify(it);
-        if (it.tipo === 'marca' || st === 409 || st === 404) guardar(colaCargas().filter(x => !igual(x)));  // ya hecho o borrado
+        if (it.tipo !== 'firma' || st === 409 || st === 404) guardar(colaCargas().filter(x => !igual(x)));  // ya hecho o borrado
         else {
           const det = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
           guardar(colaCargas().map(x => igual(x) ? { ...it, error: typeof det === 'string' ? det : 'El servidor no la aceptó' } : x));

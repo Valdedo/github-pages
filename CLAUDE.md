@@ -69,6 +69,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `components/CargasReparto.tsx`, `GET /api/cargas/para-cargar`), y abre `/reparto/cargas/:id` (misma página con `reparto`).
 - Melchor solo puede: ver las enviadas, marcar cargado, firmar, poner la foto y ver la hoja (lista `_REPARTO` en
   `app/api/cargas.py`). Al firmar le llega un aviso a Andrés.
+- «Listo para llevar» (`PUT /api/cargas/entregas/{eid}/lista`, campo `lista_at`): al acabar de cargar se confirma y la lista
+  queda bloqueada (el servidor rechaza cambios de líneas con 409); solo entonces sale «Firma del cliente». «Desbloquear
+  para cambiar» lo deshace. Vale sin cobertura (tipo `lista` en `lib/offlineCargas.ts`). Igual para todos los roles.
 
 ## Vencimientos de facturas (solo Andrés)
 - El script de facturas (Apps Script de la cuenta de Andrés, «FacturasAutomaticas») lleva un archivo extra

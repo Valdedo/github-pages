@@ -100,6 +100,7 @@ def _run_migrations():
         ("lineas_carga", "leido",          "TEXT"),
         # Órdenes de carga enviadas al móvil de Melchor
         ("ordenes_carga", "enviada_at",    "DATETIME"),
+        ("entregas_carga", "lista_at",     "DATETIME"),  # «Listo para llevar»: carga confirmada y bloqueada
         ("lineas_carga", "confirmada",     "BOOLEAN DEFAULT 0"),
         ("documents", "drive_file_id",    "TEXT"),
         ("documents", "drive_url",        "TEXT"),

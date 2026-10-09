@@ -393,6 +393,7 @@ export interface EntregaCarga {
   telefono: string | null; cuando: string | null; servir: boolean; pagado: boolean;
   notas: string | null; dudas: string | null; estado: 'pendiente' | 'entregada';
   firmado_por: string | null; firmado_at: string | null; treyfact_at: string | null; lineas: LineaCarga[];
+  lista_at?: string | null;  // «Listo para llevar»: carga confirmada y bloqueada
   foto_entrega: string | null; drive_at: string | null;
 }
 export interface OrdenCarga {
@@ -440,6 +441,7 @@ export const fotoEntregaCarga = (id: number, foto: Blob) => {
 export const ordenarEntregasCarga = (ordenId: number, ids: number[]) => api.put<OrdenCarga>(`/api/cargas/${ordenId}/orden-entregas`, { ids });
 export const anularFirmaCarga = (id: number) => api.post<EntregaCarga>(`/api/cargas/entregas/${id}/anular-firma`);
 export const hojaEntregaUrl = (id: number) => withToken(`${BASE}/api/cargas/entregas/${id}/pdf`);
+export const listaEntregaCarga = (id: number, lista: boolean) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}/lista`, { lista });
 export const treyfactEntregaCarga = (id: number, pasado: boolean) => api.put<EntregaCarga>(`/api/cargas/entregas/${id}/treyfact`, { pasado });
 export const nuevaLineaCarga = (entregaId: number, d: Partial<LineaCarga>) => api.post<LineaCarga>(`/api/cargas/entregas/${entregaId}/lineas`, d);
 export const editarLineaCarga = (id: number, d: Partial<LineaCarga>) => api.put<LineaCarga>(`/api/cargas/lineas/${id}`, d);

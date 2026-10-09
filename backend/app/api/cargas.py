@@ -33,6 +33,7 @@ _REPARTO = (
     ("GET", re.compile(r"^/api/cargas/foto/entrega_[\w.-]+$")),  # solo la foto de la entrega, no la libreta
     ("PUT", re.compile(r"^/api/cargas/lineas/\d+$")),
     ("POST", re.compile(r"^/api/cargas/entregas/\d+/(firmar|foto)$")),
+    ("PUT", re.compile(r"^/api/cargas/entregas/\d+/lista$")),
     ("GET", re.compile(r"^/api/cargas/entregas/\d+/(pdf|hoja|pagina/\d+\.png)$")),
 )
 
@@ -95,6 +96,7 @@ class EntregaOut(BaseModel):
     notas: Optional[str] = None
     dudas: Optional[str] = None
     estado: str
+    lista_at: Optional[datetime] = None
     firmado_por: Optional[str] = None
     firmado_at: Optional[datetime] = None
     treyfact_at: Optional[datetime] = None
@@ -506,6 +508,7 @@ async def firmar(
             e.foto_entrega = f"entrega_{e.id}_{uuid.uuid4().hex[:8]}{Path(foto.filename).suffix.lower() or '.jpg'}"
             (_dir() / e.foto_entrega).write_bytes(datos)
     e.entregado_por = getattr(request.state, "persona", None)
+    e.lista_at = e.lista_at or e.firmado_at
     e.estado = "entregada"
     e.drive_at = None
     for ln in e.lineas:
@@ -611,6 +614,35 @@ def hoja_pagina(eid: int, n: int, request: Request, dpi: int = Query(default=110
     return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
+class Lista(BaseModel):
+    lista: bool
+
+
+@router.put("/entregas/{eid}/lista", response_model=EntregaOut)
+def lista(eid: int, data: Lista, request: Request, db: Session = Depends(get_db)):
+    """«Listo para llevar»: confirma la carga y bloquea la lista para que no se toque sin querer."""
+    e = _entrega(db, eid)
+    _suya(request, e.orden)
+    if e.estado == "entregada":
+        raise HTTPException(409, "Esta entrega ya está firmada")
+    if data.lista:
+        if not any(ln.cargado_ok or ln.cargado for ln in e.lineas):
+            raise HTTPException(400, "No hay nada marcado como cargado. Marca lo que se lleva.")
+        e.lista_at = e.lista_at or datetime.utcnow()
+    else:
+        e.lista_at = None
+    db.commit()
+    db.refresh(e)
+    return e
+
+
+def _no_bloqueada(e: EntregaCarga) -> None:
+    if e.estado == "entregada":
+        raise HTTPException(409, "Esta entrega ya está firmada")
+    if e.lista_at:
+        raise HTTPException(409, "La carga está confirmada como lista para llevar. Desbloquéala para cambiarla.")
+
+
 class Treyfact(BaseModel):
     pasado: bool
 
@@ -645,8 +677,7 @@ def _validar_linea(data: LineaIn) -> None:
 def nueva_linea(eid: int, data: LineaIn, db: Session = Depends(get_db)):
     _validar_linea(data)
     e = _entrega(db, eid)
-    if e.estado == "entregada":
-        raise HTTPException(409, "Esta entrega ya está firmada")
+    _no_bloqueada(e)
     ln = LineaCarga(entrega_id=e.id, orden_n=len(e.lineas), cantidad=data.cantidad, unidad=data.unidad,
                     descripcion=(data.descripcion or "").strip())
     db.add(ln)
@@ -665,8 +696,7 @@ def editar_linea(lid: int, data: LineaIn, request: Request, db: Session = Depend
     _suya(request, ln.entrega.orden)
     if _es_reparto(request) and set(data.model_dump(exclude_unset=True)) - {"cargado", "cargado_ok"}:
         raise HTTPException(403, "Desde el camión solo se marca lo cargado")
-    if ln.entrega.estado == "entregada":
-        raise HTTPException(409, "Esta entrega ya está firmada")
+    _no_bloqueada(ln.entrega)
     cambios = data.model_dump(exclude_unset=True)
     for k, v in cambios.items():
         setattr(ln, k, v)
@@ -687,8 +717,7 @@ def borrar_linea(lid: int, db: Session = Depends(get_db)):
     ln = db.get(LineaCarga, lid)
     if not ln:
         raise HTTPException(404, "Línea no encontrada")
-    if ln.entrega.estado == "entregada":
-        raise HTTPException(409, "Esta entrega ya está firmada")
+    _no_bloqueada(ln.entrega)
     o = ln.entrega.orden
     db.delete(ln)
     db.flush(); db.refresh(o); _estado(o)
