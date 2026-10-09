@@ -446,10 +446,14 @@ export const editarLineaCarga = (id: number, d: Partial<LineaCarga>) => api.put<
 export const borrarLineaCarga = (id: number) => api.delete(`/api/cargas/lineas/${id}`);
 
 // Vencimientos de facturas de proveedor (solo el encargado)
-export interface VencFila { id: number; proveedor: string; numero?: string | null; importe?: number | null; importe_factura?: number | null; plazo: number; plazos: number; forma_pago?: string | null; url?: string | null; fecha?: string | null; fecha_factura?: string | null }
+export interface VencFila { grande?: boolean; faltan?: number; id: number; proveedor: string; numero?: string | null; importe?: number | null; importe_factura?: number | null; plazo: number; plazos: number; forma_pago?: string | null; url?: string | null; fecha?: string | null; fecha_factura?: string | null }
 export interface VencDia { fecha: string; etiqueta: string; dia: string; finde: boolean; total: number; facturas: VencFila[] }
-export interface VencResumen { configurado: boolean; conectado: boolean; ultima?: string | null; facturas: number; dias: VencDia[]; proximos: VencFila[]; proximos_total: number; sin_fecha: VencFila[] }
+export interface VencSemana { desde: string; hasta: string; etiqueta: string; rango: string; total: number; facturas: number }
+export interface VencProveedor { proveedor: string; pendiente: number; facturas: number; proxima: string; proxima_importe?: number | null; forma_pago?: string | null; dias?: number | null }
+export interface VencAjustes { umbral: number; dias_antes: number }
+export interface VencResumen { configurado: boolean; conectado: boolean; ultima?: string | null; facturas: number; dias: VencDia[]; proximos: VencFila[]; proximos_total: number; sin_fecha: VencFila[]; grandes: VencFila[]; semanas: VencSemana[]; proveedores: VencProveedor[]; pendiente_total: number; ajustes: VencAjustes }
 export const getVencimientos = () => api.get<VencResumen>('/api/vencimientos');
+export const putVencAjustes = (a: VencAjustes) => api.put<VencResumen>('/api/vencimientos/ajustes', a);
 
 // Catálogo de tarifas de proveedor (en pruebas: solo el encargado)
 export const getTarifas = () => api.get<TarifaResumen[]>('/api/tarifas');

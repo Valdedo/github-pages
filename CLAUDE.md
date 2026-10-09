@@ -77,6 +77,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (cabecera `X-Clave` = `VENCIMIENTOS_CLAVE` de Railway; ruta libre de sesión en `main.py`).
 - `GET /api/vencimientos` solo admin. Inicio (`VencimientosCard`): hoy, mañana y pasado; los viernes hasta el lunes.
   Sin botón de pagado: se pagan solas por el banco. Aviso push a Andrés a las 9 si algo vence.
+  También: barras de lo que se carga cada semana (5 semanas), aviso anticipado de facturas grandes (umbral y días en
+  `venc_ajustes`, se cambian desde el engranaje de la tarjeta; push una sola vez por factura, `venc_avisos`) y
+  pendiente por proveedor con su forma de pago y a cuántos días suele vencer.
 
 ## Publicar
 - Railway despliega desde la rama **`claude/invoice-ocr-processing-app-1LgBH`**.

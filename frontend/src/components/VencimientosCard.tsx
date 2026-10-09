@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, ChevronDown, FileText } from 'lucide-react';
-import { getVencimientos, type VencFila, type VencResumen } from '../api/client';
+import { AlertTriangle, CalendarClock, ChevronDown, FileText, Settings2 } from 'lucide-react';
+import { getVencimientos, putVencAjustes, describeApiError, type VencFila, type VencResumen, type VencSemana, type VencProveedor } from '../api/client';
 import { esEncargado } from '../auth';
 import './VencimientosCard.css';
 
@@ -29,7 +29,7 @@ function Factura({ f, conFecha }: { f: VencFila; conFecha?: boolean }) {
   const dentro = (
     <>
       <span className="venc-fac-txt"><b>{f.proveedor || 'Proveedor sin leer'}</b>{detalle && <small>{detalle}</small>}</span>
-      <span className="venc-fac-imp">{f.importe != null ? euros(f.importe) : '—'}</span>
+      <span className={`venc-fac-imp${f.grande ? ' grande' : ''}`}>{f.importe != null ? euros(f.importe) : '—'}</span>
     </>
   );
   return (
@@ -39,11 +39,60 @@ function Factura({ f, conFecha }: { f: VencFila; conFecha?: boolean }) {
   );
 }
 
+const euroCorto = (v: number) => v >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} mil €` : euros(v).replace(/,00\s/, ' ');
+const diaLargo = (iso: string) => {
+  const d = new Date(`${iso}T12:00`);
+  return `${d.toLocaleDateString('es-ES', { weekday: 'long' })} ${d.getDate()} ${d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}`;
+};
+
+/** Lo que se carga cada semana, en barras. */
+function Semanas({ semanas }: { semanas: VencSemana[] }) {
+  const max = Math.max(...semanas.map(s => s.total), 1);
+  return (
+    <div className="venc-semanas" aria-label="Lo que se carga cada semana">
+      {semanas.map((s, i) => (
+        <div key={s.desde} className={`venc-sem${i === 0 ? ' actual' : ''}`} title={`${s.rango}: ${s.facturas} factura${s.facturas !== 1 ? 's' : ''}`}>
+          <span className="venc-sem-imp">{s.total ? euroCorto(s.total) : '—'}</span>
+          <span className="venc-sem-barra"><span style={{ height: `${Math.max(s.total ? 6 : 0, (s.total / max) * 100)}%` }} /></span>
+          <span className="venc-sem-et">{s.etiqueta}</span>
+          <span className="venc-sem-rango">{s.rango}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Proveedores({ lista }: { lista: VencProveedor[] }) {
+  return (
+    <ul className="venc-prov">
+      {lista.map(p => (
+        <li key={p.proveedor}>
+          <span className="venc-fac-txt">
+            <b>{p.proveedor}</b>
+            <small>{[
+              `${p.facturas} factura${p.facturas !== 1 ? 's' : ''}`,
+              p.forma_pago || '',
+              p.dias != null ? `suele vencer a ${p.dias} días` : '',
+              `la próxima ${fechaCorta(p.proxima)}`,
+            ].filter(Boolean).join(' · ')}</small>
+          </span>
+          <span className="venc-fac-imp">{euros(p.pendiente)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Facturas de proveedor que vencen hoy, mañana y pasado (el viernes, hasta el lunes). Solo Andrés. */
 export function VencimientosCard() {
   const [d, setD] = useState<VencResumen | null>(null);
   const [error, setError] = useState(false);
-  const [ver, setVer] = useState<'' | 'proximos' | 'sin'>('');
+  const [ver, setVer] = useState<'' | 'proximos' | 'sin' | 'prov'>('');
+  const [ajustando, setAjustando] = useState(false);
+  const [umbral, setUmbral] = useState('');
+  const [diasAntes, setDiasAntes] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState('');
   const cargar = useCallback(() => {
     getVencimientos().then(({ data }) => { setD(data); setError(false); }).catch(() => setError(true));
   }, []);
@@ -72,6 +121,17 @@ export function VencimientosCard() {
     );
   }
 
+  const abrirAjustes = () => {
+    setUmbral(String(d.ajustes.umbral)); setDiasAntes(String(d.ajustes.dias_antes)); setAviso(''); setAjustando(a => !a);
+  };
+  const guardarAjustes = async () => {
+    const u = Number(umbral.replace(/\./g, '').replace(',', '.')), n = parseInt(diasAntes, 10);
+    if (!(u >= 0) || !(n >= 1 && n <= 30)) { setAviso('Pon un importe y entre 1 y 30 días.'); return; }
+    setGuardando(true);
+    try { const { data } = await putVencAjustes({ umbral: u, dias_antes: n }); setD(data); setAjustando(false); }
+    catch (e) { setAviso(describeApiError(e)); }
+    finally { setGuardando(false); }
+  };
   const total = d.dias.reduce((t, g) => t + g.total, 0);
   const nada = d.dias.every(g => g.facturas.length === 0);
   const viernes = d.dias.length > 3;
@@ -84,7 +144,40 @@ export function VencimientosCard() {
         <span className="venc-sub">
           {nada ? (viernes ? 'Nada hasta el lunes' : 'Nada en estos días') : `${euros(total)} ${viernes ? 'hasta el lunes' : 'en tres días'}`}
         </span>
+        <button className={`btn btn-ghost btn-sm venc-ajustes-btn${ajustando ? ' activo' : ''}`} onClick={abrirAjustes} aria-label="Aviso de facturas grandes" title="Aviso de facturas grandes">
+          <Settings2 size={17} />
+        </button>
       </div>
+
+      {ajustando && (
+        <div className="venc-ajustes">
+          <label>Avisarme de las facturas de más de
+            <span className="venc-input"><input inputMode="decimal" value={umbral} onChange={e => setUmbral(e.target.value)} aria-label="Importe" /> €</span>
+          </label>
+          <label>con
+            <span className="venc-input"><input inputMode="numeric" value={diasAntes} onChange={e => setDiasAntes(e.target.value)} aria-label="Días antes" /> días</span>
+            de antelación
+          </label>
+          <button className="btn btn-primary btn-sm" onClick={guardarAjustes} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+          {aviso && <p className="venc-nota error">{aviso}</p>}
+        </div>
+      )}
+
+      {d.grandes.length > 0 && (
+        <ul className="venc-grandes">
+          {d.grandes.map(g => (
+            <li key={g.id}>
+              <a href={g.url || undefined} target="_blank" rel="noreferrer">
+                <AlertTriangle size={18} />
+                <span className="venc-fac-txt">
+                  <b>{g.proveedor} · {euros(g.importe)}</b>
+                  <small>Vence el {diaLargo(g.fecha!)}{g.faltan ? ` · dentro de ${g.faltan} días` : ''}{g.forma_pago ? ` · ${g.forma_pago}` : ''}</small>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className={`venc-dias${viernes ? ' cuatro' : ''}`}>
         {d.dias.map((g, i) => (
@@ -99,10 +192,17 @@ export function VencimientosCard() {
         ))}
       </div>
 
+      {d.semanas.some(x => x.total > 0) && <Semanas semanas={d.semanas} />}
+
       <div className="venc-pie">
         {d.proximos.length > 0 && (
           <button className={`venc-mas${ver === 'proximos' ? ' abierto' : ''}`} onClick={() => setVer(v => (v === 'proximos' ? '' : 'proximos'))}>
             Próximo mes: {d.proximos.length} factura{d.proximos.length !== 1 ? 's' : ''} · {euros(d.proximos_total)} <ChevronDown size={16} />
+          </button>
+        )}
+        {d.proveedores.length > 0 && (
+          <button className={`venc-mas${ver === 'prov' ? ' abierto' : ''}`} onClick={() => setVer(v => (v === 'prov' ? '' : 'prov'))}>
+            Pendiente por proveedor · {euros(d.pendiente_total)} <ChevronDown size={16} />
           </button>
         )}
         {d.sin_fecha.length > 0 && (
@@ -112,6 +212,7 @@ export function VencimientosCard() {
         )}
       </div>
       {ver === 'proximos' && <ul className="venc-lista venc-extra">{d.proximos.map(f => <Factura key={f.id} f={f} conFecha />)}</ul>}
+      {ver === 'prov' && <Proveedores lista={d.proveedores} />}
       {ver === 'sin' && (
         <>
           <p className="venc-nota">Estas facturas no dicen cuándo vencen.</p>

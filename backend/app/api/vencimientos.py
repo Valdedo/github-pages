@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import SessionLocal, get_db
-from app.models.vencimiento import Vencimiento
+from app.models.vencimiento import Vencimiento, VencAjustes, VencAviso
 from app.services import access_service as acc
 
 logger = logging.getLogger(__name__)
@@ -125,21 +125,106 @@ def _fila(v: Vencimiento) -> dict:
             "fecha_factura": v.fecha_factura.isoformat() if v.fecha_factura else None}
 
 
-def resumen(db: Session, h: Optional[date] = None) -> dict:
-    h = h or hoy()
-    dias = dias_a_mirar(h)
-    hasta = h + timedelta(days=30)
-    filas = (db.query(Vencimiento).filter(Vencimiento.fecha >= h, Vencimiento.fecha <= hasta)
-             .order_by(Vencimiento.fecha, Vencimiento.proveedor).all())
-    # La misma factura guardada dos veces (con otro nombre de archivo) sale una sola vez
-    vistos, unicas = set(), []
+def _unicas(filas: list) -> list:
+    """La misma factura guardada dos veces (con otro nombre de archivo) cuenta una sola vez."""
+    vistos, out = set(), []
     for f in filas:
         k = ("".join(ch for ch in (f.numero or "") if ch.isalnum()).upper(), f.fecha, round(f.importe or 0, 2))
         if k[0] and k in vistos:
             continue
         vistos.add(k)
-        unicas.append(f)
-    filas = unicas
+        out.append(f)
+    return out
+
+
+def ajustes(db: Session) -> VencAjustes:
+    a = db.get(VencAjustes, 1)
+    if not a:
+        a = VencAjustes(id=1, umbral=2000, dias_antes=5)
+        db.add(a)
+        db.commit()
+    return a
+
+
+def _semanas(futuras: list, h: date, n: int = 5) -> list:
+    """Lo que se carga cada semana (de lunes a domingo), empezando por esta."""
+    lunes = h - timedelta(days=h.weekday())
+    out = []
+    for i in range(n):
+        ini, fin = lunes + timedelta(days=7 * i), lunes + timedelta(days=7 * i + 6)
+        del_tramo = [f for f in futuras if max(ini, h) <= f.fecha <= fin]
+        if i == 0:
+            et = "Esta semana"
+        elif i == 1:
+            et = "La que viene"
+        else:
+            et = f"{ini.day} {MESES[ini.month - 1][:3]}"
+        out.append({"desde": max(ini, h).isoformat(), "hasta": fin.isoformat(), "etiqueta": et,
+                    "rango": f"{ini.day} {MESES[ini.month - 1][:3]} – {fin.day} {MESES[fin.month - 1][:3]}",
+                    "total": round(sum(f.importe or 0 for f in del_tramo), 2), "facturas": len(del_tramo)})
+    return out
+
+
+def _condiciones(filas: list) -> dict:
+    """Forma de pago más habitual y a cuántos días suele vencer (con todo el historial del proveedor)."""
+    formas: dict = {}
+    dias = []
+    for f in filas:
+        if f.forma_pago:
+            formas[f.forma_pago] = formas.get(f.forma_pago, 0) + 1
+        if f.fecha and f.fecha_factura and f.plazo == f.plazos:
+            d = (f.fecha - f.fecha_factura).days
+            if 0 <= d <= 365:
+                dias.append(d)
+    forma = max(formas, key=formas.get) if formas else None
+    tipico = None
+    if dias:
+        dias.sort()
+        tipico = dias[len(dias) // 2]
+    return {"forma_pago": forma, "dias": tipico}
+
+
+def _proveedores(db: Session, futuras: list) -> list:
+    from app.services.drive_proveedor import clave
+    grupos: dict = {}
+    for f in futuras:
+        k = clave(f.proveedor) or f.proveedor.upper()
+        g = grupos.setdefault(k, {"nombres": {}, "filas": []})
+        g["nombres"][f.proveedor] = g["nombres"].get(f.proveedor, 0) + 1
+        g["filas"].append(f)
+    if not grupos:
+        return []
+    historial: dict = {}
+    for f in db.query(Vencimiento).filter(Vencimiento.fecha.isnot(None)).all():
+        historial.setdefault(clave(f.proveedor) or f.proveedor.upper(), []).append(f)
+    out = []
+    for k, g in grupos.items():
+        filas = sorted(g["filas"], key=lambda f: f.fecha)
+        out.append({
+            "proveedor": max(g["nombres"], key=g["nombres"].get),
+            "pendiente": round(sum(f.importe or 0 for f in filas), 2),
+            "facturas": len(filas),
+            "proxima": filas[0].fecha.isoformat(),
+            "proxima_importe": filas[0].importe,
+            **_condiciones(historial.get(k, filas)),
+        })
+    return sorted(out, key=lambda p: -p["pendiente"])
+
+
+def resumen(db: Session, h: Optional[date] = None) -> dict:
+    h = h or hoy()
+    aj = ajustes(db)
+    dias = dias_a_mirar(h)
+    hasta = h + timedelta(days=30)
+    futuras = _unicas(db.query(Vencimiento).filter(Vencimiento.fecha >= h)
+                      .order_by(Vencimiento.fecha, Vencimiento.proveedor).all())
+    filas = [f for f in futuras if f.fecha <= hasta]
+
+    def fila(v: Vencimiento) -> dict:
+        d = _fila(v)
+        d["grande"] = bool(v.importe and v.importe >= aj.umbral)
+        return d
+
     grupos = []
     for d in dias:
         del_dia = [f for f in filas if f.fecha == d]
@@ -147,8 +232,11 @@ def resumen(db: Session, h: Optional[date] = None) -> dict:
                        "dia": f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}",
                        "finde": d.weekday() >= 5,
                        "total": round(sum(f.importe or 0 for f in del_dia), 2),
-                       "facturas": [_fila(f) for f in del_dia]})
+                       "facturas": [fila(f) for f in del_dia]})
     despues = [f for f in filas if f.fecha > dias[-1]]
+    limite_grandes = h + timedelta(days=aj.dias_antes)
+    grandes = [dict(fila(f), faltan=(f.fecha - h).days) for f in futuras
+               if dias[-1] < f.fecha <= limite_grandes and (f.importe or 0) >= aj.umbral]
     reciente = h - timedelta(days=45)
     sin_fecha = (db.query(Vencimiento).filter(Vencimiento.fecha.is_(None),
                                               (Vencimiento.fecha_factura >= reciente) | Vencimiento.fecha_factura.is_(None))
@@ -160,10 +248,30 @@ def resumen(db: Session, h: Optional[date] = None) -> dict:
         "ultima": ultima.isoformat() + "Z" if ultima else None,
         "facturas": db.query(func.count(func.distinct(Vencimiento.file_id))).scalar() or 0,
         "dias": grupos,
-        "proximos": [_fila(f) for f in despues],
+        "proximos": [fila(f) for f in despues],
         "proximos_total": round(sum(f.importe or 0 for f in despues), 2),
         "sin_fecha": [_fila(f) for f in sin_fecha],
+        "grandes": grandes,
+        "semanas": _semanas(futuras, h),
+        "proveedores": _proveedores(db, futuras),
+        "pendiente_total": round(sum(f.importe or 0 for f in futuras), 2),
+        "ajustes": {"umbral": aj.umbral, "dias_antes": aj.dias_antes},
     }
+
+
+class Ajustes(BaseModel):
+    umbral: float
+    dias_antes: int
+
+
+@router.put("/ajustes", dependencies=[Depends(solo_encargado)])
+def put_ajustes(data: Ajustes, db: Session = Depends(get_db)):
+    if data.umbral < 0 or not 1 <= data.dias_antes <= 30:
+        raise HTTPException(400, "Pon un importe y entre 1 y 30 días")
+    a = ajustes(db)
+    a.umbral, a.dias_antes = round(data.umbral, 2), data.dias_antes
+    db.commit()
+    return resumen(db)
 
 
 @router.get("", dependencies=[Depends(solo_encargado)])
@@ -183,6 +291,7 @@ def _avisar_hoy(h: date) -> None:
         r = resumen(db, h)
     finally:
         db.close()
+    _avisar_grandes(h, r)
     hoy_g = r["dias"][0]
     finde = [g for g in r["dias"][1:] if h.weekday() == 4]
     n_hoy, n_finde = len(hoy_g["facturas"]), sum(len(g["facturas"]) for g in finde)
@@ -195,6 +304,30 @@ def _avisar_hoy(h: date) -> None:
         partes.append(f"hasta el lunes {n_finde} más · {_euros(sum(g['total'] for g in finde))}")
     titulo = "Vencimientos de hoy" if not n_finde else "Vencimientos hasta el lunes"
     push_service.avisar(lambda s: s.rol == "admin", titulo, " · ".join(partes), "/", "vencimientos")
+
+
+def _avisar_grandes(h: date, r: dict) -> None:
+    """Una sola vez por factura grande: «dentro de 5 días vence…»."""
+    from app.services import push_service
+    if not r["grandes"]:
+        return
+    db = SessionLocal()
+    try:
+        nuevas = []
+        for g in r["grandes"]:
+            k = f"{g['numero'] or ''}|{g['proveedor']}|{g['fecha']}|{g['importe']}"[:200]
+            if not db.get(VencAviso, k):
+                db.add(VencAviso(clave=k))
+                nuevas.append(g)
+        db.commit()
+    finally:
+        db.close()
+    for g in nuevas:
+        d = date.fromisoformat(g["fecha"])
+        cuando = f"el {DIAS[d.weekday()]} {d.day}" + (f" (en {g['faltan']} días)" if g["faltan"] > 1 else "")
+        push_service.avisar(lambda s: s.rol == "admin", "Se acerca una factura grande",
+                            f"{g['proveedor']} · {_euros(g['importe'] or 0)} · vence {cuando}", "/",
+                            f"grande-{g['id']}")
 
 
 def arrancar_aviso() -> None:
