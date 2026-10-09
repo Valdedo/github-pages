@@ -439,3 +439,9 @@ export const treyfactEntregaCarga = (id: number, pasado: boolean) => api.put<Ent
 export const nuevaLineaCarga = (entregaId: number, d: Partial<LineaCarga>) => api.post<LineaCarga>(`/api/cargas/entregas/${entregaId}/lineas`, d);
 export const editarLineaCarga = (id: number, d: Partial<LineaCarga>) => api.put<LineaCarga>(`/api/cargas/lineas/${id}`, d);
 export const borrarLineaCarga = (id: number) => api.delete(`/api/cargas/lineas/${id}`);
+
+// Vencimientos de facturas de proveedor (solo el encargado)
+export interface VencFila { id: number; proveedor: string; numero?: string | null; importe?: number | null; importe_factura?: number | null; plazo: number; plazos: number; forma_pago?: string | null; url?: string | null; fecha?: string | null; fecha_factura?: string | null }
+export interface VencDia { fecha: string; etiqueta: string; dia: string; finde: boolean; total: number; facturas: VencFila[] }
+export interface VencResumen { configurado: boolean; conectado: boolean; ultima?: string | null; facturas: number; dias: VencDia[]; proximos: VencFila[]; proximos_total: number; sin_fecha: VencFila[] }
+export const getVencimientos = () => api.get<VencResumen>('/api/vencimientos');

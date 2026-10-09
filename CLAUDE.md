@@ -54,6 +54,14 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
+## Vencimientos de facturas (solo Andrés)
+- El script de facturas (Apps Script de la cuenta de Andrés, «FacturasAutomaticas») lleva un archivo extra
+  `tools/vencimientos-facturas.gs`: cada hora lee las facturas nuevas de «FACTURAS PARA GESTORIA», apunta los
+  plazos en la pestaña «Vencimientos» de «Log Facturas» y los manda a `POST /api/vencimientos/importar`
+  (cabecera `X-Clave` = `VENCIMIENTOS_CLAVE` de Railway; ruta libre de sesión en `main.py`).
+- `GET /api/vencimientos` solo admin. Inicio (`VencimientosCard`): hoy, mañana y pasado; los viernes hasta el lunes.
+  Sin botón de pagado: se pagan solas por el banco. Aviso push a Andrés a las 9 si algo vence.
+
 ## Publicar
 - Railway despliega desde la rama **`claude/invoice-ocr-processing-app-1LgBH`**.
   Publicar = `git push origin HEAD:claude/invoice-ocr-processing-app-1LgBH`.

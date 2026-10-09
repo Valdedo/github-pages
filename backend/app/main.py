@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive, cargas
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive, cargas, vencimientos
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"No se pudieron preparar los turnos: {e}")
     from app.api.correo import arrancar_vigilancia
     arrancar_vigilancia()
+    vencimientos.arrancar_aviso()
     from app.services.backup_service import arrancar_repaso
     arrancar_repaso()
     logger.info(f"App version: {APP_VERSION} — routers: dashboard, documents, articles, export, settings, products, analytics, repairs, orders")
@@ -102,7 +103,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from app.services import access_service as _acc
 
-_LIBRES = ("/api/acceso", "/api/firmas/compartir/", "/api/products/ficha/")
+_LIBRES = ("/api/acceso", "/api/vencimientos/importar", "/api/firmas/compartir/", "/api/products/ficha/")
 
 # Lo que puede usar el móvil de reparto (Melchor) en /api/firmas: ver la lista y cada albarán,
 # firmarlo y, ya firmado, imprimir/enviar la copia al cliente. Lo demás (subir, borrar, editar,
@@ -170,6 +171,7 @@ app.include_router(turnos.router)
 app.include_router(push.router)
 app.include_router(drive.router)
 app.include_router(cargas.router)
+app.include_router(vencimientos.router)
 
 
 @app.get("/health")

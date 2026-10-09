@@ -8,6 +8,7 @@ import { FirmasAvisos } from '../components/FirmasAvisos';
 import { CorreoCard } from '../components/CorreoCard';
 import { TurnoHoy } from '../components/TurnoHoy';
 import { AvisosCard } from '../components/AvisosCard';
+import { VencimientosCard } from '../components/VencimientosCard';
 import { CabeceraPegatina } from '../components/CabeceraPegatina';
 import { Ilustracion, AccesoPegatina } from '../components/Pegatinas';
 import { useIsMobile } from '../hooks';
@@ -159,6 +160,7 @@ export function DashboardPage() {
       </header>
 
       <CorreoCard />
+      <VencimientosCard />
       <TurnoHoy />
       <AvisosCard />
 
