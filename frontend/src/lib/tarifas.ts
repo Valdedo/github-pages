@@ -88,7 +88,8 @@ export function claveFamilia(nombre: string): string {
  *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
 export function fotoArticulo(familia: string, descripcion?: string): string {
   const d = normaliza(descripcion || '');
-  if (claveFamilia(familia).startsWith('zab-')) return ''; // cientos de piezas distintas: su pegatina
+  const zab = claveFamilia(familia);
+  if (zab.startsWith('zab-')) return fotoZabaleta(zab, d);
   const varios = claveFamilia(familia) === 'malla' && !/malla|valla|hercules/.test(normaliza(familia));
   if (/^panel/.test(d)) return FOTOS['panel-sandwich'];
   if (/^malla|^poste|^base poste|^abrazadera/.test(d)) return FOTOS['malla'];
@@ -97,6 +98,66 @@ export function fotoArticulo(familia: string, descripcion?: string): string {
   if (/^tubo rectangular galv/.test(d)) return FOTOS['tubo-galv'];
   if (varios) return descripcion ? '' : FOTOS['malla'];
   return FOTOS[claveFamilia(familia)] ?? '';
+}
+
+// Zabaleta: una foto de referencia por tipo de pieza (Obramat / Leroy Merlin), elegida por la descripción.
+// Lo que no se reconoce va sin foto (se enseña la pegatina de la familia).
+const FOTOS_ZAB: Record<string, string> = {
+  'sn8': ADEO('4412835'), 'teja': ADEO('1828844'), 'canal-reja': ADEO('4408617'),
+  'rejilla': ADEO('4403190'), 'tapa-fundicion': ADEO('4406540'), 'drenaje': ADEO('4399672'),
+  'corrugado': ADEO('4439510'), 'geotextil': 'https://media.adeo.com/mkp/5af38bf3155efc5755b1f51d886ae18a/media.jpg?width=640', 'arqueta': ADEO('4395583'),
+  'bote-sifonico': ADEO('4405445'), 'tubo-pvc': ADEO('4402708'), 'codo-pvc': ADEO('5766834'),
+  'codo45-pvc': ADEO('4409123'), 'manguito-pvc': ADEO('4399771'), 'derivacion-pvc': ADEO('4415043'),
+  'tapon-pvc': ADEO('4417073'), 'pvc-presion': ADEO('2009550'), 'hidrotubo': ADEO('4420525'),
+  'polietileno': 'https://media.adeo.com/mkp/45a971b728e32a909759dff533b8a7c5/media.jpg?width=640', 'racor-laton-pe': 'https://media.adeo.com/mkp/513b667e3bf01fa91c1c4900bba3e8e9/media.jpg?width=640', 'tubo-cobre': ADEO('4420198'),
+  'laton': ADEO('4414001', 'png'), 'latiguillo': ADEO('4418430'), 'llave-paso': ADEO('4418085'),
+  'reductora': ADEO('4881252'), 'accesorio-cobre': ADEO('4403114'), 'multicapa': ADEO('4406959'),
+  'acumulador': ADEO('4590190'), 'termo': ADEO('5496523'), 'calentador': ADEO('5438390', 'png'),
+  'circulador': ADEO('4408818'), 'radiador': ADEO('4410857'), 'vaso-expansion': ADEO('4402341'),
+  'estufa-pellet': ADEO('6021048', 'png'), 'estufa-lena': ADEO('4398998'), 'tubo-dp': ADEO('5357911'),
+  'tubo-sw': ADEO('5355509'), 'sombrerete': ADEO('5357900'), 'abrazadera-chimenea': ADEO('5766137'),
+  'canalon': ADEO('4411185'), 'canalon-accesorio': ADEO('4406284'), 'grupo-presion': ADEO('4400069'),
+  'bomba': ADEO('4564446'), 'mecanismo-cisterna': ADEO('4419271'), 'flotador': ADEO('4417933'),
+  'sifon': ADEO('4408087'), 'telefono-ducha': ADEO('4403290'), 'teflon': ADEO('4395890'),
+  'desincrustante': ADEO('4400694'), 'masilla': ADEO('4407228'), 'gas-mapp': ADEO('4414643'),
+  'manguera-gas': ADEO('4420112'), 'espuma': ADEO('4417503'), 'abrazadera': ADEO('4412512'),
+  'soporte-perforado': ADEO('4399934'), 'broca-sds': ADEO('4418442'), 'cortatubos': ADEO('4412247'),
+  'sierra': ADEO('5514530'),
+};
+/** Foto de la familia cuando no hay artículo elegido. */
+const ZAB_FAMILIA: Record<string, string> = {
+  'zab-saneamiento': 'sn8', 'zab-evacuacion': 'codo-pvc', 'zab-abastecimiento': 'polietileno', 'zab-fontaneria': 'laton',
+  'zab-calefaccion': 'termo', 'zab-chimenea': 'tubo-dp', 'zab-canalon': 'canalon', 'zab-bombeo': 'grupo-presion',
+  'zab-sanitario': 'mecanismo-cisterna', 'zab-quimicos': 'espuma', 'zab-ferreteria': 'abrazadera',
+};
+type Regla = [RegExp, string];
+const REGLAS_ZAB: Record<string, Regla[]> = {
+  'zab-saneamiento': [[/sn8/, 'sn8'], [/teja/, 'teja'], [/canal/, 'canal-reja'], [/rejilla|imbornal|sumidero/, 'rejilla'],
+    [/tapa|marco|cerco/, 'tapa-fundicion'], [/drenaje/, 'drenaje'], [/co?arrug/, 'corrugado'], [/geotextil/, 'geotextil'],
+    [/arqueta/, 'arqueta'], [/sifonico/, 'bote-sifonico'], [/.*/, 'teja']],
+  'zab-evacuacion': [[/hidrotubo/, 'hidrotubo'], [/presion/, 'pvc-presion'], [/tuberia|tubo/, 'tubo-pvc'], [/codo.* 45/, 'codo45-pvc'],
+    [/codo|curva/, 'codo-pvc'], [/manguito|reduccion/, 'manguito-pvc'], [/derivacion|injerto|^te /, 'derivacion-pvc'], [/tapon/, 'tapon-pvc']],
+  'zab-abastecimiento': [[/poliet|p\.?bd|pe-?40|pe100/, 'polietileno'], [/.*/, 'racor-laton-pe']],
+  'zab-fontaneria': [[/^metro (barra|rollo)/, 'tubo-cobre'], [/anclaje|taco|tornillo/, ''], [/latiguillo/, 'latiguillo'], [/reductora/, 'reductora'],
+    [/multicapa|jucar|s7359/, 'multicapa'], [/filpress|inox/, ''], [/llave|valv|esfera|grifo|filt/, 'llave-paso'],
+    [/ cu\b|cobre|tapaporos/, 'accesorio-cobre'], [/.*/, 'laton']],
+  'zab-calefaccion': [[/interacum|acumulador|^dep/, 'acumulador'], [/termo/, 'termo'], [/calentador/, 'calentador'],
+    [/radiador|aluminio/, 'radiador'], [/vaso|flexcon|airflix|aquasystem/, 'vaso-expansion'], [/bomba|circulador/, 'circulador']],
+  'zab-chimenea': [[/pellet/, 'estufa-pellet'], [/estufa/, 'estufa-lena'], [/sombrerete/, 'sombrerete'],
+    [/abrazadera/, 'abrazadera-chimenea'], [/ swj? /, 'tubo-sw'], [/\bdp/, 'tubo-dp']],
+  'zab-canalon': [[/^mt\.? canalon|tramo/, 'canalon'], [/.*/, 'canalon-accesorio']],
+  'zab-bombeo': [[/grupo/, 'grupo-presion'], [/.*/, 'bomba']],
+  'zab-sanitario': [[/flotador/, 'flotador'], [/cisterna|descarga/, 'mecanismo-cisterna'], [/sifon/, 'sifon'], [/telefono|ducha/, 'telefono-ducha']],
+  'zab-quimicos': [[/teflon|loctite|hilo sellador/, 'teflon'], [/griffon|decaliq|decagel/, 'desincrustante'], [/masilla|silicon/, 'masilla'],
+    [/mapp/, 'gas-mapp'], [/manguera|butano|glp/, 'manguera-gas'], [/espuma/, 'espuma']],
+  'zab-ferreteria': [[/broca/, 'broca-sds'], [/cortatubo/, 'cortatubos'], [/sierra/, 'sierra'], [/abrazadera|abarcon/, 'abrazadera'],
+    [/perforado/, 'soporte-perforado'], [/co?arrug/, 'corrugado'], [/latiguillo/, 'latiguillo'], [/p\/tubo pe/, 'racor-laton-pe'],
+    [/laton|mamelon|machon/, 'laton'], [/^(curva|codo|manguito|te) /, 'accesorio-cobre']],
+};
+function fotoZabaleta(fam: string, d: string): string {
+  if (!d) return FOTOS_ZAB[ZAB_FAMILIA[fam]] ?? '';
+  const r = (REGLAS_ZAB[fam] ?? []).find(([rx]) => rx.test(d));
+  return r && r[1] ? FOTOS_ZAB[r[1]] ?? '' : '';
 }
 
 const fmt = (v: number, dec = 2) => v.toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
