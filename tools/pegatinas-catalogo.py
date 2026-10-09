@@ -169,11 +169,116 @@ def art(name):
         o += cyl((44, 149), 14, (26, -17), '#E0975A', '#B86A31', '#8E4F22')
         o.append(circle((44, 149), 8, '#8E4F22', 0))
         return o
+    # familias de Zabaleta
+    PVC_NAR = ('#E8783E', '#C95A24', '#A3461A')
+    PVC_GRIS = ('#B7BEC6', '#8E97A1', '#6B737C')
+    CU = ('#E09A62', '#B8713A', '#8E5426')
+    if name == 'zab-saneamiento':  # tubo corrugado de doble pared, naranja
+        o = cyl((66, 136), 42, (72, -48), *PVC_NAR, wall='#B9501F', dark='#5A2A12', rin=34)
+        n = (48 / 86.5, 72 / 86.5)
+        for t in [0.22, 0.36, 0.50, 0.64, 0.78]:
+            cx, cy = 66 + 72 * t, 136 - 48 * t
+            o.insert(4, f'<line x1="{cx+42*n[0]:.1f}" y1="{cy+42*n[1]:.1f}" x2="{cx-42*n[0]:.1f}" y2="{cy-42*n[1]:.1f}" stroke="#A3461A" stroke-width="5"/>')
+        return o
+    if name == 'zab-evacuacion':  # codo de PVC gris
+        o = cyl((132, 150), 26, (0, -62), *PVC_GRIS)
+        o += cyl((48, 76), 26, (66, 0), *PVC_GRIS, wall='#6B737C', dark='#3E454C', rin=19)
+        o.append(circle((132, 82), 30, PVC_GRIS[0]))
+        o += cyl((132, 158), 31, (0, -10), *PVC_GRIS, wall='#6B737C', dark='#3E454C', rin=24)
+        return o
+    if name == 'zab-abastecimiento':  # rollo de polietileno negro con franja azul
+        o = []
+        for k, r in enumerate([70, 58, 46, 34]):
+            o.append(f'<ellipse cx="100" cy="{112 + k * 1.5}" rx="{r}" ry="{r * 0.62:.1f}" fill="{"#3B3F44" if k % 2 == 0 else "#2A2D31"}" stroke="{INK}" stroke-width="{SW}"/>')
+            o.append(f'<ellipse cx="100" cy="{112 + k * 1.5}" rx="{r - 5}" ry="{(r - 5) * 0.62:.1f}" fill="none" stroke="#2F7FD0" stroke-width="2.4" stroke-dasharray="14 10"/>')
+        o.append(f'<ellipse cx="100" cy="117" rx="22" ry="13.6" fill="#F2F4F0" stroke="{INK}" stroke-width="{SW}"/>')
+        o += cyl((168, 128), 9, (16, 26), '#3B3F44', '#2A2D31', '#1F2124')
+        return o
+    if name == 'zab-fontaneria':  # tubo de cobre con un manguito de latón
+        o = cyl((40, 150), 16, (110, -72), *CU, wall='#8E5426', dark='#4A2A12', rin=10)
+        o += cyl((84, 121), 22, (26, -17), '#E6C35A', '#C29A2E', '#9A7A1E')
+        return o
+    if name == 'zab-calefaccion':  # radiador
+        o = []
+        for i in range(6):
+            x = 36 + i * 22
+            o.append(f'<rect x="{x}" y="58" width="20" height="104" rx="7" fill="#FFFFFF" stroke="{INK}" stroke-width="{SW}"/>')
+            o.append(f'<rect x="{x + 6}" y="66" width="5" height="88" rx="2.5" fill="#DDE2E7"/>')
+        o += [f'<rect x="30" y="74" width="140" height="8" fill="#E9EDF0" stroke="{INK}" stroke-width="2"/>',
+              f'<rect x="30" y="140" width="140" height="8" fill="#E9EDF0" stroke="{INK}" stroke-width="2"/>',
+              f'<rect x="166" y="136" width="18" height="10" rx="3" fill="#D8443A" stroke="{INK}" stroke-width="2"/>',
+              f'<rect x="16" y="136" width="18" height="10" rx="3" fill="#2F7FD0" stroke="{INK}" stroke-width="2"/>']
+        return o
+    if name == 'zab-chimenea':  # tubo inox de doble pared con abrazadera
+        o = [f'<rect x="70" y="40" width="60" height="130" fill="#D5DCE3" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="80" y="40" width="12" height="130" fill="#F4F6F8"/>',
+             f'<rect x="116" y="40" width="14" height="130" fill="#AEB8C2"/>',
+             f'<rect x="64" y="96" width="72" height="14" rx="3" fill="#8893A0" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="100" cy="40" rx="30" ry="10" fill="#AEB8C2" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="100" cy="40" rx="19" ry="6" fill="#4B525A" stroke="{INK}" stroke-width="2"/>',
+             f'<path d="M70 170 Q100 182 130 170" fill="none" stroke="{INK}" stroke-width="{SW}"/>']
+        return o
+    if name == 'zab-canalon':  # canalón de media caña (perfil en U extruido)
+        cx, cy, R, r = 64, 112, 40, 31
+        perfil = [(cx - R * math.cos(t * math.pi / 14), cy + R * math.sin(t * math.pi / 14)) for t in range(15)]
+        perfil += [(cx + r * math.cos(t * math.pi / 14), cy + r * math.sin(t * math.pi / 14)) for t in range(15)]
+        dd = (80, -54)
+        o = [poly(shift(perfil, dd), '#6B737C')]
+        n = len(perfil)
+        for i in range(n - 1):  # caras sin raya entre ellas: se ve liso
+            a, b = perfil[i], perfil[i + 1]
+            col = '#AEB6BE' if i < 14 else '#7D8690'
+            o.append(f'<polygon points="{pts([a, b, (b[0] + dd[0], b[1] + dd[1]), (a[0] + dd[0], a[1] + dd[1])])}" fill="{col}" stroke="{col}" stroke-width="1"/>')
+        sombra = [perfil[0], perfil[-1], (perfil[-1][0] + dd[0], perfil[-1][1] + dd[1]), (perfil[0][0] + dd[0], perfil[0][1] + dd[1])]
+        o.append(f'<polygon points="{pts(sombra)}" fill="none" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>')
+        fondo = perfil[:15] + [(x + dd[0], y + dd[1]) for x, y in reversed(perfil[:15])]
+        o.append(f'<polygon points="{pts(fondo)}" fill="none" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>')
+        o.append(poly(perfil, '#C9CFD5'))
+        return o
+    if name == 'zab-bombeo':  # bomba: motor azul y cuerpo
+        o = cyl((60, 120), 36, (66, 0), '#2F7FD0', '#1F5FA0', '#174A7E')
+        for x in (78, 90, 102, 114):
+            o.append(f'<line x1="{x}" y1="88" x2="{x}" y2="152" stroke="#174A7E" stroke-width="3"/>')
+        o.append(circle((60, 120), 36, '#4A95DE'))
+        o.append(circle((60, 120), 12, '#1F5FA0'))
+        o += [f'<rect x="126" y="96" width="40" height="48" rx="6" fill="#9AA3AD" stroke="{INK}" stroke-width="{SW}"/>',
+              f'<rect x="138" y="70" width="16" height="26" fill="#6F7883" stroke="{INK}" stroke-width="{SW}"/>',
+              f'<rect x="40" y="156" width="130" height="10" rx="3" fill="#4B525A" stroke="{INK}" stroke-width="{SW}"/>']
+        return o
+    if name == 'zab-sanitario':  # inodoro con cisterna
+        o = [f'<rect x="58" y="36" width="84" height="60" rx="8" fill="#FFFFFF" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="88" y="44" width="24" height="9" rx="4" fill="#DDE2E7" stroke="{INK}" stroke-width="2"/>',
+             f'<path d="M52 104 H148 Q146 150 112 160 L116 178 H84 L88 160 Q54 150 52 104 Z" fill="#FFFFFF" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>',
+             f'<ellipse cx="100" cy="106" rx="48" ry="11" fill="#EEF2F5" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<path d="M66 114 Q100 150 134 114" fill="none" stroke="#DDE2E7" stroke-width="5"/>']
+        return o
+    if name == 'zab-quimicos':  # cartucho de silicona
+        o = cyl((58, 150), 26, (74, -50), '#F4F6F8', '#D5DCE3', '#AEB8C2')
+        o.append(f'<rect x="0" y="0" width="0" height="0"/>')
+        o += cyl((132, 100), 10, (30, -20), '#E8E8E8', '#C8C8C8', '#A8A8A8')
+        o.append(poly([(158, 84), (190, 50), (176, 76)], '#F4F6F8'))
+        o.append(circle((58, 150), 26, '#2FAE66'))
+        o.append(circle((58, 150), 10, '#1F5A3A'))
+        return o
+    if name == 'zab-ferreteria':  # tornillo y tuerca
+        o = [poly([(98, 46), (122, 40), (140, 56), (134, 78), (110, 84), (92, 68)], '#9AA3AD'),
+             poly([(110, 84), (134, 78), (134, 88), (110, 94)], '#6F7883'),
+             poly([(92, 68), (110, 84), (110, 94), (92, 78)], '#4B525A')]
+        o.append(poly([(104, 88), (120, 84), (78, 170), (64, 166)], '#B4BCC5'))
+        for k in range(7):
+            y = 100 + k * 10
+            x = 112 - (y - 86) * 0.5
+            o.append(f'<line x1="{x - 9:.1f}" y1="{y + 2:.1f}" x2="{x + 7:.1f}" y2="{y - 4:.1f}" stroke="#6F7883" stroke-width="3"/>')
+        o.append(poly([(130, 132), (158, 128), (172, 148), (160, 168), (132, 172), (118, 152)], '#D5DCE3'))
+        o.append(circle((145, 150), 11, '#4B525A'))
+        return o
     raise KeyError(name)
 
 NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-cuadrado', 'tubo-rectangular', 'tubo-galv',
          'tubo-redondo-galv', 'tubo-iso', 'chapa', 'chapa-ondulada', 'redondo', 'malla',
-         'prov-hierros', 'prov-pladur', 'prov-dinak', 'prov-zabaleta', 'prov-isoltubex']
+         'prov-hierros', 'prov-pladur', 'prov-dinak', 'prov-zabaleta', 'prov-isoltubex',
+         'zab-saneamiento', 'zab-evacuacion', 'zab-abastecimiento', 'zab-fontaneria', 'zab-calefaccion', 'zab-chimenea',
+         'zab-canalon', 'zab-bombeo', 'zab-sanitario', 'zab-quimicos', 'zab-ferreteria']
 
 S = 512
 for nm in NAMES:

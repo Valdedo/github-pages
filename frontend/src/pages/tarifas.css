@@ -286,3 +286,33 @@
   .tf-pruebas { display: none; }
   .tf-intro-foto { width: 90px; height: 90px; }
 }
+
+/* ── Tarifas con subcategorías (Zabaleta) ─────────────────────────── */
+.tf-con-subs { grid-template-columns: 1fr !important; gap: 18px; }
+.tf-sub { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tf-sub-tit { margin: 0 2px; font-family: var(--font-display); font-weight: 600; font-size: 18px !important; color: var(--cf-bosque, #1F5A3A); display: flex; align-items: baseline; gap: 8px; }
+.tf-sub-tit small { font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--text-3); }
+.tf-filas { background: var(--surface); border-radius: var(--r-lg); box-shadow: 0 1px 0 var(--border); overflow: hidden; }
+.tf-filita { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 14px; text-align: left; font: inherit; color: var(--text-1); background: none; border: 0; border-top: 1px solid var(--border); border-left: 3px solid transparent; cursor: pointer; }
+.tf-filita:first-child { border-top: 0; }
+.tf-filita:hover { background: var(--brand-pale); }
+.tf-filita[aria-pressed="true"] { background: var(--brand-pale); border-left-color: var(--cf-bosque, #1F5A3A); }
+.tf-filita-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; line-height: 1.25; }
+.tf-filita-txt small { font-size: 11.5px; font-weight: 500; color: var(--text-3); font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+.tf-filita strong { white-space: nowrap; font-size: 15px; font-variant-numeric: tabular-nums; }
+.tf-filita strong small { font-weight: 500; color: var(--text-3); }
+.tf-punto { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.tf-punto.sube { background: #D8443A; }
+.tf-punto.baja { background: #2FAE66; }
+.tf-etiqueta { display: inline-block; align-self: flex-start; margin-top: 6px; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; background: #E3F4EA; color: #1F5A3A; }
+.tf-etiqueta.aviso { background: #FDECD8; color: #8A4B10; }
+.tf-linea-fac { margin: 6px 0 10px; }
+.tf-cod { font-variant-numeric: tabular-nums; letter-spacing: .3px; }
+@media (min-width: 769px) {
+  .tf-fam-esc .tf-filita { min-height: 42px; padding: 6px 16px; }
+}
+@media (min-width: 1500px) {
+  .tf-filas { display: grid; grid-template-columns: 1fr 1fr; }
+  .tf-filita:nth-child(2) { border-top: 0; }
+  .tf-filita:nth-child(odd) { border-right: 1px solid var(--border); }
+}

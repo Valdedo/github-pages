@@ -8,7 +8,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import {
   PROXIMAMENTE, PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, precioModo, mesLargo, esReciente,
-  type Tarifa, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia,
+  type Tarifa, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
 import './tarifas.css';
 
@@ -132,7 +132,7 @@ function buscar(ts: Tarifa[], q: string): Resultado[] {
   const limpio = q.replace(/(\d)\s*[x×*]\s*(?=\d)/gi, '$1x');
   const out: Resultado[] = [];
   for (const t of ts) for (const f of t.familias) for (const g of f.grupos) for (const m of g.medidas)
-    if (coincide(limpio, m.descripcion, f.nombre, g.titulo)) out.push({ t, f, m });
+    if (coincide(limpio, m.descripcion, f.nombre, g.titulo, g.seccion, m.codigo)) out.push({ t, f, m });
   return out;
 }
 
@@ -219,7 +219,7 @@ export function TarifasPage() {
     <div className="page-wide tf">
       <Cabecera pruebas titulo="Tarifas" sub="Las tarifas de proveedor, por familias y medidas." />
       {error && <ConnectionError message={error} onRetry={cargar} />}
-      <Buscador q={q} setQ={setQ} placeholder="Buscar en todas: 50x50x4, IPN 120…" onEnter={abrirPrimero} />
+      <Buscador q={q} setQ={setQ} placeholder="Buscar en todas: 50x50x4, codo 110…" onEnter={abrirPrimero} />
       {q.trim() ? (
         todas.length ? <Resultados res={res} q={q} donde="las tarifas" /> : <div className="tf-vacio"><span className="spinner" /> Buscando…</div>
       ) : (
@@ -291,7 +291,7 @@ export function TarifaProveedorPage() {
       {error && <ConnectionError message={error} onRetry={cargar} />}
       {t?.aviso && <div className="doc-aviso subidas">{t.aviso}</div>}
       <div className="tf-fila-busca">
-        <Buscador q={q} setQ={setQ} placeholder="Buscar: 50x50x4, IPN 120, pletina…" onEnter={abrirPrimero} />
+        <Buscador q={q} setQ={setQ} placeholder={prov === 'zabaleta' ? 'Buscar: codo 110, SN8 315, referencia…' : 'Buscar: 50x50x4, IPN 120, pletina…'} onEnter={abrirPrimero} />
         {t && uf && !q.trim() && (
           <a className="tf-ultima" href={uf.enlace} target="_blank" rel="noopener noreferrer"
             title="Abrir la última factura que se apuntó en la tarifa">
@@ -398,33 +398,64 @@ export function TarifaFamiliaPage() {
   const abrir = (m: TarifaMedida) => navigate(enlaceFicha(prov, fam, m.ref));
   const modoActual = MODOS.find(m => m.v === modo)!;
 
-  const lista = f && (
-    <div className="tf-grupos">
-      {f.grupos.map((g, i) => g.titulo ? (
-        <section key={i} className="tf-grupo">
-          <h3>{conPor(g.titulo)}</h3>
-          <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
-            {g.medidas.map(m => (
-              <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
-                onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={conPor(m.descripcion)}>
-                <span>{etiquetaMedida(m)}</span>
-                <strong>{eur(precioModo(m, modo))}</strong>
-                {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : (
-        g.medidas.map(m => (
-          <button key={m.ref} type="button" className="tf-grupo tf-suelto" aria-pressed={sel?.ref === m.ref}
-            onClick={() => elegir(m)} onDoubleClick={() => abrir(m)}>
-            <span>{conPor(m.descripcion)}</span>
-            <strong>{eur(precioModo(m, modo))}<small>/{m.ud_venta}</small></strong>
+  const chips = (g: TarifaGrupo, i: number) => (
+    <section key={i} className="tf-grupo">
+      <h3>{conPor(g.titulo!)}</h3>
+      <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
+        {g.medidas.map(m => (
+          <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
+            onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={conPor(m.descripcion)}>
+            <span>{etiquetaMedida(m)}</span>
+            <strong>{eur(precioModo(m, modo))}</strong>
+            {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
           </button>
-        ))
+        ))}
+      </div>
+    </section>
+  );
+  const sueltos = (g: TarifaGrupo) => g.medidas.map(m => (
+    <button key={m.ref} type="button" className="tf-grupo tf-suelto" aria-pressed={sel?.ref === m.ref}
+      onClick={() => elegir(m)} onDoubleClick={() => abrir(m)}>
+      <span>{conPor(m.descripcion)}</span>
+      <strong>{eur(precioModo(m, modo))}<small>/{m.ud_venta}</small></strong>
+    </button>
+  ));
+  // Tarifas con subcategorías (Zabaleta): una sección por subcategoría, con lo que va por medidas
+  // en botones y el resto en una lista con su referencia.
+  const secciones = f && f.grupos.some(g => g.seccion)
+    ? f.grupos.reduce<{ t: string; gs: TarifaGrupo[] }[]>((acc, g) => {
+      const t = g.seccion || 'Otros';
+      const u = acc[acc.length - 1];
+      if (u && u.t === t) u.gs.push(g); else acc.push({ t, gs: [g] });
+      return acc;
+    }, [])
+    : null;
+  const lista = f && (secciones ? (
+    <div className="tf-grupos tf-con-subs">
+      {secciones.map(sc => (
+        <section key={sc.t} className="tf-sub">
+          <h2 className="tf-sub-tit">{sc.t} <small>{sc.gs.reduce((n, g) => n + g.medidas.length, 0)}</small></h2>
+          {sc.gs.filter(g => g.titulo).map(chips)}
+          {sc.gs.filter(g => !g.titulo).map((g, i) => (
+            <div key={i} className="tf-filas">
+              {g.medidas.map(m => (
+                <button key={m.ref} type="button" className="tf-filita" aria-pressed={sel?.ref === m.ref}
+                  onClick={() => elegir(m)} onDoubleClick={() => abrir(m)}>
+                  <span className="tf-filita-txt">{conPor(m.descripcion)}{m.codigo && <small>{m.codigo}</small>}</span>
+                  {esReciente(m.fecha) && m.evol ? <i className={`tf-punto ${m.evol > 0 ? 'sube' : 'baja'}`} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
+                  <strong>{eur(precioModo(m, modo))}<small>/{m.ud_venta}</small></strong>
+                </button>
+              ))}
+            </div>
+          ))}
+        </section>
       ))}
     </div>
-  );
+  ) : (
+    <div className="tf-grupos">
+      {f.grupos.map((g, i) => g.titulo ? chips(g, i) : sueltos(g))}
+    </div>
+  ));
 
   return (
     <div className={`page-wide tf tf-con-barra${sel && !ancho ? ' tf-hay-sel' : ''}`}>
@@ -506,7 +537,7 @@ function Evolucion({ puntos, ud }: { puntos: { fecha: string; precio: number }[]
         ))}
       </svg>
       <div className="tf-graf-pie">
-        {puntos.map((p, i) => <span key={i}><strong>{eur(p.precio)}</strong> {mesLargo(p.fecha)}</span>)}
+        {puntos.slice(-6).map((p, i) => <span key={i}><strong>{eur(p.precio)}</strong> {mesLargo(p.fecha)}</span>)}
       </div>
       <p className="tf-nota">Precio de compra por {ud}. Cada precio nuevo que entre se irá añadiendo aquí.</p>
     </>
@@ -551,7 +582,7 @@ export function TarifaFichaPage() {
   const foto = d && (
     <div className="tf-ficha-foto">
       <Foto src={fotoArticulo(d.familia.nombre, d.descripcion)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
-      <span className="tf-foto-nota">Foto de referencia</span>
+      {fotoArticulo(d.familia.nombre, d.descripcion) && <span className="tf-foto-nota">Foto de referencia</span>}
     </div>
   );
   const precios = d && (
@@ -560,11 +591,14 @@ export function TarifaFichaPage() {
         <small>Venta sin IVA</small>
         <strong>{eur(d.pvp)}<span>/{d.ud_venta}</span></strong>
         <em>{eurUd(d.pvp_iva, d.ud_venta)} con IVA</em>
+        {d.nota && <span className={`tf-etiqueta${/revisar/i.test(d.nota) ? ' aviso' : ''}`}
+          title={/revisar/i.test(d.nota) ? 'El precio ha cambiado mucho: conviene mirarlo' : 'Primera vez que se compra'}>
+          {/revisar/i.test(d.nota) ? 'Revisar precio' : d.nota.charAt(0) + d.nota.slice(1).toLowerCase()}</span>}
       </div>
       <div className="tf-caja tf-dato"><small>Coste actual</small><strong>{eurUd(d.coste, d.ud_venta)}</strong>
         <span>{eur(d.precio)} / {d.ud_compra}</span></div>
       <div className="tf-caja tf-dato"><small>Margen</small><strong>{d.margen != null ? `+${String(d.margen).replace('.', ',')} %` : '—'}</strong>
-        <span>redondeado a 0,10 €</span></div>
+        <span>{d.redondeo ?? 'redondeado a 0,10 €'}</span></div>
     </div>
   );
   const evolucion = d && (
@@ -586,6 +620,13 @@ export function TarifaFichaPage() {
             <span>Factura <strong>{d.factura.numero}</strong>{d.factura.seguro === false ? ' (la del mismo mes)' : ''}</span>
             <span>{fechaES(d.factura.fecha)}</span>
           </div>
+          {d.factura.cantidad != null && (
+            <p className="tf-nota tf-linea-fac">
+              {d.factura.cantidad.toLocaleString('es-ES', { maximumFractionDigits: 2 })} {d.ud_compra} a {eur(d.factura.bruto)}
+              {d.factura.dto1 ? ` − ${String(d.factura.dto1).replace('.', ',')} %` : ''}
+              {d.factura.dto2 ? ` − ${String(d.factura.dto2).replace('.', ',')} %` : ''} → <strong>{eur(d.precio)}/{d.ud_compra}</strong> neto
+            </p>
+          )}
           <a className="btn btn-ghost tf-ver-factura" href={d.factura.enlace} target="_blank" rel="noopener noreferrer">
             <FileText size={18} /> {d.factura.enlace.includes('/file/d/') ? 'Abrir factura (PDF)' : 'Buscar factura en Drive'}
           </a>
@@ -607,12 +648,16 @@ export function TarifaFichaPage() {
   const carac = d && (
     <section className="tf-caja">
       <h2>Características</h2>
+      {d.apunte && <p className="tf-nota tf-apunte">{d.apunte}</p>}
       <dl className="tf-carac">
+        {d.codigo && <><dt>Referencia</dt><dd className="tf-cod">{d.codigo}</dd></>}
         {d.medida && <><dt>Medida</dt><dd>{conPor(d.medida)}</dd></>}
-        <dt>Familia</dt><dd>{d.familia.nombre}</dd>
+        <dt>Familia</dt><dd>{d.familia.nombre}{d.subcategoria ? ` · ${d.subcategoria}` : ''}</dd>
         <dt>Se compra por</dt><dd>{d.ud_compra}</dd>
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}
+        {d.compras != null && <><dt>Veces comprado</dt><dd>{d.compras}</dd></>}
+        {d.minimo != null && d.precio != null && d.minimo < d.precio - 0.0005 && <><dt>Más barato (12 meses)</dt><dd>{eur(d.minimo)}/{d.ud_compra}</dd></>}
         <dt>Proveedor</dt><dd>{d.proveedor_nombre}</dd>
       </dl>
     </section>

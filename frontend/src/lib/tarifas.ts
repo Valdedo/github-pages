@@ -6,12 +6,15 @@ export interface TarifaResumen {
   articulos: number | null; familias: number | null; actualizada: string | null;
 }
 export interface TarifaMedida {
-  ref: string; descripcion: string; valor: string; ud_medida: string; unidad: string; ud_venta: string;
+  ref: string; codigo?: string | null; descripcion: string; valor: string; ud_medida: string; unidad: string; ud_venta: string;
   coste: number | null; pvp: number | null; pvp_iva: number | null; evol: number | null; fecha: string | null;
 }
-export interface TarifaGrupo { titulo: string | null; medidas: TarifaMedida[] }
+export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[] }
 export interface TarifaFamilia { id: string; nombre: string; clave: string; n: number; grupos: TarifaGrupo[] }
-export interface TarifaFactura { numero: string; fecha: string; enlace: string; seguro?: boolean }
+export interface TarifaFactura {
+  numero: string; fecha: string; enlace: string; seguro?: boolean;
+  cantidad?: number | null; bruto?: number | null; dto1?: number | null; dto2?: number | null;
+}
 export interface Tarifa {
   id: string; nombre: string; sub: string; margen: number | null; actualizada: string | null; leida: string | null;
   aviso: string | null; ultima_factura: (TarifaFactura & { cambios: number | null; nuevos: number | null }) | null;
@@ -25,16 +28,18 @@ export interface FichaTarifa {
   evol: number | null; kg_m: number | null; coste: number | null; pvp: number | null; pvp_iva: number | null;
   margen: number | null; historial: { fecha: string; precio: number }[];
   factura: TarifaFactura | null; posibles: TarifaFactura[]; medida: string | null;
+  // Solo en las tarifas que traen cada factura (Zabaleta)
+  codigo?: string | null; subcategoria?: string | null; redondeo?: string | null;
+  compras?: number | null; minimo?: number | null; nota?: string | null; apunte?: string | null;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). */
 export const PROXIMAMENTE = [
   { id: 'pladur', nombre: 'Pladur', sub: 'Construdeco · placas, perfilería y pastas', pegatina: 'prov-pladur' },
   { id: 'dinak', nombre: 'Dinak', sub: 'Construdeco · chimeneas', pegatina: 'prov-dinak' },
-  { id: 'zabaleta', nombre: 'Zabaleta', sub: 'Saneamiento, PVC y fontanería', pegatina: 'prov-zabaleta' },
   { id: 'isoltubex', nombre: 'Isoltubex', sub: 'Tubería y aislamiento', pegatina: 'prov-isoltubex' },
 ];
-export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros' };
+export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta' };
 
 export const pegatina = (nombre: string) => `/catalogo/st-${nombre}.png`;
 
@@ -59,6 +64,13 @@ const FOTOS: Record<string, string> = {
   'redondo': ADEO('2101536', 'png'),
   'malla': ADEO('4419427'),
 };
+// Familias de Zabaleta (van antes: «Canalón y cubierta» no es la chapa de cubierta de Hierros)
+const ZABALETA: [RegExp, string][] = [
+  [/^saneamiento/, 'zab-saneamiento'], [/^evacuacion/, 'zab-evacuacion'], [/^abastecimiento/, 'zab-abastecimiento'],
+  [/^fontaneria/, 'zab-fontaneria'], [/^calefaccion/, 'zab-calefaccion'], [/^chimenea/, 'zab-chimenea'],
+  [/^canalon/, 'zab-canalon'], [/^bombeo/, 'zab-bombeo'], [/^sanitario/, 'zab-sanitario'],
+  [/^quimicos/, 'zab-quimicos'], [/^ferreteria/, 'zab-ferreteria'],
+];
 const FAMILIAS: [RegExp, string][] = [
   [/ipn/, 'viga-ipn'], [/ipe/, 'viga-ipe'], [/heb/, 'viga-heb'], [/upn/, 'upn'], [/angulo/, 'angulo'],
   [/pletina|llanta/, 'pletina'], [/rectangular/, 'tubo-rectangular'], [/cuadrados negros|tubo cuadrado/, 'tubo-cuadrado'],
@@ -68,12 +80,15 @@ const FAMILIAS: [RegExp, string][] = [
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
+  const z = ZABALETA.find(([rx]) => rx.test(n));
+  if (z) return z[1];
   return FAMILIAS.find(([rx]) => rx.test(n))?.[1] ?? 'malla';
 }
 /** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…).
  *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
 export function fotoArticulo(familia: string, descripcion?: string): string {
   const d = normaliza(descripcion || '');
+  if (claveFamilia(familia).startsWith('zab-')) return ''; // cientos de piezas distintas: su pegatina
   const varios = claveFamilia(familia) === 'malla' && !/malla|valla|hercules/.test(normaliza(familia));
   if (/^panel/.test(d)) return FOTOS['panel-sandwich'];
   if (/^malla|^poste|^base poste|^abrazadera/.test(d)) return FOTOS['malla'];
@@ -95,9 +110,12 @@ export type ModoPrecio = 'venta' | 'iva' | 'coste';
 export const precioModo = (m: TarifaMedida, modo: ModoPrecio) =>
   modo === 'venta' ? m.pvp : modo === 'iva' ? m.pvp_iva : m.coste;
 
-/** «sep-26» → «sep. 2026» */
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+/** «sep-26» → «sep 2026»; «2026-09-30» → «30 sep 2026» */
 export function mesLargo(m?: string | null): string {
   if (!m) return '';
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(m);
+  if (iso) return `${Number(iso[3])} ${MESES[Number(iso[2]) - 1]} ${iso[1]}`;
   const [mm, aa] = m.split('-');
   return `${mm} ${aa ? 2000 + Number(aa) : ''}`.trim();
 }
@@ -105,9 +123,9 @@ export function mesLargo(m?: string | null): string {
 /** Mes de la tarifa reciente (últimos 45 días aprox.): para marcar precios que acaban de cambiar. */
 export function esReciente(m?: string | null, hoy = new Date()): boolean {
   if (!m) return false;
-  const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  const i = MES.indexOf(m.slice(0, 3));
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(m);
+  const i = iso ? Number(iso[2]) - 1 : MESES.indexOf(m.slice(0, 3));
   if (i < 0) return false;
-  const f = new Date(2000 + Number(m.slice(4)), i, 15);
+  const f = iso ? new Date(Number(iso[1]), i, Number(iso[3])) : new Date(2000 + Number(m.slice(4)), i, 15);
   return (hoy.getTime() - f.getTime()) / 86400000 < 45;
 }

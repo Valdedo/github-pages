@@ -34,6 +34,16 @@ TARIFAS = {
         # ALBARANES/HIERROS Y ACEROS DE SANTANDER: ahí guarda la gestoría los PDF de las facturas
         "carpeta_facturas": "11LF1VQRje_xHtrI8t_65iBwfVRchfanK",
     },
+    "zabaleta": {
+        "nombre": "Zabaleta",
+        "sub": "Navarro Zabaleta · saneamiento, PVC y fontanería",
+        "proveedor": "Navarro Zabaleta Asturias",
+        "hoja": "1XK0ZOHSNxr6UwUyKGmRmYOzGkVoUACOvm-CLmMdZaWg",
+        "pestanas": ["Tarifa", "Detalle facturas"],
+        # NAVARRO ZABALETA (Drive de casafonsomc): PDF de las facturas, «Zabaleta_AAAA-MM-DD_nº.pdf»
+        "carpeta_facturas": "1UZhkitUUjj0eAPbhywoQn2qMSvUYXUFu",
+        "redondeo": "redondeado a 0,05 € (0,10 € desde 5 €)",
+    },
 }
 
 REFRESCO = timedelta(hours=3)          # se vuelve a leer si la copia tiene más de esto
@@ -87,9 +97,21 @@ def mes(v) -> Optional[str]:
 
 
 def clave_mes(m: Optional[str]) -> tuple:
+    """Orden de una fecha de la tarifa: «sep-26» o «2026-09-30»."""
     if not m:
-        return (0, 0)
-    return (2000 + int(m[4:]), MESES.index(m[:3]) + 1)
+        return (0, 0, 0)
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", m):
+        return (int(m[:4]), int(m[5:7]), int(m[8:]))
+    return (2000 + int(m[4:]), MESES.index(m[:3]) + 1, 0)
+
+
+def dia(v) -> Optional[str]:
+    """«2026-09-30» tal cual; «30/09/2026» → «2026-09-30»; otra cosa → None."""
+    s = str(v or "").strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return s
+    m = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{4})", s)
+    return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else None
 
 
 UD_VENTA = {"TN": "m", "HM": "m", "MT": "m", "M2": "m²", "UN": "ud", "KG": "kg"}
@@ -101,6 +123,8 @@ SIGLAS = {"ipn", "ipe", "heb", "upn", "iso", "din", "ral", "pl-33", "st-52", "df
 
 def bonito(s: str) -> str:
     """«TUBOS CUADRADOS NEGROS» → «Tubos cuadrados negros» (respetando IPN, UPN, ISO…)."""
+    if str(s or "") != str(s or "").upper():  # ya viene escrito a mano («Evacuación PVC»): tal cual
+        return str(s).strip()
     palabras = str(s or "").strip().lower().split()
     out = []
     for i, p in enumerate(palabras):
@@ -170,6 +194,7 @@ def leer_hierros(hojas: dict) -> dict:
             continue  # cabeceras de sección y filas vacías
         ud = str(f[2]).strip().upper()
         arts.append({
+            "ref": desc,
             "categoria": cat,
             "descripcion": desc,
             "unidad": ud,
@@ -193,7 +218,61 @@ def leer_hierros(hojas: dict) -> dict:
     return {"articulos": arts, "log": log, "margen": margen}
 
 
-LECTORES = {"hierros": leer_hierros}
+# ── Lector de la tarifa de Navarro Zabaleta ───────────────────────────────
+def leer_zabaleta(hojas: dict) -> dict:
+    """Pestaña «Tarifa»: una fila por referencia (con categoría y subcategoría).
+    «Detalle facturas»: cada línea de cada factura → evolución del coste y la factura exacta."""
+    filas = hojas.get("Tarifa") or []
+    ini = next((i for i, f in enumerate(filas) if f and normaliza(f[0]) == "categoria"), 3)
+    arts = []
+    for f in filas[ini + 1:]:
+        f = list(f) + [""] * (16 - len(f))
+        cat, sub, cod, desc = (str(x).strip() for x in f[:4])
+        if not cat or not cod or not desc:
+            continue  # títulos de categoría y subcategoría
+        ud = str(f[4]).strip().lower() or "ud"
+        precio = numero(f[8])
+        # «TUBERIA … 75 3 Mts — Oct-25 facturado a 7,00 €…»: lo de detrás de la raya es una nota
+        desc, _, apunte = desc.partition(" — ")
+        arts.append({
+            "ref": cod, "codigo": cod, "categoria": cat, "subcategoria": sub, "descripcion": desc,
+            "unidad": ud, "compras": numero(f[5]),
+            "precio_ant": numero(f[6]), "fecha_ant": dia(f[7]),
+            "precio": precio, "fecha": dia(f[9]), "evol": porcentaje(f[10]),
+            "minimo": numero(f[11]), "nota": str(f[12]).replace("▲", "").strip() or None,
+            "apunte": apunte.strip() or None,
+            "margen": porcentaje(f[13]), "kg_m": None,
+            "coste": precio, "pvp": numero(f[14]), "pvp_iva": numero(f[15]),
+            "ud_venta": ud, "ud_compra": ud,
+        })
+    # Líneas de factura válidas (los cargos anulados por un abono y los abonos no cuentan)
+    lineas: dict[str, list] = {}
+    facturas: dict[str, str] = {}
+    for f in (hojas.get("Detalle facturas") or [])[1:]:
+        f = list(f) + [""] * (15 - len(f))
+        fecha, num, cod = dia(f[0]), str(f[1]).strip(), str(f[6]).strip()
+        if not fecha or not num:
+            continue
+        facturas[num] = fecha
+        if normaliza(f[14]) not in ("valida", "") or not cod:
+            continue
+        coste = numero(f[13])
+        if coste is None or coste <= 0:
+            continue
+        lineas.setdefault(cod, []).append({
+            "fecha": fecha, "factura": num, "precio": coste, "cantidad": numero(f[8]),
+            "bruto": numero(f[9]), "dto1": porcentaje(f[10]), "dto2": porcentaje(f[11]),
+        })
+    # «Log» de facturas: cuántos precios cambiaron en cada una
+    log = []
+    for num, fecha in facturas.items():
+        cambios = sum(1 for a in arts if a["fecha"] == fecha and a["evol"])
+        nuevos = sum(1 for a in arts if a["fecha"] == fecha and a["nota"] and normaliza(a["nota"]) == "nuevo")
+        log.append({"numero": num, "fecha": fecha, "cambios": cambios, "nuevos": nuevos, "notas": ""})
+    return {"articulos": arts, "log": log, "margen": None, "lineas": lineas}
+
+
+LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -245,7 +324,8 @@ def actualizar(db: Session, prov: str) -> TarifaCopia:
     copia.modificado = r.get("modificado")
     copia.leido_at, copia.error, copia.error_at = datetime.utcnow(), None, None
     db.merge(copia)
-    _guardar_precios(db, prov, datos["articulos"])
+    if "lineas" not in datos:  # si la hoja ya trae cada compra, no hace falta ir apuntando
+        _guardar_precios(db, prov, datos["articulos"])
     db.commit()
     return db.get(TarifaCopia, prov)
 
@@ -307,7 +387,7 @@ def _partes(desc: str) -> Optional[tuple]:
 
 
 def _item(a: dict, valor: str = "", ud: str = "") -> dict:
-    return {"ref": a["descripcion"], "descripcion": a["descripcion"], "valor": bonita_medida(valor) if valor else "",
+    return {"ref": a["ref"], "codigo": a.get("codigo"), "descripcion": a["descripcion"], "valor": bonita_medida(valor) if valor else "",
             "ud_medida": ud, "unidad": a["unidad"], "ud_venta": a["ud_venta"], "coste": a["coste"], "pvp": a["pvp"],
             "pvp_iva": a["pvp_iva"], "evol": a["evol"], "fecha": a["fecha"]}
 
@@ -359,6 +439,53 @@ def _grupos(arts: list) -> list:
     return out
 
 
+def _medida_final(desc: str) -> Optional[tuple]:
+    """«CODO M-H 45º 125» → («CODO M-H 45º», «125», «»); «TUBO PE 32 MM» → («TUBO PE», «32», «mm»).
+    Solo si la medida va al final; si no, None."""
+    d = re.sub(r"\s+", " ", desc.strip())
+    ud = ""
+    m_ud = re.search(r"(?i)\s(mm|m|mt)$", d)
+    if m_ud:
+        ud, d = "mm" if m_ud.group(1).lower() == "mm" else "m", d[:m_ud.start()]
+    ms = [m for m in _DIM.finditer(d) if re.search(r"\d", m.group())]
+    if not ms or ms[-1].end() != len(d):
+        return None
+    m = ms[-1]
+    base = re.sub(r"(?i)\s+(de|del|d\.?)$", "", d[:m.start()].rstrip(" (-"))
+    if len(base) < 3:
+        return None
+    return base, m.group(), ud
+
+
+def _grupos_sub(arts: list) -> list:
+    """Familias con subcategorías (Zabaleta): cada subcategoría es una sección; dentro, lo que va
+    por medidas (p. ej. «TUBO SN8 PE» 160, 200… 630) en botones y el resto en lista."""
+    subs: dict[str, list] = {}
+    for a in arts:
+        subs.setdefault(a.get("subcategoria") or "", []).append(a)
+    out = []
+    for sub, items in subs.items():
+        por_base: dict[str, list] = {}
+        for a in items:
+            p = _medida_final(a["descripcion"])
+            if p:
+                por_base.setdefault(p[0], []).append((a, p[1], p[2]))
+            else:
+                por_base.setdefault("\0" + a["ref"], []).append((a, "", ""))
+        chips, sueltos = [], []
+        for base, xs in por_base.items():
+            if len(xs) >= 3 and not base.startswith("\0"):
+                xs.sort(key=lambda t: _clave_orden(t[1]))
+                chips.append({"titulo": base, "seccion": sub, "medidas": [_item(a, v, u) for a, v, u in xs]})
+            else:
+                sueltos += [a for a, _, _ in xs]
+        sueltos.sort(key=lambda a: normaliza(a["descripcion"]))
+        out += chips
+        if sueltos:
+            out.append({"titulo": None, "seccion": sub, "medidas": [_item(a) for a in sueltos]})
+    return out
+
+
 def resumen(db: Session) -> list:
     out = []
     for prov, cfg in TARIFAS.items():
@@ -393,7 +520,8 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
         "actualizada": _actualizada(c), "leida": c.leido_at.isoformat() + "Z" if c.leido_at else None,
         "aviso": aviso, "ultima_factura": ultima,
         "familias": [{"id": slug(cat), "nombre": bonito(cat), "clave": cat, "n": len(arts),
-                      "grupos": _grupos(arts)} for cat, arts in familias.items()],
+                      "grupos": _grupos_sub(arts) if "lineas" in datos else _grupos(arts)}
+                     for cat, arts in familias.items()],
     }
 
 
@@ -423,7 +551,7 @@ def _factura(a: dict, log: list, archivos: Optional[list] = None) -> tuple[Optio
     Devuelve (la elegida, otras posibles del mismo mes)."""
     if not a["fecha"]:
         return None, []
-    año, m = clave_mes(a["fecha"])
+    año, m, _ = clave_mes(a["fecha"])
     candidatas = [r for r in log if r["fecha"][:7] == f"{año:04d}-{m:02d}"]
     if not candidatas:
         return None, []
@@ -458,11 +586,14 @@ def _factura(a: dict, log: list, archivos: Optional[list] = None) -> tuple[Optio
 def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
     c, aviso = copia(db, prov)
     datos = LECTORES[prov](json.loads(c.hojas))
-    a = next((x for x in datos["articulos"] if x["descripcion"] == ref), None)
+    a = next((x for x in datos["articulos"] if x["ref"] == ref), None)
     if not a:
-        a = next((x for x in datos["articulos"] if normaliza(x["descripcion"]) == normaliza(ref)), None)
+        a = next((x for x in datos["articulos"] if normaliza(x["ref"]) == normaliza(ref)
+                  or normaliza(x["descripcion"]) == normaliza(ref)), None)
     if not a:
         return None
+    if "lineas" in datos:
+        return _ficha_lineas(c, prov, a, datos, aviso)
     hist = (db.query(TarifaPrecio)
             .filter(TarifaPrecio.proveedor == prov, TarifaPrecio.articulo == a["descripcion"]).all())
     puntos = {}
@@ -484,4 +615,39 @@ def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
         "evol": a["evol"], "kg_m": a["kg_m"], "coste": a["coste"], "pvp": a["pvp"], "pvp_iva": a["pvp_iva"],
         "margen": datos["margen"], "historial": historial, "factura": factura, "posibles": posibles,
         "medida": f"{bonita_medida(valor)} {ud}".strip() if valor else None,
+    }
+
+
+def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Optional[str]) -> dict:
+    """Ficha de una tarifa que trae cada línea de factura (Zabaleta): la evolución y la factura son exactas."""
+    lineas = sorted(datos["lineas"].get(a["ref"], []), key=lambda l: (l["fecha"], l["factura"]))
+    # Evolución: el primer precio y cada vez que cambia (comprar diez veces al mismo precio no es evolución)
+    historial = []
+    for l in lineas:
+        if not historial or abs(historial[-1]["precio"] - l["precio"]) > 0.0005:
+            historial.append({"fecha": l["fecha"], "precio": l["precio"]})
+        else:
+            historial[-1]["fecha_hasta"] = l["fecha"]
+    if not historial and a["precio"] is not None and a["fecha"]:
+        historial = [{"fecha": a["fecha"], "precio": a["precio"]}]
+    archivos = _archivos(c)
+    ult = next((l for l in reversed(lineas) if l["fecha"] == a["fecha"]), lineas[-1] if lineas else None)
+    factura = None
+    if ult:
+        factura = {"numero": ult["factura"], "fecha": ult["fecha"], "seguro": True,
+                   "enlace": enlace_factura(ult["factura"], archivos),
+                   "cantidad": ult["cantidad"], "bruto": ult["bruto"], "dto1": ult["dto1"], "dto2": ult["dto2"]}
+    p = _medida_final(a["descripcion"])
+    return {
+        "proveedor": prov, "proveedor_nombre": TARIFAS[prov]["proveedor"], "aviso": aviso,
+        "familia": {"id": slug(a["categoria"]), "nombre": bonito(a["categoria"]), "clave": a["categoria"]},
+        "subcategoria": a.get("subcategoria"), "codigo": a.get("codigo"),
+        "descripcion": a["descripcion"], "unidad": a["unidad"], "ud_venta": a["ud_venta"], "ud_compra": a["ud_compra"],
+        "precio": a["precio"], "fecha": a["fecha"], "precio_ant": a["precio_ant"], "fecha_ant": a["fecha_ant"],
+        "evol": a["evol"], "kg_m": None, "coste": a["coste"], "pvp": a["pvp"], "pvp_iva": a["pvp_iva"],
+        "margen": a.get("margen"), "redondeo": TARIFAS[prov].get("redondeo"),
+        "historial": historial, "factura": factura, "posibles": [],
+        "compras": len(lineas) or a.get("compras"), "minimo": a.get("minimo"), "nota": a.get("nota"),
+        "apunte": a.get("apunte"),
+        "medida": f"{bonita_medida(p[1])} {p[2]}".strip() if p else None,
     }
