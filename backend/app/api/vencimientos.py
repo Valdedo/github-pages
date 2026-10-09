@@ -125,6 +125,28 @@ def _fila(v: Vencimiento) -> dict:
             "fecha_factura": v.fecha_factura.isoformat() if v.fecha_factura else None}
 
 
+def _sumas(db: Session) -> dict:
+    """Suma de los plazos de cada factura (para ver si cuadran con el total)."""
+    return {fid: tot for fid, tot in db.query(Vencimiento.file_id, func.sum(Vencimiento.importe)).group_by(Vencimiento.file_id).all()}
+
+
+def revisar(v: Vencimiento, sumas: dict) -> List[str]:
+    """Lecturas raras que conviene mirar en el PDF."""
+    r = []
+    if v.fecha and v.fecha_factura:
+        d = (v.fecha - v.fecha_factura).days
+        if d < -1:
+            r.append("vence antes de la fecha de la factura")
+        elif d > 180:
+            r.append("vence a más de 6 meses")
+    if v.fecha and v.importe is None:
+        r.append("no se ha leído el importe")
+    if v.plazos > 1 and v.importe_factura and sumas.get(v.file_id) is not None \
+            and abs((sumas[v.file_id] or 0) - v.importe_factura) > 1:
+        r.append("los plazos no suman el total de la factura")
+    return r
+
+
 def _unicas(filas: list) -> list:
     """La misma factura guardada dos veces (con otro nombre de archivo) cuenta una sola vez."""
     vistos, out = set(), []
@@ -220,9 +242,12 @@ def resumen(db: Session, h: Optional[date] = None) -> dict:
                       .order_by(Vencimiento.fecha, Vencimiento.proveedor).all())
     filas = [f for f in futuras if f.fecha <= hasta]
 
+    sumas = _sumas(db)
+
     def fila(v: Vencimiento) -> dict:
         d = _fila(v)
         d["grande"] = bool(v.importe and v.importe >= aj.umbral)
+        d["revisar"] = revisar(v, sumas)
         return d
 
     grupos = []
@@ -246,6 +271,8 @@ def resumen(db: Session, h: Optional[date] = None) -> dict:
         "configurado": bool(settings.vencimientos_clave),
         "conectado": ultima is not None,
         "ultima": ultima.isoformat() + "Z" if ultima else None,
+        # Días sin noticias del script (el script manda al menos una vez al día)
+        "atrasado": max(0, (datetime.utcnow() - ultima).days) if ultima and datetime.utcnow() - ultima > timedelta(hours=50) else 0,
         "facturas": db.query(func.count(func.distinct(Vencimiento.file_id))).scalar() or 0,
         "dias": grupos,
         "proximos": [fila(f) for f in despues],
@@ -265,9 +292,12 @@ def detalle(db: Session, h: Optional[date] = None) -> dict:
     aj = ajustes(db)
     base = resumen(db, h)
 
+    sumas = _sumas(db)
+
     def fila(v: Vencimiento) -> dict:
         d = _fila(v)
         d["grande"] = bool(v.importe and v.importe >= aj.umbral)
+        d["revisar"] = revisar(v, sumas)
         return d
 
     desde = h - timedelta(days=14)
@@ -316,6 +346,15 @@ def detalle(db: Session, h: Optional[date] = None) -> dict:
         if len(rec) >= 15:
             break
 
+    # Lecturas raras de los últimos 4 meses (y lo que queda por vencer)
+    raras, vistas = [], set()
+    for v in (db.query(Vencimiento).filter((Vencimiento.fecha >= h - timedelta(days=120)) | (Vencimiento.fecha_factura >= h - timedelta(days=120)))
+              .order_by(Vencimiento.fecha_factura.desc().nullslast()).all()):
+        motivos = revisar(v, sumas)
+        if motivos and v.file_id not in vistas:
+            vistas.add(v.file_id)
+            raras.append(dict(fila(v), revisar=motivos))
+
     semana = [f for f in futuras if f.fecha <= h + timedelta(days=6 - h.weekday())]
     mes30 = [f for f in futuras if f.fecha <= h + timedelta(days=30)]
     return {
@@ -325,6 +364,7 @@ def detalle(db: Session, h: Optional[date] = None) -> dict:
         "meses": meses,
         "proveedores": provs,
         "recientes": rec,
+        "para_revisar": raras[:30],
         "totales": {
             "semana": round(sum(f.importe or 0 for f in semana), 2), "semana_n": len(semana),
             "mes": round(sum(f.importe or 0 for f in mes30), 2), "mes_n": len(mes30),

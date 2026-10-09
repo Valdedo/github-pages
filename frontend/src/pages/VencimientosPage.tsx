@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarClock, ChevronDown, Search, X } from 'lucide-react';
-import { getVencDetalle, describeApiError, type VencDetalle } from '../api/client';
+import { getVencDetalle, describeApiError, type VencDetalle, type VencSemana } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { Vacio } from '../components/Pegatinas';
-import { AjustesForm, euros, Factura, fechaCorta, Grandes, hace, Semanas } from '../components/VencComun';
+import { AjustesForm, AvisoAtrasado, euros, Factura, fechaCorta, Grandes, hace, Semanas } from '../components/VencComun';
 import { coincide } from '../lib/texto';
 import '../components/VencimientosCard.css';
 import './vencimientos.css';
@@ -40,12 +40,14 @@ export function VencimientosPage() {
   const [vista, setVista] = useState<'proximos' | 'pasados'>('proximos');
   const [buscar, setBuscar] = useState('');
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [semana, setSemana] = useState<VencSemana | null>(null);
+  const [nRaras, setNRaras] = useState(5);
   const PASO = 5;
   const [nDias, setNDias] = useState(PASO);
   const [nProv, setNProv] = useState(PASO);
   const [nRec, setNRec] = useState(PASO);
   // Al cambiar de pestaña o de búsqueda se vuelve a empezar por los primeros
-  useEffect(() => { setNDias(PASO); }, [vista, buscar]);
+  useEffect(() => { setNDias(PASO); }, [vista, buscar, semana]);
 
   const cargar = useCallback(() => {
     setError(null);
@@ -58,11 +60,12 @@ export function VencimientosPage() {
     const q = buscar.trim();
     return d.agenda
       .filter(g => (vista === 'pasados' ? g.pasado : !g.pasado))
+      .filter(g => !semana || vista === 'pasados' || (g.fecha >= semana.desde && g.fecha <= semana.hasta))
       .map(g => (q ? { ...g, facturas: g.facturas.filter(f => coincide(q, f.proveedor, f.numero)) } : g))
       .filter(g => g.facturas.length > 0)
       .map(g => (q ? { ...g, total: g.facturas.reduce((t, f) => t + (f.importe || 0), 0) } : g))
       .sort((a, b) => (vista === 'pasados' ? (a.fecha < b.fecha ? 1 : -1) : 0));
-  }, [d, vista, buscar]);
+  }, [d, vista, buscar, semana]);
 
   if (error && !d) return <div className="page"><ConnectionError message={error} onRetry={cargar} /></div>;
   if (!d) return <div className="page" style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Cargando…</div>;
@@ -90,17 +93,39 @@ export function VencimientosPage() {
           detalle={`de más de ${euros(d.ajustes.umbral).replace(',00', '')} en ${d.ajustes.dias_antes} días`} />
       </section>
 
+      <AvisoAtrasado dias={d.atrasado} />
       <Grandes lista={d.grandes} />
+
+      {d.para_revisar.length > 0 && (
+        <section className="card venc-bloque venc-revisar-bloque" aria-label="Para revisar">
+          <div className="venc-bloque-cab">
+            <h2>Para revisar</h2>
+            <span className="venc-sub">{plural(d.para_revisar.length, 'factura', 'facturas')} con una lectura rara</span>
+          </div>
+          <p className="venc-nota">Puede que se haya leído mal la fecha o el importe. Abre el PDF y compruébalo.</p>
+          <ul className="venc-lista venc-extra">{d.para_revisar.slice(0, nRaras).map(f => <Factura key={f.id} f={f} conFecha />)}</ul>
+          <VerMas total={d.para_revisar.length} visibles={nRaras} onMas={() => setNRaras(n => n + 5)} onMenos={() => setNRaras(5)} que="facturas" />
+        </section>
+      )}
 
       <section className="card venc-bloque venc-semanas-bloque" aria-label="Cada semana">
         <h2>Lo que se carga cada semana</h2>
-        <Semanas semanas={d.semanas} />
+        <Semanas semanas={d.semanas} elegida={semana?.desde} onElegir={s => {
+          setSemana(v => (v?.desde === s.desde ? null : s)); setVista('proximos');
+          setTimeout(() => document.querySelector('.venc-agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }} />
+        <p className="venc-nota">Toca una semana para ver solo sus facturas en «Día a día».</p>
       </section>
 
       <div className="venc-cols">
         <section className="card venc-bloque venc-agenda" aria-label="Agenda de vencimientos">
           <div className="venc-bloque-cab">
             <h2>Día a día</h2>
+            {semana && vista === 'proximos' && (
+              <button className="venc-filtro-chip" onClick={() => setSemana(null)} aria-label="Quitar el filtro de semana">
+                Semana {semana.rango} <X size={14} />
+              </button>
+            )}
             <div className="venc-seg" role="tablist">
               {([['proximos', 'Próximos'], ['pasados', 'Ya cargados']] as const).map(([k, t]) => (
                 <button key={k} role="tab" aria-selected={vista === k} className={vista === k ? 'on' : ''} onClick={() => setVista(k)}>{t}</button>

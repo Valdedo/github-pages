@@ -122,3 +122,14 @@
   .venc-cab-link .venc-ver { grid-area: btn; }
   .venc-mas-link { align-self: stretch; }
 }
+
+/* Lecturas raras y datos sin actualizar */
+.venc-revisar-chip { display: inline-block; margin-left: 8px; vertical-align: 1px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #FDF0D5; color: #7A4B00; letter-spacing: .02em; }
+.venc-fac-txt small.venc-revisar-txt { color: #8A5A00; }
+.venc-atrasado { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 14px; background: #FDECEA; color: #7A1F1A; }
+.venc-atrasado .venc-fac-txt small { color: #8A3A33; -webkit-line-clamp: 3; }
+/* Semanas que se pueden tocar */
+.venc-sem.elegible { background: none; border: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 12px; padding: 4px 2px; }
+.venc-sem.elegible:hover:not(:disabled) { background: var(--surface-2); }
+.venc-sem.elegible:disabled { cursor: default; }
+.venc-sem.elegida { background: var(--brand-pale); box-shadow: inset 0 0 0 2px var(--cf-verde); }

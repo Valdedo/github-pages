@@ -35,7 +35,11 @@ export function Factura({ f, conFecha }: { f: VencFila; conFecha?: boolean }) {
   ].filter(Boolean).join(' · ');
   const dentro = (
     <>
-      <span className="venc-fac-txt"><b>{f.proveedor || 'Proveedor sin leer'}</b>{detalle && <small>{detalle}</small>}</span>
+      <span className="venc-fac-txt">
+        <b>{f.proveedor || 'Proveedor sin leer'}{f.revisar && f.revisar.length > 0 && <span className="venc-revisar-chip" title={f.revisar.join(' · ')}>Revisar</span>}</b>
+        {detalle && <small>{detalle}</small>}
+        {f.revisar && f.revisar.length > 0 && <small className="venc-revisar-txt">{f.revisar.join(' · ')}: mira el PDF</small>}
+      </span>
       <span className={`venc-fac-imp${f.grande ? ' grande' : ''}`}>{f.importe != null ? euros(f.importe) : '—'}</span>
     </>
   );
@@ -43,6 +47,20 @@ export function Factura({ f, conFecha }: { f: VencFila; conFecha?: boolean }) {
     <li>
       {f.url ? <a href={f.url} target="_blank" rel="noreferrer" title="Abrir la factura">{dentro}</a> : <div>{dentro}</div>}
     </li>
+  );
+}
+
+/** El script de facturas lleva días sin mandar nada: los datos pueden estar viejos. */
+export function AvisoAtrasado({ dias }: { dias: number }) {
+  if (!dias) return null;
+  return (
+    <div className="venc-atrasado" role="alert">
+      <span className="venc-grandes-ico" aria-hidden>!</span>
+      <span className="venc-fac-txt">
+        <b>El script de facturas no manda datos desde hace {dias} días</b>
+        <small>Lo de aquí puede estar viejo. Abre el script en script.google.com y mira «Ejecuciones» por si da error.</small>
+      </span>
+    </div>
   );
 }
 
@@ -67,17 +85,20 @@ export function Grandes({ lista }: { lista: VencFila[] }) {
 }
 
 /** Lo que se carga cada semana, en barras. */
-export function Semanas({ semanas }: { semanas: VencSemana[] }) {
+export function Semanas({ semanas, elegida, onElegir }: { semanas: VencSemana[]; elegida?: string | null; onElegir?: (s: VencSemana) => void }) {
   const max = Math.max(...semanas.map(s => s.total), 1);
+  const Tag = onElegir ? 'button' : 'div';
   return (
     <div className="venc-semanas" style={{ gridTemplateColumns: `repeat(${semanas.length}, minmax(0, 1fr))` }} aria-label="Lo que se carga cada semana">
       {semanas.map((s, i) => (
-        <div key={s.desde} className={`venc-sem${i === 0 ? ' actual' : ''}`} title={`${s.rango}: ${s.facturas} factura${s.facturas !== 1 ? 's' : ''}`}>
+        <Tag key={s.desde} className={`venc-sem${i === 0 ? ' actual' : ''}${onElegir ? ' elegible' : ''}${elegida === s.desde ? ' elegida' : ''}`}
+          title={`${s.rango}: ${s.facturas} factura${s.facturas !== 1 ? 's' : ''}${onElegir && s.facturas ? ' · toca para verlas' : ''}`}
+          {...(onElegir ? { type: 'button' as const, onClick: () => onElegir(s), disabled: !s.facturas, 'aria-pressed': elegida === s.desde } : {})}>
           <span className="venc-sem-imp">{s.total ? euroCorto(s.total) : '—'}</span>
           <span className="venc-sem-barra"><span style={{ height: `${Math.max(s.total ? 6 : 0, (s.total / max) * 100)}%` }} /></span>
           <span className="venc-sem-et">{s.etiqueta}</span>
           <span className="venc-sem-rango">{s.rango}</span>
-        </div>
+        </Tag>
       ))}
     </div>
   );

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { getVencimientos, type VencResumen } from '../api/client';
 import { esEncargado } from '../auth';
-import { euros, Factura, Grandes } from './VencComun';
+import { AvisoAtrasado, euros, Factura, Grandes } from './VencComun';
 import './VencimientosCard.css';
 
 const RELATIVOS = ['Hoy', 'Mañana', 'Pasado mañana'];
@@ -61,6 +61,7 @@ export function VencimientosCard() {
         <span className="venc-ver">Ver todo <ChevronRight size={16} /></span>
       </Link>
 
+      <AvisoAtrasado dias={d.atrasado} />
       <Grandes lista={d.grandes} />
 
       <div className={`venc-dias${viernes ? ' cuatro' : ''}`}>
