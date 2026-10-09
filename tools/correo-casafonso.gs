@@ -57,6 +57,10 @@ function doPost(e) {
       out.modificado = DriveApp.getFileById(d.fileId).getLastUpdated().toISOString();
       return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
     }
+    if (d.action === 'archivos') {          // PDF de una carpeta y sus subcarpetas (facturas de un proveedor)
+      out.ok = true; out.archivos = archivos_(DriveApp.getFolderById(d.folderId), 0);
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (!d.pdf) throw new Error('Falta el PDF');
     var pdf = Utilities.newBlob(Utilities.base64Decode(d.pdf), d.mime || 'application/pdf', d.filename || 'albaran.pdf');
 
@@ -106,6 +110,17 @@ function bandeja_() {
     return m.getFrom().toLowerCase().indexOf(yo) < 0 && m.getDate().getTime() < dosHoras;
   }).map(dato).filter(function (x) { return !esAuto(x) && !leidos[x.id]; }).slice(0, 15);
   return { sin_leer: sinLeer, sin_contestar: sinContestar };
+}
+
+/** Nombre e id de los archivos de una carpeta, entrando en sus subcarpetas (hasta 3 niveles). */
+function archivos_(carpeta, nivel) {
+  var lista = [], it = carpeta.getFiles();
+  while (it.hasNext()) { var f = it.next(); lista.push({ id: f.getId(), name: f.getName() }); }
+  if (nivel < 3) {
+    var sub = carpeta.getFolders();
+    while (sub.hasNext()) lista = lista.concat(archivos_(sub.next(), nivel + 1));
+  }
+  return lista;
 }
 
 /** Crea (si hace falta) y devuelve la carpeta 'A/B/C' dentro de Mi unidad. */

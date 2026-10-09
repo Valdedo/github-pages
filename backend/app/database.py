@@ -112,6 +112,8 @@ def _run_migrations():
         # Albaranes de proveedor en varias fotos: todas las rutas (v3.3.0)
         ("documents", "file_paths",       "TEXT"),
         ("supplier_orders", "marcado_pedido", "BOOLEAN"),
+        # Catálogo de tarifas: PDF de facturas del proveedor para abrirlas directamente
+        ("tarifa_copias", "archivos",     "TEXT"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

@@ -15,6 +15,7 @@ class TarifaCopia(Base):
 
     proveedor: Mapped[str] = mapped_column(String(40), primary_key=True)
     hojas: Mapped[str] = mapped_column(Text, default="{}")                 # JSON {pestaña: [[celdas]]}
+    archivos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON [{id, name}] de la carpeta de facturas
     nombre: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     modificado: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)  # última edición en Drive (ISO)
     leido_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # UTC

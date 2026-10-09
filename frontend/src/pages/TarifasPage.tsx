@@ -371,7 +371,7 @@ export function TarifaFichaPage() {
                     <span>{fechaES(d.factura.fecha)}</span>
                   </div>
                   <a className="btn btn-ghost tf-ver-factura" href={d.factura.enlace} target="_blank" rel="noopener noreferrer">
-                    <FileText size={18} /> Ver factura en Drive
+                    <FileText size={18} /> {d.factura.enlace.includes('/file/d/') ? 'Abrir factura (PDF)' : 'Buscar factura en Drive'}
                   </a>
                 </>
               ) : d.posibles.length ? (

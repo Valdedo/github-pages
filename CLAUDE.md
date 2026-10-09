@@ -57,7 +57,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   y apunta cada precio visto en `tarifa_precios` (evolución). Lector por proveedor en `services/tarifas_service.py`
   (`LECTORES`; hoy solo Hierros Santander). Pegatinas en `frontend/public/catalogo/` (generadas con
   `tools/pegatinas-catalogo.py`); las fotos de referencia se enlazan desde Obramat/Leroy Merlin (`lib/tarifas.ts`),
-  no se copian al repo. La factura se abre con una búsqueda en el Drive de Andrés (los PDF son suyos).
+  no se copian al repo. La factura abre su PDF (acción `archivos` del Apps Script sobre la carpeta ALBARANES/<proveedor>); si no lo encuentra, busca el nº en Drive.
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 

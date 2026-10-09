@@ -31,6 +31,8 @@ TARIFAS = {
         "proveedor": "Hierros y Aceros de Santander",
         "hoja": "1k8ieuvpdKcrSqJd_mRJtX7RJGTcaD8PzukdWNXy2AVo",
         "pestanas": ["TARIFA", "LOG"],
+        # ALBARANES/HIERROS Y ACEROS DE SANTANDER: ahí guarda la gestoría los PDF de las facturas
+        "carpeta_facturas": "11LF1VQRje_xHtrI8t_65iBwfVRchfanK",
     },
 }
 
@@ -231,6 +233,11 @@ def actualizar(db: Session, prov: str) -> TarifaCopia:
     if not datos["articulos"]:
         raise RuntimeError("La tarifa de Drive ha llegado vacía o con otro formato.")
     copia.hojas = json.dumps(hojas, ensure_ascii=False)
+    if cfg.get("carpeta_facturas"):
+        try:
+            copia.archivos = json.dumps(mail_service.drive_archivos(cfg["carpeta_facturas"]), ensure_ascii=False)
+        except Exception as e:  # si falla, las facturas se abren con la búsqueda de Drive
+            logger.warning("No se pudieron listar las facturas de %s: %s", prov, e)
     copia.nombre = r.get("nombre")
     copia.modificado = r.get("modificado")
     copia.leido_at, copia.error, copia.error_at = datetime.utcnow(), None, None
@@ -377,7 +384,7 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
     if datos["log"]:
         u = max(datos["log"], key=lambda r: r["fecha"])
         ultima = {"numero": u["numero"], "fecha": u["fecha"], "cambios": u["cambios"],
-                  "nuevos": u["nuevos"], "enlace": enlace_factura(u["numero"])}
+                  "nuevos": u["nuevos"], "enlace": enlace_factura(u["numero"], _archivos(c))}
     return {
         "id": prov, "nombre": cfg["nombre"], "sub": cfg["sub"], "margen": datos["margen"],
         "actualizada": _actualizada(c), "leida": c.leido_at.isoformat() + "Z" if c.leido_at else None,
@@ -387,16 +394,28 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
     }
 
 
-def enlace_factura(numero: str) -> str:
-    """Búsqueda en Drive del nº de factura (los PDF los guarda la gestoría en la cuenta de Andrés)."""
+def enlace_factura(numero: str, archivos: Optional[list] = None) -> str:
+    """El PDF de la factura si está en la carpeta del proveedor; si no, la búsqueda del nº en Drive."""
+    n = (numero or "").strip().upper()
+    if n and archivos:
+        hechos = [a for a in archivos if n in str(a.get("name", "")).upper() and str(a.get("name", "")).upper().endswith(".PDF")]
+        if hechos:
+            return f"https://drive.google.com/file/d/{hechos[0]['id']}/view"
     return "https://drive.google.com/drive/search?q=" + quote(numero)
+
+
+def _archivos(c: TarifaCopia) -> list:
+    try:
+        return json.loads(c.archivos) if c and c.archivos else []
+    except ValueError:
+        return []
 
 
 def _compacto(s: str) -> str:
     return re.sub(r"[^a-z0-9/]", "", normaliza(s).replace(",", "/"))
 
 
-def _factura(a: dict, log: list) -> tuple[Optional[dict], list]:
+def _factura(a: dict, log: list, archivos: Optional[list] = None) -> tuple[Optional[dict], list]:
     """Factura de la que salió el precio actual: la del mismo mes que lo menciona.
     Devuelve (la elegida, otras posibles del mismo mes)."""
     if not a["fecha"]:
@@ -425,7 +444,7 @@ def _factura(a: dict, log: list) -> tuple[Optional[dict], list]:
 
     ordenadas = sorted(candidatas, key=lambda r: (puntos(r), r["fecha"]), reverse=True)
     mejor = ordenadas[0]
-    fmt = lambda r: {"numero": r["numero"], "fecha": r["fecha"], "enlace": enlace_factura(r["numero"])}
+    fmt = lambda r: {"numero": r["numero"], "fecha": r["fecha"], "enlace": enlace_factura(r["numero"], archivos)}
     if puntos(mejor) > 0:
         return {**fmt(mejor), "seguro": True}, []
     if len(candidatas) == 1:
@@ -449,7 +468,7 @@ def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
     if a["fecha"] and a["precio"] is not None:
         puntos[a["fecha"]] = a["precio"]
     historial = [{"fecha": f, "precio": p} for f, p in sorted(puntos.items(), key=lambda x: clave_mes(x[0]))]
-    factura, posibles = _factura(a, datos["log"])
+    factura, posibles = _factura(a, datos["log"], _archivos(c))
     base, valor, ud = medida(a["descripcion"])
     p = _partes(a["descripcion"])
     if p:  # la medida entera: «50×50×4 mm», no solo el espesor

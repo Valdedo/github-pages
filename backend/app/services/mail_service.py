@@ -74,3 +74,8 @@ def drive_hoja(file_id: str, pestanas: list | None = None) -> dict:
     if pestanas:
         payload["pestanas"] = pestanas
     return _post(payload)
+
+
+def drive_archivos(folder_id: str) -> list:
+    """Archivos (nombre e id) de una carpeta de Drive y sus subcarpetas."""
+    return _post({"action": "archivos", "folderId": folder_id}).get("archivos", [])
