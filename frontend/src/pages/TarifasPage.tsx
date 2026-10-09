@@ -218,7 +218,7 @@ export function TarifaFamiliaPage() {
   const total = f?.grupos.reduce((s, g) => s + g.medidas.length, 0) ?? 0;
 
   return (
-    <div className="page-wide tf tf-con-barra">
+    <div className={`page-wide tf tf-con-barra${sel ? ' tf-hay-sel' : ''}`}>
       <Cabecera volver={`/tarifas/${prov}`} textoVolver={t?.nombre ?? 'Tarifa'} titulo={f?.nombre ?? 'Familia'}
         pegatinaSrc={f ? pegatina(claveFamilia(f.nombre)) : undefined}>
         <div className="tf-modos" role="group" aria-label="Qué precio enseñar">
@@ -241,7 +241,7 @@ export function TarifaFamiliaPage() {
             {f.grupos.map((g, i) => g.titulo ? (
               <section key={i} className="tf-grupo">
                 <h3>{g.titulo}</h3>
-                <div className="tf-chips">
+                <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
                   {g.medidas.map(m => (
                     <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
                       onClick={() => setSel(sel?.ref === m.ref ? null : m)} title={m.descripcion}>
