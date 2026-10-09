@@ -90,3 +90,7 @@
   .venc-semanas-bloque .venc-semanas { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
   .venc-semanas-bloque .venc-sem:nth-child(n+6) { display: none; }
 }
+.venc-vermas { display: flex; justify-content: center; padding-top: 4px; }
+.venc-vermas .btn { min-height: 42px; padding: 0 20px; gap: 6px; }
+.venc-vermas small { font-weight: 500; color: var(--text-3); }
+.venc-vermas-mas { background: var(--surface-2); border-radius: 999px; font-weight: 600; } .venc-vermas-mas:hover { background: var(--brand-pale); }

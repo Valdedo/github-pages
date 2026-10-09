@@ -20,6 +20,19 @@ function Kpi({ titulo, valor, detalle, tono }: { titulo: string; valor: string; 
   );
 }
 
+/** «Ver 5 más» que se despliega hacia abajo, y «Ver menos» al final. */
+function VerMas({ total, visibles, onMas, onMenos, que }: { total: number; visibles: number; onMas: () => void; onMenos: () => void; que: string }) {
+  if (total <= 5) return null;
+  const quedan = total - visibles;
+  return (
+    <div className="venc-vermas">
+      {quedan > 0
+        ? <button className="btn btn-ghost btn-sm venc-vermas-mas" onClick={onMas}>Ver {Math.min(5, quedan)} más <small>(quedan {quedan})</small></button>
+        : <button className="btn btn-ghost btn-sm" onClick={onMenos}>Ver menos</button>}
+    </div>
+  );
+}
+
 /** Página de Vencimientos (solo Andrés): agenda, semanas, meses, proveedores y últimas facturas. */
 export function VencimientosPage() {
   const [d, setD] = useState<VencDetalle | null>(null);
@@ -27,7 +40,12 @@ export function VencimientosPage() {
   const [vista, setVista] = useState<'proximos' | 'pasados'>('proximos');
   const [buscar, setBuscar] = useState('');
   const [abierto, setAbierto] = useState<string | null>(null);
-  const [verTodosRec, setVerTodosRec] = useState(false);
+  const PASO = 5;
+  const [nDias, setNDias] = useState(PASO);
+  const [nProv, setNProv] = useState(PASO);
+  const [nRec, setNRec] = useState(PASO);
+  // Al cambiar de pestaña o de búsqueda se vuelve a empezar por los primeros
+  useEffect(() => { setNDias(PASO); }, [vista, buscar]);
 
   const cargar = useCallback(() => {
     setError(null);
@@ -50,7 +68,7 @@ export function VencimientosPage() {
   if (!d) return <div className="page" style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>Cargando…</div>;
 
   const maxMes = Math.max(...d.meses.map(m => m.total), 1);
-  const recientes = verTodosRec ? d.recientes : d.recientes.slice(0, 6);
+  const recientes = d.recientes.slice(0, nRec);
 
   return (
     <div className="page venc-pagina">
@@ -102,7 +120,7 @@ export function VencimientosPage() {
                 : <Vacio dibujo="facturaOk" titulo="Nada por vencer" texto="Cuando llegue una factura con vencimiento, saldrá aquí." />
           ) : (
             <div className="venc-agenda-lista">
-              {agenda.map(g => (
+              {agenda.slice(0, nDias).map(g => (
                 <div key={g.fecha} className={`venc-agenda-dia${g.faltan === 0 ? ' hoy' : ''}${g.pasado ? ' pasado' : ''}`}>
                   <div className="venc-agenda-cab">
                     <span className="venc-agenda-fecha">
@@ -115,6 +133,7 @@ export function VencimientosPage() {
                   <ul className="venc-lista">{g.facturas.map(f => <Factura key={f.id} f={f} />)}</ul>
                 </div>
               ))}
+              <VerMas total={agenda.length} visibles={nDias} onMas={() => setNDias(n => n + PASO)} onMenos={() => setNDias(PASO)} que="días" />
             </div>
           )}
         </section>
@@ -149,7 +168,7 @@ export function VencimientosPage() {
         </div>
         {d.proveedores.length === 0 ? <p className="venc-nota">Nada pendiente.</p> : (
           <ul className="venc-provs">
-            {d.proveedores.map(p => {
+            {d.proveedores.slice(0, nProv).map(p => {
               const on = abierto === p.proveedor;
               const peso = d.totales.pendiente ? (p.pendiente / d.totales.pendiente) * 100 : 0;
               return (
@@ -174,6 +193,7 @@ export function VencimientosPage() {
             })}
           </ul>
         )}
+        <VerMas total={d.proveedores.length} visibles={nProv} onMas={() => setNProv(n => n + PASO)} onMenos={() => setNProv(PASO)} que="proveedores" />
       </section>
 
       <div className="venc-cols iguales">
@@ -199,9 +219,7 @@ export function VencimientosPage() {
                   </li>
                 ))}
               </ul>
-              {d.recientes.length > 6 && (
-                <button className="turnos-link" onClick={() => setVerTodosRec(v => !v)}>{verTodosRec ? 'Ver menos' : `Ver las ${d.recientes.length}`}</button>
-              )}
+              <VerMas total={d.recientes.length} visibles={nRec} onMas={() => setNRec(n => n + PASO)} onMenos={() => setNRec(PASO)} que="facturas" />
             </>
           )}
         </section>
