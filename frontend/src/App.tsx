@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, use
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck, BookMarked
+  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck, BookMarked, CalendarClock
 } from 'lucide-react';
 
 // Siempre a mano (también sin cobertura en el reparto): Inicio, firmas y reparto
@@ -55,6 +55,7 @@ const CargasPage = porPartes(() => import('./pages/CargasPage'), 'CargasPage');
 const OrdenCargaPage = porPartes(() => import('./pages/CargasPage'), 'OrdenCargaPage');
 const OrdenCargaReparto = porPartes(() => import('./pages/CargasPage'), 'OrdenCargaReparto');
 const TarifasPage = porPartes(() => import('./pages/TarifasPage'), 'TarifasPage');
+const VencimientosPage = porPartes(() => import('./pages/VencimientosPage'), 'VencimientosPage');
 const TarifaProveedorPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaProveedorPage');
 const TarifaFamiliaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFamiliaPage');
 const TarifaFichaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFichaPage');
@@ -94,6 +95,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'En pruebas', items: [
     { to: '/cargas', label: 'Órdenes de carga', icon: ClipboardCheck, soloEncargado: true },
     { to: '/tarifas', label: 'Tarifas', icon: BookMarked, soloEncargado: true },
+    { to: '/vencimientos', label: 'Vencimientos', icon: CalendarClock, soloEncargado: true },
   ] },
 ];
 const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
@@ -443,6 +445,7 @@ function FullShell() {
               <Route path="/cargas" element={soloAdmin(<CargasPage />)} />
               <Route path="/cargas/:id" element={soloAdmin(<OrdenCargaPage />)} />
               <Route path="/tarifas" element={soloAdmin(<TarifasPage />)} />
+              <Route path="/vencimientos" element={soloAdmin(<VencimientosPage />)} />
               <Route path="/tarifas/:prov" element={soloAdmin(<TarifaProveedorPage />)} />
               <Route path="/tarifas/:prov/:fam" element={soloAdmin(<TarifaFamiliaPage />)} />
               <Route path="/tarifas/:prov/:fam/ficha" element={soloAdmin(<TarifaFichaPage />)} />

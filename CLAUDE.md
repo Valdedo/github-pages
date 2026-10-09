@@ -75,7 +75,10 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `tools/vencimientos-facturas.gs`: cada hora lee las facturas nuevas de «FACTURAS PARA GESTORIA», apunta los
   plazos en la pestaña «Vencimientos» de «Log Facturas» y los manda a `POST /api/vencimientos/importar`
   (cabecera `X-Clave` = `VENCIMIENTOS_CLAVE` de Railway; ruta libre de sesión en `main.py`).
-- `GET /api/vencimientos` solo admin. Inicio (`VencimientosCard`): hoy, mañana y pasado; los viernes hasta el lunes.
+- `GET /api/vencimientos` solo admin. Inicio (`VencimientosCard`): hoy, mañana y pasado (los viernes hasta el lunes) y las
+  grandes que se acercan; al tocarla lleva a `/vencimientos` (`VencimientosPage`, «En pruebas», `GET /api/vencimientos/detalle`):
+  resumen, semanas, día a día (próximos / ya cargados), meses, aviso de grandes, por proveedor, últimas recibidas y sin fecha.
+  Piezas comunes en `components/VencComun.tsx`.
   Sin botón de pagado: se pagan solas por el banco. Aviso push a Andrés a las 9 si algo vence.
   También: barras de lo que se carga cada semana (5 semanas), aviso anticipado de facturas grandes (umbral y días en
   `venc_ajustes`, se cambian desde el engranaje de la tarjeta; push una sola vez por factura, `venc_avisos`) y

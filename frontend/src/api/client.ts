@@ -453,6 +453,15 @@ export interface VencProveedor { proveedor: string; pendiente: number; facturas:
 export interface VencAjustes { umbral: number; dias_antes: number }
 export interface VencResumen { configurado: boolean; conectado: boolean; ultima?: string | null; facturas: number; dias: VencDia[]; proximos: VencFila[]; proximos_total: number; sin_fecha: VencFila[]; grandes: VencFila[]; semanas: VencSemana[]; proveedores: VencProveedor[]; pendiente_total: number; ajustes: VencAjustes }
 export const getVencimientos = () => api.get<VencResumen>('/api/vencimientos');
+export interface VencAgendaDia { fecha: string; etiqueta: string; dia: string; pasado: boolean; faltan: number; finde: boolean; total: number; facturas: VencFila[] }
+export interface VencDetalle extends VencResumen {
+  agenda: VencAgendaDia[];
+  meses: { mes: string; total: number; facturas: number }[];
+  proveedores: (VencProveedor & { lista: VencFila[] })[];
+  recientes: (VencFila & { vencimientos: { fecha: string | null; importe: number | null }[] })[];
+  totales: { semana: number; semana_n: number; mes: number; mes_n: number; pendiente: number; pendiente_n: number };
+}
+export const getVencDetalle = () => api.get<VencDetalle>('/api/vencimientos/detalle');
 export const putVencAjustes = (a: VencAjustes) => api.put<VencResumen>('/api/vencimientos/ajustes', a);
 
 // Catálogo de tarifas de proveedor (en pruebas: solo el encargado)

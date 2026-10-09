@@ -259,6 +259,85 @@ def resumen(db: Session, h: Optional[date] = None) -> dict:
     }
 
 
+def detalle(db: Session, h: Optional[date] = None) -> dict:
+    """Todo para la página de Vencimientos: agenda, semanas, meses, proveedores, recientes."""
+    h = h or hoy()
+    aj = ajustes(db)
+    base = resumen(db, h)
+
+    def fila(v: Vencimiento) -> dict:
+        d = _fila(v)
+        d["grande"] = bool(v.importe and v.importe >= aj.umbral)
+        return d
+
+    desde = h - timedelta(days=14)
+    todas = _unicas(db.query(Vencimiento).filter(Vencimiento.fecha >= desde)
+                    .order_by(Vencimiento.fecha, Vencimiento.proveedor).all())
+    agenda = []
+    for f in todas:
+        if not agenda or agenda[-1]["fecha"] != f.fecha.isoformat():
+            dif = (f.fecha - h).days
+            agenda.append({"fecha": f.fecha.isoformat(),
+                           "etiqueta": "Hoy" if dif == 0 else "Mañana" if dif == 1 else "Ayer" if dif == -1 else DIAS[f.fecha.weekday()].capitalize(),
+                           "dia": f"{f.fecha.day} de {MESES[f.fecha.month - 1]}",
+                           "pasado": dif < 0, "faltan": dif, "finde": f.fecha.weekday() >= 5,
+                           "total": 0.0, "facturas": []})
+        agenda[-1]["facturas"].append(fila(f))
+        agenda[-1]["total"] = round(agenda[-1]["total"] + (f.importe or 0), 2)
+
+    futuras = [f for f in todas if f.fecha >= h]
+    meses = []
+    for i in range(3):
+        y, m = h.year + (h.month - 1 + i) // 12, (h.month - 1 + i) % 12 + 1
+        del_mes = [f for f in futuras if f.fecha.year == y and f.fecha.month == m]
+        meses.append({"mes": f"{MESES[m - 1].capitalize()}{'' if y == h.year else f' {y}'}",
+                      "total": round(sum(f.importe or 0 for f in del_mes), 2), "facturas": len(del_mes)})
+
+    provs = _proveedores(db, futuras)
+    from app.services.drive_proveedor import clave
+    por_clave: dict = {}
+    for f in futuras:
+        por_clave.setdefault(clave(f.proveedor) or f.proveedor.upper(), []).append(fila(f))
+    for p in provs:
+        p["lista"] = por_clave.get(clave(p["proveedor"]) or p["proveedor"].upper(), [])
+
+    recientes = (db.query(Vencimiento).filter(Vencimiento.plazo == 1)
+                 .order_by(Vencimiento.fecha_factura.desc().nullslast(), Vencimiento.recibido_at.desc()).limit(40).all())
+    vistos, rec = set(), []
+    for v in recientes:
+        k = (v.proveedor, v.numero, v.importe_factura)
+        if k in vistos:
+            continue
+        vistos.add(k)
+        r = fila(v)
+        r["vencimientos"] = [{"fecha": x.fecha.isoformat() if x.fecha else None, "importe": x.importe}
+                             for x in db.query(Vencimiento).filter(Vencimiento.file_id == v.file_id).order_by(Vencimiento.plazo).all()]
+        rec.append(r)
+        if len(rec) >= 15:
+            break
+
+    semana = [f for f in futuras if f.fecha <= h + timedelta(days=6 - h.weekday())]
+    mes30 = [f for f in futuras if f.fecha <= h + timedelta(days=30)]
+    return {
+        **base,
+        "agenda": agenda,
+        "semanas": _semanas(futuras, h, 8),
+        "meses": meses,
+        "proveedores": provs,
+        "recientes": rec,
+        "totales": {
+            "semana": round(sum(f.importe or 0 for f in semana), 2), "semana_n": len(semana),
+            "mes": round(sum(f.importe or 0 for f in mes30), 2), "mes_n": len(mes30),
+            "pendiente": round(sum(f.importe or 0 for f in futuras), 2), "pendiente_n": len(futuras),
+        },
+    }
+
+
+@router.get("/detalle", dependencies=[Depends(solo_encargado)])
+def ver_detalle(db: Session = Depends(get_db)):
+    return detalle(db)
+
+
 class Ajustes(BaseModel):
     umbral: float
     dias_antes: int

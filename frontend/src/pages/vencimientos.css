@@ -1,0 +1,92 @@
+/* Página de Vencimientos (solo Andrés) */
+.venc-pagina { display: flex; flex-direction: column; gap: 16px; }
+.venc-pagina .inicio-head { margin-bottom: 0 !important; }
+.venc-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.venc-kpi { background: var(--surface); border-radius: var(--r-xl); padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.venc-kpi-t { font-size: 13.5px; font-weight: 600; color: var(--text-2); }
+.venc-kpi-v { font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.venc-kpi-d { font-size: 13px; color: var(--text-3); }
+.venc-kpi.fuerte { background: #FDF0D5; }
+.venc-kpi.fuerte .venc-kpi-t { color: #7A4B00; }
+.venc-kpi.aviso { background: #FDECEA; }
+.venc-kpi.aviso .venc-kpi-v, .venc-kpi.aviso .venc-kpi-t { color: #B3261E; }
+
+.venc-cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.venc-cols.iguales { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.venc-lado { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.venc-bloque { border: 0; border-radius: var(--r-xl); padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.venc-bloque h2 { margin: 0; font-size: 21px; font-weight: 500; }
+.venc-bloque-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.venc-bloque-cab .firma-vistas { margin: 0; }
+.venc-buscar { margin: 0; }
+.venc-vacio { padding: 18px 0; text-align: center; }
+
+/* Día a día */
+.venc-agenda-lista { display: flex; flex-direction: column; gap: 8px; }
+.venc-agenda-dia { background: var(--surface-2); border-radius: 16px; padding: 10px 14px; }
+.venc-agenda-dia.hoy { background: #FDF0D5; }
+.venc-agenda-dia.pasado { opacity: .8; }
+.venc-agenda-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.venc-agenda-fecha { font-size: 14.5px; color: var(--text-2); }
+.venc-agenda-fecha b { font-family: var(--font-display); font-size: 17px; font-weight: 500; text-transform: uppercase; color: var(--text-1); margin-right: 4px; }
+.venc-agenda-dia.hoy .venc-agenda-fecha b { color: #7A4B00; }
+.venc-agenda-fecha small { font-size: 13px; color: var(--text-3); }
+.venc-agenda-total { font-family: var(--font-display); font-size: 19px; font-weight: 500; white-space: nowrap; }
+
+/* Meses */
+.venc-meses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.venc-meses li { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 12px; }
+.venc-mes-n { font-weight: 600; font-size: 14.5px; }
+.venc-mes-barra { height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.venc-mes-barra span { display: block; height: 100%; background: #E4B65C; border-radius: 6px; }
+.venc-meses li:first-child .venc-mes-barra span { background: #B7791F; }
+.venc-mes-t { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.venc-mes-t b { font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.venc-mes-t small { font-size: 12px; color: var(--text-3); }
+
+/* Por proveedor */
+.venc-provs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.venc-provs > li { border-bottom: 1px solid var(--border); }
+.venc-provs > li:last-child { border-bottom: 0; }
+.venc-prov-fila { width: 100%; display: flex; align-items: flex-start; gap: 12px; padding: 10px 4px; background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 10px; }
+.venc-prov-fila:hover { background: var(--surface-2); }
+.venc-prov-flecha { flex-shrink: 0; color: var(--text-3); margin-top: 2px; transition: transform .2s; }
+.venc-provs > li.abierto .venc-prov-flecha { transform: rotate(180deg); }
+.venc-provs > li.abierto .venc-extra { margin-bottom: 10px; }
+.venc-prov-peso { display: block; height: 5px; border-radius: 3px; background: var(--surface-2); margin-top: 6px; max-width: 360px; overflow: hidden; }
+.venc-prov-peso span { display: block; height: 100%; background: #E4B65C; border-radius: 3px; }
+
+/* Últimas recibidas */
+.venc-recientes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.venc-recientes li { border-bottom: 1px solid var(--border); }
+.venc-recientes li:last-child { border-bottom: 0; }
+.venc-recientes a { display: flex; align-items: flex-start; gap: 12px; padding: 10px 4px; color: inherit; text-decoration: none; border-radius: 10px; }
+.venc-recientes a:hover { background: var(--surface-2); }
+.venc-plazos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.venc-plazos span { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #FDF0D5; color: #6B4100; }
+.venc-plazos span.sin { background: var(--surface-2); color: var(--text-3); }
+
+@media (max-width: 1100px) {
+  .venc-cols, .venc-cols.iguales { grid-template-columns: 1fr; }
+  .venc-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .venc-pagina { gap: 12px; }
+  .venc-kpis { gap: 8px; }
+  .venc-kpi { padding: 12px 14px; border-radius: 18px; }
+  .venc-kpi-v { font-size: 22px; }
+  .venc-bloque { padding: 14px; }
+  .venc-meses li { grid-template-columns: 80px 1fr auto; gap: 8px; }
+  .venc-agenda-dia { padding: 10px 12px; }
+}
+@media (max-width: 360px) {
+  .venc-kpi-v { font-size: 19px; }
+}
+.venc-seg { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 4px; gap: 2px; }
+.venc-seg button { border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; min-height: 38px; }
+.venc-seg button.on { background: var(--cf-bosque-2); color: #fff; }
+.venc-semanas-bloque .venc-semanas { max-width: 900px; }
+@media (max-width: 640px) {
+  .venc-semanas-bloque .venc-semanas { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  .venc-semanas-bloque .venc-sem:nth-child(n+6) { display: none; }
+}

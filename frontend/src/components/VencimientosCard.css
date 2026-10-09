@@ -107,3 +107,18 @@
   .venc-cab .venc-ajustes-btn { grid-area: btn; }
   .venc-sem-imp { white-space: normal; line-height: 1.15; min-height: 2.3em; display: flex; align-items: flex-end; }
 }
+
+/* Inicio: cabecera y pie que llevan a la página de Vencimientos */
+.venc-cab-link { color: inherit; text-decoration: none; border-radius: 12px; margin: -4px -6px; padding: 4px 6px; }
+.venc-cab-link:hover { background: var(--surface-2); }
+.venc-ver { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 600; color: var(--brand); white-space: nowrap; }
+.venc-mas-link { text-decoration: none; align-self: flex-start; }
+.venc-mas-link svg { margin-left: 2px; }
+.venc-mas-aviso { background: #FDF0D5; color: #6B4100; border-radius: 999px; padding: 2px 8px; font-size: 12.5px; font-weight: 600; }
+.venc-grandes-ico { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: #B3261E; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.venc-input.dias input { width: 54px; }
+@media (max-width: 640px) {
+  .venc-cab-link { grid-template-areas: "ico tit btn" "sub sub sub"; }
+  .venc-cab-link .venc-ver { grid-area: btn; }
+  .venc-mas-link { align-self: stretch; }
+}
