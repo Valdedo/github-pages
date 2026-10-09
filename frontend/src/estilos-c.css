@@ -186,3 +186,7 @@ html:has(.con-barra) { scroll-padding-bottom: 190px; }
   .modal-pie-botones { flex: 1 1 100%; }
   .modal-pie-botones .btn { flex: 1 1 0; justify-content: center; }
 }
+/* Avisar desde la tarjeta del pedido */
+.ped-card-avisar { flex-shrink: 0; align-self: center; padding: 8px 14px; min-height: 40px; }
+.wa-amano { align-self: flex-start; margin-top: 6px; }
+.wa-amano { white-space: normal; text-align: left; max-width: 100%; height: auto; }

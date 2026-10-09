@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, ShoppingCart, Search, ChevronRight, Package, Phone, CheckCheck, X } from 'lucide-react';
-import { leerImporte, leerCantidad } from '../components/AvisoCliente';
-import { listOrders, createOrder, getOrder, listSuppliers, describeApiError } from '../api/client';
+import { Plus, ShoppingCart, Search, ChevronRight, Package, Phone, CheckCheck, X, MessageCircle } from 'lucide-react';
+import { leerImporte, leerCantidad, telWhatsApp, textoPedido } from '../components/AvisoCliente';
+import { listOrders, createOrder, getOrder, listSuppliers, updateOrder, describeApiError } from '../api/client';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { Vacio } from '../components/Pegatinas';
@@ -242,13 +242,16 @@ function NewOrderModal({ proveedores, suppliers, onClose, onSaved }: {
   );
 }
 
-function OrderCard({ order, overdue, onNavigate, muted = false }: {
+function OrderCard({ order, overdue, onNavigate, onAvisado, muted = false }: {
   order: SupplierOrderListItem;
   overdue: boolean;
   onNavigate: () => void;
+  onAvisado?: (o: SupplierOrderListItem) => void;
   muted?: boolean;
 }) {
   const porPedir = order.status === 'pendiente';
+  const wa = telWhatsApp(order.client_phone);
+  const falta = order.status === 'recibido' && !order.aviso_at;
   return (
     <div
       className={`card firma-card ped-card${overdue ? ' retrasado' : ''}`}
@@ -263,7 +266,7 @@ function OrderCard({ order, overdue, onNavigate, muted = false }: {
           {overdue && <span className="aviso-chip">Retrasado</span>}
           {order.status === 'recibido' && (order.aviso_at
             ? <span className="aviso-chip hecho"><CheckCheck size={13} /> Cliente avisado</span>
-            : <span className="aviso-chip">Sin avisar al cliente</span>)}
+            : <span className="aviso-chip">{wa ? 'Sin avisar al cliente' : 'Sin avisar · falta el teléfono'}</span>)}
         </div>
         <div className="ped-card-datos">
           {order.client_phone && (
@@ -295,6 +298,13 @@ function OrderCard({ order, overdue, onNavigate, muted = false }: {
           </div>
         </div>
       )}
+      {falta && wa && onAvisado && (
+        <a className="btn wa-btn ped-card-avisar" target="_blank" rel="noopener noreferrer"
+          href={`https://wa.me/${wa}?text=${encodeURIComponent(textoPedido(order.client_name, []))}`}
+          onClick={e => { e.stopPropagation(); onAvisado(order); }}>
+          <MessageCircle size={16} /> Avisar
+        </a>
+      )}
       <ChevronRight size={18} className="ped-card-flecha" />
     </div>
   );
@@ -305,6 +315,13 @@ export function OrdersPage() {
   const [searchParams] = useSearchParams();
   const { toast, show } = useCfToast();
   const [orders, setOrders] = useState<SupplierOrderListItem[]>([]);
+  // Avisar desde la lista: abre WhatsApp y deja apuntado que se avisó
+  const avisado = async (o: SupplierOrderListItem) => {
+    try {
+      const { data } = await updateOrder(o.id, { aviso_at: new Date().toISOString() });
+      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, aviso_at: data.aviso_at } : x));
+    } catch { /* WhatsApp ya se abrió */ }
+  };
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<OrderStatus | ''>('');
@@ -433,6 +450,7 @@ export function OrdersPage() {
               order={order}
               overdue={!!isOverdue(order)}
               onNavigate={() => navigate(`/pedidos/${order.id}`)}
+              onAvisado={avisado}
             />
           ))}
         </div>
@@ -469,6 +487,7 @@ export function OrdersPage() {
                   order={order}
                   overdue={false}
                   onNavigate={() => navigate(`/pedidos/${order.id}`)}
+              onAvisado={avisado}
                   muted
                 />
               ))}

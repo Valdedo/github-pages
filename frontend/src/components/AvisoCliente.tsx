@@ -92,18 +92,30 @@ const fmtAviso = (iso: string) => {
  * Botón grande «Avisar por WhatsApp»: abre WhatsApp con el mensaje escrito
  * (se puede cambiar antes de enviarlo) y apunta que ya se avisó.
  */
-export function BotonWhatsApp({ telefono, texto, avisadoEl, onAvisado }: {
+export function BotonWhatsApp({ telefono, texto, avisadoEl, onAvisado, dondeTelefono = 'en «Editar datos»' }: {
   telefono?: string | null;
   texto: string;
   avisadoEl?: string | null;
   onAvisado: () => void;
+  /** Dónde se añade el teléfono, para el texto de ayuda. */
+  dondeTelefono?: string;
 }) {
   const n = telWhatsApp(telefono);
+  // Por si se avisa de otra forma (llamada, en persona): marcarlo a mano
+  const aMano = !avisadoEl && (
+    <button type="button" className="btn btn-ghost btn-sm wa-amano" onClick={onAvisado}>
+      <CheckCheck size={15} /> Ya le he avisado de otra forma
+    </button>
+  );
   if (!n) {
     return (
-      <div className="wa-sin">
-        <MessageCircle size={18} />
-        <span>{telefono ? 'El teléfono no parece un móvil válido.' : 'Sin teléfono.'} Añádelo abajo para avisar por WhatsApp.</span>
+      <div className="wa-bloque">
+        <div className="wa-sin">
+          <MessageCircle size={18} />
+          <span>{telefono ? 'El teléfono no parece un móvil.' : 'Falta el teléfono del cliente.'} Para avisar por WhatsApp, añádelo {dondeTelefono}.</span>
+        </div>
+        {aMano}
+        {avisadoEl && <span className="wa-avisado"><CheckCheck size={16} /> Avisado {fmtAviso(avisadoEl)}</span>}
       </div>
     );
   }
@@ -115,6 +127,7 @@ export function BotonWhatsApp({ telefono, texto, avisadoEl, onAvisado }: {
         <MessageCircle size={20} /> {avisadoEl ? 'Volver a avisar' : 'Avisar por WhatsApp'}
       </a>
       {avisadoEl && <span className="wa-avisado"><CheckCheck size={16} /> Avisado {fmtAviso(avisadoEl)}</span>}
+      {aMano}
     </div>
   );
 }

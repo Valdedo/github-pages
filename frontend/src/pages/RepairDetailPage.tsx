@@ -332,6 +332,7 @@ export function RepairDetailPage() {
               texto={textoReparacion(repair.client_name, repair.tool_description, importeAviso)}
               avisadoEl={repair.aviso_at}
               onAvisado={avisado}
+              dondeTelefono="más abajo, en «Teléfono»"
             />
           </div>
         )}
