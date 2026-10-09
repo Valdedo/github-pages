@@ -54,7 +54,7 @@ def slug(s: str) -> str:
 def numero(v) -> Optional[float]:
     """«1.090,00 €», «5,940 kg/m», «9,5», «1490» → float. «—», «(M2)», vacío → None."""
     s = str(v or "").strip()
-    if not s or s in ("—", "-", "–"):
+    if not s or s in ("—", "-", "–") or re.fullmatch(r"\(.*\)", s):  # «(M2)», «(UN)»: no es un número
         return None
     s = re.sub(r"[^\d,.\-]", "", s.replace("−", "-"))
     if not re.search(r"\d", s):
@@ -177,7 +177,10 @@ def leer_hierros(hojas: dict) -> dict:
             "precio": numero(f[5]), "fecha": mes(f[6]),
             "evol": porcentaje(f[7]),
             "kg_m": numero(f[8]) if "kg" in str(f[8]).lower() else None,
-            "coste": numero(f[9]), "pvp": numero(f[10]), "pvp_iva": numero(f[11]),
+            # Lo que se compra ya por unidad, metro, m² o kg trae «(UN)», «(M2)»… en vez del coste por metro:
+            # entonces el coste es el mismo precio de compra
+            "coste": numero(f[9]) if numero(f[9]) is not None else (numero(f[5]) if ud in ("UN", "MT", "M2", "KG") else None),
+            "pvp": numero(f[10]), "pvp_iva": numero(f[11]),
             "ud_venta": UD_VENTA.get(ud, "ud"), "ud_compra": UD_COMPRA.get(ud, ud.lower()),
         })
     log = []

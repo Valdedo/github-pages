@@ -70,15 +70,18 @@ export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
   return FAMILIAS.find(([rx]) => rx.test(n))?.[1] ?? 'malla';
 }
-/** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…). */
+/** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…).
+ *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
 export function fotoArticulo(familia: string, descripcion?: string): string {
   const d = normaliza(descripcion || '');
+  const varios = claveFamilia(familia) === 'malla' && !/malla|valla|hercules/.test(normaliza(familia));
   if (/^panel/.test(d)) return FOTOS['panel-sandwich'];
   if (/^malla|^poste|^base poste|^abrazadera/.test(d)) return FOTOS['malla'];
   if (/^chapa/.test(d) && /onduladas?|trapezoidal|lacada|colaborante/.test(d)) return FOTOS['chapa-ondulada'];
   if (/^chapa/.test(d)) return FOTOS['chapa'];
   if (/^tubo rectangular galv/.test(d)) return FOTOS['tubo-galv'];
-  return FOTOS[claveFamilia(familia)] ?? FOTOS['malla'];
+  if (varios) return descripcion ? '' : FOTOS['malla'];
+  return FOTOS[claveFamilia(familia)] ?? '';
 }
 
 const fmt = (v: number, dec = 2) => v.toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
