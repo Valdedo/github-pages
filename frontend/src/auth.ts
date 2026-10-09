@@ -2,7 +2,7 @@
 const KEY = 'cfToken';
 const ROL = 'cfRol';
 
-export type Rol = 'tienda' | 'reparto' | 'admin';
+export type Rol = 'tienda' | 'reparto' | 'admin' | 'consulta';
 
 export const getToken = (): string => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } };
 export const getRol = (): Rol | null => { try { return (localStorage.getItem(ROL) as Rol) || null; } catch { return null; } };
@@ -35,6 +35,12 @@ export const withToken = (url: string) => {
 
 /** Encargado (Andrés): el único que puede cambiar turnos y códigos. */
 export const esEncargado = () => getRol() === 'admin';
+
+/** Manolo: vista de solo consulta (tarifas y vencimientos), sin cambiar nada. */
+export const esConsulta = () => getRol() === 'consulta';
+
+/** Quién puede ver los vencimientos y las tarifas: Andrés y Manolo. */
+export const veVencimientos = () => getRol() === 'admin' || getRol() === 'consulta';
 
 /** Quién usa este dispositivo («Soy Patricia»), para enseñarle su turno. */
 const YO = 'cfYo';

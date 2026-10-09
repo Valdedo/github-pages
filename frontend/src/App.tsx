@@ -22,6 +22,7 @@ import { arrancarCola } from './lib/offline';
 import { arrancarColaCargas } from './lib/offlineCargas';
 import { getRol, cerrarSesion, sesionPersonal } from './auth';
 import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
+import './pages/consulta.css';
 
 /** Carga por partes: cada apartado se descarga al abrirlo. Si tras una actualización
  *  ya no existe la parte vieja, se recarga la app una vez para coger la nueva. */
@@ -59,6 +60,7 @@ const VencimientosPage = porPartes(() => import('./pages/VencimientosPage'), 'Ve
 const TarifaProveedorPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaProveedorPage');
 const TarifaFamiliaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFamiliaPage');
 const TarifaFichaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFichaPage');
+const ConsultaInicio = porPartes(() => import('./pages/ConsultaInicio'), 'ConsultaInicio');
 
 /** Mientras llega un apartado: discreto (solo aparece si tarda). */
 const Cargando = () => <div className="cf-suspense" role="status" aria-live="polite">Cargando…</div>;
@@ -371,6 +373,41 @@ function RepartoShell() {
   );
 }
 
+/** Vista de Manolo: solo ver tarifas y vencimientos (rol «consulta»). Igual en móvil y ordenador. */
+function ConsultaShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const enInicio = location.pathname === '/';
+  return (
+    <div className="reparto-layout consulta-layout">
+      <header className="reparto-header">
+        {enInicio ? (
+          <Logo size={24} onDark />
+        ) : (
+          <button className="consulta-volver" onClick={() => hayAtras() ? navigate(-1) : navigate('/', { replace: true })}>
+            <ChevronLeft size={20} /> Volver
+          </button>
+        )}
+        {!enInicio && <Link to="/" className="consulta-titulo" style={{ color: '#fff', textDecoration: 'none' }}>Inicio</Link>}
+      </header>
+      <main id="app-main" className="reparto-main">
+        <ScrollRestoration />
+        <Suspense fallback={<Cargando />}>
+          <Routes>
+            <Route path="/" element={<ConsultaInicio />} />
+            <Route path="/tarifas" element={<TarifasPage />} />
+            <Route path="/tarifas/:prov" element={<TarifaProveedorPage />} />
+            <Route path="/tarifas/:prov/:fam" element={<TarifaFamiliaPage />} />
+            <Route path="/tarifas/:prov/:fam/ficha" element={<TarifaFichaPage />} />
+            <Route path="/vencimientos" element={<VencimientosPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </main>
+    </div>
+  );
+}
+
 /** Avisos que pueden llegar desde cualquier pantalla. */
 function AvisosGlobales() {
   const { toast, show } = useCfToast();
@@ -386,7 +423,11 @@ function AvisosGlobales() {
 
 function AppShell() {
   const location = useLocation();
-  useEffect(() => { arrancarCola(); if (getRol() === 'admin' || getRol() === 'reparto') arrancarColaCargas(); }, []);
+  useEffect(() => {
+    if (getRol() === 'consulta') return; // Manolo solo mira: no hay nada que mandar
+    arrancarCola(); if (getRol() === 'admin' || getRol() === 'reparto') arrancarColaCargas();
+  }, []);
+  if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /></>;
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
   return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /></>;
 }

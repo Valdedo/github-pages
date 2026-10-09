@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { getVencimientos, type VencResumen } from '../api/client';
-import { esEncargado } from '../auth';
+import { veVencimientos } from '../auth';
 import { AvisoAtrasado, euros, Factura, Grandes } from './VencComun';
 import './VencimientosCard.css';
 
@@ -14,7 +14,7 @@ const subDia = (iso: string, etiqueta: string) => {
   return RELATIVOS.includes(etiqueta) ? `${d.toLocaleDateString('es-ES', { weekday: 'long' })} ${d.getDate()} ${mes}` : `${d.getDate()} ${mes}`;
 };
 
-/** Inicio: lo que vence hoy, mañana y pasado (el viernes, hasta el lunes). Solo Andrés. El detalle, en /vencimientos. */
+/** Inicio: lo que vence hoy, mañana y pasado (el viernes, hasta el lunes). Andrés y Manolo. El detalle, en /vencimientos. */
 export function VencimientosCard() {
   const [d, setD] = useState<VencResumen | null>(null);
   const [error, setError] = useState(false);
@@ -22,13 +22,13 @@ export function VencimientosCard() {
     getVencimientos().then(({ data }) => { setD(data); setError(false); }).catch(() => setError(true));
   }, []);
   useEffect(() => {
-    if (!esEncargado()) return;
+    if (!veVencimientos()) return;
     cargar();
     const t = setInterval(cargar, 15 * 60000);
     return () => clearInterval(t);
   }, [cargar]);
 
-  if (!esEncargado()) return null;
+  if (!veVencimientos()) return null;
   if (!d) {
     return error ? (
       <section className="card venc-card venc-tranquila" aria-label="Vencimientos">

@@ -1,12 +1,19 @@
-"""Catálogo de tarifas de proveedor (en pruebas: solo el encargado)."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+"""Catálogo de tarifas de proveedor (en pruebas: Andrés; Manolo lo ve en su vista de consulta)."""
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app.api.turnos import solo_encargado
+from app.services import access_service as acc
 from app.database import get_db
 from app.services import tarifas_service as ts
 
-router = APIRouter(prefix="/api/tarifas", tags=["tarifas"], dependencies=[Depends(solo_encargado)])
+
+
+def puede_ver(request: Request):
+    if acc.config() and getattr(request.state, "rol", None) not in ("admin", "consulta"):
+        raise HTTPException(403, "Las tarifas solo las ven Andrés y Manolo por ahora")
+
+
+router = APIRouter(prefix="/api/tarifas", tags=["tarifas"], dependencies=[Depends(puede_ver)])
 
 
 def _prov(prov: str) -> str:

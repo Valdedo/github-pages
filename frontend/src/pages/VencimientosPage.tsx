@@ -5,6 +5,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { Vacio } from '../components/Pegatinas';
 import { AjustesForm, AvisoAtrasado, euros, Factura, fechaCorta, Grandes, hace, Semanas } from '../components/VencComun';
 import { coincide } from '../lib/texto';
+import { esConsulta } from '../auth';
 import '../components/VencimientosCard.css';
 import './vencimientos.css';
 
@@ -77,7 +78,7 @@ export function VencimientosPage() {
     <div className="page venc-pagina">
       <div className="inicio-head" style={{ marginBottom: 14 }}>
         <div>
-          <h1>Vencimientos <span className="aviso-chip" style={{ verticalAlign: 'middle' }}>En pruebas</span></h1>
+          <h1>Vencimientos{!esConsulta() && <> <span className="aviso-chip" style={{ verticalAlign: 'middle' }}>En pruebas</span></>}</h1>
           <p>
             Facturas de proveedor que se cargan en la cuenta.
             {d.conectado ? ` Actualizado ${hace(d.ultima)} · ${plural(d.facturas, 'factura leída', 'facturas leídas')}.` : ' Esperando los primeros datos del script de facturas.'}
@@ -178,11 +179,13 @@ export function VencimientosPage() {
             <p className="venc-nota">Los meses siguientes se irán llenando según lleguen facturas.</p>
           </section>
 
-          <section className="card venc-bloque" aria-label="Aviso de facturas grandes">
-            <h2>Aviso de facturas grandes</h2>
-            <p className="venc-nota">Salen arriba en rojo y te llega un aviso al móvil una sola vez.</p>
-            <AjustesForm ajustes={d.ajustes} onGuardado={() => cargar()} />
-          </section>
+          {!esConsulta() && (
+            <section className="card venc-bloque" aria-label="Aviso de facturas grandes">
+              <h2>Aviso de facturas grandes</h2>
+              <p className="venc-nota">Salen arriba en rojo y te llega un aviso al móvil una sola vez.</p>
+              <AjustesForm ajustes={d.ajustes} onGuardado={() => cargar()} />
+            </section>
+          )}
         </div>
       </div>
 

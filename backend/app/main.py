@@ -129,6 +129,20 @@ def _reparto_puede(method: str, path: str) -> bool:
     return any(m == method and rx.match(path) for m, rx in _REPARTO_FIRMAS)
 
 
+# Manolo (rol «consulta»): solo mira tarifas y vencimientos. No cambia nada.
+_CONSULTA = (
+    ("GET", re.compile(r"^/api/tarifas(/.*)?$")),
+    ("POST", re.compile(r"^/api/tarifas/[^/]+/actualizar$")),  # volver a leer la hoja; no cambia datos
+    ("GET", re.compile(r"^/api/vencimientos(/detalle)?/?$")),
+)
+
+
+def _consulta_puede(method: str, path: str) -> bool:
+    if path.startswith("/api/push"):
+        return True
+    return any(m == method and rx.match(path) for m, rx in _CONSULTA)
+
+
 def _token(request: Request) -> Optional[str]:
     """Sesión por cabecera; por ?t= solo en GET (imágenes, PDF y descargas que abre el navegador)."""
     tok = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
@@ -152,6 +166,8 @@ async def control_de_acceso(request: Request, call_next):
     request.state.persona = ses["persona"]
     if rol == "reparto" and not _reparto_puede(request.method, path):
         return JSONResponse({"detail": "El código de reparto no da acceso a esto"}, status_code=403)
+    if rol == "consulta" and not _consulta_puede(request.method, path):
+        return JSONResponse({"detail": "Con este código solo se pueden ver las tarifas y los vencimientos"}, status_code=403)
     return await call_next(request)
 
 

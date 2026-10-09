@@ -40,6 +40,12 @@ def solo_encargado(request: Request):
         raise HTTPException(403, "Esto solo lo ve Andrés")
 
 
+def puede_ver(request: Request):
+    """Ver los vencimientos: Andrés y Manolo (consulta). Cambiar los ajustes, solo Andrés."""
+    if acc.config() and getattr(request.state, "rol", None) not in ("admin", "consulta"):
+        raise HTTPException(403, "Esto solo lo ven Andrés y Manolo")
+
+
 # ── Lo que manda el script ─────────────────────────────────────
 class Plazo(BaseModel):
     fecha: Optional[str] = None
@@ -373,7 +379,7 @@ def detalle(db: Session, h: Optional[date] = None) -> dict:
     }
 
 
-@router.get("/detalle", dependencies=[Depends(solo_encargado)])
+@router.get("/detalle", dependencies=[Depends(puede_ver)])
 def ver_detalle(db: Session = Depends(get_db)):
     return detalle(db)
 
@@ -393,7 +399,7 @@ def put_ajustes(data: Ajustes, db: Session = Depends(get_db)):
     return resumen(db)
 
 
-@router.get("", dependencies=[Depends(solo_encargado)])
+@router.get("", dependencies=[Depends(puede_ver)])
 def ver(db: Session = Depends(get_db)):
     return resumen(db)
 

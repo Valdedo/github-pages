@@ -4,6 +4,7 @@
 - patricia, oscar → tienda (todo menos lo anterior)
 - melchor  → reparto (firmas del camión y ver turnos)
 - tienda   → ordenador y teléfono compartidos de la tienda (como Patricia y Oscar)
+- manolo   → consulta (solo ver tarifas y vencimientos; no cambia nada)
 
 Las sesiones van firmadas con HMAC e incluyen la huella del código de esa persona:
 si se le cambia el código, sus sesiones antiguas dejan de valer. «Cerrar todas»
@@ -29,6 +30,7 @@ PERSONAS = {
     "oscar": ("tienda", "Oscar"),
     "melchor": ("reparto", "Melchor"),
     "tienda": ("tienda", "Ordenador y teléfono de la tienda"),
+    "manolo": ("consulta", "Manolo"),
 }
 
 _cache: dict = {"cfg": None, "at": 0.0}

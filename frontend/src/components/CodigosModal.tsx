@@ -59,7 +59,7 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
                 <div key={p.id} className="codigos-persona">
                   <div className="codigos-quien">
                     <b>{p.nombre}</b>
-                    <small>{p.rol === 'admin' ? 'Encargado' : p.rol === 'reparto' ? 'Reparto' : p.id === 'tienda' ? 'Para los dispositivos compartidos' : 'Tienda'}{!p.tiene_codigo && ' · sin código'}</small>
+                    <small>{p.rol === 'admin' ? 'Encargado' : p.rol === 'reparto' ? 'Reparto' : p.rol === 'consulta' ? 'Solo ver tarifas y vencimientos' : p.id === 'tienda' ? 'Para los dispositivos compartidos' : 'Tienda'}{!p.tiene_codigo && ' · sin código'}</small>
                   </div>
                   <input className="form-input" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="Código nuevo" maxLength={32}
                     value={nuevo[p.id] || ''} onChange={e => setNuevo(n => ({ ...n, [p.id]: e.target.value.replace(/\s/g, '') }))}

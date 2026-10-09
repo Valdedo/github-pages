@@ -13,6 +13,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - **Patricia** — caja/oficina, rol `tienda` (usa mucho el **ordenador**).
 - **Oscar** — tienda, rol `tienda`.
 - **Melchor** — camionero, rol `reparto` (solo móvil, a menudo sin cobertura).
+- **Manolo** — tío de Andrés, dueño que se está retirando, rol `consulta`: solo **ver** tarifas y vencimientos,
+  sin cambiar nada (vista propia `ConsultaShell` en `App.tsx` + `pages/ConsultaInicio.tsx`, estilos en `pages/consulta.css`).
+  Backend: lista blanca `_CONSULTA` en `main.py` (GET de tarifas y vencimientos, y «volver a leer» la tarifa);
+  `puede_ver` en `api/tarifas.py` y `api/vencimientos.py` (admin y consulta); los ajustes de vencimientos, solo admin.
+  Sin avisos push por ahora. Su código lo pone Andrés desde «Códigos».
 
 ## Reglas de la casa
 1. **Móvil y ordenador van a la par.** En la oficina se usa mucho el ordenador: todo tiene que estar
@@ -73,7 +78,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   queda bloqueada (el servidor rechaza cambios de líneas con 409); solo entonces sale «Firma del cliente». «Desbloquear
   para cambiar» lo deshace. Vale sin cobertura (tipo `lista` en `lib/offlineCargas.ts`). Igual para todos los roles.
 
-## Vencimientos de facturas (solo Andrés)
+## Vencimientos de facturas (Andrés; Manolo solo los ve)
 - El script de facturas (Apps Script de la cuenta de Andrés, «FacturasAutomaticas») lleva un archivo extra
   `tools/vencimientos-facturas.gs`: cada hora lee las facturas nuevas de «FACTURAS PARA GESTORIA», apunta los
   plazos en la pestaña «Vencimientos» de «Log Facturas» y los manda a `POST /api/vencimientos/importar`

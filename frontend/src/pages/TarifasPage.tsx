@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
 import { coincide, fechaES } from '../lib/texto';
+import { esConsulta } from '../auth';
 import { useIsMobile } from '../hooks';
 import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
@@ -217,7 +218,7 @@ export function TarifasPage() {
 
   return (
     <div className="page-wide tf">
-      <Cabecera pruebas titulo="Tarifas" sub="Las tarifas de proveedor, por familias y medidas." />
+      <Cabecera pruebas={!esConsulta()} titulo="Tarifas" sub="Las tarifas de proveedor, por familias y medidas." />
       {error && <ConnectionError message={error} onRetry={cargar} />}
       <Buscador q={q} setQ={setQ} placeholder="Buscar en todas: 50x50x4, codo 110…" onEnter={abrirPrimero} />
       {q.trim() ? (
