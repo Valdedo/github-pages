@@ -272,13 +272,52 @@ def art(name):
         o.append(poly([(130, 132), (158, 128), (172, 148), (160, 168), (132, 172), (118, 152)], '#D5DCE3'))
         o.append(circle((145, 150), 11, '#4B525A'))
         return o
+    if name == 'zab-laton':  # te de latón roscada (de frente)
+        o = [f'<rect x="84" y="58" width="32" height="50" fill="#D9B24A" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="90" y="62" width="8" height="44" fill="#F0D57E"/>',
+             f'<ellipse cx="100" cy="58" rx="16" ry="7" fill="#E6C35A" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="100" cy="58" rx="9" ry="4" fill="#5A4510"/>',
+             f'<rect x="40" y="104" width="120" height="44" rx="6" fill="#D9B24A" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="44" y="110" width="112" height="9" rx="4" fill="#F0D57E"/>',
+             f'<path d="M84 104 L116 104" stroke="#D9B24A" stroke-width="4"/>']
+        for x in (40, 160):
+            o.append(f'<ellipse cx="{x}" cy="126" rx="9" ry="22" fill="#E6C35A" stroke="{INK}" stroke-width="{SW}"/>')
+            o.append(f'<ellipse cx="{x}" cy="126" rx="5" ry="13" fill="#5A4510"/>')
+        for x in (58, 66, 134, 142):
+            o.append(f'<line x1="{x}" y1="106" x2="{x}" y2="146" stroke="#B08A2A" stroke-width="2"/>')
+        return o
+    if name == 'zab-multicapa':  # rollo de multicapa blanco con un racor
+        o = []
+        for k, r in enumerate([68, 56, 44]):
+            o.append(f'<ellipse cx="96" cy="{110 + k}" rx="{r}" ry="{r * 0.6:.1f}" fill="{"#F4F6F8" if k % 2 == 0 else "#E2E7EC"}" stroke="{INK}" stroke-width="{SW}"/>')
+        o.append(f'<ellipse cx="96" cy="112" rx="30" ry="18" fill="#F2F4F0" stroke="{INK}" stroke-width="{SW}"/>')
+        o += cyl((160, 128), 10, (18, 22), '#F4F6F8', '#D5DCE3', '#AEB8C2')
+        o += cyl((170, 140), 14, (12, 15), '#E6C35A', '#C29A2E', '#9A7A1E')
+        return o
+    if name == 'zab-llaves':  # llave de bola con palanca roja
+        o = cyl((40, 132), 22, (120, 0), '#D5DCE3', '#AEB8C2', '#8893A0', wall='#8893A0', dark='#3E454C', rin=13)
+        o.append(f'<rect x="72" y="104" width="56" height="56" rx="10" fill="#C9D1D9" stroke="{INK}" stroke-width="{SW}"/>')
+        o.append(f'<rect x="92" y="84" width="16" height="22" fill="#AEB8C2" stroke="{INK}" stroke-width="{SW}"/>')
+        o.append(f'<path d="M84 80 L176 58 Q184 56 184 64 L184 70 Q184 76 176 78 L92 96 Z" fill="#D8443A" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>')
+        o.append(circle((100, 88), 8, '#8893A0'))
+        return o
+    if name == 'zab-termo':  # termo eléctrico
+        o = [f'<rect x="58" y="30" width="84" height="148" rx="40" fill="#FFFFFF" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="120" y="44" width="12" height="120" rx="6" fill="#E9EDF0"/>',
+             f'<rect x="84" y="128" width="32" height="20" rx="4" fill="#DDE2E7" stroke="{INK}" stroke-width="2"/>',
+             circle((100, 138), 5, '#2FAE66', 0),
+             f'<rect x="80" y="176" width="8" height="16" fill="#8893A0" stroke="{INK}" stroke-width="2"/>',
+             f'<rect x="112" y="176" width="8" height="16" fill="#8893A0" stroke="{INK}" stroke-width="2"/>',
+             f'<rect x="72" y="188" width="16" height="6" rx="2" fill="#2F7FD0"/>', f'<rect x="112" y="188" width="16" height="6" rx="2" fill="#D8443A"/>']
+        return o
     raise KeyError(name)
 
 NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-cuadrado', 'tubo-rectangular', 'tubo-galv',
          'tubo-redondo-galv', 'tubo-iso', 'chapa', 'chapa-ondulada', 'redondo', 'malla',
          'prov-hierros', 'prov-pladur', 'prov-dinak', 'prov-zabaleta', 'prov-isoltubex',
          'zab-saneamiento', 'zab-evacuacion', 'zab-abastecimiento', 'zab-fontaneria', 'zab-calefaccion', 'zab-chimenea',
-         'zab-canalon', 'zab-bombeo', 'zab-sanitario', 'zab-quimicos', 'zab-ferreteria']
+         'zab-canalon', 'zab-bombeo', 'zab-sanitario', 'zab-quimicos', 'zab-ferreteria',
+         'zab-laton', 'zab-multicapa', 'zab-llaves', 'zab-termo']
 
 S = 512
 for nm in NAMES:

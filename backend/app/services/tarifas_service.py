@@ -9,6 +9,7 @@ cada hoja tiene sus columnas.
 """
 import json
 import logging
+import os
 import re
 import unicodedata
 from datetime import date, datetime, timedelta
@@ -219,6 +220,42 @@ def leer_hierros(hojas: dict) -> dict:
 
 
 # ── Lector de la tarifa de Navarro Zabaleta ───────────────────────────────
+# Clasificación propia (oct. 2026): Zabaleta llama de muchas maneras a lo mismo, así que cada referencia
+# tiene aquí su familia, grupo, tipo de pieza, medida y un nombre claro. Se genera con
+# tools/zabaleta-clasifica.py. Las referencias nuevas que no estén se colocan solas por su categoría.
+_CATALOGO_ZAB = os.path.join(os.path.dirname(__file__), "..", "data", "zabaleta_catalogo.json")
+try:
+    with open(_CATALOGO_ZAB, encoding="utf-8") as _f:
+        CATALOGO_ZAB = json.load(_f)
+except (OSError, ValueError):  # sin el archivo se enseña como viene en la hoja
+    CATALOGO_ZAB = {"familias": [], "grupos": {}, "articulos": {}}
+
+# Categoría de la hoja → familia propia, para referencias nuevas que aún no están clasificadas
+FAMILIA_NUEVOS = {
+    "Saneamiento y drenaje": "Saneamiento exterior", "Evacuación PVC": "Evacuación PVC",
+    "Abastecimiento y riego": "Agua y acometidas", "Fontanería interior": "Latón roscado",
+    "Calefacción y ACS": "Calefacción", "Chimenea y estufas": "Chimeneas, estufas y ventilación",
+    "Canalón y cubierta": "Canalón", "Bombeo y presión": "Agua y acometidas", "Sanitario y baño": "Baño y desagües",
+    "Químicos y sellado": "Gas, sellado y soldadura", "Ferretería y varios": "Fijación, aislamiento y herramienta",
+}
+NUEVOS = "Nuevos (sin ordenar)"
+
+
+def _clasifica_zab(a: dict) -> None:
+    c = CATALOGO_ZAB["articulos"].get(a["ref"])
+    if c:
+        a.update(categoria=c["f"], subcategoria=c["g"], tipo=c.get("t"), medida_c=c.get("m"), orden=c.get("o"),
+                 nombre=c["n"], foto=c.get("foto"))
+    elif CATALOGO_ZAB["familias"]:
+        a.update(categoria=FAMILIA_NUEVOS.get(a["categoria"], a["categoria"]), subcategoria=NUEVOS,
+                 tipo=None, medida_c=None, orden=None, nombre=_bonita(a["descripcion"]), foto=None, nuevo=True)
+
+
+def _bonita(d: str) -> str:
+    s = re.sub(r"\s+", " ", d.strip().lower())
+    return s[:1].upper() + s[1:]
+
+
 def leer_zabaleta(hojas: dict) -> dict:
     """Pestaña «Tarifa»: una fila por referencia (con categoría y subcategoría).
     «Detalle facturas»: cada línea de cada factura → evolución del coste y la factura exacta."""
@@ -245,6 +282,7 @@ def leer_zabaleta(hojas: dict) -> dict:
             "coste": precio, "pvp": numero(f[14]), "pvp_iva": numero(f[15]),
             "ud_venta": ud, "ud_compra": ud,
         })
+        _clasifica_zab(arts[-1])
     # Líneas de factura válidas (los cargos anulados por un abono y los abonos no cuentan)
     lineas: dict[str, list] = {}
     facturas: dict[str, str] = {}
@@ -269,7 +307,8 @@ def leer_zabaleta(hojas: dict) -> dict:
         cambios = sum(1 for a in arts if a["fecha"] == fecha and a["evol"])
         nuevos = sum(1 for a in arts if a["fecha"] == fecha and a["nota"] and normaliza(a["nota"]) == "nuevo")
         log.append({"numero": num, "fecha": fecha, "cambios": cambios, "nuevos": nuevos, "notas": ""})
-    return {"articulos": arts, "log": log, "margen": None, "lineas": lineas}
+    return {"articulos": arts, "log": log, "margen": None, "lineas": lineas,
+            "orden_familias": CATALOGO_ZAB["familias"], "orden_grupos": CATALOGO_ZAB["grupos"]}
 
 
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta}
@@ -387,7 +426,8 @@ def _partes(desc: str) -> Optional[tuple]:
 
 
 def _item(a: dict, valor: str = "", ud: str = "") -> dict:
-    return {"ref": a["ref"], "codigo": a.get("codigo"), "descripcion": a["descripcion"], "valor": bonita_medida(valor) if valor else "",
+    return {"ref": a["ref"], "codigo": a.get("codigo"), "descripcion": a.get("nombre") or a["descripcion"],
+            "original": a["descripcion"] if a.get("nombre") else None, "foto": a.get("foto"), "valor": bonita_medida(valor) if valor else "",
             "ud_medida": ud, "unidad": a["unidad"], "ud_venta": a["ud_venta"], "coste": a["coste"], "pvp": a["pvp"],
             "pvp_iva": a["pvp_iva"], "evol": a["evol"], "fecha": a["fecha"]}
 
@@ -457,30 +497,43 @@ def _medida_final(desc: str) -> Optional[tuple]:
     return base, m.group(), ud
 
 
-def _grupos_sub(arts: list) -> list:
-    """Familias con subcategorías (Zabaleta): cada subcategoría es una sección; dentro, lo que va
-    por medidas (p. ej. «TUBO SN8 PE» 160, 200… 630) en botones y el resto en lista."""
+def _grupos_sub(arts: list, orden: Optional[list] = None) -> list:
+    """Familias con grupos (Zabaleta): cada grupo es una sección; dentro, cada tipo de pieza con varias medidas
+    va en botones (Codo 87º M-H: 40, 75, 110…) y el resto en lista, por nombre."""
     subs: dict[str, list] = {}
     for a in arts:
         subs.setdefault(a.get("subcategoria") or "", []).append(a)
+    pos = {g: i for i, g in enumerate(orden or [])}
     out = []
-    for sub, items in subs.items():
-        por_base: dict[str, list] = {}
+    for sub in sorted(subs, key=lambda g: (g == NUEVOS, pos.get(g, 999))):
+        items = subs[sub]
+        tipos: dict[str, list] = {}
+        sueltos = []
         for a in items:
-            p = _medida_final(a["descripcion"])
-            if p:
-                por_base.setdefault(p[0], []).append((a, p[1], p[2]))
+            if a.get("tipo") and a.get("medida_c"):
+                tipos.setdefault(a["tipo"], []).append(a)
+            elif a.get("nuevo"):
+                p = _medida_final(a["descripcion"])  # sin clasificar: se intenta por la medida del final
+                if p:
+                    tipos.setdefault(p[0], []).append({**a, "medida_c": p[1], "orden": None})
+                else:
+                    sueltos.append(a)
             else:
-                por_base.setdefault("\0" + a["ref"], []).append((a, "", ""))
-        chips, sueltos = [], []
-        for base, xs in por_base.items():
-            if len(xs) >= 3 and not base.startswith("\0"):
-                xs.sort(key=lambda t: _clave_orden(t[1]))
-                chips.append({"titulo": base, "seccion": sub, "medidas": [_item(a, v, u) for a, v, u in xs]})
-            else:
-                sueltos += [a for a, _, _ in xs]
-        sueltos.sort(key=lambda a: normaliza(a["descripcion"]))
-        out += chips
+                sueltos.append(a)
+        for t, xs in tipos.items():
+            if len(xs) < 2:
+                sueltos += xs
+                continue
+            xs.sort(key=lambda a: (a["orden"] if a.get("orden") is not None else _clave_orden(a["medida_c"])[0]))
+            vistas, chips = set(), []
+            for a in xs:  # la misma medida dos veces (dos marcas): la segunda va en la lista
+                if a["medida_c"] in vistas:
+                    sueltos.append(a)
+                else:
+                    vistas.add(a["medida_c"])
+                    chips.append(_item(a, a["medida_c"]))
+            out.append({"titulo": t, "seccion": sub, "medidas": chips})
+        sueltos.sort(key=lambda a: normaliza(a.get("nombre") or a["descripcion"]))
         if sueltos:
             out.append({"titulo": None, "seccion": sub, "medidas": [_item(a) for a in sueltos]})
     return out
@@ -508,8 +561,11 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
     cfg = TARIFAS[prov]
     datos = LECTORES[prov](json.loads(c.hojas))
     familias: dict[str, list] = {}
+    for f in datos.get("orden_familias") or []:
+        familias[f] = []
     for a in datos["articulos"]:
         familias.setdefault(a["categoria"], []).append(a)
+    familias = {k: v for k, v in familias.items() if v}
     ultima = None
     if datos["log"]:
         u = max(datos["log"], key=lambda r: r["fecha"])
@@ -520,7 +576,7 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
         "actualizada": _actualizada(c), "leida": c.leido_at.isoformat() + "Z" if c.leido_at else None,
         "aviso": aviso, "ultima_factura": ultima,
         "familias": [{"id": slug(cat), "nombre": bonito(cat), "clave": cat, "n": len(arts),
-                      "grupos": _grupos_sub(arts) if "lineas" in datos else _grupos(arts)}
+                      "grupos": _grupos_sub(arts, (datos.get("orden_grupos") or {}).get(cat)) if "lineas" in datos else _grupos(arts)}
                      for cat, arts in familias.items()],
     }
 
@@ -638,16 +694,19 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
                    "enlace": enlace_factura(ult["factura"], archivos),
                    "cantidad": ult["cantidad"], "bruto": ult["bruto"], "dto1": ult["dto1"], "dto2": ult["dto2"]}
     p = _medida_final(a["descripcion"])
+    medida_txt = a.get("medida_c") or (f"{bonita_medida(p[1])} {p[2]}".strip() if p else None)
     return {
         "proveedor": prov, "proveedor_nombre": TARIFAS[prov]["proveedor"], "aviso": aviso,
         "familia": {"id": slug(a["categoria"]), "nombre": bonito(a["categoria"]), "clave": a["categoria"]},
         "subcategoria": a.get("subcategoria"), "codigo": a.get("codigo"),
-        "descripcion": a["descripcion"], "unidad": a["unidad"], "ud_venta": a["ud_venta"], "ud_compra": a["ud_compra"],
+        "descripcion": a.get("nombre") or a["descripcion"], "original": a["descripcion"] if a.get("nombre") else None,
+        "tipo": a.get("tipo"), "foto": a.get("foto"),
+        "unidad": a["unidad"], "ud_venta": a["ud_venta"], "ud_compra": a["ud_compra"],
         "precio": a["precio"], "fecha": a["fecha"], "precio_ant": a["precio_ant"], "fecha_ant": a["fecha_ant"],
         "evol": a["evol"], "kg_m": None, "coste": a["coste"], "pvp": a["pvp"], "pvp_iva": a["pvp_iva"],
         "margen": a.get("margen"), "redondeo": TARIFAS[prov].get("redondeo"),
         "historial": historial, "factura": factura, "posibles": [],
         "compras": len(lineas) or a.get("compras"), "minimo": a.get("minimo"), "nota": a.get("nota"),
         "apunte": a.get("apunte"),
-        "medida": f"{bonita_medida(p[1])} {p[2]}".strip() if p else None,
+        "medida": medida_txt,
     }

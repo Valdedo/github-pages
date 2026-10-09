@@ -6,7 +6,7 @@ export interface TarifaResumen {
   articulos: number | null; familias: number | null; actualizada: string | null;
 }
 export interface TarifaMedida {
-  ref: string; codigo?: string | null; descripcion: string; valor: string; ud_medida: string; unidad: string; ud_venta: string;
+  ref: string; codigo?: string | null; original?: string | null; foto?: string | null; descripcion: string; valor: string; ud_medida: string; unidad: string; ud_venta: string;
   coste: number | null; pvp: number | null; pvp_iva: number | null; evol: number | null; fecha: string | null;
 }
 export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[] }
@@ -31,6 +31,7 @@ export interface FichaTarifa {
   // Solo en las tarifas que traen cada factura (Zabaleta)
   codigo?: string | null; subcategoria?: string | null; redondeo?: string | null;
   compras?: number | null; minimo?: number | null; nota?: string | null; apunte?: string | null;
+  original?: string | null; tipo?: string | null; foto?: string | null;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). */
@@ -66,6 +67,11 @@ const FOTOS: Record<string, string> = {
 };
 // Familias de Zabaleta (van antes: «Canalón y cubierta» no es la chapa de cubierta de Hierros)
 const ZABALETA: [RegExp, string][] = [
+  // organización propia (oct. 2026)
+  [/^saneamiento exterior/, 'zab-saneamiento'], [/^agua y/, 'zab-abastecimiento'], [/^cobre/, 'zab-fontaneria'],
+  [/^laton/, 'zab-laton'], [/^multicapa/, 'zab-multicapa'], [/^llaves/, 'zab-llaves'], [/^bano/, 'zab-sanitario'],
+  [/^termos/, 'zab-termo'], [/^chimeneas/, 'zab-chimenea'], [/^gas, sellado/, 'zab-quimicos'], [/^fijacion/, 'zab-ferreteria'],
+  // como venían en la hoja
   [/^saneamiento/, 'zab-saneamiento'], [/^evacuacion/, 'zab-evacuacion'], [/^abastecimiento/, 'zab-abastecimiento'],
   [/^fontaneria/, 'zab-fontaneria'], [/^calefaccion/, 'zab-calefaccion'], [/^chimenea/, 'zab-chimenea'],
   [/^canalon/, 'zab-canalon'], [/^bombeo/, 'zab-bombeo'], [/^sanitario/, 'zab-sanitario'],
@@ -86,10 +92,11 @@ export function claveFamilia(nombre: string): string {
 }
 /** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…).
  *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
-export function fotoArticulo(familia: string, descripcion?: string): string {
+export function fotoArticulo(familia: string, descripcion?: string, foto?: string | null): string {
+  if (foto && FOTOS_ZAB[foto]) return FOTOS_ZAB[foto];  // la foto ya viene elegida en la clasificación
   const d = normaliza(descripcion || '');
   const zab = claveFamilia(familia);
-  if (zab.startsWith('zab-')) return fotoZabaleta(zab, d);
+  if (zab.startsWith('zab-')) return foto === null ? (descripcion ? '' : fotoZabaleta(zab, '')) : fotoZabaleta(zab, d);
   const varios = claveFamilia(familia) === 'malla' && !/malla|valla|hercules/.test(normaliza(familia));
   if (/^panel/.test(d)) return FOTOS['panel-sandwich'];
   if (/^malla|^poste|^base poste|^abrazadera/.test(d)) return FOTOS['malla'];
@@ -103,6 +110,7 @@ export function fotoArticulo(familia: string, descripcion?: string): string {
 // Zabaleta: una foto de referencia por tipo de pieza (Obramat / Leroy Merlin), elegida por la descripción.
 // Lo que no se reconoce va sin foto (se enseña la pegatina de la familia).
 const FOTOS_ZAB: Record<string, string> = {
+  'machon': ADEO('4416394'), 'reduccion-laton': ADEO('4405818'), 'marsella': ADEO('4404028'),
   'sn8': ADEO('4412835'), 'teja': ADEO('1828844'), 'canal-reja': ADEO('4408617'),
   'rejilla': ADEO('4403190'), 'tapa-fundicion': ADEO('4406540'), 'drenaje': ADEO('4399672'),
   'corrugado': ADEO('4439510'), 'geotextil': 'https://media.adeo.com/mkp/5af38bf3155efc5755b1f51d886ae18a/media.jpg?width=640', 'arqueta': ADEO('4395583'),
@@ -126,7 +134,8 @@ const FOTOS_ZAB: Record<string, string> = {
 };
 /** Foto de la familia cuando no hay artículo elegido. */
 const ZAB_FAMILIA: Record<string, string> = {
-  'zab-saneamiento': 'sn8', 'zab-evacuacion': 'codo-pvc', 'zab-abastecimiento': 'polietileno', 'zab-fontaneria': 'laton',
+  'zab-laton': 'laton', 'zab-multicapa': 'multicapa', 'zab-llaves': 'llave-paso', 'zab-termo': 'termo',
+  'zab-saneamiento': 'sn8', 'zab-evacuacion': 'codo-pvc', 'zab-abastecimiento': 'polietileno', 'zab-fontaneria': 'tubo-cobre',
   'zab-calefaccion': 'termo', 'zab-chimenea': 'tubo-dp', 'zab-canalon': 'canalon', 'zab-bombeo': 'grupo-presion',
   'zab-sanitario': 'mecanismo-cisterna', 'zab-quimicos': 'espuma', 'zab-ferreteria': 'abrazadera',
 };

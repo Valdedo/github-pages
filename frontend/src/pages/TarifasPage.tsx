@@ -132,7 +132,7 @@ function buscar(ts: Tarifa[], q: string): Resultado[] {
   const limpio = q.replace(/(\d)\s*[x×*]\s*(?=\d)/gi, '$1x');
   const out: Resultado[] = [];
   for (const t of ts) for (const f of t.familias) for (const g of f.grupos) for (const m of g.medidas)
-    if (coincide(limpio, m.descripcion, f.nombre, g.titulo, g.seccion, m.codigo)) out.push({ t, f, m });
+    if (coincide(limpio, m.descripcion, f.nombre, g.titulo, g.seccion, m.codigo, m.original)) out.push({ t, f, m });
   return out;
 }
 
@@ -347,7 +347,7 @@ function PanelMedida({ prov, fam, f, sel, total }: { prov: string; fam: string; 
   return (
     <aside className="tf-panel" aria-live="polite">
       <div className="tf-panel-foto">
-        <Foto src={fotoArticulo(f.nombre, sel?.descripcion)} alt={sel ? conPor(sel.descripcion) : f.nombre} respaldo={pegatina(claveFamilia(f.nombre))} />
+        <Foto src={fotoArticulo(f.nombre, sel?.descripcion, sel?.foto)} alt={sel ? conPor(sel.descripcion) : f.nombre} respaldo={pegatina(claveFamilia(f.nombre))} />
       </div>
       {!sel ? (
         <div className="tf-panel-vacio">
@@ -581,8 +581,8 @@ export function TarifaFichaPage() {
 
   const foto = d && (
     <div className="tf-ficha-foto">
-      <Foto src={fotoArticulo(d.familia.nombre, d.descripcion)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
-      {fotoArticulo(d.familia.nombre, d.descripcion) && <span className="tf-foto-nota">Foto de referencia</span>}
+      <Foto src={fotoArticulo(d.familia.nombre, d.descripcion, d.foto)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
+      {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">Foto de referencia</span>}
     </div>
   );
   const precios = d && (
@@ -653,6 +653,7 @@ export function TarifaFichaPage() {
         {d.codigo && <><dt>Referencia</dt><dd className="tf-cod">{d.codigo}</dd></>}
         {d.medida && <><dt>Medida</dt><dd>{conPor(d.medida)}</dd></>}
         <dt>Familia</dt><dd>{d.familia.nombre}{d.subcategoria ? ` · ${d.subcategoria}` : ''}</dd>
+        {d.original && <><dt>En la factura</dt><dd className="tf-cod">{d.original}</dd></>}
         <dt>Se compra por</dt><dd>{d.ud_compra}</dd>
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}

@@ -1,0 +1,5334 @@
+{
+"familias": [
+"Saneamiento exterior",
+"Evacuación PVC",
+"Agua y acometidas",
+"Cobre",
+"Latón roscado",
+"Multicapa, PP-R e inox",
+"Llaves y válvulas",
+"Baño y desagües",
+"Termos y agua caliente",
+"Calefacción",
+"Chimeneas, estufas y ventilación",
+"Canalón",
+"Gas, sellado y soldadura",
+"Fijación, aislamiento y herramienta"
+],
+"grupos": {
+"Saneamiento exterior": [
+"Tubo de saneamiento",
+"Arquetas de PVC",
+"Tapas y registros de fundición",
+"Canales y rejillas",
+"Drenaje",
+"Tubo corrugado para cables"
+],
+"Evacuación PVC": [
+"Tubo de PVC",
+"Codos",
+"Derivaciones e injertos",
+"Manguitos y reducciones",
+"Tapones",
+"Sumideros y botes sifónicos"
+],
+"Agua y acometidas": [
+"Tubo de polietileno",
+"Racores de latón para polietileno",
+"Collarines de toma",
+"PVC presión e hidrotubo",
+"Bombas y grupos de presión",
+"Pozo: retención y filtros"
+],
+"Cobre": [
+"Tubo de cobre",
+"Codos y curvas",
+"Manguitos, tes y reducciones",
+"Paso de cobre a rosca",
+"Racores de compresión (cobre / multicapa)",
+"Reparación de tuberías"
+],
+"Latón roscado": [
+"Codos, tes y manguitos",
+"Machones y reducciones",
+"Tapones",
+"Racores",
+"Juntas"
+],
+"Multicapa, PP-R e inox": [
+"Multicapa",
+"PP-R termofusión (serie 7)",
+"Inox prensar (Filpress)"
+],
+"Llaves y válvulas": [
+"Llaves de paso",
+"Llaves de escuadra y de lavadora",
+"Latiguillos, flexos y alargos",
+"Reductoras y filtros"
+],
+"Baño y desagües": [
+"Cisternas y mecanismos",
+"Válvulas de desagüe y sifones",
+"Inodoro y lavabo: fijaciones y juntas",
+"Ducha"
+],
+"Termos y agua caliente": [
+"Termos eléctricos",
+"Calentadores de gas",
+"Acumuladores",
+"Recambios y seguridad de termos"
+],
+"Calefacción": [
+"Radiadores y sus válvulas",
+"Circuladores",
+"Vasos de expansión y seguridad",
+"Salida de humos de caldera 60/100",
+"Termostatos, manómetros y vainas",
+"Gasoil"
+],
+"Chimeneas, estufas y ventilación": [
+"Estufas",
+"Tubo inox doble pared",
+"Tubo inox pared simple",
+"Anclajes y abrazaderas",
+"Ventilación y tubo flexible"
+],
+"Canalón": [
+"Canalón PVC gris"
+],
+"Gas, sellado y soldadura": [
+"Gas butano y propano",
+"Soldadura de cobre",
+"Sellado de roscas",
+"Siliconas, masillas y espuma"
+],
+"Fijación, aislamiento y herramienta": [
+"Fijación de tuberías",
+"Aislamiento y vaina de tuberías",
+"Herramienta",
+"Otros"
+]
+},
+"articulos": {
+"SN8630": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø630 (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "630",
+"o": 630.0,
+"foto": "sn8"
+},
+"SN8250": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø250 (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "250",
+"o": 250.0,
+"foto": "sn8"
+},
+"SN8200": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø200 (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "200",
+"o": 200.0,
+"foto": "sn8"
+},
+"SN8315": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø315 (teja) (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "315",
+"o": 315.0,
+"foto": "sn8"
+},
+"SN8160": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø160 (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "160",
+"o": 160.0,
+"foto": "sn8"
+},
+"SN8800": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø800 (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "800",
+"o": 800.0,
+"foto": "sn8"
+},
+"SN8400": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo corrugado SN8 doble pared Ø400 (m)",
+"t": "Tubo corrugado SN8 doble pared (m)",
+"m": "400",
+"o": 400.0,
+"foto": "sn8"
+},
+"U200F75": {
+"f": "Saneamiento exterior",
+"g": "Canales y rejillas",
+"n": "Canal con rejilla de fundición 750×200 D400",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canal-reja"
+},
+"EUROKIT": {
+"f": "Saneamiento exterior",
+"g": "Canales y rejillas",
+"n": "Canaleta de drenaje ULMA 1 m con rejilla galvanizada",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canal-reja"
+},
+"340202838": {
+"f": "Saneamiento exterior",
+"g": "Canales y rejillas",
+"n": "Rejilla de fundición para imbornal 29×39×35",
+"t": null,
+"m": null,
+"o": null,
+"foto": "rejilla"
+},
+"TE04315": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø315 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "315",
+"o": 315.0,
+"foto": "teja"
+},
+"TE04400": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø400 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "400",
+"o": 400.0,
+"foto": "teja"
+},
+"TE04125": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø125 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "125",
+"o": 125.0,
+"foto": "teja"
+},
+"TE04250": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø250 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "250",
+"o": 250.0,
+"foto": "teja"
+},
+"TE04160": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø160 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "160",
+"o": 160.0,
+"foto": "teja"
+},
+"TE04200": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø200 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "200",
+"o": 200.0,
+"foto": "teja"
+},
+"TE02315": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN2 Ø315 (m)",
+"t": "Tubo PVC teja SN2 (m)",
+"m": "315",
+"o": 315.0,
+"foto": "teja"
+},
+"TE04110": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 Ø110 (m)",
+"t": "Tubo PVC teja SN4 (m)",
+"m": "110",
+"o": 110.0,
+"foto": "teja"
+},
+"TE02200": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN2 Ø200 (m)",
+"t": "Tubo PVC teja SN2 (m)",
+"m": "200",
+"o": 200.0,
+"foto": "teja"
+},
+"TE64125": {
+"f": "Saneamiento exterior",
+"g": "Tubo de saneamiento",
+"n": "Tubo PVC teja SN4 PN6 Ø125 (m)",
+"t": "Tubo PVC teja SN4 PN6 (m)",
+"m": "125",
+"o": 125.0,
+"foto": "teja"
+},
+"TH50B": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 50×50 B125",
+"t": "Tapa de fundición B125 (peatonal)",
+"m": "50×50",
+"o": 50.0,
+"foto": "tapa-fundicion"
+},
+"TH60B": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 60×60 B125",
+"t": "Tapa de fundición B125 (peatonal)",
+"m": "60×60",
+"o": 60.0,
+"foto": "tapa-fundicion"
+},
+"TH80B": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 80×80 B125",
+"t": "Tapa de fundición B125 (peatonal)",
+"m": "80×80",
+"o": 80.0,
+"foto": "tapa-fundicion"
+},
+"R1PZ": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición redonda D400 (con marco)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapa-fundicion"
+},
+"TH40B": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 40×40 B125",
+"t": "Tapa de fundición B125 (peatonal)",
+"m": "40×40",
+"o": 40.0,
+"foto": "tapa-fundicion"
+},
+"TH30B": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 30×30 B125",
+"t": "Tapa de fundición B125 (peatonal)",
+"m": "30×30",
+"o": 30.0,
+"foto": "tapa-fundicion"
+},
+"TH70B": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 70×70 B125",
+"t": "Tapa de fundición B125 (peatonal)",
+"m": "70×70",
+"o": 70.0,
+"foto": "tapa-fundicion"
+},
+"TFC25040": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 40×40 C250",
+"t": "Tapa de fundición C250 (garaje, tráfico ligero)",
+"m": "40×40",
+"o": 40.0,
+"foto": "tapa-fundicion"
+},
+"$5002": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa y aro de fundición Ø650 con cierre",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapa-fundicion"
+},
+"TFC25060": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 60×60 C250",
+"t": "Tapa de fundición C250 (garaje, tráfico ligero)",
+"m": "60×60",
+"o": 60.0,
+"foto": "tapa-fundicion"
+},
+"TFC25030": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa de fundición 30×30 C250",
+"t": "Tapa de fundición C250 (garaje, tráfico ligero)",
+"m": "30×30",
+"o": 30.0,
+"foto": "tapa-fundicion"
+},
+"2REGMB55": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Registro tipo buzón 55×55",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapa-fundicion"
+},
+"SR01061": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Armario para contador de agua con mirilla 436×294×114",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapa-fundicion"
+},
+"25111755": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Tapa y aro de fundición Ø600 C250",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapa-fundicion"
+},
+"5855516": {
+"f": "Saneamiento exterior",
+"g": "Tapas y registros de fundición",
+"n": "Registro hidráulico de fundición 200×200 B125",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapa-fundicion"
+},
+"PAC0400G": {
+"f": "Saneamiento exterior",
+"g": "Arquetas de PVC",
+"n": "Tapa para arqueta de PVC gris 400×400",
+"t": "Tapa para arqueta de PVC gris",
+"m": "400×400",
+"o": 400.0,
+"foto": "arqueta"
+},
+"PAC0300G": {
+"f": "Saneamiento exterior",
+"g": "Arquetas de PVC",
+"n": "Tapa para arqueta de PVC gris 300×300",
+"t": "Tapa para arqueta de PVC gris",
+"m": "300×300",
+"o": 300.0,
+"foto": "arqueta"
+},
+"PAC0200G": {
+"f": "Saneamiento exterior",
+"g": "Arquetas de PVC",
+"n": "Tapa para arqueta de PVC gris 200×200",
+"t": "Tapa para arqueta de PVC gris",
+"m": "200×200",
+"o": 200.0,
+"foto": "arqueta"
+},
+"DRDP160": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje doble pared Ø160 (m)",
+"t": "Tubo de drenaje doble pared en rollo (m)",
+"m": "160",
+"o": 160.0,
+"foto": "drenaje"
+},
+"CDPR090": {
+"f": "Saneamiento exterior",
+"g": "Tubo corrugado para cables",
+"n": "Tubo corrugado doble pared rojo Ø90 ligero (m)",
+"t": "Tubo corrugado doble pared rojo, ligero (m)",
+"m": "90",
+"o": 90.0,
+"foto": "corrugado"
+},
+"DRSP160": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje pared simple Ø160 (m)",
+"t": "Tubo de drenaje pared simple en rollo (m)",
+"m": "160",
+"o": 160.0,
+"foto": "drenaje"
+},
+"CDPR063": {
+"f": "Saneamiento exterior",
+"g": "Tubo corrugado para cables",
+"n": "Tubo corrugado doble pared rojo Ø63 ligero (m)",
+"t": "Tubo corrugado doble pared rojo, ligero (m)",
+"m": "63",
+"o": 63.0,
+"foto": "corrugado"
+},
+"DRSP125": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje pared simple Ø125 (m)",
+"t": "Tubo de drenaje pared simple en rollo (m)",
+"m": "125",
+"o": 125.0,
+"foto": "drenaje"
+},
+"DRDP125": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje doble pared Ø125 (m)",
+"t": "Tubo de drenaje doble pared en rollo (m)",
+"m": "125",
+"o": 125.0,
+"foto": "drenaje"
+},
+"DRDP200": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje doble pared Ø200 (m)",
+"t": "Tubo de drenaje doble pared en rollo (m)",
+"m": "200",
+"o": 200.0,
+"foto": "drenaje"
+},
+"DRSP110": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje pared simple Ø100 (m)",
+"t": "Tubo de drenaje pared simple en rollo (m)",
+"m": "100",
+"o": 100.0,
+"foto": "drenaje"
+},
+"DRSP080": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Tubo de drenaje pared simple Ø80 (m)",
+"t": "Tubo de drenaje pared simple en rollo (m)",
+"m": "80",
+"o": 80.0,
+"foto": "drenaje"
+},
+"CDPR050": {
+"f": "Saneamiento exterior",
+"g": "Tubo corrugado para cables",
+"n": "Tubo corrugado doble pared rojo Ø50 ligero (m)",
+"t": "Tubo corrugado doble pared rojo, ligero (m)",
+"m": "50",
+"o": 50.0,
+"foto": "corrugado"
+},
+"CDPR075": {
+"f": "Saneamiento exterior",
+"g": "Tubo corrugado para cables",
+"n": "Tubo corrugado doble pared rojo Ø75 ligero (m)",
+"t": "Tubo corrugado doble pared rojo, ligero (m)",
+"m": "75",
+"o": 75.0,
+"foto": "corrugado"
+},
+"CEPR040": {
+"f": "Saneamiento exterior",
+"g": "Tubo corrugado para cables",
+"n": "Tubo corrugado doble pared rojo Ø40 ligero (m)",
+"t": "Tubo corrugado doble pared rojo, ligero (m)",
+"m": "40",
+"o": 40.0,
+"foto": "corrugado"
+},
+"POVAL0510": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Ventilación y tubo flexible",
+"n": "Tubo de ventilación de aluminio corrugado Ø125",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"GEO120": {
+"f": "Saneamiento exterior",
+"g": "Drenaje",
+"n": "Geotextil en rollo 120 g/m²",
+"t": null,
+"m": null,
+"o": null,
+"foto": "geotextil"
+},
+"ETAPO400": {
+"f": "Saneamiento exterior",
+"g": "Arquetas de PVC",
+"n": "Arqueta de PVC gris 400×400",
+"t": "Arqueta de PVC gris",
+"m": "400×400",
+"o": 400.0,
+"foto": "arqueta"
+},
+"SI01011": {
+"f": "Evacuación PVC",
+"g": "Sumideros y botes sifónicos",
+"n": "Bote sifónico",
+"t": null,
+"m": null,
+"o": null,
+"foto": "bote-sifonico"
+},
+"SI01102": {
+"f": "Evacuación PVC",
+"g": "Sumideros y botes sifónicos",
+"n": "Embellecedor de bote sifónico con tornillos",
+"t": null,
+"m": null,
+"o": null,
+"foto": "bote-sifonico"
+},
+"ETAPO300": {
+"f": "Saneamiento exterior",
+"g": "Arquetas de PVC",
+"n": "Arqueta de PVC gris 300×300",
+"t": "Arqueta de PVC gris",
+"m": "300×300",
+"o": 300.0,
+"foto": "arqueta"
+},
+"ETAPO200": {
+"f": "Saneamiento exterior",
+"g": "Arquetas de PVC",
+"n": "Arqueta de PVC gris 200×200",
+"t": "Arqueta de PVC gris",
+"m": "200×200",
+"o": 200.0,
+"foto": "arqueta"
+},
+"0935003821": {
+"f": "Evacuación PVC",
+"g": "Sumideros y botes sifónicos",
+"n": "Caldereta vertical con rejilla inox Ø40/50 115×115",
+"t": null,
+"m": null,
+"o": null,
+"foto": "bote-sifonico"
+},
+"0439002439": {
+"f": "Evacuación PVC",
+"g": "Sumideros y botes sifónicos",
+"n": "Sumidero sifónico salida vertical 150×150 Ø50",
+"t": null,
+"m": null,
+"o": null,
+"foto": "bote-sifonico"
+},
+"PC3110": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø110 (barra de 3 m)",
+"t": "Tubo PVC serie B (barra de 3 m)",
+"m": "110",
+"o": 110.0,
+"foto": "tubo-pvc"
+},
+"PC3075": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø75 (barra de 3 m)",
+"t": "Tubo PVC serie B (barra de 3 m)",
+"m": "75",
+"o": 75.0,
+"foto": "tubo-pvc"
+},
+"PC3125": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø125 (barra de 3 m)",
+"t": "Tubo PVC serie B (barra de 3 m)",
+"m": "125",
+"o": 125.0,
+"foto": "tubo-pvc"
+},
+"PC3090": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø90 (barra de 3 m)",
+"t": "Tubo PVC serie B (barra de 3 m)",
+"m": "90",
+"o": 90.0,
+"foto": "tubo-pvc"
+},
+"PC3200": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø200 (barra de 3 m)",
+"t": "Tubo PVC serie B (barra de 3 m)",
+"m": "200",
+"o": 200.0,
+"foto": "tubo-pvc"
+},
+"PC3160": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø160 (barra de 3 m)",
+"t": "Tubo PVC serie B (barra de 3 m)",
+"m": "160",
+"o": 160.0,
+"foto": "tubo-pvc"
+},
+"PC5040": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø40 (barra de 5 m)",
+"t": "Tubo PVC serie B (barra de 5 m)",
+"m": "40",
+"o": 40.0,
+"foto": "tubo-pvc"
+},
+"PC5050": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø50 (barra de 5 m)",
+"t": "Tubo PVC serie B (barra de 5 m)",
+"m": "50",
+"o": 50.0,
+"foto": "tubo-pvc"
+},
+"PC5032": {
+"f": "Evacuación PVC",
+"g": "Tubo de PVC",
+"n": "Tubo PVC serie B Ø32 (barra de 5 m)",
+"t": "Tubo PVC serie B (barra de 5 m)",
+"m": "32",
+"o": 32.0,
+"foto": "tubo-pvc"
+},
+"CO45125": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 45º M-H Ø125",
+"t": "Codo PVC 45º M-H",
+"m": "125",
+"o": 125.0,
+"foto": "codo45-pvc"
+},
+"PM720": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Manguito PP-R Ø20",
+"t": "Manguito PP-R termofusión",
+"m": "20",
+"o": 20.0,
+"foto": null
+},
+"CO87075": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º M-H Ø75",
+"t": "Codo PVC 87º M-H",
+"m": "75",
+"o": 75.0,
+"foto": "codo-pvc"
+},
+"CO87125": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º M-H Ø125",
+"t": "Codo PVC 87º M-H",
+"m": "125",
+"o": 125.0,
+"foto": "codo-pvc"
+},
+"CO87110": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º M-H Ø110",
+"t": "Codo PVC 87º M-H",
+"m": "110",
+"o": 110.0,
+"foto": "codo-pvc"
+},
+"CO45110": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 45º M-H Ø110",
+"t": "Codo PVC 45º M-H",
+"m": "110",
+"o": 110.0,
+"foto": "codo45-pvc"
+},
+"MA160": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø160",
+"t": "Manguito PVC H-H",
+"m": "160",
+"o": 160.0,
+"foto": "manguito-pvc"
+},
+"PTE720": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Te 90º PP-R Ø20",
+"t": "Te 90º PP-R termofusión",
+"m": "20",
+"o": 20.0,
+"foto": null
+},
+"MA110": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø110",
+"t": "Manguito PVC H-H",
+"m": "110",
+"o": 110.0,
+"foto": "manguito-pvc"
+},
+"DS87110": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Derivación PVC 87º M-H Ø110",
+"t": "Derivación PVC 87º M-H",
+"m": "110",
+"o": 110.0,
+"foto": "derivacion-pvc"
+},
+"CO87040": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º H-H Ø40",
+"t": "Codo PVC 87º H-H",
+"m": "40",
+"o": 40.0,
+"foto": "codo-pvc"
+},
+"CO87160": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º M-H Ø160",
+"t": "Codo PVC 87º M-H",
+"m": "160",
+"o": 160.0,
+"foto": "codo-pvc"
+},
+"PM732": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Manguito PP-R Ø32",
+"t": "Manguito PP-R termofusión",
+"m": "32",
+"o": 32.0,
+"foto": null
+},
+"MA075": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø75",
+"t": "Manguito PVC H-H",
+"m": "75",
+"o": 75.0,
+"foto": "manguito-pvc"
+},
+"CO87090": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º M-H Ø90",
+"t": "Codo PVC 87º M-H",
+"m": "90",
+"o": 90.0,
+"foto": "codo-pvc"
+},
+"PM740": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Manguito PP-R Ø40",
+"t": "Manguito PP-R termofusión",
+"m": "40",
+"o": 40.0,
+"foto": null
+},
+"DS87075": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Derivación PVC 87º M-H Ø75",
+"t": "Derivación PVC 87º M-H",
+"m": "75",
+"o": 75.0,
+"foto": "derivacion-pvc"
+},
+"CO45075": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 45º M-H Ø75",
+"t": "Codo PVC 45º M-H",
+"m": "75",
+"o": 75.0,
+"foto": "codo45-pvc"
+},
+"PEML50112": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Enlace PP-R Ø50 × rosca macho latón 1 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0935010164": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Injerto para tubo 90º Ø160 a 110",
+"t": null,
+"m": null,
+"o": null,
+"foto": "derivacion-pvc"
+},
+"PCO750": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Codo 90º PP-R Ø50",
+"t": "Codo 90º PP-R termofusión",
+"m": "50",
+"o": 50.0,
+"foto": null
+},
+"DS87125": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Derivación PVC 87º M-H Ø125",
+"t": "Derivación PVC 87º M-H",
+"m": "125",
+"o": 125.0,
+"foto": "derivacion-pvc"
+},
+"CO45160": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 45º M-H Ø160",
+"t": "Codo PVC 45º M-H",
+"m": "160",
+"o": 160.0,
+"foto": "codo45-pvc"
+},
+"PCO720": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Codo 90º PP-R Ø20",
+"t": "Codo 90º PP-R termofusión",
+"m": "20",
+"o": 20.0,
+"foto": null
+},
+"COM8740": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º M-H Ø40",
+"t": "Codo PVC 87º M-H",
+"m": "40",
+"o": 40.0,
+"foto": "codo-pvc"
+},
+"TC160": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón ciego macho PVC Ø160",
+"t": "Tapón ciego macho PVC",
+"m": "160",
+"o": 160.0,
+"foto": "tapon-pvc"
+},
+"DS45110": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Derivación PVC 45º M-H Ø110",
+"t": "Derivación PVC 45º M-H",
+"m": "110",
+"o": 110.0,
+"foto": "derivacion-pvc"
+},
+"DS87160": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Derivación PVC 87º M-H Ø160",
+"t": "Derivación PVC 87º M-H",
+"m": "160",
+"o": 160.0,
+"foto": "derivacion-pvc"
+},
+"$0385": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón hembra PVC Ø200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapon-pvc"
+},
+"PM725": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Manguito PP-R Ø25",
+"t": "Manguito PP-R termofusión",
+"m": "25",
+"o": 25.0,
+"foto": null
+},
+"CO67200": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 67º M-H Ø200",
+"t": "Codo PVC 67º M-H",
+"m": "200",
+"o": 200.0,
+"foto": "codo-pvc"
+},
+"PTM825": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Te mixta PP-R Ø25 × 3/4\" hembra",
+"t": "Te mixta PP-R (rosca hembra)",
+"m": "25×3/4\"",
+"o": 25.0,
+"foto": null
+},
+"RE5040": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Reducción PVC excéntrica M-H 50-40",
+"t": "Reducción PVC excéntrica M-H",
+"m": "50-40",
+"o": 50040.0,
+"foto": "manguito-pvc"
+},
+"PTA732": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Tapón PP-R Ø32",
+"t": "Tapón PP-R termofusión",
+"m": "32",
+"o": 32.0,
+"foto": null
+},
+"TC110": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón ciego macho PVC Ø110",
+"t": "Tapón ciego macho PVC",
+"m": "110",
+"o": 110.0,
+"foto": "tapon-pvc"
+},
+"PE920": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Enlace mixto PP-R Ø20 × 1/2\" macho",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"TS9040": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor macho PVC 90-40",
+"t": "Tapón reductor macho PVC",
+"m": "90-40",
+"o": 90040.0,
+"foto": "tapon-pvc"
+},
+"TR200": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón de registro PVC Ø200",
+"t": "Tapón de registro PVC",
+"m": "200",
+"o": 200.0,
+"foto": "tapon-pvc"
+},
+"RE4032": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Reducción PVC excéntrica M-H 40-32",
+"t": "Reducción PVC excéntrica M-H",
+"m": "40-32",
+"o": 40032.0,
+"foto": "manguito-pvc"
+},
+"DS45160": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Derivación PVC 45º M-H Ø160",
+"t": "Derivación PVC 45º M-H",
+"m": "160",
+"o": 160.0,
+"foto": "derivacion-pvc"
+},
+"0935012113": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor macho PVC 200-110",
+"t": "Tapón reductor macho PVC",
+"m": "200-110",
+"o": 200110.0,
+"foto": "tapon-pvc"
+},
+"TC040": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón ciego macho PVC Ø40",
+"t": "Tapón ciego macho PVC",
+"m": "40",
+"o": 40.0,
+"foto": "tapon-pvc"
+},
+"CU27015": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø15",
+"t": "Manguito cobre H-H (soldar)",
+"m": "15",
+"o": 15.0,
+"foto": "accesorio-cobre"
+},
+"CU27012": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø12",
+"t": "Manguito cobre H-H (soldar)",
+"m": "12",
+"o": 12.0,
+"foto": "accesorio-cobre"
+},
+"PTA720": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Tapón PP-R Ø20",
+"t": "Tapón PP-R termofusión",
+"m": "20",
+"o": 20.0,
+"foto": null
+},
+"TR110": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón de registro PVC Ø110",
+"t": "Tapón de registro PVC",
+"m": "110",
+"o": 110.0,
+"foto": "tapon-pvc"
+},
+"0935003715": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 45º M-H Ø250",
+"t": "Codo PVC 45º M-H",
+"m": "250",
+"o": 250.0,
+"foto": "codo45-pvc"
+},
+"PTM820": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Te mixta PP-R Ø20 × 1/2\" hembra",
+"t": "Te mixta PP-R (rosca hembra)",
+"m": "20×1/2\"",
+"o": 20.0,
+"foto": null
+},
+"TC200": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón ciego macho PVC Ø200",
+"t": "Tapón ciego macho PVC",
+"m": "200",
+"o": 200.0,
+"foto": "tapon-pvc"
+},
+"RE125110": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Reducción PVC excéntrica M-H 125-110",
+"t": "Reducción PVC excéntrica M-H",
+"m": "125-110",
+"o": 125110.0,
+"foto": "manguito-pvc"
+},
+"PTE725": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Te 90º PP-R Ø25",
+"t": "Te 90º PP-R termofusión",
+"m": "25",
+"o": 25.0,
+"foto": null
+},
+"TC050": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón ciego macho PVC Ø50",
+"t": "Tapón ciego macho PVC",
+"m": "50",
+"o": 50.0,
+"foto": "tapon-pvc"
+},
+"CO87032": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 87º H-H Ø32",
+"t": "Codo PVC 87º H-H",
+"m": "32",
+"o": 32.0,
+"foto": "codo-pvc"
+},
+"TC032": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón ciego macho PVC Ø32",
+"t": "Tapón ciego macho PVC",
+"m": "32",
+"o": 32.0,
+"foto": "tapon-pvc"
+},
+"MA090": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø90",
+"t": "Manguito PVC H-H",
+"m": "90",
+"o": 90.0,
+"foto": "manguito-pvc"
+},
+"TS12550": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor macho PVC 125-50",
+"t": "Tapón reductor macho PVC",
+"m": "125-50",
+"o": 125050.0,
+"foto": "tapon-pvc"
+},
+"0935005931": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Injerto clip 75-50 (corona Ø57)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "derivacion-pvc"
+},
+"TR11090": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor macho PVC 110-90",
+"t": "Tapón reductor macho PVC",
+"m": "110-90",
+"o": 110090.0,
+"foto": "tapon-pvc"
+},
+"PTA740": {
+"f": "Multicapa, PP-R e inox",
+"g": "PP-R termofusión (serie 7)",
+"n": "Tapón PP-R Ø40",
+"t": "Tapón PP-R termofusión",
+"m": "40",
+"o": 40.0,
+"foto": null
+},
+"0935005962": {
+"f": "Evacuación PVC",
+"g": "Derivaciones e injertos",
+"n": "Injerto clip 90-50 (corona Ø57)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "derivacion-pvc"
+},
+"CO67090": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 67º M-H Ø90",
+"t": "Codo PVC 67º M-H",
+"m": "90",
+"o": 90.0,
+"foto": "codo-pvc"
+},
+"COM4532": {
+"f": "Evacuación PVC",
+"g": "Codos",
+"n": "Codo PVC 45º M-H Ø32",
+"t": "Codo PVC 45º M-H",
+"m": "32",
+"o": 32.0,
+"foto": "codo45-pvc"
+},
+"CU27018": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø18",
+"t": "Manguito cobre H-H (soldar)",
+"m": "18",
+"o": 18.0,
+"foto": "accesorio-cobre"
+},
+"PVCR40": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Hidrotubo PVC flexible Ø40 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "hidrotubo"
+},
+"0385720721": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Tubo PVC presión 10 atm Ø200 con junta (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "pvc-presion"
+},
+"PVCP50": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Tubo PVC presión encolar 16 atm Ø50 (m)",
+"t": "Tubo PVC presión encolar 16 atm (m)",
+"m": "50",
+"o": 50.0,
+"foto": "pvc-presion"
+},
+"PVCP40": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Tubo PVC presión encolar 16 atm Ø40 (m)",
+"t": "Tubo PVC presión encolar 16 atm (m)",
+"m": "40",
+"o": 40.0,
+"foto": "pvc-presion"
+},
+"0935000607": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Enlace 3 piezas H-H 1 1/4\" PVC presión",
+"t": null,
+"m": null,
+"o": null,
+"foto": "pvc-presion"
+},
+"0935000776": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Racor unión 3 piezas H-H encolar Ø40 PVC presión",
+"t": null,
+"m": null,
+"o": null,
+"foto": "pvc-presion"
+},
+"0935001599": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Terminal hembra encolar Ø40 × rosca macho 1 1/4\" PVC presión",
+"t": null,
+"m": null,
+"o": null,
+"foto": "pvc-presion"
+},
+"PAL10025": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno alimentario 10 atm Ø25 (m)",
+"t": "Polietileno alimentario 10 atm, baja densidad (m)",
+"m": "25",
+"o": 25.0,
+"foto": "polietileno"
+},
+"PAL10032": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno alimentario 10 atm Ø32 (m)",
+"t": "Polietileno alimentario 10 atm, baja densidad (m)",
+"m": "32",
+"o": 32.0,
+"foto": "polietileno"
+},
+"PAL10020": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno alimentario 10 atm Ø20 (m)",
+"t": "Polietileno alimentario 10 atm, baja densidad (m)",
+"m": "20",
+"o": 20.0,
+"foto": "polietileno"
+},
+"PAL10040": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno alimentario 10 atm Ø40 (m)",
+"t": "Polietileno alimentario 10 atm, baja densidad (m)",
+"m": "40",
+"o": 40.0,
+"foto": "polietileno"
+},
+"PE020": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno 10 atm Ø20 PE40 (m) — el mismo que PAL10020, más caro",
+"t": null,
+"m": null,
+"o": null,
+"foto": "polietileno"
+},
+"PE025": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno 10 atm Ø25 PE40 (m) — el mismo que PAL10025, más caro",
+"t": null,
+"m": null,
+"o": null,
+"foto": "polietileno"
+},
+"0385703564": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno 10 atm Ø75 PE40 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "polietileno"
+},
+"PE100040": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno PE100 16 atm Ø40 (m)",
+"t": "Polietileno PE100 16 atm, alta densidad (m)",
+"m": "40",
+"o": 40.0,
+"foto": "polietileno"
+},
+"PE100032": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno PE100 16 atm Ø32 (m)",
+"t": "Polietileno PE100 16 atm, alta densidad (m)",
+"m": "32",
+"o": 32.0,
+"foto": "polietileno"
+},
+"PE100025": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno PE100 16 atm Ø25 (m)",
+"t": "Polietileno PE100 16 atm, alta densidad (m)",
+"m": "25",
+"o": 25.0,
+"foto": "polietileno"
+},
+"PE110040": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno PE100 10 atm Ø40 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "polietileno"
+},
+"PE100020": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno PE100 16 atm Ø20 (m)",
+"t": "Polietileno PE100 16 atm, alta densidad (m)",
+"m": "20",
+"o": 20.0,
+"foto": "polietileno"
+},
+"PAG06020": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno agrícola 6 atm Ø20 (m)",
+"t": "Polietileno agrícola 6 atm (m)",
+"m": "20",
+"o": 20.0,
+"foto": "polietileno"
+},
+"PAG06050": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno agrícola 6 atm Ø50 (m)",
+"t": "Polietileno agrícola 6 atm (m)",
+"m": "50",
+"o": 50.0,
+"foto": "polietileno"
+},
+"PAG06025": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno agrícola 6 atm Ø25 (m)",
+"t": "Polietileno agrícola 6 atm (m)",
+"m": "25",
+"o": 25.0,
+"foto": "polietileno"
+},
+"PAG10025": {
+"f": "Agua y acometidas",
+"g": "Tubo de polietileno",
+"n": "Polietileno agrícola 10 atm Ø25 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "polietileno"
+},
+"0410057093": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Te latón para PE, rosca hembra Ø40 × 1 1/4\"",
+"t": "Te latón para PE, rosca hembra",
+"m": "40×1 1/4\"",
+"o": 40.0,
+"foto": "racor-laton-pe"
+},
+"0410056751": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Manguito latón para PE Ø75",
+"t": "Manguito latón para PE",
+"m": "75",
+"o": 75.0,
+"foto": "racor-laton-pe"
+},
+"0410056416": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo latón para PE Ø32",
+"t": "Codo latón para PE",
+"m": "32",
+"o": 32.0,
+"foto": "racor-laton-pe"
+},
+"0410056911": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca macho Ø40 × 1 1/4\"",
+"t": "Racor latón para PE, rosca macho",
+"m": "40×1 1/4\"",
+"o": 40.0,
+"foto": "racor-laton-pe"
+},
+"BG11005": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN50 salida 1\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN50×1\"",
+"o": 501.0,
+"foto": null
+},
+"0410056720": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Manguito latón para PE Ø40",
+"t": "Manguito latón para PE",
+"m": "40",
+"o": 40.0,
+"foto": "racor-laton-pe"
+},
+"BG11014": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN75 salida 1 1/2\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN75×1 1/2\"",
+"o": 751.5,
+"foto": null
+},
+"0410056829": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca hembra Ø40 × 1 1/4\"",
+"t": "Racor latón para PE, rosca hembra",
+"m": "40×1 1/4\"",
+"o": 40.0,
+"foto": "racor-laton-pe"
+},
+"0410056904": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca macho Ø32 × 1\"",
+"t": "Racor latón para PE, rosca macho",
+"m": "32×1\"",
+"o": 32.0,
+"foto": "racor-laton-pe"
+},
+"BG11022": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN110 salida 1 1/2\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN110×1 1/2\"",
+"o": 1101.5,
+"foto": null
+},
+"0410056690": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Manguito latón para PE Ø20",
+"t": "Manguito latón para PE",
+"m": "20",
+"o": 20.0,
+"foto": "racor-laton-pe"
+},
+"BG11017": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN90 salida 1 1/4\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN90×1 1/4\"",
+"o": 901.25,
+"foto": null
+},
+"0410056423": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo latón para PE Ø40",
+"t": "Codo latón para PE",
+"m": "40",
+"o": 40.0,
+"foto": "racor-laton-pe"
+},
+"BG11013": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN75 salida 1 1/4\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN75×1 1/4\"",
+"o": 751.25,
+"foto": null
+},
+"0410056669": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo placa latón para PE (rosca hembra) Ø20 × 1/2\"",
+"t": "Codo placa latón para PE (rosca hembra)",
+"m": "20×1/2\"",
+"o": 20.0,
+"foto": "racor-laton-pe"
+},
+"240300050": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma de fundición para PVC/PE DN50 × 3/4\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"BG11009": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN63 salida 1 1/4\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN63×1 1/4\"",
+"o": 631.25,
+"foto": null
+},
+"0410056935": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca macho Ø63 × 2\"",
+"t": "Racor latón para PE, rosca macho",
+"m": "63×2\"",
+"o": 63.0,
+"foto": "racor-laton-pe"
+},
+"0410056881": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca macho Ø20 × 1/2\"",
+"t": "Racor latón para PE, rosca macho",
+"m": "20×1/2\"",
+"o": 20.0,
+"foto": "racor-laton-pe"
+},
+"BG11004": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN50 salida 3/4\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN50×3/4\"",
+"o": 500.75,
+"foto": null
+},
+"BG11002": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN40 salida 3/4\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN40×3/4\"",
+"o": 400.75,
+"foto": null
+},
+"BG11018": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN90 salida 1 1/2\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN90×1 1/2\"",
+"o": 901.5,
+"foto": null
+},
+"0410056638": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo latón para PE, rosca macho Ø63 × 2\"",
+"t": "Codo latón para PE, rosca macho",
+"m": "63×2\"",
+"o": 63.0,
+"foto": "racor-laton-pe"
+},
+"BG11012": {
+"f": "Agua y acometidas",
+"g": "Collarines de toma",
+"n": "Collarín de toma DN75 salida 1\"",
+"t": "Collarín de toma (tubo DN × salida)",
+"m": "DN75×1\"",
+"o": 751.0,
+"foto": null
+},
+"0410056676": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo placa latón para PE (rosca hembra) Ø25 × 3/4\"",
+"t": "Codo placa latón para PE (rosca hembra)",
+"m": "25×3/4\"",
+"o": 25.0,
+"foto": "racor-laton-pe"
+},
+"0410056966": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Te latón para PE Ø20",
+"t": "Te latón para PE",
+"m": "20",
+"o": 20.0,
+"foto": "racor-laton-pe"
+},
+"0410056836": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca hembra Ø50 × 1 1/2\"",
+"t": "Racor latón para PE, rosca hembra",
+"m": "50×1 1/2\"",
+"o": 50.0,
+"foto": "racor-laton-pe"
+},
+"0410056928": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca macho Ø50 × 1 1/2\"",
+"t": "Racor latón para PE, rosca macho",
+"m": "50×1 1/2\"",
+"o": 50.0,
+"foto": "racor-laton-pe"
+},
+"0410056522": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo latón para PE, rosca hembra Ø40 × 1 1/4\"",
+"t": "Codo latón para PE, rosca hembra",
+"m": "40×1 1/4\"",
+"o": 40.0,
+"foto": "racor-laton-pe"
+},
+"0410057086": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Te latón para PE, rosca hembra Ø32 × 1\"",
+"t": "Te latón para PE, rosca hembra",
+"m": "32×1\"",
+"o": 32.0,
+"foto": "racor-laton-pe"
+},
+"0410056898": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca macho Ø25 × 3/4\"",
+"t": "Racor latón para PE, rosca macho",
+"m": "25×3/4\"",
+"o": 25.0,
+"foto": "racor-laton-pe"
+},
+"0410056805": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Racor latón para PE, rosca hembra Ø25 × 3/4\"",
+"t": "Racor latón para PE, rosca hembra",
+"m": "25×3/4\"",
+"o": 25.0,
+"foto": "racor-laton-pe"
+},
+"0410057079": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Te latón para PE, rosca hembra Ø25 × 3/4\"",
+"t": "Te latón para PE, rosca hembra",
+"m": "25×3/4\"",
+"o": 25.0,
+"foto": "racor-laton-pe"
+},
+"CUB15": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø15 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "15",
+"o": 15.0,
+"foto": "tubo-cobre"
+},
+"CUB18": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø18 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "18",
+"o": 18.0,
+"foto": "tubo-cobre"
+},
+"CUB12": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø12 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "12",
+"o": 12.0,
+"foto": "tubo-cobre"
+},
+"CUB28": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø28 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "28",
+"o": 28.0,
+"foto": "tubo-cobre"
+},
+"CUB35": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø35 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "35",
+"o": 35.0,
+"foto": "tubo-cobre"
+},
+"CUR15": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en rollo Ø15 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-cobre"
+},
+"CUB22": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø22 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "22",
+"o": 22.0,
+"foto": "tubo-cobre"
+},
+"CUB42": {
+"f": "Cobre",
+"g": "Tubo de cobre",
+"n": "Tubo de cobre en barra Ø42 (m)",
+"t": "Tubo de cobre en barra (m)",
+"m": "42",
+"o": 42.0,
+"foto": "tubo-cobre"
+},
+"0434034924": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito compresión macho 1/2\" × 16",
+"t": "Manguito de compresión rosca macho",
+"m": "1/2\"×16",
+"o": 16.0,
+"foto": "laton"
+},
+"0434035105": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito de compresión 16-16",
+"t": "Manguito de compresión (unión)",
+"m": "16",
+"o": 16.0,
+"foto": "laton"
+},
+"M427000": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Te latón H-H-H 2\"",
+"t": "Te latón H-H-H",
+"m": "2\"",
+"o": 2.0,
+"foto": "laton"
+},
+"M370300": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1/2\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "machon"
+},
+"AC57066": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 3/4\"-3/4\" H-H 400 mm (super)",
+"t": "Latiguillo 3/4\"-3/4\" H-H (super), largo",
+"m": "400 mm",
+"o": 400.0,
+"foto": "latiguillo"
+},
+"0434034931": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito compresión hembra 1/2\" × 16",
+"t": "Manguito de compresión rosca hembra",
+"m": "1/2\"×16",
+"o": 16.0,
+"foto": "laton"
+},
+"30122664": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1 1/4\" × 1\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1 1/4\"×1\"",
+"o": 13.5,
+"foto": "reduccion-laton"
+},
+"M371500": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón reducido latón 3/4\" × 1/2\"",
+"t": "Machón reducido (macho-macho)",
+"m": "3/4\"×1/2\"",
+"o": 8.0,
+"foto": "machon"
+},
+"M452100": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Marsella reducida 1/2\" macho × 3/4\" hembra",
+"t": "Marsella reducida (macho pequeña × hembra grande)",
+"m": "1/2\"×3/4\"",
+"o": 5.75,
+"foto": "marsella"
+},
+"30122204": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1 1/4\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1 1/4\"",
+"o": 1.25,
+"foto": "machon"
+},
+"C30303": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito compresión hembra 1/2\" × 12",
+"t": "Manguito de compresión rosca hembra",
+"m": "1/2\"×12",
+"o": 12.0,
+"foto": "laton"
+},
+"M423000": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Te latón H-H-H 3/4\"",
+"t": "Te latón H-H-H",
+"m": "3/4\"",
+"o": 0.75,
+"foto": "laton"
+},
+"30122964": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Te latón H-H-H 1/2\"",
+"t": "Te latón H-H-H",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "laton"
+},
+"M451200": {
+"f": "Latón roscado",
+"g": "Tapones",
+"n": "Tapón latón macho 1/2\"",
+"t": "Tapón latón macho",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "laton"
+},
+"C30203": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito compresión macho 1/2\" × 12",
+"t": "Manguito de compresión rosca macho",
+"m": "1/2\"×12",
+"o": 12.0,
+"foto": "laton"
+},
+"30122744": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 2\" × 1 1/4\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "2\"×1 1/4\"",
+"o": 21.25,
+"foto": "reduccion-laton"
+},
+"M452942": {
+"f": "Latón roscado",
+"g": "Racores",
+"n": "Racor unión 1\" macho-hembra",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"M430200": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Codo latón 90º H-H 1/2\" reforzado",
+"t": "Codo latón 90º H-H",
+"m": "1/2\"",
+"o": 0.5,
+"foto": ""
+},
+"1177038583": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Anclajes y abrazaderas",
+"n": "Anclaje ligero con tuerca pared simple Ø80",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"30122944": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Te latón H-H-H 1 1/4\"",
+"t": "Te latón H-H-H",
+"m": "1 1/4\"",
+"o": 1.25,
+"foto": "laton"
+},
+"30122364": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón reducido latón 1 1/2\" × 1 1/4\"",
+"t": "Machón reducido (macho-macho)",
+"m": "1 1/2\"×1 1/4\"",
+"o": 16.25,
+"foto": "machon"
+},
+"M413100": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 3/4\" × 1/2\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "3/4\"×1/2\"",
+"o": 8.0,
+"foto": "reduccion-laton"
+},
+"0230H12H12": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo super 1/2\"-1/2\" H-H 300 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "latiguillo"
+},
+"BR34112": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Enlace recto cobre-rosca 42 × 1 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"0650H1": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 1\" hembra 500 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "latiguillo"
+},
+"C30104": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito de compresión 18-18",
+"t": "Manguito de compresión (unión)",
+"m": "18",
+"o": 18.0,
+"foto": "laton"
+},
+"M417400": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 2\" × 1 1/2\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "2\"×1 1/2\"",
+"o": 21.5,
+"foto": "reduccion-laton"
+},
+"M370100": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1/4\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1/4\"",
+"o": 0.25,
+"foto": "machon"
+},
+"M461002": {
+"f": "Latón roscado",
+"g": "Tapones",
+"n": "Tapón latón hembra 1/2\"",
+"t": "Tapón latón hembra",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "laton"
+},
+"M452105": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Marsella reducida 1 1/4\" macho × 1 1/2\" hembra",
+"t": "Marsella reducida (macho pequeña × hembra grande)",
+"m": "1 1/4\"×1 1/2\"",
+"o": 14.0,
+"foto": "marsella"
+},
+"30122174": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1/2\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "machon"
+},
+"M452101": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Marsella reducida 3/8\" macho × 1/2\" hembra",
+"t": "Marsella reducida (macho pequeña × hembra grande)",
+"m": "3/8\"×1/2\"",
+"o": 4.25,
+"foto": "marsella"
+},
+"M431200": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Codo latón 90º M-H 1/2\" reforzado",
+"t": "Codo latón 90º M-H",
+"m": "1/2\"",
+"o": 0.5,
+"foto": ""
+},
+"M370200": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 3/8\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "3/8\"",
+"o": 0.375,
+"foto": "machon"
+},
+"0250H34H34": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 3/4\"-3/4\" H-H 500 mm (super)",
+"t": "Latiguillo 3/4\"-3/4\" H-H (super), largo",
+"m": "500 mm",
+"o": 500.0,
+"foto": "latiguillo"
+},
+"AC57065": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 3/4\"-3/4\" H-H 350 mm (super)",
+"t": "Latiguillo 3/4\"-3/4\" H-H (super), largo",
+"m": "350 mm",
+"o": 350.0,
+"foto": "latiguillo"
+},
+"AC57064": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 3/4\"-3/4\" H-H 300 mm (super)",
+"t": "Latiguillo 3/4\"-3/4\" H-H (super), largo",
+"m": "300 mm",
+"o": 300.0,
+"foto": "latiguillo"
+},
+"AC57024": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 1/2\"-3/8\" H-H 300 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "latiguillo"
+},
+"30122644": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1 1/4\" × 1/2\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1 1/4\"×1/2\"",
+"o": 13.0,
+"foto": "reduccion-laton"
+},
+"M416300": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1 1/2\" × 1 1/4\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1 1/2\"×1 1/4\"",
+"o": 16.25,
+"foto": "reduccion-laton"
+},
+"M370400": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 3/4\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "3/4\"",
+"o": 0.75,
+"foto": "machon"
+},
+"30122184": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 3/4\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "3/4\"",
+"o": 0.75,
+"foto": "machon"
+},
+"0766002072": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón reducido inox 3/4\" × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "machon"
+},
+"M451100": {
+"f": "Latón roscado",
+"g": "Tapones",
+"n": "Tapón latón macho 3/8\"",
+"t": "Tapón latón macho",
+"m": "3/8\"",
+"o": 0.375,
+"foto": "laton"
+},
+"0935010041": {
+"f": "Agua y acometidas",
+"g": "PVC presión e hidrotubo",
+"n": "Enlace mixto PVC Ø40 × rosca 1 1/4\" junta plana",
+"t": null,
+"m": null,
+"o": null,
+"foto": "pvc-presion"
+},
+"0638053149": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta 1\" 42×32×1",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"C30307": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Manguito compresión hembra 3/4\" × 22",
+"t": "Manguito de compresión rosca hembra",
+"m": "3/4\"×22",
+"o": 22.0,
+"foto": "laton"
+},
+"M370500": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1\"",
+"o": 1.0,
+"foto": "machon"
+},
+"M342100": {
+"f": "Latón roscado",
+"g": "Racores",
+"n": "Racor tuerca corredera 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"POVAL0530": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Juego de latiguillos de grifería 10/100 rosca larga",
+"t": null,
+"m": null,
+"o": null,
+"foto": "latiguillo"
+},
+"30122654": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1 1/4\" × 3/4\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1 1/4\"×3/4\"",
+"o": 13.25,
+"foto": "reduccion-laton"
+},
+"AC57012": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 3/8\" hembra 200 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "latiguillo"
+},
+"M370700": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1 1/2\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1 1/2\"",
+"o": 1.5,
+"foto": "machon"
+},
+"AC57013": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Latiguillo 3/8\" hembra 250 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "latiguillo"
+},
+"M414100": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1\" × 3/4\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1\"×3/4\"",
+"o": 10.75,
+"foto": "reduccion-laton"
+},
+"M452104": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Marsella reducida 1\" macho × 1 1/4\" hembra",
+"t": "Marsella reducida (macho pequeña × hembra grande)",
+"m": "1\"×1 1/4\"",
+"o": 11.25,
+"foto": "marsella"
+},
+"0638052569": {
+"f": "Cobre",
+"g": "Racores de compresión (cobre / multicapa)",
+"n": "Enlace de compresión 1/2\" × 15 (serie NT/200)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"30122684": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1 1/2\" × 3/4\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1 1/2\"×3/4\"",
+"o": 15.75,
+"foto": "reduccion-laton"
+},
+"30122334": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón reducido latón 1 1/4\" × 1\"",
+"t": "Machón reducido (macho-macho)",
+"m": "1 1/4\"×1\"",
+"o": 13.5,
+"foto": "machon"
+},
+"30123004": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón reducido latón 1 1/4\" × 3/4\"",
+"t": "Machón reducido (macho-macho)",
+"m": "1 1/4\"×3/4\"",
+"o": 13.25,
+"foto": "machon"
+},
+"M414000": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1\" × 1/2\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1\"×1/2\"",
+"o": 10.5,
+"foto": "reduccion-laton"
+},
+"1111000800": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción (marsella) 1/8\" M × 1/4\" H",
+"t": "Marsella reducida (macho pequeña × hembra grande)",
+"m": "1/8\"×1/4\"",
+"o": 0.1,
+"foto": "marsella"
+},
+"30122634": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1\" × 3/4\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1\"×3/4\"",
+"o": 10.75,
+"foto": "reduccion-laton"
+},
+"30122624": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 1\" × 1/2\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "1\"×1/2\"",
+"o": 10.5,
+"foto": "reduccion-laton"
+},
+"30122194": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Machón doble (mamelón) latón 1\"",
+"t": "Machón doble / mamelón (macho-macho)",
+"m": "1\"",
+"o": 1.0,
+"foto": "machon"
+},
+"30122614": {
+"f": "Latón roscado",
+"g": "Machones y reducciones",
+"n": "Reducción latón M-H 3/4\" × 1/2\"",
+"t": "Reducción latón macho-hembra (grande × pequeña)",
+"m": "3/4\"×1/2\"",
+"o": 8.0,
+"foto": "reduccion-laton"
+},
+"1111001760": {
+"f": "Latón roscado",
+"g": "Tapones",
+"n": "Tapón macho 1/2\" cromado",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"GL11081": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Juntas de goma 20×150 (paquete 100)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"$0382": {
+"f": "Llaves y válvulas",
+"g": "Reductoras y filtros",
+"n": "Filtro autolimpiante 2\" PN25 H-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC02051": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Válvula de descarga térmica Caleffi 543",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC05052": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Llenado automático 1/2\" Caleffi",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0347006049": {
+"f": "Llaves y válvulas",
+"g": "Reductoras y filtros",
+"n": "Válvula reductora de presión con filtro D06F",
+"t": null,
+"m": null,
+"o": null,
+"foto": "reductora"
+},
+"0425006321": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Mezcladora termostática 1/2\" 30-48 ºC (Caleffi 520)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0313040634": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Mando de palanca para llave de corte (recambio)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"00100555": {
+"f": "Agua y acometidas",
+"g": "Bombas y grupos de presión",
+"n": "Controlador de presión Aquacontrol Plus regulable 1 1/4\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC03066": {
+"f": "Llaves y válvulas",
+"g": "Llaves de escuadra y de lavadora",
+"n": "Llave de corte de escuadra 1/2\"-3/8\" (Arco A80)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0638056254": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Purgador automático PA5 (rosca izquierda)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"CC99004": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Llave de bola M-M 1\" (Teknica)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "llave-paso"
+},
+"0750039320": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Válvula de cesta con rebosadero rectangular 1 1/2\" × 115",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0750001552": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Válvula de fregadero con rebosadero flexible 1 1/2\" × 70",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1111010007": {
+"f": "Agua y acometidas",
+"g": "Pozo: retención y filtros",
+"n": "Filtro de aspiración inox 2\" (para válvula de pie)",
+"t": "Filtro de aspiración inox (válvula de pie)",
+"m": "2\"",
+"o": 2.0,
+"foto": null
+},
+"AC03027": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Llave de bola 1/2\" M-H mariposa",
+"t": null,
+"m": null,
+"o": null,
+"foto": "llave-paso"
+},
+"0433003268": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Válvula de radiador escuadra 1/2\" con ovalillo (Orkli)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0758110283": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Válvula de esfera Chicago H-H 1 1/4\"",
+"t": "Válvula de esfera Chicago H-H",
+"m": "1 1/4\"",
+"o": 1.25,
+"foto": "llave-paso"
+},
+"0766002483": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Válvula de esfera 1/2\" PN25 (3030I)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "llave-paso"
+},
+"AC03069": {
+"f": "Llaves y válvulas",
+"g": "Llaves de escuadra y de lavadora",
+"n": "Llave de corte de escuadra 1/2\"-1/2\" estándar",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1111001661": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Alargo de grifo M-H 1/2\" 100 mm cromado",
+"t": "Alargo de grifo M-H 1/2\" cromado",
+"m": "100 mm",
+"o": 100,
+"foto": null
+},
+"0758004421": {
+"f": "Llaves y válvulas",
+"g": "Llaves de escuadra y de lavadora",
+"n": "Llave de escuadra América 1/2\" × 3/8\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"VV01001": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Válvula de lavabo 1 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"RE01032": {
+"f": "Llaves y válvulas",
+"g": "Llaves de escuadra y de lavadora",
+"n": "Grifo doble de lavadora",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0758114134": {
+"f": "Llaves y válvulas",
+"g": "Llaves de escuadra y de lavadora",
+"n": "Llave de escuadra América 80 mando metálico 3/8\" × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0766010718": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Válvula de esfera H-H 3/4\" Prestige (azul)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "llave-paso"
+},
+"1010004364": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Válvula de desagüe universal redonda latón (SL-45009)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1111001647": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Alargo de grifo M-H 1/2\" 50 mm cromado",
+"t": "Alargo de grifo M-H 1/2\" cromado",
+"m": "50 mm",
+"o": 50,
+"foto": null
+},
+"AC03142": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Válvula de radiador para soldar Ø18 (Arco Texas)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"E1000112": {
+"f": "Agua y acometidas",
+"g": "Pozo: retención y filtros",
+"n": "Válvula de retención Europa 1 1/2\"",
+"t": "Válvula de retención Europa",
+"m": "1 1/2\"",
+"o": 1.5,
+"foto": null
+},
+"SI01008": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Sifón en «Y» con válvula 1 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "sifon"
+},
+"1111009995": {
+"f": "Agua y acometidas",
+"g": "Pozo: retención y filtros",
+"n": "Filtro de aspiración inox 1 1/2\" (para válvula de pie)",
+"t": "Filtro de aspiración inox (válvula de pie)",
+"m": "1 1/2\"",
+"o": 1.5,
+"foto": null
+},
+"AR019": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Válvula click-clack latón cromado (tapón Ø63)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"GL11001": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Llave de gas 20×150 cromada con patas (butano/propano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"GN05061": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Llave interior de gas 1/2\" cromada con patas",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0766011012": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Válvula de esfera M 1/2\" × 3/4\" para manguera",
+"t": null,
+"m": null,
+"o": null,
+"foto": "llave-paso"
+},
+"AC03005": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Llave de bola H-H 1 1/4\"",
+"t": "Llave de bola H-H (palanca)",
+"m": "1 1/4\"",
+"o": 1.25,
+"foto": "llave-paso"
+},
+"0638051479": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Llave de paso hembra 1/2\" serie 200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "llave-paso"
+},
+"0382000552": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Válvula de seguridad 1/2\" H-H 7 bar",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"E1000034": {
+"f": "Agua y acometidas",
+"g": "Pozo: retención y filtros",
+"n": "Válvula de retención Europa 3/4\"",
+"t": "Válvula de retención Europa",
+"m": "3/4\"",
+"o": 0.75,
+"foto": null
+},
+"AC09051": {
+"f": "Calefacción",
+"g": "Gasoil",
+"n": "Filtro de gasoil 3/8\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC03003": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Llave de bola H-H 3/4\"",
+"t": "Llave de bola H-H (palanca)",
+"m": "3/4\"",
+"o": 0.75,
+"foto": "llave-paso"
+},
+"0758110260": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Válvula de esfera Chicago H-H 3/4\"",
+"t": "Válvula de esfera Chicago H-H",
+"m": "3/4\"",
+"o": 0.75,
+"foto": "llave-paso"
+},
+"0758110254": {
+"f": "Llaves y válvulas",
+"g": "Llaves de paso",
+"n": "Válvula de esfera Chicago H-H 1/2\"",
+"t": "Válvula de esfera Chicago H-H",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "llave-paso"
+},
+"1111009988": {
+"f": "Agua y acometidas",
+"g": "Pozo: retención y filtros",
+"n": "Filtro de aspiración inox 1 1/4\" (para válvula de pie)",
+"t": "Filtro de aspiración inox (válvula de pie)",
+"m": "1 1/4\"",
+"o": 1.25,
+"foto": null
+},
+"0410078715": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera tapaporos para cobre Ø15",
+"t": "Abrazadera tapaporos para cobre",
+"m": "15",
+"o": 15.0,
+"foto": null
+},
+"0410078722": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera tapaporos para cobre Ø18",
+"t": "Abrazadera tapaporos para cobre",
+"m": "18",
+"o": 18.0,
+"foto": null
+},
+"GN06032": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Racor de gas cobre 1\" × 28 (asiento cuello)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0410078708": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera tapaporos para cobre Ø12",
+"t": "Abrazadera tapaporos para cobre",
+"m": "12",
+"o": 12.0,
+"foto": null
+},
+"0434005924": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Reducción cobre H-H 16-15",
+"t": "Reducción cobre H-H (soldar)",
+"m": "16-15",
+"o": 1615.0,
+"foto": "accesorio-cobre"
+},
+"0410078739": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera tapaporos para cobre Ø22",
+"t": "Abrazadera tapaporos para cobre",
+"m": "22",
+"o": 22.0,
+"foto": null
+},
+"GN06123": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Racor de gas cobre 3/4\" × 28 (asiento plano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"CU09015": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø15",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "15",
+"o": 15.0,
+"foto": "accesorio-cobre"
+},
+"GE04001": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera de reparación Gebo corta 3/8\" (hierro)",
+"t": "Abrazadera de reparación Gebo corta (tubo de hierro)",
+"m": "3/8\"",
+"o": 0.375,
+"foto": null
+},
+"CU00215": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø15",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "15",
+"o": 15.0,
+"foto": "accesorio-cobre"
+},
+"CU00228": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø28",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "28",
+"o": 28.0,
+"foto": "accesorio-cobre"
+},
+"GE04002": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera de reparación Gebo corta 1/2\" (hierro)",
+"t": "Abrazadera de reparación Gebo corta (tubo de hierro)",
+"m": "1/2\"",
+"o": 0.5,
+"foto": null
+},
+"CU09018": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø18",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "18",
+"o": 18.0,
+"foto": "accesorio-cobre"
+},
+"GE04004": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera de reparación Gebo corta 1\" (hierro)",
+"t": "Abrazadera de reparación Gebo corta (tubo de hierro)",
+"m": "1\"",
+"o": 1.0,
+"foto": null
+},
+"0434006389": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Reducción cobre M-H 12-10",
+"t": "Reducción cobre M-H (soldar)",
+"m": "12-10",
+"o": 1210.0,
+"foto": "accesorio-cobre"
+},
+"GN06019": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Racor de gas cobre 3/4\" × 22 (asiento cuello)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0382002928": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Resistencia de cobre para termo 1200 W",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"RM3522": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Reducción cobre M-H 35-22",
+"t": "Reducción cobre M-H (soldar)",
+"m": "35-22",
+"o": 3522.0,
+"foto": "accesorio-cobre"
+},
+"GE04005": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Abrazadera de reparación Gebo corta 1 1/4\" (hierro)",
+"t": "Abrazadera de reparación Gebo corta (tubo de hierro)",
+"m": "1 1/4\"",
+"o": 1.25,
+"foto": null
+},
+"CU00218": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø18",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "18",
+"o": 18.0,
+"foto": "accesorio-cobre"
+},
+"GL11022": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Racor de gas rosca 20/150 × cobre 12",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"30116864": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Reducción cobre M-H 12-10",
+"t": "Reducción cobre M-H (soldar)",
+"m": "12-10",
+"o": 1210.0,
+"foto": "accesorio-cobre"
+},
+"CU00235": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø35",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "35",
+"o": 35.0,
+"foto": "accesorio-cobre"
+},
+"CU09022": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø22",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "22",
+"o": 22.0,
+"foto": "accesorio-cobre"
+},
+"CU00212": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø12",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "12",
+"o": 12.0,
+"foto": "accesorio-cobre"
+},
+"CU09012": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø12",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "12",
+"o": 12.0,
+"foto": "accesorio-cobre"
+},
+"CU00222": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø22",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "22",
+"o": 22.0,
+"foto": "accesorio-cobre"
+},
+"GN06122": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Racor de gas cobre 1\" × 22 (asiento plano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"GN06121": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Racor de gas cobre 3/4\" × 22 (asiento plano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"RH2218": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Reducción cobre H-H 22-18",
+"t": "Reducción cobre H-H (soldar)",
+"m": "22-18",
+"o": 2218.0,
+"foto": "accesorio-cobre"
+},
+"0313000363": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Llave de corte de bola multicapa 16×2",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0314000003": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Válvula de esfera multicapa press 16×2 (Júcar)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0313033820": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor fijo macho multicapa 20 × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130728": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor móvil hembra multicapa 16 × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758129994": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Te igual multicapa 16",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758129802": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Codo 90º multicapa 16 × rosca hembra 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0313014017": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Codo placa multicapa 16 × 1/2\" corto",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758129772": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Codo 90º multicapa 20",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0314000004": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Válvula de esfera multicapa press 20×2 (Júcar)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130648": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor fijo macho multicapa 16 × 1/2\" (rosca cónica)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130082": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Te reducida multicapa 20-16-16",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0433009642": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Ovalillos para multicapa 16×2 M24×1,5 (bolsa)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758131003": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor móvil hembra multicapa 20 × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130372": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Te multicapa 20 con salida central hembra 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130754": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Manguito multicapa 16",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130778": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Manguito multicapa 20",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130013": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Te igual multicapa 20",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758131157": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Codo placa multicapa 20 × 1/2\" corto",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130679": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor fijo macho multicapa 20 × 1/2\" (rosca cónica)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130839": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor fijo hembra multicapa 20 × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0758130532": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Manguito reducido multicapa 20-16",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0313034442": {
+"f": "Multicapa, PP-R e inox",
+"g": "Multicapa",
+"n": "Racor fijo hembra multicapa 20 × 1/2\" (otra marca)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "multicapa"
+},
+"0913006076": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana ancha para racor 1\"",
+"t": "Junta plana ancha para racor",
+"m": "1\"",
+"o": 1.0,
+"foto": null
+},
+"0319014654": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Curva 90º inox prensar H-H Ø15",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014951": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Te igual inox prensar Ø15",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319017310": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Codo placa inox prensar Ø15 × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319006604": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Tubo inox AISI-316 Ø15×0,6 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319020884": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Salvatubos inox Ø15 (Filpress)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014593": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Curva 45º inox prensar H-H Ø15",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014623": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Curva 45º inox prensar H-M Ø15",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014685": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Curva 90º inox prensar H-M Ø15",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319021065": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Racor 2 piezas inox prensar Ø15 × 1/2\" (junta plana)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014807": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Manguito inox prensar Ø15",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014760": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Unión macho inox prensar Ø15 × 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319014982": {
+"f": "Multicapa, PP-R e inox",
+"g": "Inox prensar (Filpress)",
+"n": "Te inox prensar Ø15 con salida hembra 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"$5036": {
+"f": "Termos y agua caliente",
+"g": "Acumuladores",
+"n": "Acumulador inox 316 80 L horizontal mural",
+"t": null,
+"m": null,
+"o": null,
+"foto": "acumulador"
+},
+"0638010157": {
+"f": "Termos y agua caliente",
+"g": "Acumuladores",
+"n": "Acumulador inox 300 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "acumulador"
+},
+"C100VHPC": {
+"f": "Termos y agua caliente",
+"g": "Acumuladores",
+"n": "Interacumulador inox 316 mural 100 L doble serpentín",
+"t": null,
+"m": null,
+"o": null,
+"foto": "acumulador"
+},
+"0782000698": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico Velis Tech Dry WiFi 50 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"302996": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico anticalcáreo reversible 50 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"30107464": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico Kenro Ceramic 100 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"302480": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico Ceramic GCV 80 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"0638000023": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico H580 serie 5 80 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"30107474": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico Kenro Ceramic 150 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"302998": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico anticalcáreo reversible 100 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"0638215974": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico V580 serie 5 80 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"302997": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico anticalcáreo reversible 80 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"0638215967": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico V550 serie 5 50 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"0638215950": {
+"f": "Termos y agua caliente",
+"g": "Termos eléctricos",
+"n": "Termo eléctrico V530 serie 5 30 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "termo"
+},
+"7705412": {
+"f": "Termos y agua caliente",
+"g": "Calentadores de gas",
+"n": "Calentador de gas atmosférico 11 L serie I Eco (butano/propano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "calentador"
+},
+"0782000503": {
+"f": "Termos y agua caliente",
+"g": "Calentadores de gas",
+"n": "Calentador atmosférico bajo NOx Fast R X (GLP)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "calentador"
+},
+"0638006561": {
+"f": "Termos y agua caliente",
+"g": "Calentadores de gas",
+"n": "Calentador de gas estanco bajo NOx 11 L FI Blue (propano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "calentador"
+},
+"0759000369": {
+"f": "Termos y agua caliente",
+"g": "Calentadores de gas",
+"n": "Calentador de gas atmosférico 11 L Cami (butano)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "calentador"
+},
+"0373022673": {
+"f": "Calefacción",
+"g": "Circuladores",
+"n": "Bomba circuladora Grundfos Alpha1 GO 25-60",
+"t": null,
+"m": null,
+"o": null,
+"foto": "circulador"
+},
+"0638005083": {
+"f": "Calefacción",
+"g": "Circuladores",
+"n": "Circulador Quantum Maxi 1\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "circulador"
+},
+"0638054831": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Radiador de aluminio Dubal 60 (1 elemento)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "radiador"
+},
+"FR72052": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Radiador de aluminio Xian 600 (1 elemento)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "radiador"
+},
+"FIG02002": {
+"f": "Calefacción",
+"g": "Salida de humos de caldera 60/100",
+"n": "Tubo coaxial 60/100 1 m M-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC94304": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Termostato analógico para toallero (blanco)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0382000133": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Termostato de varilla 275 mm 20-80 ºC",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC06011": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Purgador 3/8\" 502N niquelado",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0382076455": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Resistencia eléctrica 2000 W 445 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0382006971": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Termostato de inmersión 30-90 ºC 100 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"FIG02006": {
+"f": "Calefacción",
+"g": "Salida de humos de caldera 60/100",
+"n": "Codo coaxial 60/100 45º M-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC94302": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Resistencia 300 W para toallero",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"FIG02004": {
+"f": "Calefacción",
+"g": "Salida de humos de caldera 60/100",
+"n": "Codo coaxial 60/100 90º M-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"FIG02005": {
+"f": "Calefacción",
+"g": "Salida de humos de caldera 60/100",
+"n": "Codo coaxial 60/100 90º H-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0433000366": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Detentor escuadra 1/2\" Ø12 (Orkli)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"FIG02001": {
+"f": "Calefacción",
+"g": "Salida de humos de caldera 60/100",
+"n": "Tubo coaxial 60/100 0,5 m M-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0638055871": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Termostato ambiente TM-1R",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1177047417": {
+"f": "Calefacción",
+"g": "Salida de humos de caldera 60/100",
+"n": "Manguito coaxial 60/100 H-H",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0638057868": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Termostato de contacto",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"TS-TERM": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Termostato de resistencia de termo (Ferco)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0638051599": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Detentor hembra 1/2\" escuadra",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"16922000": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Vaso de expansión calefacción Flexcon Premium 25 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "vaso-expansion"
+},
+"28365000": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Grupo de seguridad para termo Flexbrane 3/4\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"51100014": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Vaso de expansión calefacción Aquasystem 24 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": "vaso-expansion"
+},
+"24559000": {
+"f": "Termos y agua caliente",
+"g": "Recambios y seguridad de termos",
+"n": "Vaso de expansión ACS Airflix 25 L 4 bar",
+"t": null,
+"m": null,
+"o": null,
+"foto": "vaso-expansion"
+},
+"51100215": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Vaso de expansión multifunción Aquasystem 24 L 2,5 bar",
+"t": null,
+"m": null,
+"o": null,
+"foto": "vaso-expansion"
+},
+"AC16065": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Soporte en L para vaso de expansión",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"CORAL-MF": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Estufas",
+"n": "Estufa de pellet 15 kW color marfil (Coral)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "estufa-pellet"
+},
+"30008289": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Estufas",
+"n": "Estufa de leña doble cara con cristales",
+"t": null,
+"m": null,
+"o": null,
+"foto": "estufa-lena"
+},
+"$4016": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Estufas",
+"n": "Kit de canalización izquierdo para estufa Coral",
+"t": null,
+"m": null,
+"o": null,
+"foto": "estufa-pellet"
+},
+"30008299": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Estufas",
+"n": "Leñero para estufa Cairo-90D-Box",
+"t": null,
+"m": null,
+"o": null,
+"foto": "estufa-lena"
+},
+"1177005523": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Módulo recto doble pared Ø150",
+"t": "Módulo recto doble pared",
+"m": "150",
+"o": 150.0,
+"foto": "tubo-dp"
+},
+"1177005592": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Codo 45º doble pared Ø150",
+"t": "Codo 45º doble pared",
+"m": "150",
+"o": 150.0,
+"foto": "tubo-dp"
+},
+"1177006124": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Módulo recto doble pared Ø200",
+"t": "Módulo recto doble pared",
+"m": "200",
+"o": 200.0,
+"foto": "tubo-dp"
+},
+"1177006155": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Módulo recto medio doble pared Ø200",
+"t": "Módulo recto medio doble pared",
+"m": "200",
+"o": 200.0,
+"foto": "tubo-dp"
+},
+"1177006186": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Te 90º doble pared Ø200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-dp"
+},
+"1177032048": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Módulo recto pared simple Ø80 (SWJ)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-sw"
+},
+"1177006148": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Módulo extensible corto doble pared Ø200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-dp"
+},
+"1177005554": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Módulo recto medio doble pared Ø150",
+"t": "Módulo recto medio doble pared",
+"m": "150",
+"o": 150.0,
+"foto": "tubo-dp"
+},
+"1177006049": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Sombrerete doble pared Ø200",
+"t": "Sombrerete doble pared",
+"m": "200",
+"o": 200.0,
+"foto": "sombrerete"
+},
+"1177006193": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Codo 45º doble pared Ø200",
+"t": "Codo 45º doble pared",
+"m": "200",
+"o": 200.0,
+"foto": "tubo-dp"
+},
+"1177005448": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Sombrerete doble pared Ø150",
+"t": "Sombrerete doble pared",
+"m": "150",
+"o": 150.0,
+"foto": "sombrerete"
+},
+"1177011555": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Colector de hollín con desagüe doble pared Ø200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-dp"
+},
+"1177006308": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Adaptador de caldera doble pared Ø200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-dp"
+},
+"1177026320": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Módulo recto pared simple Ø200",
+"t": "Módulo recto pared simple",
+"m": "200",
+"o": 200.0,
+"foto": "tubo-sw"
+},
+"1177008333": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Anclajes y abrazaderas",
+"n": "Anclaje regulable corto doble pared Ø150",
+"t": "Anclaje regulable corto doble pared",
+"m": "150",
+"o": 150.0,
+"foto": null
+},
+"1177008883": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Anclajes y abrazaderas",
+"n": "Abrazadera de unión doble pared Ø200",
+"t": null,
+"m": null,
+"o": null,
+"foto": "abrazadera-chimenea"
+},
+"1177001455": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Sombrerete antilluvia pared simple Ø175",
+"t": null,
+"m": null,
+"o": null,
+"foto": "sombrerete"
+},
+"03011512B": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox doble pared",
+"n": "Sombrerete antilluvia doble pared Ø150",
+"t": null,
+"m": null,
+"o": null,
+"foto": "sombrerete"
+},
+"RE15RB80": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Ventilación y tubo flexible",
+"n": "Rejilla de ventilación regulable para tubo Ø80 (blanca)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1177008968": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Anclajes y abrazaderas",
+"n": "Anclaje regulable corto doble pared Ø200",
+"t": "Anclaje regulable corto doble pared",
+"m": "200",
+"o": 200.0,
+"foto": null
+},
+"1177039474": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Módulo recto pared simple Ø175",
+"t": "Módulo recto pared simple",
+"m": "175",
+"o": 175.0,
+"foto": "tubo-sw"
+},
+"1177033090": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Codo 45º pared simple Ø150",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-sw"
+},
+"1177035100": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Sombrerete pared simple Ø80",
+"t": null,
+"m": null,
+"o": null,
+"foto": "sombrerete"
+},
+"0676018121": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Ventilación y tubo flexible",
+"n": "Tubo flexible de aluminio aislado Ø82 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1177032840": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Colector de hollín pared simple Ø80 (SWJ)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-sw"
+},
+"0385702956": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Canalón PVC 25 (tramo de 4 m, precio por m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon"
+},
+"0385702970": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Enlace de canalón 25",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385702963": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Reducción de bajante 90/75",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385702994": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Bajada central canalón 25",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385703144": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Bajada exterior derecha canalón 33",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385702987": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Tapa de canalón 25",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385703069": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Gancho de canalón 25 (sin banda, vertical)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385703007": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Bajada exterior derecha canalón 25",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385703014": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Bajada exterior izquierda canalón 25",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"0385703021": {
+"f": "Canalón",
+"g": "Canalón PVC gris",
+"n": "Ángulo exterior canalón 25",
+"t": null,
+"m": null,
+"o": null,
+"foto": "canalon-accesorio"
+},
+"$4128": {
+"f": "Agua y acometidas",
+"g": "Bombas y grupos de presión",
+"n": "Grupo de presión CMH 14.60.1 con Presflo",
+"t": null,
+"m": null,
+"o": null,
+"foto": "grupo-presion"
+},
+"00100222": {
+"f": "Agua y acometidas",
+"g": "Bombas y grupos de presión",
+"n": "Bomba solar SLR 25/6-180",
+"t": null,
+"m": null,
+"o": null,
+"foto": "bomba"
+},
+"FO02015": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Bolsa de recambios de cisterna (ref. 0153004610)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0750014965": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Kit de cisterna A-53",
+"t": null,
+"m": null,
+"o": null,
+"foto": "mecanismo-cisterna"
+},
+"AC42081": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Grifo flotador rosca 1/2\"",
+"t": "Grifo flotador roscado",
+"m": "1/2\"",
+"o": 0.5,
+"foto": "flotador"
+},
+"0740000433": {
+"f": "Baño y desagües",
+"g": "Ducha",
+"n": "Teléfono de ducha 3 funciones City Air",
+"t": null,
+"m": null,
+"o": null,
+"foto": "telefono-ducha"
+},
+"FO02014": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Cisterna sin equipar 15 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0755521984": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Mecanismo de descarga universal simple",
+"t": null,
+"m": null,
+"o": null,
+"foto": "mecanismo-cisterna"
+},
+"AC42082": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Grifo flotador rosca 3/4\"",
+"t": "Grifo flotador roscado",
+"m": "3/4\"",
+"o": 0.75,
+"foto": "flotador"
+},
+"FO01017": {
+"f": "Baño y desagües",
+"g": "Inodoro y lavabo: fijaciones y juntas",
+"n": "Tornillos de lavabo (ref. 0138564010)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"SI01002": {
+"f": "Baño y desagües",
+"g": "Válvulas de desagüe y sifones",
+"n": "Sifón de botella extensible 1 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": "sifon"
+},
+"AC18008": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Estaño en rollo tipo 6% (Cabel)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC18001": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Estaño plata 6% certificado en rollo (Cabel)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC18019": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Estaño plata 8% certificado en rollo (Cabel)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC18101": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Varilla de estaño-plomo 50% (100 g)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"01330205": {
+"f": "Gas, sellado y soldadura",
+"g": "Sellado de roscas",
+"n": "Hilo sellador de roscas Loctite 55 (160 m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "teflon"
+},
+"AC79305": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Decapante líquido para soldar Griffon S-39 (pequeño)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "desincrustante"
+},
+"AC96038": {
+"f": "Gas, sellado y soldadura",
+"g": "Siliconas, masillas y espuma",
+"n": "Masilla anticorrosiva 400 g",
+"t": null,
+"m": null,
+"o": null,
+"foto": "masilla"
+},
+"1270051": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Decapante en gel para soldar Griffon S-39",
+"t": null,
+"m": null,
+"o": null,
+"foto": "desincrustante"
+},
+"505018": {
+"f": "Gas, sellado y soldadura",
+"g": "Sellado de roscas",
+"n": "Hilo sellador de roscas Ceys (160 m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "teflon"
+},
+"AC18015": {
+"f": "Gas, sellado y soldadura",
+"g": "Sellado de roscas",
+"n": "Cáñamo en madeja 200 g",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"505529": {
+"f": "Gas, sellado y soldadura",
+"g": "Siliconas, masillas y espuma",
+"n": "Silicona multiusos neutra secado exprés transparente",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC18021": {
+"f": "Gas, sellado y soldadura",
+"g": "Sellado de roscas",
+"n": "Teflón en rollo 19 mm (amarillo, gas)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0863002973": {
+"f": "Gas, sellado y soldadura",
+"g": "Sellado de roscas",
+"n": "Cáñamo en bote 80 g",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC18023": {
+"f": "Gas, sellado y soldadura",
+"g": "Sellado de roscas",
+"n": "Teflón en rollo 12 mm (blanco)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC96011": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Bombona de gas MAPP para soplete",
+"t": null,
+"m": null,
+"o": null,
+"foto": "gas-mapp"
+},
+"0490002778": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Manguera de butano 1,5 m con 2 abrazaderas",
+"t": null,
+"m": null,
+"o": null,
+"foto": "manguera-gas"
+},
+"GL10071": {
+"f": "Gas, sellado y soldadura",
+"g": "Gas butano y propano",
+"n": "Manguera de gas GLP (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "manguera-gas"
+},
+"504808": {
+"f": "Gas, sellado y soldadura",
+"g": "Siliconas, masillas y espuma",
+"n": "Espuma de poliuretano de fijación y montaje 750 ml (pistola)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "espuma"
+},
+"INC": {
+"f": "Agua y acometidas",
+"g": "Racores de latón para polietileno",
+"n": "Codo placa latón para PE (rosca hembra) Ø20 × 1/2\"",
+"t": "Codo placa latón para PE (rosca hembra)",
+"m": "20×1/2\"",
+"o": 20.0,
+"foto": "racor-laton-pe"
+},
+"AI02119": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Vaina corrugada rojo Ø19 (m)",
+"t": "Vaina corrugada rojo para tubo empotrado (caliente)",
+"m": "19",
+"o": 19.0,
+"foto": null
+},
+"CU04142": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 45º cobre H-H Ø42",
+"t": "Curva 45º cobre H-H (soldar)",
+"m": "42",
+"o": 42.0,
+"foto": "accesorio-cobre"
+},
+"CU09042": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø42",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "42",
+"o": 42.0,
+"foto": "accesorio-cobre"
+},
+"AI02219": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Vaina corrugada azul Ø19 (m)",
+"t": "Vaina corrugada azul para tubo empotrado (fría)",
+"m": "19",
+"o": 19.0,
+"foto": null
+},
+"CU04122": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 45º cobre H-H Ø22",
+"t": "Curva 45º cobre H-H (soldar)",
+"m": "22",
+"o": 22.0,
+"foto": "accesorio-cobre"
+},
+"T1105040": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor doble 110 a 50 y 40",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapon-pvc"
+},
+"T15": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Te cobre Ø15",
+"t": "Te cobre (soldar)",
+"m": "15",
+"o": 15.0,
+"foto": "accesorio-cobre"
+},
+"MA050": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø50",
+"t": "Manguito PVC H-H",
+"m": "50",
+"o": 50.0,
+"foto": "manguito-pvc"
+},
+"1177003300": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Tubo inox pared simple",
+"n": "Te 90º M-H pared simple Ø80",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tubo-sw"
+},
+"CU09028": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø28",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "28",
+"o": 28.0,
+"foto": "accesorio-cobre"
+},
+"1111013718": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Juego de excéntricas 1/2\" × 3/4\" 1,5 cm",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"T28": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Te cobre Ø28",
+"t": "Te cobre (soldar)",
+"m": "28",
+"o": 28.0,
+"foto": "accesorio-cobre"
+},
+"0863002720": {
+"f": "Gas, sellado y soldadura",
+"g": "Soldadura de cobre",
+"n": "Pastilla de estearina en barra 200 g",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"CU8306": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Manguito electrolítico 3/4\" reforzado",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"MA040": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø40",
+"t": "Manguito PVC H-H",
+"m": "40",
+"o": 40.0,
+"foto": "manguito-pvc"
+},
+"AC03121": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Pomo redondo para válvula Arco Texas",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"GE01003": {
+"f": "Cobre",
+"g": "Reparación de tuberías",
+"n": "Terminal Gebo 3/4\" macho (tubo de hierro)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC13067": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Vaina para termómetro cobre 1/2\" 10 cm",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0755529065": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Grifo flotador universal de llenado rápido (alimentación lateral)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "flotador"
+},
+"0935007058": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Reducción PVC concéntrica H-M 200-160",
+"t": "Reducción PVC concéntrica H-M",
+"m": "200-160",
+"o": 200160.0,
+"foto": "manguito-pvc"
+},
+"CU09215": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre M-H Ø15",
+"t": "Codo 90º cobre M-H (soldar)",
+"m": "15",
+"o": 15.0,
+"foto": "accesorio-cobre"
+},
+"AC12002": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Manómetro 0-10 kg Ø53 conexión horizontal",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"CU27042": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø42",
+"t": "Manguito cobre H-H (soldar)",
+"m": "42",
+"o": 42.0,
+"foto": "accesorio-cobre"
+},
+"30116584": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 90º cobre H-H Ø22",
+"t": "Curva 90º cobre H-H (soldar)",
+"m": "22",
+"o": 22.0,
+"foto": "accesorio-cobre"
+},
+"BR24309": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Entronque cobre 22 × 3/4\" macho",
+"t": "Entronque cobre-rosca macho (soldar)",
+"m": "22×3/4\"",
+"o": 22.0,
+"foto": "laton"
+},
+"TS5040": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor macho PVC 50-40",
+"t": "Tapón reductor macho PVC",
+"m": "50-40",
+"o": 50040.0,
+"foto": "tapon-pvc"
+},
+"AI501": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Cinta VID 3×50 (rollo 30 m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"T35": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Te cobre Ø35",
+"t": "Te cobre (soldar)",
+"m": "35",
+"o": 35.0,
+"foto": "accesorio-cobre"
+},
+"CU04135": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 45º cobre H-H Ø35",
+"t": "Curva 45º cobre H-H (soldar)",
+"m": "35",
+"o": 35.0,
+"foto": "accesorio-cobre"
+},
+"6790005": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Vaina latón 1/2\" 10 cm",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0790006435": {
+"f": "Calefacción",
+"g": "Gasoil",
+"n": "Boquilla de quemador Danfoss 0,55 G/H 60º",
+"t": "Boquilla de quemador Danfoss 60º (G/H)",
+"m": "0,55",
+"o": 0.55,
+"foto": null
+},
+"RQ01115": {
+"f": "Calefacción",
+"g": "Gasoil",
+"n": "Boquilla de quemador Danfoss 0,60 G/H 60º",
+"t": "Boquilla de quemador Danfoss 60º (G/H)",
+"m": "0,60",
+"o": 0.6,
+"foto": null
+},
+"RQ01114": {
+"f": "Calefacción",
+"g": "Gasoil",
+"n": "Boquilla de quemador Danfoss 0,50 G/H 60º",
+"t": "Boquilla de quemador Danfoss 60º (G/H)",
+"m": "0,50",
+"o": 0.5,
+"foto": null
+},
+"BR09608": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Codo cobre-rosca 22 × 3/4\" hembra",
+"t": null,
+"m": null,
+"o": null,
+"foto": "laton"
+},
+"AC13064": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Vaina para termómetro latón 1/2\" 5 cm",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0065017704": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Grapa fijatubos simple PP Ø22",
+"t": "Grapa fijatubos simple PP",
+"m": "22",
+"o": 22.0,
+"foto": null
+},
+"AI02116": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Vaina corrugada rojo Ø16 (m)",
+"t": "Vaina corrugada rojo para tubo empotrado (caliente)",
+"m": "16",
+"o": 16.0,
+"foto": null
+},
+"AI02216": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Vaina corrugada azul Ø16 (m)",
+"t": "Vaina corrugada azul para tubo empotrado (fría)",
+"m": "16",
+"o": 16.0,
+"foto": null
+},
+"BR24320": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Entronque cobre 42 × 1 1/2\" macho",
+"t": "Entronque cobre-rosca macho (soldar)",
+"m": "42×1 1/2\"",
+"o": 42.0,
+"foto": "laton"
+},
+"TS4032": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor macho PVC 40-32",
+"t": "Tapón reductor macho PVC",
+"m": "40-32",
+"o": 40032.0,
+"foto": "tapon-pvc"
+},
+"CU27028": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø28",
+"t": "Manguito cobre H-H (soldar)",
+"m": "28",
+"o": 28.0,
+"foto": "accesorio-cobre"
+},
+"CU09035": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Codo 90º cobre H-H Ø35",
+"t": "Codo 90º cobre H-H (soldar)",
+"m": "35",
+"o": 35.0,
+"foto": "accesorio-cobre"
+},
+"SI01013": {
+"f": "Baño y desagües",
+"g": "Inodoro y lavabo: fijaciones y juntas",
+"n": "Manguito de WC excéntrico Ø90",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"SU2040": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Ventilación y tubo flexible",
+"n": "Empalme campana 180×90 a Ø150",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"M380201": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Alargadera (marsella) 1/2\" M-H 3 cm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "marsella"
+},
+"M430600": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Codo latón 90º H-H 1\"",
+"t": "Codo latón 90º H-H",
+"m": "1\"",
+"o": 1.0,
+"foto": ""
+},
+"0102000295": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Taco Duopower 6×30 (100 u.)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"M431400": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Codo latón 90º M-H 1\"",
+"t": "Codo latón 90º M-H",
+"m": "1\"",
+"o": 1.0,
+"foto": ""
+},
+"SI01018": {
+"f": "Baño y desagües",
+"g": "Inodoro y lavabo: fijaciones y juntas",
+"n": "Junta labiada excéntrica de WC",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"T1255040": {
+"f": "Evacuación PVC",
+"g": "Tapones",
+"n": "Tapón reductor doble 125 a 50 y 40",
+"t": null,
+"m": null,
+"o": null,
+"foto": "tapon-pvc"
+},
+"30116444": {
+"f": "Cobre",
+"g": "Codos y curvas",
+"n": "Curva 45º cobre H-H Ø28",
+"t": "Curva 45º cobre H-H (soldar)",
+"m": "28",
+"o": 28.0,
+"foto": "accesorio-cobre"
+},
+"SU2050": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Ventilación y tubo flexible",
+"n": "Codo vertical campana 90º 180×90 a Ø150",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"BR27006": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Entronque cobre 18 × 1/2\" hembra",
+"t": "Entronque cobre-rosca hembra (soldar)",
+"m": "18×1/2\"",
+"o": 18.0,
+"foto": "laton"
+},
+"BR24316": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Entronque cobre 35 × 1 1/4\" macho",
+"t": "Entronque cobre-rosca macho (soldar)",
+"m": "35×1 1/4\"",
+"o": 35.0,
+"foto": "laton"
+},
+"0638056929": {
+"f": "Calefacción",
+"g": "Radiadores y sus válvulas",
+"n": "Juntas de radiador 1\" 48×34×1,6 (50 u.)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "radiador"
+},
+"0913005994": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana estrecha para racor 3/4\"",
+"t": "Junta plana estrecha para racor",
+"m": "3/4\"",
+"o": 0.75,
+"foto": null
+},
+"CU27035": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø35",
+"t": "Manguito cobre H-H (soldar)",
+"m": "35",
+"o": 35.0,
+"foto": "accesorio-cobre"
+},
+"0501002303": {
+"f": "Baño y desagües",
+"g": "Inodoro y lavabo: fijaciones y juntas",
+"n": "Fijación de WC M5×70 con taco",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC42091": {
+"f": "Baño y desagües",
+"g": "Cisternas y mecanismos",
+"n": "Boya de plástico roscada 1/2\"",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"AC12006": {
+"f": "Calefacción",
+"g": "Termostatos, manómetros y vainas",
+"n": "Manómetro 0-10 kg Ø53 conexión vertical",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0913006618": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana estrecha para racor 3/8\"",
+"t": "Junta plana estrecha para racor",
+"m": "3/8\"",
+"o": 0.375,
+"foto": null
+},
+"RE01034": {
+"f": "Llaves y válvulas",
+"g": "Latiguillos, flexos y alargos",
+"n": "Flexo de ducha de acero",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0913006069": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana estrecha para racor 1\"",
+"t": "Junta plana estrecha para racor",
+"m": "1\"",
+"o": 1.0,
+"foto": null
+},
+"0065017780": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Grapa fijatubos doble PP Ø18",
+"t": "Grapa fijatubos doble PP",
+"m": "18",
+"o": 18.0,
+"foto": null
+},
+"0913005956": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana ancha para racor 1/2\"",
+"t": "Junta plana ancha para racor",
+"m": "1/2\"",
+"o": 0.5,
+"foto": null
+},
+"M431300": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Codo latón 90º M-H 3/4\"",
+"t": "Codo latón 90º M-H",
+"m": "3/4\"",
+"o": 0.75,
+"foto": ""
+},
+"M430400": {
+"f": "Latón roscado",
+"g": "Codos, tes y manguitos",
+"n": "Codo latón 90º H-H 3/4\"",
+"t": "Codo latón 90º H-H",
+"m": "3/4\"",
+"o": 0.75,
+"foto": ""
+},
+"AC17014": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Grapa fijatubos doble PP Ø22",
+"t": "Grapa fijatubos doble PP",
+"m": "22",
+"o": 22.0,
+"foto": null
+},
+"1010002674": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Coquilla aislante Cabelflex 9-35 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"MA032": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Manguito PVC H-H Ø32",
+"t": "Manguito PVC H-H",
+"m": "32",
+"o": 32.0,
+"foto": "manguito-pvc"
+},
+"0935006976": {
+"f": "Evacuación PVC",
+"g": "Manguitos y reducciones",
+"n": "Reducción PVC concéntrica H-M 90-75",
+"t": "Reducción PVC concéntrica H-M",
+"m": "90-75",
+"o": 90075.0,
+"foto": "manguito-pvc"
+},
+"0435003580": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Tubo aislante K-Flex PE 9×42 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0501001676": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Tornillo doble rosca M8×60",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0913006892": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Juntas Klingerit 1/2\" 18×11 (10 u.)",
+"t": "Juntas de fibra Klingerit (10 u.)",
+"m": "1/2\" 18×11",
+"o": 0.61,
+"foto": null
+},
+"0913005871": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana ancha para racor 3/4\"",
+"t": "Junta plana ancha para racor",
+"m": "3/4\"",
+"o": 0.75,
+"foto": null
+},
+"BR24310": {
+"f": "Cobre",
+"g": "Paso de cobre a rosca",
+"n": "Entronque cobre 22 × 1\" macho",
+"t": "Entronque cobre-rosca macho (soldar)",
+"m": "22×1\"",
+"o": 22.0,
+"foto": "laton"
+},
+"0913006960": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Juntas Klingerit 3/4\" 24×18 (10 u.)",
+"t": "Juntas de fibra Klingerit (10 u.)",
+"m": "3/4\" 24×18",
+"o": 0.9299999999999999,
+"foto": null
+},
+"0913006953": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Juntas Klingerit 1/2\" 18×12 (10 u.)",
+"t": "Juntas de fibra Klingerit (10 u.)",
+"m": "1/2\" 18×12",
+"o": 0.62,
+"foto": null
+},
+"0435003550": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Aislamiento y vaina de tuberías",
+"n": "Tubo aislante K-Flex PE 9×35 (m)",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0913005895": {
+"f": "Latón roscado",
+"g": "Juntas",
+"n": "Junta plana ancha para racor 3/8\"",
+"t": "Junta plana ancha para racor",
+"m": "3/8\"",
+"o": 0.375,
+"foto": null
+},
+"CU27022": {
+"f": "Cobre",
+"g": "Manguitos, tes y reducciones",
+"n": "Manguito cobre H-H Ø22",
+"t": "Manguito cobre H-H (soldar)",
+"m": "22",
+"o": 22.0,
+"foto": "accesorio-cobre"
+},
+"1111": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Otros",
+"n": "Bolsa de plástico Zabaleta",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"$0481": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Soporte perforado inox 38×40 400 mm",
+"t": null,
+"m": null,
+"o": null,
+"foto": "soporte-perforado"
+},
+"0481000254": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Abarcón inox AISI 304 Ø220 M10",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"SP00U": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Soporte sobre chapa ondulada C25",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0319000497": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Abrazadera simple inox Ø15 con tirafondo",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"1177031836": {
+"f": "Chimeneas, estufas y ventilación",
+"g": "Anclajes y abrazaderas",
+"n": "Abrazadera de unión pared simple Ø80",
+"t": null,
+"m": null,
+"o": null,
+"foto": "abrazadera-chimenea"
+},
+"27909000": {
+"f": "Calefacción",
+"g": "Vasos de expansión y seguridad",
+"n": "Soporte 90º para vasos de expansión 8-25 L",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0065035739": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Abrazadera isofónica Ø40 M8-10",
+"t": null,
+"m": null,
+"o": null,
+"foto": "abrazadera"
+},
+"0065002359": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Abrazadera isofónica Ø60 M8-10",
+"t": null,
+"m": null,
+"o": null,
+"foto": "abrazadera"
+},
+"0065018527": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Fijación de tuberías",
+"n": "Tirafondo M6×30",
+"t": null,
+"m": null,
+"o": null,
+"foto": null
+},
+"0896025656": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Herramienta",
+"n": "Cortatubos cobre e inox 3-35 mm (Rothenberger)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "cortatubos"
+},
+"05076017": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Herramienta",
+"n": "Broca SDS para hormigón 8×160",
+"t": null,
+"m": null,
+"o": null,
+"foto": "broca-sds"
+},
+"05076023": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Herramienta",
+"n": "Broca SDS para hormigón 10×160",
+"t": null,
+"m": null,
+"o": null,
+"foto": "broca-sds"
+},
+"AC79543": {
+"f": "Fijación, aislamiento y herramienta",
+"g": "Herramienta",
+"n": "Hoja de sierra para metal (Roth)",
+"t": null,
+"m": null,
+"o": null,
+"foto": "sierra"
+}
+}
+}
