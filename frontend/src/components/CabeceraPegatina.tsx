@@ -1,5 +1,7 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ESCENA_PEGATINA } from './pegatinaEscena';
+import { conHuevoCarga } from './huevoCarga';
+import { getRol } from '../auth';
 
 /**
  * Estilo «pegatina» (móvil, todos los usuarios).
@@ -152,6 +154,133 @@ function montar(svg: SVGSVGElement, pre: string) {
   return { completa, corta, vuelve, reposo: () => { sinCamion(); logoQuieto(); }, oculto: () => { sinCamion(); logoQuieto(1, 0, 0); } };
 }
 
+// ---------------------------------------------------------------- easter egg: se cae la carga
+// Se añade encima de la animación normal (montar): mismos tiempos para el logo y el camión.
+
+const P_ANCHO = 58;                       // ancho del palé (coords propias)
+const P_REPOSO = 70, P_TOPE = 116;        // x del palé en la caja: al salir y tras el frenazo (contra la grúa)
+const T_DESL0 = 0.45, T_DESL1 = 0.8;      // se desliza hacia la cabina al frenar
+const G = 2000;                           // gravedad (px/s², escena)
+
+/** Posición del borde trasero de la caja (mundo) en t. */
+const bordeCaja = (t: number) => xCam(t) + (40 - 172) * ESC;
+
+function montarHuevo(svg: SVGSVGElement, pre: string) {
+  const base = montar(svg, pre);
+  const q = (id: string) => svg.querySelector('#' + pre + id) as SVGElement;
+  const at = (id: string, k: string, v: string | number) => q(id).setAttribute(k, String(v));
+
+  // Palé en el mundo justo al empezar el acelerón (para que se quede atrás por inercia)
+  const pxMundo = X_PARA + (P_TOPE - 172) * ESC;          // esquina inferior izquierda
+  const pyMundo = SUELO + (76 - 151) * ESC;
+  const deriva = (t: number) => 14 * easeOut(seg(t, T_SALE + .15, T_SALE + .6));
+  // cuándo se queda sin caja debajo (el borde trasero pasa el centro del palé)
+  let tVuelca = T_SALE + .2;
+  for (let t = T_SALE; t < T_SALE + 2; t += 1 / 600) {
+    if (bordeCaja(t) > pxMundo + deriva(t) + P_ANCHO * ESC * .55) { tVuelca = t; break; }
+  }
+  const caida = (h: number) => Math.sqrt(2 * h / G);
+  const tCae = caida(SUELO - pyMundo);
+  const tGolpe = tVuelca + .06 + tCae;
+  const PX_SUELO = pxMundo + 20;                             // donde queda en el suelo
+
+  // Carretilla
+  const ESC_C = ESC;
+  const FX_PARA = PX_SUELO - 78 * ESC_C;                     // las horquillas debajo del palé
+  const T_C0 = tGolpe + .45, T_C1 = T_C0 + .75;              // entra
+  const T_L0 = T_C1 + .12, T_L1 = T_L0 + .3;                 // sube las horquillas
+  const T_S0 = T_L0 + .2, T_S1 = T_S0 + .38;                 // el saco salta encima del palé
+  const T_R0 = T_S1 + .25, T_R1 = T_R0 + 1.15;               // se va hacia la derecha
+  const DURA_H = T_R1 + .15;
+
+  const xCarr = (t: number) => {
+    if (t < T_C0) return -220;
+    if (t < T_R0) return lerp(-220, FX_PARA, easeOutBack(seg(t, T_C0, T_C1), 0.8));
+    return FX_PARA + 560 * Math.pow(seg(t, T_R0, T_R1), 1.8);
+  };
+
+  // saco suelto: sale del palé al golpe y luego vuelve encima
+  const sacoSuelo = { x: PX_SUELO + 70, y: SUELO - 11 * ESC };
+
+  const completa = (t: number) => {
+    base.completa(Math.min(t, DURA + 1));
+
+    // ---- palé
+    if (t < T_SALE) {
+      // va en la caja: baches al entrar, se desliza al frenar y choca con la grúa
+      const k = easeIn(seg(t, T_DESL0, T_DESL1));
+      const x = lerp(P_REPOSO, P_TOPE, k);
+      const bache = t < T_ENTRA1 ? -Math.abs(Math.sin(t * 26)) * 3.2 * (1 - seg(t, .35, .7)) : 0;
+      const choque = muelle(t - T_DESL1, 7, 30, 7);
+      const ladeo = t < T_DESL0 ? -3 * Math.sin(t * 13) * (1 - seg(t, .3, T_DESL0)) : 0;
+      at('paleCam', 'opacity', 1); at('paleMundo', 'opacity', 0);
+      at('paleCam', 'transform', `translate(${x} ${76 + bache}) rotate(${choque + ladeo} ${P_ANCHO} 0)`);
+      const kk = seg(t, T_DESL1, T_DESL1 + .22);
+      at('choque', 'opacity', t >= T_DESL1 && kk < 1 ? 1 - kk : 0);
+      at('choque', 'transform', `translate(176 44) scale(${.8 + kk * .5})`);
+    } else {
+      at('choque', 'opacity', 0);
+      at('paleCam', 'opacity', 0); at('paleMundo', 'opacity', 1);
+      let x = pxMundo + deriva(t), y = pyMundo, rot = 0;
+      if (t >= tVuelca) {
+        const dt = t - tVuelca;
+        const caer = Math.max(0, dt - .06);
+        rot = -38 * easeOut(c01(dt / .3));
+        x += 8 * c01(dt / .35);
+        y = Math.min(SUELO, pyMundo + .5 * G * caer * caer);
+      }
+      if (t >= tGolpe) {
+        const dt = t - tGolpe;
+        x = PX_SUELO; y = SUELO - Math.abs(muelle(dt, 10, 18, 9));
+        rot = lerp(-38, -7, easeOut(c01(dt / .12))) + muelle(dt, 6, 26, 7);
+      }
+      // la carretilla lo pincha
+      const xc = xCarr(t);
+      const h = 16 * easeInOut(seg(t, T_L0, T_L1));
+      if (t >= T_L0) {
+        x = xc + 78 * ESC_C; y = SUELO + (-1 - h) * ESC_C;
+        rot = lerp(-7, 0, easeOut(seg(t, T_L0, T_L0 + .18)));
+      }
+      at('paleMundo', 'transform', `translate(${x} ${y}) scale(${ESC}) rotate(${rot} 29 0)`);
+
+      // saco
+      let sx = 0, sy = 0, sr = 0, so = 0;
+      if (t >= tGolpe && t < T_S0) {
+        const dt = t - tGolpe, k = c01(dt / .38);
+        sx = lerp(PX_SUELO + 30, sacoSuelo.x, easeOut(k));
+        sy = lerp(SUELO - 44 * ESC, sacoSuelo.y, k) - Math.sin(Math.PI * k) * 26;
+        sr = lerp(-20, 14, k) + muelle(dt - .38, 8, 24, 8); so = 1;
+      } else if (t >= T_S0) {
+        const k = easeInOut(seg(t, T_S0, T_S1));
+        const encimaX = x + 20 * ESC, encimaY = y - 44 * ESC - 11 * ESC;
+        sx = lerp(sacoSuelo.x, encimaX, k); sy = lerp(sacoSuelo.y, encimaY, k) - Math.sin(Math.PI * k) * 34;
+        sr = lerp(14, 360, k); so = 1;
+      }
+      at('saco', 'opacity', so);
+      at('saco', 'transform', `translate(${sx} ${sy}) scale(${ESC}) rotate(${sr % 360} 9 5)`);
+
+      // polvo del golpe
+      const kp = seg(t, tGolpe, tGolpe + .55);
+      at('polvo', 'opacity', t >= tGolpe && kp < 1 ? (1 - kp) * .95 : 0);
+      at('polvo', 'transform', `translate(${PX_SUELO + 24} ${SUELO - 4}) scale(${.6 + kp * .7})`);
+      // ¡UY!
+      const ku = seg(t, tVuelca, tVuelca + .18), ko = seg(t, tGolpe + .35, tGolpe + .6);
+      at('uy', 'opacity', t >= tVuelca ? (1 - ko) : 0);
+      at('uy', 'transform', `translate(${pxMundo - 14} ${pyMundo - 60}) rotate(-8) scale(${easeOutBack(ku, 2.4)})`);
+
+      // carretilla
+      const acel = (xCarr(t + 1 / 60) - 2 * xCarr(t) + xCarr(t - 1 / 60)) * 3600;
+      at('carr', 'transform', `translate(${xc} ${SUELO}) scale(${ESC_C}) rotate(${Math.max(-5, Math.min(5, -acel * .0012))} 40 0)`);
+      at('horq', 'transform', `translate(0 ${-h})`);
+      const giro = xc / 12 * 180 / Math.PI;
+      for (const id of ['cr1', 'cr2']) q(id).setAttribute('transform', `rotate(${giro})`);
+      const sale = t >= T_R0 - .1 && t < T_R1;
+      at('girofaro', 'opacity', sale && Math.floor((t - T_R0) * 6) % 2 === 0 ? 1 : .25);
+    }
+  };
+  return { ...base, completa, dura: DURA_H };
+}
+
 const escena = (pre: string) => ESCENA_PEGATINA.split('cfp-').join(pre);
 
 /** Logo pegatina quieto en lo alto de Inicio. */
@@ -178,6 +307,16 @@ export function debeArrancar(ruta: string, inicio: string) {
   return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
+/** Sorpresa «se cae la carga» (en pruebas, solo el encargado): la primera vez siempre y luego 1 de cada 20. */
+const CLAVE_HUEVO = 'cfHuevoCarga';
+function tocaHuevo(): boolean {
+  if (getRol() !== 'admin') return false;
+  try {
+    if (!localStorage.getItem(CLAVE_HUEVO)) { localStorage.setItem(CLAVE_HUEVO, '1'); return true; }
+  } catch { /* sin almacenamiento: solo al azar */ }
+  return Math.random() < 1 / 20;
+}
+
 const SALIDA = 0.35;   // segundos que tarda en desvanecerse la pantalla al terminar
 
 /** Pantalla de arranque con la animación del camión. Llama a onFin al acabar (o al tocar). */
@@ -186,11 +325,13 @@ export function ArranquePegatina({ onFin }: { onFin: () => void }) {
   const lienzo = useRef<SVGSVGElement>(null);
   const fijo = useRef<HTMLImageElement>(null);
   const fin = useRef(onFin); fin.current = onFin;
+  const [huevo] = useState(tocaHuevo);
 
   useEffect(() => {
     const svg = lienzo.current, cp = capa.current;
     if (!svg || !cp) return;
-    const esc = montar(svg, 'cfp-');
+    const esc = huevo ? montarHuevo(svg, 'cfp-') : { ...montar(svg, 'cfp-'), dura: DURA };
+    const DUR = esc.dura;
     esc.reposo();
     // El reloj avanza como mucho 1/30 s por fotograma: si el móvil va cargado al abrir la app,
     // la animación va más lenta en vez de saltarse entera.
@@ -199,9 +340,9 @@ export function ArranquePegatina({ onFin }: { onFin: () => void }) {
     const paso = (ahora: number) => {
       if (cuadros++ > 1) t += Math.min(1 / 30, Math.max(0, (ahora - antes) / 1000));   // los 2 primeros fotogramas no cuentan
       antes = ahora;
-      esc.completa(Math.max(0, Math.min(t, DURA)));
+      esc.completa(Math.max(0, Math.min(t, DUR)));
       if (fijo.current) fijo.current.style.visibility = t > 0.1 ? 'hidden' : '';
-      if (saliendo < 0 && t >= DURA - 0.25) saliendo = t;
+      if (saliendo < 0 && t >= DUR - 0.25) saliendo = t;
       if (saliendo >= 0) {
         const k = c01((t - saliendo) / SALIDA);
         cp.style.opacity = String(1 - easeIn(k));
@@ -217,19 +358,19 @@ export function ArranquePegatina({ onFin }: { onFin: () => void }) {
     Promise.race([Promise.all(listas), new Promise(r => setTimeout(r, 1500))]).then(() => {
       if (cancelado) return;
       raf = requestAnimationFrame(paso);
-      seguro = window.setTimeout(terminar, 12000);   // por si el navegador para la animación del todo
+      seguro = window.setTimeout(terminar, (DUR + 9) * 1000);   // por si el navegador para la animación del todo
     });
     const saltar = () => { if (saliendo < 0) saliendo = Math.max(t, 0); };
     cp.addEventListener('pointerdown', saltar);
     return () => { cancelado = true; cancelAnimationFrame(raf); cp.removeEventListener('pointerdown', saltar); clearTimeout(seguro); };
-  }, []);
+  }, [huevo]);
 
   return (
     <div ref={capa} className="arranque-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción">
       {/* el mismo logo de la pantalla de carga, debajo, hasta que la animación ya está en marcha */}
       <img ref={fijo} className="cf-cargando-logo" src="/brand/logo-pegatina.png" alt="" />
       <svg ref={lienzo} viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: escena('cfp-') }} />
+        dangerouslySetInnerHTML={{ __html: huevo ? conHuevoCarga(escena('cfp-')) : escena('cfp-') }} />
       <span className="arranque-saltar">Toca para saltar</span>
     </div>
   );
