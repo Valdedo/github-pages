@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, Images, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
-  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search,
+  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2,
 } from 'lucide-react';
 import {
   listarCargas, verCarga, borrarCarga, leerCarga, fotoCargaUrl, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
   borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, treyfactEntregaCarga,
-  nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError,
+  nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError, enviarCarga,
   type OrdenCarga, type EntregaCarga, type LineaCarga,
 } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
@@ -273,6 +273,7 @@ export function CargasPage() {
                     <span className={`status-chip carga-${o.estado}`}>{ESTADO[o.estado]}</span>
                     {o.estado === 'preparando' && ls.length > 0 && <span className="cat-chip gris">Cargado {hechas}/{ls.length}</span>}
                     {dudas > 0 && o.estado === 'preparando' && <span className="aviso-chip">{dudas} por revisar</span>}
+                    {o.enviada_at && o.estado !== 'entregado' && <span className="cat-chip ok"><Send size={12} /> En el móvil de Melchor</span>}
                   </span>
                 </span>
                 <ChevronRight size={20} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
@@ -536,9 +537,57 @@ function ResumenViaje({ o }: { o: OrdenCarga }) {
 
 const mapa = (lugar: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lugar}, Asturias`)}`;
 
+// ─── Mandarla a Melchor ──────────────────────────────────────────────────────
+
+function EnviarMelchor({ o, onCambio, show }: {
+  o: OrdenCarga; onCambio: (o: OrdenCarga) => void;
+  show: ReturnType<typeof useCfToast>['show'];
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const { confirm, ConfirmDialog } = useConfirm();
+  if (o.estado === 'entregado') return null;
+  const dudas = o.entregas.reduce((n, e) => n + e.lineas.filter(l => l.duda).length + (e.dudas ? 1 : 0), 0);
+  const cambiar = async (enviar: boolean) => {
+    if (enviar && dudas > 0 && !await confirm({
+      title: 'Hay cosas por revisar',
+      message: `Quedan ${dudas === 1 ? '1 cosa marcada' : `${dudas} cosas marcadas`} para revisar. ¿Se la mandas así a Melchor?`,
+      confirmLabel: 'Mandar igualmente',
+    })) return;
+    if (!enviar && !await confirm({
+      title: 'Retirar la orden',
+      message: 'Desaparece del móvil de Melchor. Lo que ya haya marcado se queda guardado.',
+      confirmLabel: 'Retirar', danger: true,
+    })) return;
+    setEnviando(true);
+    try {
+      const { data } = await enviarCarga(o.id, enviar);
+      onCambio(data);
+      show(enviar ? 'Enviada. Le llega un aviso a Melchor.' : 'Retirada del móvil de Melchor');
+    } catch (err) { show(`No se pudo: ${mensajeError(err, describeApiError(err))}`, { error: true }); }
+    finally { setEnviando(false); }
+  };
+  return (
+    <div className={`carga-enviar${o.enviada_at ? ' enviada' : ''}`}>
+      {ConfirmDialog}
+      {o.enviada_at ? (
+        <>
+          <span className="carga-enviar-txt"><Truck size={20} /><span><b>En el móvil de Melchor</b><small>Enviada el {fechaHora(o.enviada_at)}. Lo que marque se ve aquí.</small></span></span>
+          <button className="btn btn-ghost btn-sm" onClick={() => cambiar(false)} disabled={enviando}><Undo2 size={15} /> Retirar</button>
+        </>
+      ) : (
+        <>
+          <span className="carga-enviar-txt"><Truck size={20} /><span><b>¿Lista para cargar?</b><small>Revísala y mándasela: le aparece en su móvil para empezar a prepararla.</small></span></span>
+          <button className="btn btn-primary" onClick={() => cambiar(true)} disabled={enviando}><Send size={16} /> {enviando ? 'Enviando…' : 'Enviar a Melchor'}</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Una orden ───────────────────────────────────────────────────────────────
 
-export function OrdenCargaPage() {
+/** Con «reparto»: la vista del móvil de Melchor (solo marcar, firmar y ver la hoja). */
+export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { confirm, ConfirmDialog } = useConfirm();
@@ -638,7 +687,12 @@ export function OrdenCargaPage() {
     catch (err) { show(`No se pudo guardar la foto: ${describeApiError(err)}`, { error: true }); }
   };
 
-  if (!o) return <div className="page" style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>{error || 'Cargando…'}</div>;
+  if (!o) return (
+    <div className="page" style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
+      {error || 'Cargando…'}
+      {error && reparto && <div style={{ marginTop: 16 }}><button className="btn btn-ghost" onClick={() => navigate('/reparto')}>Volver a mis cargas</button></div>}
+    </div>
+  );
 
   const entregas = o.entregas.map(e => ({ ...e, lineas: e.lineas.map(l => conCola(l, e.id)) }));
   const ls = entregas.flatMap(e => e.lineas), hechas = ls.filter(l => l.cargado_ok).length;
@@ -651,7 +705,7 @@ export function OrdenCargaPage() {
       <div className="pedido-head">
         <div style={{ flex: '1 1 100%', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <button className="doc-volver" onClick={() => navigate('/cargas')}><ArrowLeft size={16} /> Órdenes</button>
+            {!reparto && <button className="doc-volver" onClick={() => navigate('/cargas')}><ArrowLeft size={16} /> Órdenes</button>}
             <h1>{o.entregas.map(e => e.cliente || 'Sin nombre').join(' · ') || 'Orden de carga'}</h1>
             <span className={`status-chip carga-${o.estado}`}>{ESTADO[o.estado]}</span>
           </div>
@@ -661,17 +715,19 @@ export function OrdenCargaPage() {
             )}
             <span><Truck size={15} /> Orden de carga · {plural(o.entregas.length, 'pedido')}</span>
             <span>Cargado {hechas} de {ls.length}</span>
-            <span>{fechaHora(o.created_at)}</span>
+            {!reparto && <span>{fechaHora(o.created_at)}</span>}
           </div>
           {ls.length > 0 && <div className="carga-barra"><span style={{ width: `${(hechas / ls.length) * 100}%` }} /></div>}
         </div>
       </div>
 
+      {!reparto && <EnviarMelchor o={o} onCambio={setO} show={show} />}
+
       {!online && (
         <div className="reparto-sinred" style={{ marginTop: 12 }}><CloudOff size={20} /> Sin cobertura. Puedes marcar lo cargado y firmar: se enviará solo al volver la señal.</div>
       )}
 
-      {o.parecidas.length > 0 && (
+      {!reparto && o.parecidas.length > 0 && (
         <div className="doc-aviso subidas" style={{ marginTop: 12 }}>
           <AlertTriangle size={18} />
           <div>
@@ -693,7 +749,7 @@ export function OrdenCargaPage() {
         </div>
       )}
 
-      {o.fotos.length > 0 && (
+      {!reparto && o.fotos.length > 0 && (
         <div className="carga-fotos-caja">
           <small>Toca la foto para compararla con la lista</small>
           <div className="carga-fotos">
@@ -717,7 +773,8 @@ export function OrdenCargaPage() {
         return (
           <section key={e.id} className={`card carga-entrega${firmada ? ' firmada' : ''}`}>
             <div className="carga-entrega-head">
-              {o.entregas.length > 1 && (
+              {o.entregas.length > 1 && reparto && <span className="carga-num">{idx + 1}</span>}
+              {o.entregas.length > 1 && !reparto && (
                 <div className="carga-mover">
                   <span>{idx + 1}</span>
                   <button onClick={() => mover(e, -1)} disabled={idx === 0} aria-label="Subir en el reparto"><ChevronUp size={18} /></button>
@@ -734,17 +791,17 @@ export function OrdenCargaPage() {
                   <span className="cat-chip">{e.servir ? 'Servir' : 'Recoge en tienda'}</span>
                   {e.pagado && <span className="cat-chip">Pagado</span>}
                   {e.numero && <span className="cat-chip gris">{e.numero}</span>}
-                  {e.treyfact_at && <span className="cat-chip ok"><Check size={13} /> Pasado a TreyFACT</span>}
+                  {e.treyfact_at && !reparto && <span className="cat-chip ok"><Check size={13} /> Pasado a TreyFACT</span>}
                 </div>
               </div>
               <div className="carga-entrega-acc">
                 {e.lugar && e.servir && <a className="btn btn-ghost btn-sm" href={mapa(e.lugar)} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> Cómo llegar</a>}
-                {!firmada && <button className="btn btn-ghost btn-sm" onClick={() => (online ? setDatos(e) : sinCobertura())}><Pencil size={14} /> Datos</button>}
+                {!firmada && !reparto && <button className="btn btn-ghost btn-sm" onClick={() => (online ? setDatos(e) : sinCobertura())}><Pencil size={14} /> Datos</button>}
               </div>
             </div>
 
-            {e.dudas && !firmada && <div className="doc-aviso subidas" style={{ margin: '0 16px 10px' }}><AlertTriangle size={18} /><div><b>Revisa</b>{e.dudas}</div></div>}
-            {dudas.length > 0 && !firmada && (
+            {e.dudas && !firmada && !reparto && <div className="doc-aviso subidas" style={{ margin: '0 16px 10px' }}><AlertTriangle size={18} /><div><b>Revisa</b>{e.dudas}</div></div>}
+            {dudas.length > 0 && !firmada && !reparto && (
               <div className="carga-revisar">Hay {dudas.length} material{dudas.length !== 1 ? 'es' : ''} marcado{dudas.length !== 1 ? 's' : ''} para revisar. Tócalo para corregirlo.</div>
             )}
             {(e.cuando || e.notas) && <div className="carga-notas">{[e.cuando, e.notas].filter(Boolean).join('; ')}</div>}
@@ -757,15 +814,15 @@ export function OrdenCargaPage() {
                     aria-pressed={l.cargado_ok} aria-label={l.cargado_ok ? `${l.descripcion}: cargado. Toca para desmarcar` : `Marcar ${l.descripcion} como cargado`}>
                     {l.cargado_ok ? <Check size={22} strokeWidth={3} /> : medio ? <Medio /> : null}
                   </button>
-                  <button className="pedido-linea-txt" onClick={() => !firmada && setLinea({ entregaId: e.id, ln: l })} disabled={firmada}>
+                  <button className="pedido-linea-txt" onClick={() => (reparto ? !firmada && tocar(l) : !firmada && setLinea({ entregaId: e.id, ln: l }))} disabled={firmada}>
                     <b><span className="carga-cant">{cantUd(l.cantidad, l.unidad)}</span> {l.descripcion}</b>
                     {medio && <small className="carga-parcial"><Medio /> Cargado solo {cantUd(l.cargado, l.unidad)}</small>}
-                    {l.duda && <small className="carga-duda"><AlertTriangle size={13} /> {l.duda}</small>}
+                    {l.duda && !reparto && <small className="carga-duda"><AlertTriangle size={13} /> {l.duda}</small>}
                   </button>
                 </div>
               );
             })}
-            {!firmada && (
+            {!firmada && !reparto && (
               <button className="carga-anadir" onClick={() => setLinea({ entregaId: e.id, ln: null })}><Plus size={16} /> Añadir material</button>
             )}
 
@@ -793,8 +850,8 @@ export function OrdenCargaPage() {
                   {e.foto_entrega
                     ? <button className="carga-foto-mini" onClick={() => setFoto(e.foto_entrega!)} aria-label="Ver la foto de la entrega"><img src={fotoCargaUrl(e.foto_entrega)} alt="" /></button>
                     : <button className="btn btn-ghost btn-sm" onClick={() => { setFotoPara(e.id); fotoEntrega.current?.click(); }}><Camera size={15} /> Añadir foto</button>}
-                  <span className="carga-drive">{e.drive_at ? <><Cloud size={14} /> Guardada en Drive</> : 'Guardándose en Drive…'}</span>
-                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => repetirFirma(e)}>Repetir la firma</button>
+                  {!reparto && <span className="carga-drive">{e.drive_at ? <><Cloud size={14} /> Guardada en Drive</> : 'Guardándose en Drive…'}</span>}
+                  {!reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => repetirFirma(e)}>Repetir la firma</button>}
                 </>
               ) : (
                 <>
@@ -804,7 +861,7 @@ export function OrdenCargaPage() {
                     <PenLine size={18} /> Firma del cliente
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)} disabled={!online}><FileText size={15} /> Ver la hoja</button>
-                  {o.entregas.length > 1 && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => quitarEntrega(e)}><Trash2 size={14} /> Quitar pedido</button>}
+                  {o.entregas.length > 1 && !reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => quitarEntrega(e)}><Trash2 size={14} /> Quitar pedido</button>}
                 </>
               )}
             </div>
@@ -813,17 +870,19 @@ export function OrdenCargaPage() {
       })}
       <input ref={fotoEntrega} type="file" accept="image/*" capture="environment" hidden onChange={subirFotoEntrega} />
 
-      <div className="card seccion" style={{ marginTop: 14 }}>
-        <div className="seccion-titulo">¿Va algo más en este viaje?</div>
-        <NuevaOrden compacto ordenId={o.id} onHecho={d => { setO(d); show('Pedido añadido al viaje'); }} />
-      </div>
+      {!reparto && (
+        <div className="card seccion" style={{ marginTop: 14 }}>
+          <div className="seccion-titulo">¿Va algo más en este viaje?</div>
+          <NuevaOrden compacto ordenId={o.id} onHecho={d => { setO(d); show('Pedido añadido al viaje'); }} />
+        </div>
+      )}
 
-      <details className="mas-opciones pedido-mas" style={{ marginTop: 16 }} open={mas} onToggle={ev => setMas((ev.target as HTMLDetailsElement).open)}>
+      {!reparto && <details className="mas-opciones pedido-mas" style={{ marginTop: 16 }} open={mas} onToggle={ev => setMas((ev.target as HTMLDetailsElement).open)}>
         <summary>Más opciones</summary>
         <div style={{ marginTop: 10 }}>
           <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} onClick={borrarOrden}><Trash2 size={15} /> Borrar la orden de carga</button>
         </div>
-      </details>
+      </details>}
 
       {foto && (
         <div className="carga-foto-grande" onClick={() => setFoto(null)} role="dialog" aria-label="Foto">
@@ -840,3 +899,6 @@ export function OrdenCargaPage() {
     </div>
   );
 }
+
+/** La orden vista desde el móvil de Melchor. */
+export function OrdenCargaReparto() { return <OrdenCargaPage reparto />; }

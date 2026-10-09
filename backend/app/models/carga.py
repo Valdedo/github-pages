@@ -21,6 +21,8 @@ class OrdenCarga(Base):
     huellas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # sha256 de las fotos, para avisar de repetidas
     notas: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     creado_por: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    # Cuándo se le mandó a Melchor (None = solo la ve la tienda)
+    enviada_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

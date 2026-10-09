@@ -124,6 +124,8 @@ def _reparto_puede(method: str, path: str) -> bool:
         return True
     if path.startswith("/api/turnos"):
         return method == "GET"
+    if path.startswith("/api/cargas"):
+        return True  # solo las órdenes que se le han enviado; lo comprueba app/api/cargas.py
     return any(m == method and rx.match(path) for m, rx in _REPARTO_FIRMAS)
 
 

@@ -398,10 +398,14 @@ export interface EntregaCarga {
 export interface OrdenCarga {
   id: number; estado: 'preparando' | 'cargado' | 'entregado'; fotos: string[]; texto: string | null;
   notas: string | null; creado_por: string | null; created_at: string; entregas: EntregaCarga[];
+  enviada_at?: string | null;  // mandada al móvil de Melchor
   parecidas: { orden_id: number; entrega_id: number; cliente: string; creada: string; materiales: number }[];
 }
 export const listarCargas = () => api.get<OrdenCarga[]>('/api/cargas');
 export const verCarga = (id: number) => api.get<OrdenCarga>(`/api/cargas/${id}`);
+/** Lo que se le ha mandado a Melchor (lo único que ve su móvil). */
+export const paraCargar = () => api.get<OrdenCarga[]>('/api/cargas/para-cargar');
+export const enviarCarga = (id: number, enviar: boolean) => api.post<OrdenCarga>(`/api/cargas/${id}/enviar`, { enviar });
 export const borrarCarga = (id: number) => api.delete(`/api/cargas/${id}`);
 export const leerCarga = (fotos: File[], texto: string, ordenId?: number, forzar = false) => {
   const form = new FormData();

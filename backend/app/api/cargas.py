@@ -1,7 +1,8 @@
-"""Órdenes de carga (en pruebas: solo el encargado).
+"""Órdenes de carga (en pruebas: las prepara el encargado; Melchor ve solo las que se le envían).
 Foto de la libreta → entregas con materiales → cargar marcando → firma del cliente → hoja de entrega PDF."""
 import json
 import logging
+import re
 import threading
 import uuid
 from zoneinfo import ZoneInfo
@@ -24,7 +25,37 @@ from app.services import carga_service
 MADRID = ZoneInfo("Europe/Madrid")
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/cargas", tags=["cargas"], dependencies=[Depends(solo_encargado)])
+# Lo que puede hacer el móvil de reparto (Melchor): ver las órdenes que se le han enviado,
+# marcar lo cargado, firmar la entrega, poner la foto y ver la hoja. Nada de crear, editar ni borrar.
+_REPARTO = (
+    ("GET", re.compile(r"^/api/cargas/para-cargar$")),
+    ("GET", re.compile(r"^/api/cargas/\d+$")),
+    ("GET", re.compile(r"^/api/cargas/foto/entrega_[\w.-]+$")),  # solo la foto de la entrega, no la libreta
+    ("PUT", re.compile(r"^/api/cargas/lineas/\d+$")),
+    ("POST", re.compile(r"^/api/cargas/entregas/\d+/(firmar|foto)$")),
+    ("GET", re.compile(r"^/api/cargas/entregas/\d+/(pdf|hoja|pagina/\d+\.png)$")),
+)
+
+
+def _es_reparto(request: Request) -> bool:
+    return getattr(request.state, "rol", None) == "reparto"
+
+
+def _acceso(request: Request):
+    if _es_reparto(request):
+        if not any(m == request.method and rx.match(request.url.path) for m, rx in _REPARTO):
+            raise HTTPException(403, "Esto solo lo puede hacer la tienda")
+        return
+    solo_encargado(request)
+
+
+def _suya(request: Request, o: "OrdenCarga") -> None:
+    """Melchor solo ve las órdenes que se le han enviado."""
+    if _es_reparto(request) and not o.enviada_at:
+        raise HTTPException(404, "Esta orden ya no está en tu lista. Pregunta en la tienda.")
+
+
+router = APIRouter(prefix="/api/cargas", tags=["cargas"], dependencies=[Depends(_acceso)])
 
 MAX_FOTO = 25 * 1024 * 1024
 TIPOS_FOTO = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
@@ -82,6 +113,7 @@ class OrdenOut(BaseModel):
     texto: Optional[str] = None
     notas: Optional[str] = None
     creado_por: Optional[str] = None
+    enviada_at: Optional[datetime] = None
     created_at: datetime
     entregas: List[EntregaOut] = []
     # Otras órdenes sin entregar del mismo cliente (posible pedido repetido)
@@ -109,7 +141,7 @@ def _parecidas(db: Session, o: OrdenCarga) -> List[dict]:
 def _out(o: OrdenCarga, db: Optional[Session] = None) -> OrdenOut:
     return OrdenOut(
         id=o.id, estado=o.estado, fotos=json.loads(o.fotos or "[]"), texto=o.texto, notas=o.notas,
-        creado_por=o.creado_por, created_at=o.created_at,
+        creado_por=o.creado_por, enviada_at=o.enviada_at, created_at=o.created_at,
         entregas=[EntregaOut.model_validate(e) for e in o.entregas],
         parecidas=_parecidas(db, o) if db is not None else [],
     )
@@ -260,6 +292,52 @@ async def leer(
     return _out(o, db)
 
 
+@router.get("/para-cargar", response_model=List[OrdenOut])
+def para_cargar(db: Session = Depends(get_db)):
+    """Lo que se le ha enviado a Melchor: lo pendiente y lo entregado en las últimas horas."""
+    from datetime import timedelta
+    from sqlalchemy.orm import selectinload
+    desde = datetime.utcnow() - timedelta(hours=18)
+    q = (db.query(OrdenCarga)
+         .options(selectinload(OrdenCarga.entregas).selectinload(EntregaCarga.lineas))
+         .filter(OrdenCarga.enviada_at.isnot(None))
+         .filter((OrdenCarga.estado != "entregado") | (OrdenCarga.updated_at >= desde))
+         .order_by(OrdenCarga.enviada_at.asc()).limit(50))
+    ordenes = q.all()
+    ordenes.sort(key=lambda o: o.estado == "entregado")  # lo pendiente primero
+    return [_out(o) for o in ordenes]
+
+
+class Enviar(BaseModel):
+    enviar: bool
+
+
+@router.post("/{oid}/enviar", response_model=OrdenOut)
+def enviar(oid: int, data: Enviar, db: Session = Depends(get_db)):
+    """Mandar la orden al móvil de Melchor (o retirarla)."""
+    from app.services import push_service
+    o = _orden(db, oid)
+    if data.enviar:
+        if not any(e.lineas for e in o.entregas):
+            raise HTTPException(422, "La orden no tiene materiales. Añade lo que hay que cargar antes de enviarla.")
+        if any(not (e.cliente or "").strip() for e in o.entregas):
+            raise HTTPException(422, "Falta el nombre de algún cliente. Complétalo antes de enviarla.")
+        nueva = o.enviada_at is None
+        o.enviada_at = o.enviada_at or datetime.utcnow()
+        db.commit()
+        if nueva:
+            clientes = ", ".join(e.cliente for e in o.entregas if e.cliente)
+            push_service.avisar(push_service.a_reparto, "Nueva carga para preparar", clientes,
+                                f"/reparto/cargas/{o.id}", f"carga-{o.id}")
+    else:
+        if o.estado == "entregado":
+            raise HTTPException(409, "Ya está entregada: no se puede retirar")
+        o.enviada_at = None
+        db.commit()
+    db.refresh(o)
+    return _out(o, db)
+
+
 @router.get("/foto/{nombre}")
 def foto(nombre: str):
     p = _dir() / Path(nombre).name
@@ -269,8 +347,10 @@ def foto(nombre: str):
 
 
 @router.get("/{oid}", response_model=OrdenOut)
-def ver(oid: int, db: Session = Depends(get_db)):
-    return _out(_orden(db, oid), db)
+def ver(oid: int, request: Request, db: Session = Depends(get_db)):
+    o = _orden(db, oid)
+    _suya(request, o)
+    return _out(o, None if _es_reparto(request) else db)
 
 
 class Orden(BaseModel):
@@ -381,6 +461,7 @@ async def firmar(
     db: Session = Depends(get_db),
 ):
     e = _entrega(db, eid)
+    _suya(request, e.orden)
     if e.estado == "entregada":
         raise HTTPException(409, "Esta entrega ya está firmada")
     if not nombre.strip():
@@ -437,13 +518,19 @@ async def firmar(
     db.refresh(e)
     from app.services.backup_service import backup_en_segundo_plano
     backup_en_segundo_plano()
+    if _es_reparto(request):
+        from app.services import push_service
+        push_service.avisar(lambda s: s.rol == "admin", f"Entregado: {e.cliente}",
+                            f"Firmado por {e.firmado_por}. Falta pasarlo a TreyFACT.", f"/cargas/{e.orden_id}",
+                            f"entrega-{e.id}")
     return e
 
 
 @router.post("/entregas/{eid}/foto", response_model=EntregaOut)
-async def subir_foto_entrega(eid: int, foto: UploadFile = File(...), db: Session = Depends(get_db)):
+async def subir_foto_entrega(eid: int, request: Request, foto: UploadFile = File(...), db: Session = Depends(get_db)):
     """Añadir o cambiar la foto del material descargado (también después de firmar)."""
     e = _entrega(db, eid)
+    _suya(request, e.orden)
     datos = await foto.read(MAX_FOTO + 1)
     if not datos or len(datos) > MAX_FOTO:
         raise HTTPException(400, "La foto no es válida")
@@ -476,8 +563,10 @@ def anular_firma(eid: int, db: Session = Depends(get_db)):
     return e
 
 
-def _hoja(db: Session, eid: int):
+def _hoja(db: Session, eid: int, request: Optional[Request] = None):
     e = _entrega(db, eid)
+    if request is not None:
+        _suya(request, e.orden)
     png = None
     if e.firma_archivo and (_dir() / e.firma_archivo).exists():
         png = (_dir() / e.firma_archivo).read_bytes()
@@ -489,18 +578,18 @@ def _hoja(db: Session, eid: int):
 
 
 @router.get("/entregas/{eid}/pdf")
-def pdf(eid: int, download: bool = False, db: Session = Depends(get_db)):
-    datos, nombre = _hoja(db, eid)
+def pdf(eid: int, request: Request, download: bool = False, db: Session = Depends(get_db)):
+    datos, nombre = _hoja(db, eid, request)
     modo = "attachment" if download else "inline"
     return Response(datos, media_type="application/pdf",
                     headers={"Content-Disposition": f"{modo}; filename*=UTF-8''{quote(nombre)}"})
 
 
 @router.get("/entregas/{eid}/hoja")
-def hoja_info(eid: int, db: Session = Depends(get_db)):
+def hoja_info(eid: int, request: Request, db: Session = Depends(get_db)):
     """Cuántas páginas tiene la hoja y cómo se llama (para verla dentro de la app)."""
     from pdf2image import pdfinfo_from_bytes
-    datos, nombre = _hoja(db, eid)
+    datos, nombre = _hoja(db, eid, request)
     try:
         paginas = int(pdfinfo_from_bytes(datos).get("Pages", 1))
     except Exception:
@@ -509,11 +598,11 @@ def hoja_info(eid: int, db: Session = Depends(get_db)):
 
 
 @router.get("/entregas/{eid}/pagina/{n}.png")
-def hoja_pagina(eid: int, n: int, dpi: int = Query(default=110, ge=50, le=220), db: Session = Depends(get_db)):
+def hoja_pagina(eid: int, n: int, request: Request, dpi: int = Query(default=110, ge=50, le=220), db: Session = Depends(get_db)):
     """Una página de la hoja como imagen: se ve igual en cualquier móvil y sirve para imprimir."""
     import io
     from pdf2image import convert_from_bytes
-    datos, _ = _hoja(db, eid)
+    datos, _ = _hoja(db, eid, request)
     imgs = convert_from_bytes(datos, dpi=dpi, first_page=n, last_page=n)
     if not imgs:
         raise HTTPException(404, "Página no encontrada")
@@ -568,11 +657,14 @@ def nueva_linea(eid: int, data: LineaIn, db: Session = Depends(get_db)):
 
 
 @router.put("/lineas/{lid}", response_model=LineaOut)
-def editar_linea(lid: int, data: LineaIn, db: Session = Depends(get_db)):
+def editar_linea(lid: int, data: LineaIn, request: Request, db: Session = Depends(get_db)):
     _validar_linea(data)
     ln = db.get(LineaCarga, lid)
     if not ln:
         raise HTTPException(404, "Línea no encontrada")
+    _suya(request, ln.entrega.orden)
+    if _es_reparto(request) and set(data.model_dump(exclude_unset=True)) - {"cargado", "cargado_ok"}:
+        raise HTTPException(403, "Desde el camión solo se marca lo cargado")
     if ln.entrega.estado == "entregada":
         raise HTTPException(409, "Esta entrega ya está firmada")
     cambios = data.model_dump(exclude_unset=True)

@@ -61,6 +61,13 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
+## Órdenes de carga → Melchor
+- Andrés prepara la orden en `/cargas/:id` y pulsa «Enviar a Melchor» (`POST /api/cargas/{id}/enviar`, campo
+  `enviada_at`; «Retirar» la quita). Le llega un aviso push y le sale en su Inicio («Para cargar»,
+  `components/CargasReparto.tsx`, `GET /api/cargas/para-cargar`), y abre `/reparto/cargas/:id` (misma página con `reparto`).
+- Melchor solo puede: ver las enviadas, marcar cargado, firmar, poner la foto y ver la hoja (lista `_REPARTO` en
+  `app/api/cargas.py`). Al firmar le llega un aviso a Andrés.
+
 ## Vencimientos de facturas (solo Andrés)
 - El script de facturas (Apps Script de la cuenta de Andrés, «FacturasAutomaticas») lleva un archivo extra
   `tools/vencimientos-facturas.gs`: cada hora lee las facturas nuevas de «FACTURAS PARA GESTORIA», apunta los
@@ -89,4 +96,4 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Análisis: ordenar por importe gastado (falta `SUM` en `top-products`).
 - Festivo nacional de agosto 2027 marcado «por confirmar» en `turnos_service.py` (revisar con el BOE).
 - Ideas aparcadas: márgenes de impresión de etiquetas, sección Clientes, importar albaranes de venta
-  en TreyFACT, pasar Órdenes de carga a Melchor cuando Andrés lo apruebe.
+  en TreyFACT.

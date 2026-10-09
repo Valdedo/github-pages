@@ -68,6 +68,7 @@ const GUARDAR = [
   /^\/api\/turnos\/cuadrante$/,
   /^\/api\/turnos\/ajustes$/,
   /^\/api\/cargas$/,                      // órdenes de carga (en pruebas)
+  /^\/api\/cargas\/para-cargar$/,         // las que tiene Melchor en su móvil
   /^\/api\/cargas\/\d+$/,
   /^\/api\/cargas\/foto\/[\w.-]+$/,
 ];

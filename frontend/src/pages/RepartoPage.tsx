@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Vacio } from '../components/Pegatinas';
 import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff, AlertTriangle } from 'lucide-react';
-import { listFirmas, describeApiError } from '../api/client';
+import { listFirmas, describeApiError, paraCargar, verCarga, type OrdenCarga } from '../api/client';
+import { CargasReparto, cargasPendientes } from '../components/CargasReparto';
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
 import { setReparto } from '../reparto';
@@ -28,12 +29,20 @@ export function RepartoPage() {
   const [guardadas, setGuardadas] = useState<FirmaEnCola[]>(cola);
   const [online, setOnline] = useState(navigator.onLine);
   const [mio, setMio] = useState(false);
+  const [cargas, setCargas] = useState<OrdenCarga[]>([]);
+  const [, setColaCargas] = useState(0);
 
   useEffect(() => { setReparto(true); }, []);
   const nombre = (() => { try { return localStorage.getItem('repartoNombre') || 'Melchor'; } catch { return 'Melchor'; } })();
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setLoading(true);
+    // Órdenes de carga que le ha mandado la tienda (si no hay, no se ve nada)
+    paraCargar().then(({ data }) => {
+      setCargas(data);
+      // Se dejan guardadas en el móvil para abrirlas y firmar sin cobertura
+      if (navigator.onLine) data.filter(o => o.estado !== 'entregado').forEach(o => { verCarga(o.id).catch(() => {}); });
+    }).catch(() => {});
     enviarCola().finally(() => listFirmas()
       .then(({ data }) => { setNotes(data); setError(null); })
       .catch(err => { if (!quiet) setError(describeApiError(err)); })
@@ -43,12 +52,14 @@ export function RepartoPage() {
   useEffect(() => {
     const t = setInterval(() => load(true), 30000);
     const c = () => setGuardadas(cola());
+    const cc = () => setColaCargas(n => n + 1);
+    window.addEventListener('cf-cola-cargas', cc);
     const on = () => { setOnline(true); load(true); };
     const off = () => setOnline(false);
     window.addEventListener('cf-cola', c);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
-    return () => { clearInterval(t); window.removeEventListener('cf-cola', c); window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+    return () => { clearInterval(t); window.removeEventListener('cf-cola-cargas', cc); window.removeEventListener('cf-cola', c); window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, [load]);
 
   const enCola = new Set(guardadas.map(g => g.id));
@@ -62,6 +73,7 @@ export function RepartoPage() {
   const rechazadas = guardadas.filter(g => g.error);
   const entregadoHoy = firmadosHoy.length + esperando.length;
   const otros = pendientes.length - (verTodos ? 0 : camion.length);
+  const porCargar = cargasPendientes(cargas);
   const verPendientes = (n: number) => n === 1 ? 'Ver el pendiente de la tienda' : `Ver los ${n} pendientes de la tienda`;
 
   // Deja los del camión guardados en el móvil para abrirlos sin cobertura
@@ -76,7 +88,7 @@ export function RepartoPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div>
             <span>Hola, {nombre}</span>
-            <h1>{camion.length ? `${camion.length} en el camión` : entregadoHoy > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
+            <h1>{camion.length ? `${camion.length} en el camión` : porCargar ? (porCargar === 1 ? '1 carga por preparar' : `${porCargar} cargas por preparar`) : entregadoHoy > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
           </div>
           <button className="btn btn-sm" style={{ marginLeft: 'auto', background: 'rgb(255 255 255 / .14)', color: '#fff' }} onClick={() => load()} aria-label="Actualizar">
             <RefreshCw size={16} /> Actualizar
@@ -87,6 +99,7 @@ export function RepartoPage() {
       {!online && (
         <div className="reparto-sinred"><CloudOff size={20} /> Sin cobertura. Puedes abrir y firmar los albaranes del camión igualmente.</div>
       )}
+      <CargasReparto ordenes={cargas} />
       {rechazadas.map(g => (
         <div key={g.id} className="reparto-cola error" role="alert">
           <AlertTriangle size={20} />
@@ -123,6 +136,12 @@ export function RepartoPage() {
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
+      ) : lista.length === 0 && porCargar > 0 ? (
+        pendientes.length > 0 ? (
+          <button className="btn btn-ghost btn-sm" style={{ display: 'block', margin: '14px auto 0', color: 'var(--text-3)' }} onClick={() => setVerTodos(true)}>
+            {verPendientes(pendientes.length)}
+          </button>
+        ) : null
       ) : lista.length === 0 ? (
         <Vacio camion="aparcado"
           titulo={!verTodos && entregadoHoy > 0 ? 'Todo entregado hoy' : pendientes.length === 0 ? 'Hoy no hay entregas' : 'Camión vacío'}

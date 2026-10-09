@@ -98,6 +98,8 @@ def _run_migrations():
         ("entregas_carga", "foto_entrega", "VARCHAR(200)"),
         ("entregas_carga", "drive_at",     "DATETIME"),
         ("lineas_carga", "leido",          "TEXT"),
+        # Órdenes de carga enviadas al móvil de Melchor
+        ("ordenes_carga", "enviada_at",    "DATETIME"),
         ("lineas_carga", "confirmada",     "BOOLEAN DEFAULT 0"),
         ("documents", "drive_file_id",    "TEXT"),
         ("documents", "drive_url",        "TEXT"),

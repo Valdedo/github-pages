@@ -1424,3 +1424,22 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .acceso-peg:hover { transform: translateY(-2px) rotate(-1deg); }
 .acceso-peg:active { transform: scale(.94); }
 @media (min-width: 769px) { .acceso-peg { max-width: 220px; justify-self: center; width: 100%; } }
+
+/* ── Órdenes de carga enviadas a Melchor ── */
+.carga-enviar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; padding: 14px 16px;
+  border-radius: 16px; background: var(--brand-pale); border: 1px solid color-mix(in srgb, var(--cf-verde) 30%, transparent); }
+.carga-enviar.enviada { background: var(--surface); border-color: var(--border); }
+.carga-enviar-txt { display: flex; align-items: flex-start; gap: 10px; flex: 1 1 260px; min-width: 0; color: var(--cf-bosque); }
+.carga-enviar-txt svg { flex-shrink: 0; margin-top: 2px; }
+.carga-enviar-txt b { display: block; font-size: 16px; color: var(--text-1); }
+.carga-enviar-txt small { display: block; color: var(--text-2); font-size: 13.5px; line-height: 1.4; margin-top: 2px; }
+.carga-enviar .btn { flex-shrink: 0; }
+@media (max-width: 520px) { .carga-enviar .btn-primary { width: 100%; justify-content: center; min-height: 48px; } }
+.carga-num { font: 700 13px var(--font); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--cf-bosque); color: #fff; flex-shrink: 0; }
+
+.cargas-reparto { margin: 4px 0 22px; }
+.cargas-reparto-titulo { display: flex; align-items: center; gap: 8px; font: 600 17px var(--font-display); text-transform: uppercase; letter-spacing: .02em; color: var(--cf-bosque); margin: 4px 2px 10px; }
+.cargas-reparto-titulo span { font: 700 13px var(--font); background: var(--cf-verde); color: #fff; border-radius: 999px; padding: 2px 9px; }
+.carga-reparto-card .carga-reparto-lugar { display: flex; align-items: center; gap: 5px; font-size: 16px; color: var(--text-2); margin-top: 4px; }
+.carga-reparto-progreso { display: flex; gap: 6px; flex-wrap: wrap; font-size: 14px; color: var(--text-3); margin-top: 8px; }
+.carga-reparto-card .carga-barra { margin-top: 8px; }

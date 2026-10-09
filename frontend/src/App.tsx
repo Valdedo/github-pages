@@ -53,6 +53,7 @@ const TurnosPage = porPartes(() => import('./pages/TurnosPage'), 'TurnosPage');
 const AjustesPage = porPartes(() => import('./pages/AjustesPage'), 'AjustesPage');
 const CargasPage = porPartes(() => import('./pages/CargasPage'), 'CargasPage');
 const OrdenCargaPage = porPartes(() => import('./pages/CargasPage'), 'OrdenCargaPage');
+const OrdenCargaReparto = porPartes(() => import('./pages/CargasPage'), 'OrdenCargaReparto');
 const TarifasPage = porPartes(() => import('./pages/TarifasPage'), 'TarifasPage');
 const TarifaProveedorPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaProveedorPage');
 const TarifaFamiliaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFamiliaPage');
@@ -358,6 +359,7 @@ function RepartoShell() {
           <Routes>
             <Route path="/reparto" element={<RepartoPage />} />
             <Route path="/firmas/:id" element={<FirmaDetailPage />} />
+            <Route path="/reparto/cargas/:id" element={<OrdenCargaReparto />} />
             <Route path="/turnos" element={<TurnosPage />} />
             <Route path="*" element={<Navigate to="/reparto" replace />} />
           </Routes>
@@ -382,7 +384,7 @@ function AvisosGlobales() {
 
 function AppShell() {
   const location = useLocation();
-  useEffect(() => { arrancarCola(); if (getRol() === 'admin') arrancarColaCargas(); }, []);
+  useEffect(() => { arrancarCola(); if (getRol() === 'admin' || getRol() === 'reparto') arrancarColaCargas(); }, []);
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
   return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /></>;
 }
