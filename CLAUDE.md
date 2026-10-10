@@ -44,10 +44,13 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   accesos rápidos de Inicio), **nunca** en iconos de botones o menús (ahí: lucide-react).
 - Camión de la marca: cabina blanca, franjas verdes en diagonal, grúa roja, logo en la puerta
   (`components/camionCuerpo.ts`). Animación de arranque en móvil: `components/CabeceraPegatina.tsx`.
-- Sorpresas del arranque: «se cae la carga» (`montarHuevo` en `CabeceraPegatina.tsx` + piezas en `components/huevoCarga.ts`):
-  el palé se cae al arrancar el camión y una carretilla lo recoge y sale por la derecha (~7 s). En pruebas, solo admin:
-  la primera vez siempre (clave `cfHuevoCarga` en localStorage) y luego 1 de cada 20 aperturas. Idea pendiente: sorpresas
-  por fechas (Navidad, otoño, cumpleaños…).
+- Sorpresas del arranque (en pruebas, solo admin): `components/sorpresas.ts` (elección y animaciones), motor común en
+  `components/pegatinaMotor.ts` (`montar` expone `ponLogo`, `pelar`, `ponCamion`), piezas de dibujo en
+  `components/sorpresasEscena.ts` (generado con `tools/sorpresas-escena.py`) y `huevoCarga.ts`. Hay seis: carga (se cae el palé),
+  grúa (la pluma telescópica coge el logo por la esquina), pala (tiembla, el logo cae y lo tapa de arena; cazo grande),
+  carretilla (mástil telescópico lo descuelga), pintor (lo tapa a rodillo, «Recién pintado») y orbayu (llueve, sopla y se
+  lo lleva el viento). Salen primero las no vistas, una por apertura (`cfSorpresasVistas` en localStorage); luego 1 de cada 10.
+  Para ver una: abrir con `?sorpresa=<nombre>`. Todas salen por la derecha. Idea pendiente: sorpresas por fechas.
 
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`
