@@ -1,5 +1,5 @@
 /*
- * Fiestas del arranque (en pruebas: solo el encargado): la animación de siempre, pero vestida para la fecha.
+ * Fiestas del arranque (todos los usuarios): la animación de siempre, pero vestida para la fecha.
  * Cada fiesta: intro (fondo y efectos sobre el logo) → llega el camión decorado → momento especial →
  * el despegue normal (el logo a la puerta y el camión se va) → pegatina final. Unos 6–7 s.
  * Sale la primera vez que se abre la app cada día (en ese móvil). Para verla otro día: ?fiesta=<nombre>
@@ -11,7 +11,6 @@ import {
   LOGO, SUELO, ESC, X_PARA, DURA, T_SALE, montar, xCam,
 } from './pegatinaMotor';
 import { FILTROS_F, PF } from './fiestasEscena';
-import { getRol } from '../auth';
 
 export type Fiesta = 'otono' | 'halloween' | 'navidad' | 'nochevieja' | 'reyes' | 'antroxu' | 'sanjuan' | 'asturias' | 'cumple' | 'aniversario';
 const TODAS: Fiesta[] = ['otono', 'halloween', 'navidad', 'nochevieja', 'reyes', 'antroxu', 'sanjuan', 'asturias', 'cumple', 'aniversario'];
@@ -51,7 +50,6 @@ export function fiestaDe(d: Date): FiestaHoy | null {
 
 const CLAVE_DIA = 'cfFiestaDia';
 export function eligeFiesta(): FiestaHoy | null {
-  if (getRol() !== 'admin') return null;                    // en pruebas: solo el encargado
   const q = new URLSearchParams(window.location.search), pedida = q.get('fiesta') as Fiesta | null;
   if (pedida && TODAS.includes(pedida)) return { f: pedida, nombre: q.get('nombre') || 'Andrés' };
   const d = new Date(), hoy = fiestaDe(d);

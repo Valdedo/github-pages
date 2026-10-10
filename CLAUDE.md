@@ -51,7 +51,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   carretilla (mástil telescópico lo descuelga), pintor (lo tapa a rodillo, «Recién pintado») y orbayu (llueve, sopla y se
   lo lleva el viento). Andrés ve primero las no vistas, una por apertura (`cfSorpresasVistas` en localStorage); luego, y para los demás siempre, 1 de cada 10 al azar.
   Para ver una: abrir con `?sorpresa=<nombre>`. Todas salen por la derecha.
-- Fiestas del arranque (en pruebas, solo admin; `components/fiestas.ts`, piezas en `fiestasEscena.ts`): la animación normal
+- Fiestas del arranque (todos los usuarios desde el 10/10/2026; `components/fiestas.ts`, piezas en `fiestasEscena.ts`): la animación normal
   vestida para la fecha, ~7 s: intro con fondo propio → llega el camión decorado y espera parado (`completa(t, parado)` del motor)
   → momento especial → despegue normal → pegatina final. Fechas en `fiestaDe()`: otoño (22 sep–20 dic), Halloween (31 oct),
   Navidad (20–30 dic), Nochevieja (31 dic–1 ene), Reyes (5–6 ene), Antroxu (dom–mar de Carnaval, calculado desde la Pascua),
