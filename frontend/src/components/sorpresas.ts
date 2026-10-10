@@ -1,8 +1,9 @@
 /*
- * Sorpresas del arranque (en pruebas, solo el encargado). Cada una se monta encima de la escena normal:
+ * Sorpresas del arranque (todos los usuarios). Cada una se monta encima de la escena normal:
  * usa el mismo logo (y el camión, en la grúa) y añade sus piezas (sorpresasEscena.ts).
  *   carga · grúa · pala · carretilla · pintor · orbayu
- * Salen primero las que todavía no has visto (una por apertura); después, 1 de cada 10 al azar.
+ * El encargado ve primero las que todavía no ha visto (una por apertura); después, y para los demás
+ * desde el principio, sale una al azar 1 de cada 10 aperturas.
  * Para ver una concreta: abrir la app con ?sorpresa=<nombre>.
  */
 import { getRol } from '../auth';
@@ -18,10 +19,9 @@ const ORDEN: Sorpresa[] = ['carga', 'grua', 'pala', 'carretilla', 'pintor', 'orb
 const CLAVE = 'cfSorpresasVistas';
 
 export function eligeSorpresa(): Sorpresa | null {
-  if (getRol() !== 'admin') return null;
   const pedida = new URLSearchParams(window.location.search).get('sorpresa') as Sorpresa | null;
   if (pedida && ORDEN.includes(pedida)) return pedida;
-  try {
+  if (getRol() === 'admin') try {
     const vistas: string[] = JSON.parse(localStorage.getItem(CLAVE) || '[]');
     if (localStorage.getItem('cfHuevoCarga') && !vistas.includes('carga')) vistas.push('carga');
     const nueva = ORDEN.find(s => !vistas.includes(s));
