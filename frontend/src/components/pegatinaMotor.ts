@@ -18,7 +18,7 @@ export const muelle = (dt: number, A: number, w = 30, k = 8) => (dt < 0 ? 0 : A 
 const T_PEEL0 = 0.2, T_PEEL1 = 0.83;
 const T_VUELA = 0.83, T_PEGA = 1.47;
 const T_ENTRA0 = 0.0, T_ENTRA1 = 0.83;
-const T_SALE = 1.87;
+export const T_SALE = 1.87;
 export const LOGO = { x: 196.5, y: 62 };
 const N = (() => { const x = -0.83, y = -0.56, l = Math.hypot(x, y); return { x: x / l, y: y / l }; })();
 const F0 = N.x * 104 + N.y * 50;
@@ -34,14 +34,14 @@ function semiplano(f: number, lado: number) {
 }
 const reflejo = (f: number) => `matrix(${1 - 2 * N.x * N.x} ${-2 * N.x * N.y} ${-2 * N.x * N.y} ${1 - 2 * N.y * N.y} ${2 * f * N.x} ${2 * f * N.y})`;
 
-function xCam(t: number) {
+export function xCam(t: number) {
   if (t < T_ENTRA0) return -260;
   if (t < T_ENTRA1) return lerp(-260, X_PARA, easeOutBack(seg(t, T_ENTRA0, T_ENTRA1), 0.6));
   if (t < T_SALE) return X_PARA;
   const dt = t - T_SALE;
   return X_PARA - (dt < .18 ? 10 * Math.sin(dt / .18 * Math.PI) : 0) + (dt > .12 ? 1300 * Math.pow(dt - .12, 2.2) : 0);
 }
-function camTrans(t: number) {
+export function camTrans(t: number) {
   const h = 1 / 120, x = xCam(t);
   const a = (xCam(t + h) - 2 * x + xCam(t - h)) / (h * h);
   const v = (xCam(t + h) - xCam(t - h)) / (2 * h);
@@ -99,10 +99,11 @@ export function montar(svg: SVGSVGElement, pre: string) {
   };
 
   /** La animación completa en el instante t (segundos). */
-  const completa = (t: number) => {
-    const c = camTrans(t);
+  const completa = (t: number, parado = false) => {
+    // parado: el camión ya llegó antes (fiestas) y espera quieto hasta arrancar
+    const c = parado && t < T_SALE ? { x: X_PARA, incl: 0, estira: 1 } : camTrans(t);
     const pega = muelle(t - T_PEGA, 0.05, 34, 9);
-    const fr = muelle(t - T_ENTRA1 + .25, 0.04, 26, 8);
+    const fr = parado ? 0 : muelle(t - T_ENTRA1 + .25, 0.04, 26, 8);
     at('camion', 'transform', `translate(${c.x} ${SUELO})`);
     at('camCuerpo', 'transform', `rotate(${c.incl} 0 0) scale(${ESC * (c.estira + pega * .6)} ${ESC * (1 - pega + fr * .5)}) translate(-172 -151)`);
     const giro = c.x / (23 * ESC) * 180 / Math.PI;

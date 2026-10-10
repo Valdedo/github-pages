@@ -1,7 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ESCENA_PEGATINA } from './pegatinaEscena';
 import { VB_W, VB_H, ALTO_LOGO, DURA, c01, easeIn, montar } from './pegatinaMotor';
-import { eligeSorpresa, escenaSorpresa, montarSorpresa } from './sorpresas';
+import { eligeSorpresa, escenaSorpresa, montarSorpresa, type Sorpresa } from './sorpresas';
+import { eligeFiesta, escenaFiesta, montarFiesta, type FiestaHoy } from './fiestas';
+
+/** Qué animación toca hoy: la de la fiesta (si es fecha señalada) o, si no, a veces una sorpresa. */
+type Extra = { fiesta: FiestaHoy } | { sorpresa: Sorpresa } | null;
+function eligeExtra(): Extra {
+  const f = eligeFiesta();
+  if (f) return { fiesta: f };
+  const s = eligeSorpresa();
+  return s ? { sorpresa: s } : null;
+}
 
 /**
  * Estilo «pegatina» (móvil, todos los usuarios).
@@ -44,12 +54,13 @@ export function ArranquePegatina({ onFin }: { onFin: () => void }) {
   const lienzo = useRef<SVGSVGElement>(null);
   const fijo = useRef<HTMLImageElement>(null);
   const fin = useRef(onFin); fin.current = onFin;
-  const [sorpresa] = useState(eligeSorpresa);
+  const [extra] = useState(eligeExtra);
 
   useEffect(() => {
     const svg = lienzo.current, cp = capa.current;
     if (!svg || !cp) return;
-    const esc = sorpresa ? montarSorpresa(sorpresa, svg, 'cfp-') : { ...montar(svg, 'cfp-'), dura: DURA };
+    const esc = extra && 'fiesta' in extra ? montarFiesta(extra.fiesta, svg, 'cfp-')
+      : extra ? montarSorpresa(extra.sorpresa, svg, 'cfp-') : { ...montar(svg, 'cfp-'), dura: DURA };
     const DUR = esc.dura;
     esc.reposo();
     // El reloj avanza como mucho 1/30 s por fotograma: si el móvil va cargado al abrir la app,
@@ -82,14 +93,15 @@ export function ArranquePegatina({ onFin }: { onFin: () => void }) {
     const saltar = () => { if (saliendo < 0) saliendo = Math.max(t, 0); };
     cp.addEventListener('pointerdown', saltar);
     return () => { cancelado = true; cancelAnimationFrame(raf); cp.removeEventListener('pointerdown', saltar); clearTimeout(seguro); };
-  }, [sorpresa]);
+  }, [extra]);
 
   return (
     <div ref={capa} className="arranque-pegatina" role="img" aria-label="Casa Fonso · Materiales de construcción">
       {/* el mismo logo de la pantalla de carga, debajo, hasta que la animación ya está en marcha */}
       <img ref={fijo} className="cf-cargando-logo" src="/brand/logo-pegatina.png" alt="" />
       <svg ref={lienzo} viewBox={`0 0 ${VB_W} ${VB_H}`} aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: sorpresa ? escenaSorpresa(sorpresa, escena('cfp-')) : escena('cfp-') }} />
+        dangerouslySetInnerHTML={{ __html: extra && 'fiesta' in extra ? escenaFiesta(extra.fiesta, escena('cfp-'))
+          : extra ? escenaSorpresa(extra.sorpresa, escena('cfp-')) : escena('cfp-') }} />
       <span className="arranque-saltar">Toca para saltar</span>
     </div>
   );
