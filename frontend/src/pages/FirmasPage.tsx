@@ -358,7 +358,7 @@ export function FirmasPage() {
           <h1>Albaranes de venta</h1>
           <p>Los de TreyFACT a clientes: firmar, mandar al camión y facturar. {raton ? 'Arrastra aquí los PDF o pulsa el botón.' : 'Sube aquí los PDF.'}</p>
         </div>
-        <button className="btn btn-primary btn-lg" disabled={uploading}
+        <button className="btn btn-primary btn-lg" disabled={uploading} data-tour="subir-albaranes"
           onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } }}>
           <Upload size={19} /> {uploading ? 'Subiendo…' : 'Subir albaranes'}
         </button>
@@ -391,7 +391,7 @@ export function FirmasPage() {
           <input className="form-input" placeholder="Buscar nº, cliente u obra…" title="Busca por número de albarán, cliente, obra o factura" value={search}
             onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }} />
         </div>
-        <select className="form-input" value={cliente} onChange={e => { setCliente(e.target.value); setObra(''); setSel(new Set()); }}
+        <select className="form-input" data-tour="filtro-cliente" value={cliente} onChange={e => { setCliente(e.target.value); setObra(''); setSel(new Set()); }}
           style={{ margin: 0, flex: '1 1 180px', maxWidth: 260 }} aria-label="Cliente">
           <option value="">Todos los clientes</option>
           {clientes.map(([cod, nom]) => <option key={cod} value={cod}>{nom} ({cod})</option>)}

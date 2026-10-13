@@ -261,3 +261,53 @@ html:has(.con-barra) { scroll-padding-bottom: 190px; }
   .firma-obra { flex-shrink: 0; white-space: nowrap; }
   .firma-obra-acc { width: 100%; }
 }
+
+/* ── Novedades (sale una vez al abrir la app) ── */
+.novedades-fondo { z-index: 400; animation: cf-fade .2s var(--ease-out); }
+.novedades-fondo.fuera { opacity: 0; transition: opacity .18s; }
+.novedades { max-width: 560px; width: 100%; max-height: min(90vh, 760px); display: flex; flex-direction: column; overflow: hidden; }
+.novedades-cab { display: flex; align-items: center; gap: 14px; padding: 20px 22px 8px; }
+.novedades-cab h2 { margin: 0; font-family: var(--font-display); font-size: 26px; line-height: 1.1; color: var(--cf-bosque-2); }
+.novedades-cab p { margin: 4px 0 0; color: var(--text-2); font-size: 14px; }
+.novedades-lista { list-style: none; margin: 0; padding: 8px 22px 4px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.novedades-lista li { display: flex; gap: 12px; align-items: flex-start; }
+.novedades-lista li > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 14.5px; line-height: 1.45; color: var(--text-2); }
+.novedades-lista b { color: var(--text-1); font-size: 15.5px; }
+.novedades-lista .turnos-link { align-self: flex-start; margin-top: 2px; }
+.novedades-icono { flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-pale); color: var(--cf-bosque); }
+.novedades-pie { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 14px 22px 18px; border-top: 1px solid var(--border); margin-top: 12px; }
+@keyframes cf-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 520px) {
+  .novedades-cab { padding: 16px 16px 6px; gap: 10px; }
+  .novedades-cab h2 { font-size: 22px; }
+  .novedades-lista { padding: 6px 16px 4px; }
+  .novedades-pie { padding: 12px 16px 16px; flex-direction: column-reverse; }
+  .novedades-pie .btn { width: 100%; justify-content: center; }
+}
+
+/* ── Tutorial guiado ── */
+.tuto { position: fixed; inset: 0; z-index: 450; }
+.tuto-velo { position: absolute; inset: 0; background: rgb(18 30 22 / .62); }
+.tuto-hueco {
+  position: fixed; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgb(18 30 22 / .62), 0 0 0 3px var(--cf-verde) inset, 0 0 22px 4px rgb(47 174 102 / .55);
+  transition: left .3s var(--ease-out), top .3s var(--ease-out), width .3s var(--ease-out), height .3s var(--ease-out);
+  animation: tuto-latido 1.6s ease-in-out infinite;
+}
+@keyframes tuto-latido { 50% { box-shadow: 0 0 0 9999px rgb(18 30 22 / .62), 0 0 0 3px var(--cf-verde) inset, 0 0 34px 8px rgb(47 174 102 / .7); } }
+.tuto-cartel {
+  position: fixed; background: var(--surface); border-radius: 18px; padding: 14px 16px 14px;
+  box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 6px; animation: cf-fade .2s var(--ease-out);
+}
+.tuto-cab { display: flex; align-items: center; justify-content: space-between; }
+.tuto-paso { font-size: 12px; font-weight: 700; color: var(--cf-verde); text-transform: uppercase; letter-spacing: .05em; }
+.tuto-x { border: 0; background: none; color: var(--text-3); cursor: pointer; padding: 4px; margin: -4px; border-radius: 8px; display: grid; }
+.tuto-x:hover { color: var(--text-1); }
+.tuto-cartel b { font-family: var(--font-display); font-size: 20px; line-height: 1.15; color: var(--cf-bosque-2); }
+.tuto-cartel p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--text-2); }
+.tuto-puntos { display: flex; gap: 5px; margin: 4px 0 2px; }
+.tuto-puntos span { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
+.tuto-puntos span.on { background: var(--cf-verde); width: 16px; border-radius: 3px; }
+.tuto-botones { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+.tuto-saltar { margin-right: auto; color: var(--text-3) !important; }
+@media (prefers-reduced-motion: reduce) { .tuto-hueco { animation: none; transition: none; } }

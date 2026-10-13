@@ -107,7 +107,7 @@ export function CargasPage() {
           <h1>Órdenes de carga</h1>
           <p>Haz el albarán en TreyFACT, súbelo en «Albaranes de venta» y mándalo al camión. La app saca los materiales y prepara la hoja de entrega sin precios.</p>
         </div>
-        <button className="btn btn-primary btn-lg" onClick={() => setNueva(true)}><Truck size={19} /> Nueva carga</button>
+        <button className="btn btn-primary btn-lg" data-tour="nueva-carga" onClick={() => setNueva(true)}><Truck size={19} /> Nueva carga</button>
       </div>
       {nueva && <ElegirAlbaranes onClose={() => setNueva(false)} />}
 

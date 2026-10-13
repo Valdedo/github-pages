@@ -14,6 +14,8 @@ import { ArranquePegatina, debeArrancar } from './components/CabeceraPegatina';
 import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
+import { Novedades, hayNovedades } from './components/Novedades';
+import { Tutorial, abrirTutorial } from './components/Tutorial';
 import { CodigosModal } from './components/CodigosModal';
 import { MiCodigoModal } from './components/MiCodigoModal';
 import { AvisosLink } from './components/AvisosCard';
@@ -126,6 +128,7 @@ function SidebarNavGroup({ items, badges, collapsed }: {
             to={to}
             end={exact}
             className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`}
+            data-tour={`nav-${to.slice(1) || 'inicio'}`}
             title={collapsed ? label : undefined}
           >
             <span className="sidebar-item-icon">
@@ -147,6 +150,7 @@ function SesionLinks() {
   return (
     <div className="sesion-links">
       <AvisosLink />
+      {getRol() !== 'reparto' && <button onClick={abrirTutorial}>Tutorial</button>}
       {sesionPersonal() && <button onClick={() => setMio(true)}>Mi código</button>}
       {getRol() === 'admin' && <button onClick={() => setCodigos(true)}>Códigos</button>}
       <button onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); window.location.href = '/'; } }}>Cerrar sesión</button>
@@ -311,6 +315,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
               to={to}
               end={exact}
               className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
+              data-tour={`nav-${to.slice(1) || 'inicio'}`}
             >
               <span className="bn-icon">
                 <Icon size={22} />
@@ -324,6 +329,7 @@ function BottomNav({ badges }: { badges: NavBadge }) {
         <button
           className={`bottom-nav-item${isSecondaryActive || drawerOpen ? ' active' : ''}`}
           onClick={() => setDrawerOpen(v => !v)}
+          data-tour="nav-mas"
           aria-expanded={drawerOpen}
           aria-label={enCajon > 0 ? `Más apartados (${enCajon} avisos)` : 'Más apartados'}
         >
@@ -425,7 +431,7 @@ function AppShell() {
   const location = useLocation();
   useEffect(() => {
     if (getRol() === 'consulta') return; // Manolo solo mira: no hay nada que mandar
-    arrancarCola(); if (getRol() === 'admin' || getRol() === 'reparto') arrancarColaCargas();
+    arrancarCola(); arrancarColaCargas(); // órdenes de carga: toda la tienda y el reparto
   }, []);
   if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /></>;
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
@@ -437,6 +443,13 @@ function FullShell() {
   const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0, correo: 0 });
   // Móvil: animación del camión al abrir la app en Inicio
   const [arranque, setArranque] = useState(() => window.innerWidth <= 768 && debeArrancar(window.location.pathname, '/'));
+  const [novedades, setNovedades] = useState(hayNovedades);
+  const [tutorial, setTutorial] = useState(false);
+  useEffect(() => {
+    const abrir = () => { setNovedades(false); setTutorial(true); };
+    window.addEventListener('cf-tutorial', abrir);
+    return () => window.removeEventListener('cf-tutorial', abrir);
+  }, []);
 
   // Load badge counts (pending repairs + pending orders)
   useEffect(() => {
@@ -460,6 +473,8 @@ function FullShell() {
   return (
     <div className="app-layout">
       {arranque && <ArranquePegatina onFin={() => setArranque(false)} />}
+      {novedades && !arranque && <Novedades onCerrar={() => setNovedades(false)} />}
+      {tutorial && <Tutorial onCerrar={() => setTutorial(false)} />}
       <Sidebar badges={badges} collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} />
       <div className="app-content">
         <MobileHeader />

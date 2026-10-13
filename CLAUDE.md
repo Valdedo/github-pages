@@ -71,6 +71,13 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   la izquierda y el texto a su derecha, en uno o dos renglones (a menudo centrado entre los dos); se junta todo. El 13/10/2026
   se releyó la obra de todos los albaranes ya subidos (arreglo puntual `obra_v2` en `database.py`).
 
+## Novedades y tutorial
+- `components/Novedades.tsx`: aviso que sale una vez por dispositivo al abrir la app (clave `cfNovedadesVistas` = `VERSION`);
+  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`.
+- `components/Tutorial.tsx`: tutorial guiado con hueco de luz sobre cada botón (`PASOS`: ruta, selectores `data-tour`/clase,
+  texto; si no encuentra el botón, el cartel sale en el centro). Se abre desde las Novedades o «Tutorial» del menú (`abrirTutorial`).
+  Al cambiar pantallas, mantener los `data-tour` (`nav-*`, `subir-albaranes`, `filtro-cliente`, `nueva-carga`).
+
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`
   (los arreglos puntuales de datos también van ahí, ejecutándose una sola vez).
