@@ -425,3 +425,7 @@ button.tsem:active { transform: scale(.985); }
 .cuenta-lateral .cuenta-panel { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; transform-origin: bottom left; }
 .tsem-tramo { display: block; }
 @media (min-width: 420px) { .tsem-tramo { display: inline; } .tsem-tramo + .tsem-tramo::before { content: ' · '; } }
+/* Cabecera oscura del reparto (Melchor) */
+.reparto-header .cuenta-reparto { margin-left: auto; }
+.reparto-header .cuenta-ava { width: 36px; height: 36px; font-size: 17px; box-shadow: 0 0 0 2px rgb(255 255 255 / .85); }
+.reparto-header .cuenta-panel { color: var(--text-1); }

@@ -7,10 +7,8 @@ import { CargasReparto, cargasPendientes } from '../components/CargasReparto';
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
 import { setReparto } from '../reparto';
-import { getRol, cerrarSesion, getYo, sesionPersonal } from '../auth';
-import { MiCodigoModal } from '../components/MiCodigoModal';
+import { getRol } from '../auth';
 import { fmtFecha, fmtEuros } from './FirmasPage';
-import { TurnoHoy } from '../components/TurnoHoy';
 import { cola, enviarCola, prepararSinCobertura, reintentarFirma, descartarFirma, type FirmaEnCola } from '../lib/offline';
 import type { ClientDeliveryNote } from '../types';
 
@@ -28,7 +26,6 @@ export function RepartoPage() {
   const [verTodos, setVerTodos] = useState(false);
   const [guardadas, setGuardadas] = useState<FirmaEnCola[]>(cola);
   const [online, setOnline] = useState(navigator.onLine);
-  const [mio, setMio] = useState(false);
   const [cargas, setCargas] = useState<OrdenCarga[]>([]);
   const [, setColaCargas] = useState(0);
 
@@ -199,24 +196,17 @@ export function RepartoPage() {
       )}
 
       <div style={{ marginTop: 24 }}><AvisosCard grande /></div>
-      <div style={{ marginTop: 16 }}><TurnoHoy fijo={getYo() || 'melchor'} /></div>
 
       <div style={{ marginTop: 40, textAlign: 'center', display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-        {sesionPersonal() && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => setMio(true)}>Mi código</button>}
-        {mio && <MiCodigoModal onClose={() => setMio(false)} />}
-        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }}
+        {/* Con el código de Melchor, lo suyo (turnos, código, cerrar sesión) está en su círculo de arriba */}
+        {getRol() !== 'reparto' && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }}
           onClick={() => {
-            if (getRol() === 'reparto') {
-              if (!window.confirm('¿Cerrar la sesión en este móvil? Habrá que volver a escribir el código.')) return;
-              cerrarSesion(); setReparto(false); window.location.href = '/';
-              return;
-            }
             if (!window.confirm('¿Salir del modo reparto en este móvil? Se verá la aplicación completa.')) return;
             setReparto(false);
             navigate('/');
           }}>
-          {getRol() === 'reparto' ? 'Cerrar sesión' : 'Salir del modo reparto'}
-        </button>
+          Salir del modo reparto
+        </button>}
       </div>
     </div>
   );

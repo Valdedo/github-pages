@@ -83,6 +83,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   con nombre y turno de hoy al pie del menú lateral (`lateral`, la tarjeta va `fixed` para que no la recorte el menú).
   Tarjeta: turno de hoy, mañana y el siguiente día que trabaja (equipos de la tienda: «Tienda» y los turnos de hoy de todos),
   Mis turnos, avisos, Mi código, Códigos y Márgenes (admin), tutorial y cerrar sesión. Sustituye a los enlaces de sesión.
+  Melchor también lo tiene en la cabecera del reparto (sin tutorial); su tarjeta de turno y sus enlaces de abajo se quitaron.
 - Turnos de una persona: «Semana | Mes» (`vistaP`; móvil empieza en semana, ordenador en mes). Semana = un día por fila con
   el horario grande, se desliza para cambiar de semana y el encargado toca un día para cambiarlo. Mes en el móvil = rayita de
   color por tipo (`tcal-<tipo>`) en vez de texto. «Turnos» sigue también en el menú (decisión de Andrés, primer mes).

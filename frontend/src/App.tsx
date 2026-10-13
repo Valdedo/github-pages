@@ -345,6 +345,7 @@ function RepartoShell() {
           </button>
         )}
         <span style={{ fontWeight: 700 }}>Reparto · Casa Fonso</span>
+        <MenuCuenta className="cuenta-reparto" />
       </header>
       <main id="app-main" className="reparto-main">
         <ScrollRestoration />
