@@ -129,6 +129,8 @@ export function FirmasPage() {
   const [search, setSearch] = useState('');
   const [cliente, setCliente] = useState(() => params.get('cliente') || '');
   const [obra, setObra] = useState('');  // grupo de obra o referencia dentro del cliente
+  // «Por facturar»: cada cliente plegado o desplegado (los de más de 3 albaranes empiezan plegados)
+  const [plegado, setPlegado] = useState<Record<string, boolean>>({});
   const [mes, setMes] = useState('');
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
@@ -443,6 +445,15 @@ export function FirmasPage() {
             Seleccionar todos ({filtered.length})
           </button>
           {sel.size > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Quitar selección</button>}
+          {vista === 'facturar' && grupos.length > 1 && (() => {
+            const todosCerrados = grupos.every(g => plegado[g.cod] ?? (g.list.length > 3 && !cliente));
+            return (
+              <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }}
+                onClick={() => setPlegado(Object.fromEntries(grupos.map(g => [g.cod, !todosCerrados])))}>
+                {todosCerrados ? 'Desplegar todos' : 'Plegar todos'}
+              </button>
+            );
+          })()}
         </div>
       )}
 
@@ -476,14 +487,21 @@ export function FirmasPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {grupos.map(g => {
             const total = g.list.reduce((s, n) => s + (n.importe ?? 0), 0);
+            const cerrado = plegado[g.cod] ?? (g.list.length > 3 && !cliente);
+            const nObras = porObra(g.list, g.cod).length;
             return (
-              <section key={g.cod} className="card firma-empresa">
+              <section key={g.cod} className={`card firma-empresa${cerrado ? ' plegada' : ''}`}>
                 <div className="firma-grupo">
-                  <div style={{ minWidth: 0 }}>
+                  <button className="firma-plegar" onClick={() => setPlegado(v => ({ ...v, [g.cod]: !cerrado }))} aria-expanded={!cerrado}
+                    aria-label={cerrado ? `Ver los albaranes de ${g.nombre}` : `Plegar los albaranes de ${g.nombre}`}>
+                    <ChevronRight size={18} className="firma-plegar-flecha" />
+                  </button>
+                  <div style={{ minWidth: 0, cursor: 'pointer' }} onClick={() => setPlegado(v => ({ ...v, [g.cod]: !cerrado }))}>
                     <div style={{ fontWeight: 700 }}>{g.nombre}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                       {g.cod !== '—' && <>Cód. {g.cod} · </>}{g.list.length} {g.list.length !== 1 ? 'albaranes' : 'albarán'}
                       {total > 0 && <> · <strong style={{ color: 'var(--text-1)' }}>{fmtEuros(total)}</strong></>}
+                      {nObras > 1 && <> · {nObras} obras</>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -496,7 +514,11 @@ export function FirmasPage() {
                     </button>
                   </div>
                 </div>
-                {(() => {
+                {cerrado ? (
+                  <button className="firma-ver-todos" onClick={() => setPlegado(v => ({ ...v, [g.cod]: false }))}>
+                    Ver los {g.list.length} albaranes{nObras > 1 ? `, por obras` : ''} <ChevronRight size={15} />
+                  </button>
+                ) : (() => {
                   const partes = porObra(g.list, g.cod);
                   if (partes.length < 2) return <div className="firma-lista cf-enter">{g.list.map(row)}</div>;
                   return partes.map(({ g: o, list }) => (

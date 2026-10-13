@@ -94,6 +94,12 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (solo si hay) · franja «Hoy en la tienda» (`EnLaTienda` en `TurnoHoy.tsx`) · «Para no olvidar» solo si hay algo · «Hoy»
   agrupado por tipo (se despliega). Las reparaciones listas y pedidos llegados salen como «buenas noticias», no como tarjeta.
 
+## Versión nueva y «Por facturar» plegable (13/10/2026)
+- `components/NuevaVersion.tsx`: cada 5 min y al volver a la pestaña mira si el archivo principal de `/` ha cambiado y saca
+  la barra «Hay una versión nueva · Actualizar» (los ordenadores de la tienda tienen la app abierta todo el día).
+- «Por facturar»: cada cliente se pliega (los de más de 3 albaranes empiezan plegados salvo con un cliente elegido) y hay
+  «Plegar todos / Desplegar todos» (`plegado` en `FirmasPage`).
+
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`
   (los arreglos puntuales de datos también van ahí, ejecutándose una sola vez).

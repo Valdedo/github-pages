@@ -17,6 +17,7 @@ import { AccessGate } from './components/AccessGate';
 import { Novedades, hayNovedades } from './components/Novedades';
 import { Tutorial } from './components/Tutorial';
 import { MenuCuenta } from './components/MenuCuenta';
+import { NuevaVersion } from './components/NuevaVersion';
 import { useCfToast } from './components/CfToast';
 import { arrancarCola } from './lib/offline';
 import { arrancarColaCargas } from './lib/offlineCargas';
@@ -417,9 +418,9 @@ function AppShell() {
     if (getRol() === 'consulta') return; // Manolo solo mira: no hay nada que mandar
     arrancarCola(); arrancarColaCargas(); // órdenes de carga: toda la tienda y el reparto
   }, []);
-  if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /></>;
+  if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /><NuevaVersion /></>;
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
-  return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /></>;
+  return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /><NuevaVersion /></>;
 }
 
 function FullShell() {

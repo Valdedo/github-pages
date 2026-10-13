@@ -466,3 +466,24 @@ button.tsem:active { transform: scale(.985); }
 .inicio-hoy-grupo.abierto .inicio-hoy-flecha { transform: rotate(180deg); }
 .inicio-hoy-grupo > ul { list-style: none; margin: 0 0 6px 44px; padding: 0; border-left: 2px solid var(--border); }
 .inicio-hoy-grupo > ul li a { display: flex; padding: 7px 0 7px 12px; text-decoration: none; color: inherit; }
+
+/* «Por facturar»: clientes plegables */
+.firma-empresa .firma-grupo { align-items: center; justify-content: flex-start; }
+.firma-empresa .firma-grupo > div:nth-child(2) { flex: 1 1 auto; text-align: left; }
+.firma-plegar { flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--cf-bosque); }
+.firma-plegar-flecha { transition: transform .2s var(--ease-out); transform: rotate(90deg); }
+.firma-empresa.plegada .firma-plegar-flecha { transform: rotate(0deg); }
+.firma-ver-todos { display: flex; align-items: center; gap: 4px; margin: 0 16px 14px; padding: 9px 14px; border: 1px dashed var(--border-strong); border-radius: 12px; background: none; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--cf-bosque); cursor: pointer; width: calc(100% - 32px); justify-content: center; }
+.firma-ver-todos:hover { background: var(--brand-pale); border-style: solid; }
+
+/* Barra «Hay una versión nueva» */
+.nueva-version {
+  position: fixed; z-index: 500; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-espacio, 0px) + 12px);
+  display: flex; align-items: center; gap: 12px; width: min(520px, calc(100vw - 24px)); padding: 12px 14px;
+  background: var(--cf-bosque-2); color: #fff; border-radius: 16px; box-shadow: var(--shadow-lg); animation: cf-fade .25s var(--ease-out);
+}
+.nueva-version > span { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.nueva-version b { font-size: 14.5px; }
+.nueva-version small { font-size: 12.5px; opacity: .8; }
+.nueva-version .btn { background: var(--cf-verde); border-color: var(--cf-verde); color: #0B2A1A; flex-shrink: 0; }
+@media (min-width: 769px) { .nueva-version { bottom: 20px; left: auto; right: 20px; transform: none; } }
