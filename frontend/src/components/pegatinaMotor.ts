@@ -61,6 +61,22 @@ export function montar(svg: SVGSVGElement, pre: string) {
   const golpe = q('golpe');
   for (let i = 0; i < 6; i++) golpe.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'path'));
 
+  /** Dobla la esquina del logo (k de 0 = plano a 1 = despegado del todo), en coordenadas del logo. */
+  const pliega = (k: number) => {
+    if (k <= 0) {
+      at('pFrente', 'points', semiplano(-999, 1));
+      at('logoFrente', 'opacity', 1); at('logoDorso', 'opacity', 0); at('pliegue', 'opacity', 0);
+      return;
+    }
+    const f = lerp(F0, F1, k);
+    at('pFrente', 'points', semiplano(f, 1)); at('pDetras', 'points', semiplano(f, -1));
+    at('logoDorso', 'transform', reflejo(f)); at('logoDorso', 'opacity', 1); at('logoFrente', 'opacity', 1);
+    at('gDorso', 'x1', f * N.x); at('gDorso', 'y1', f * N.y); at('gDorso', 'x2', (f - 70) * N.x); at('gDorso', 'y2', (f - 70) * N.y);
+    const g2 = f + 16 + 30 * k;
+    at('gPliegue', 'x1', f * N.x); at('gPliegue', 'y1', f * N.y); at('gPliegue', 'x2', g2 * N.x); at('gPliegue', 'y2', g2 * N.y);
+    at('pliegue', 'opacity', 1);
+  };
+
   const logoQuieto = (esc = 1, rot = 0, op = 1, dy = 0) => {
     at('pFrente', 'points', semiplano(-999, 1));
     at('logoFrente', 'opacity', 1); at('logoDorso', 'opacity', 0); at('pliegue', 'opacity', 0);
@@ -76,13 +92,7 @@ export function montar(svg: SVGSVGElement, pre: string) {
   };
   /** Logo en su sitio, despegándose por la esquina (k de 0 a 1). */
   const pelar = (k: number) => {
-    const f = lerp(F0, F1, k);
-    at('pFrente', 'points', semiplano(f, 1)); at('pDetras', 'points', semiplano(f, -1));
-    at('logoDorso', 'transform', reflejo(f)); at('logoDorso', 'opacity', k > 0 ? 1 : 0); at('logoFrente', 'opacity', 1);
-    at('gDorso', 'x1', f * N.x); at('gDorso', 'y1', f * N.y); at('gDorso', 'x2', (f - 70) * N.x); at('gDorso', 'y2', (f - 70) * N.y);
-    const g2 = f + 16 + 30 * k;
-    at('gPliegue', 'x1', f * N.x); at('gPliegue', 'y1', f * N.y); at('gPliegue', 'x2', g2 * N.x); at('gPliegue', 'y2', g2 * N.y);
-    at('pliegue', 'opacity', k > 0 ? 1 : 0);
+    pliega(k);
     at('sombraLogo', 'dy', 3); at('sombraLogo', 'stdDeviation', 3);
     at('logo', 'transform', `translate(${LOGO.x} ${LOGO.y})`); at('logo', 'opacity', 1);
   };
@@ -118,18 +128,9 @@ export function montar(svg: SVGSVGElement, pre: string) {
     at('calco', 'transform', `translate(${CALCO.x} ${CALCO.y}) scale(${CALCO.esc * (1 + slap)} ${CALCO.esc * (1 - slap)})`);
 
     if (t < T_VUELA) {
-      const u1 = seg(t, T_PEEL0, T_PEEL0 + .14), u2 = seg(t, T_PEEL0 + .24, T_PEEL1);
-      const k = 0.12 * easeOut(u1) + 0.88 * (easeIn(u2) * 0.7 + u2 * 0.3);
-      const f = lerp(F0, F1, k);
-      at('pFrente', 'points', semiplano(f, 1));
-      at('pDetras', 'points', semiplano(f, -1));
-      at('logoDorso', 'transform', reflejo(f));
-      at('logoDorso', 'opacity', k > 0 ? 1 : 0);
-      at('logoFrente', 'opacity', 1);
-      at('gDorso', 'x1', f * N.x); at('gDorso', 'y1', f * N.y); at('gDorso', 'x2', (f - 70) * N.x); at('gDorso', 'y2', (f - 70) * N.y);
-      const g2 = f + 16 + 30 * k;
-      at('gPliegue', 'x1', f * N.x); at('gPliegue', 'y1', f * N.y); at('gPliegue', 'x2', g2 * N.x); at('gPliegue', 'y2', g2 * N.y);
-      at('pliegue', 'opacity', k > 0 ? 1 : 0);
+      // un solo movimiento: la esquina se levanta enseguida y el despegue acelera sin pararse
+      const u = seg(t, T_PEEL0, T_PEEL1);
+      pliega(.3 * easeOut(u) + .7 * u * u);
       at('sombraLogo', 'dy', 3); at('sombraLogo', 'stdDeviation', 3);
       at('logo', 'transform', `translate(${LOGO.x} ${LOGO.y})`);
       at('logo', 'opacity', 1);
@@ -142,8 +143,8 @@ export function montar(svg: SVGSVGElement, pre: string) {
       const rot = -8 * pop + lerp(0, 360, ke) + muelle(t - T_VUELA - .1, 6, 14, 3);
       const esc = lerp(1 + .1 * pop, CALCO.esc * ESC, Math.pow(k, .8));
       const sq = 1 + muelle(t - T_VUELA, .12, 40, 10);
-      at('pFrente', 'points', semiplano(-999, 1));
-      at('logoFrente', 'opacity', 1); at('logoDorso', 'opacity', 0); at('pliegue', 'opacity', 0);
+      // al soltarse, la parte doblada se aplana mientras sube (sin cambiar de golpe)
+      pliega(1 - easeInOut(seg(t, T_VUELA, T_VUELA + .3)));
       const alto = Math.sin(Math.PI * Math.min(1, k * 1.15)) * (1 - k * .5) + pop * .3;
       at('sombraLogo', 'dy', 3 + 16 * alto); at('sombraLogo', 'stdDeviation', 3 + 7 * alto);
       at('logo', 'transform', `translate(${x} ${y}) rotate(${rot}) scale(${esc * sq} ${esc * (2 - sq)})`);
