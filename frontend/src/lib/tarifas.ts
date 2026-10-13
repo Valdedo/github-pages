@@ -8,8 +8,19 @@ export interface TarifaResumen {
 export interface TarifaMedida {
   ref: string; codigo?: string | null; original?: string | null; foto?: string | null; descripcion: string; valor: string; ud_medida: string; unidad: string; ud_venta: string;
   coste: number | null; pvp: number | null; pvp_iva: number | null; evol: number | null; fecha: string | null;
+  /** Otros códigos del mismo artículo (el antiguo de Zabaleta, el de la tarifa sin neto de Isoltubex) */
+  alias?: string[] | null;
+  /** Zabaleta lo factura con un código comodín (INC, $4016…) */
+  comodin?: boolean;
+  /** Metros de un rollo o una barra (para el precio por metro) */
+  metros?: number | null;
+  /** Medida por la que se filtra la familia («16», «1/2"») y su orden */
+  mp?: string | null; op?: number | null;
+  /** Todas sus medidas cuando tiene varias (una reducción 3/4"×1/2" sale también en 1/2") */
+  ms?: string[];
 }
-export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[] }
+/** «repes»: piezas que repiten medida en el grupo y vienen en la lista de sueltos (la vista nueva las junta) */
+export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[]; repes?: string[] }
 export interface TarifaFamilia { id: string; nombre: string; clave: string; n: number; grupos: TarifaGrupo[] }
 export interface TarifaFactura {
   numero: string; fecha: string; enlace: string; seguro?: boolean;
@@ -26,7 +37,7 @@ export interface FichaTarifa {
   descripcion: string; unidad: string; ud_venta: string; ud_compra: string;
   precio: number | null; fecha: string | null; precio_ant: number | null; fecha_ant: string | null;
   evol: number | null; kg_m: number | null; coste: number | null; pvp: number | null; pvp_iva: number | null;
-  margen: number | null; historial: { fecha: string; precio: number }[];
+  margen: number | null; historial: { fecha: string; precio: number; codigo?: string }[];
   factura: TarifaFactura | null; posibles: TarifaFactura[]; medida: string | null;
   // Solo en las tarifas que traen cada factura (Zabaleta)
   codigo?: string | null; subcategoria?: string | null; redondeo?: string | null;
@@ -34,6 +45,9 @@ export interface FichaTarifa {
   original?: string | null; tipo?: string | null; foto?: string | null;
   // Isoltubex: PVP de la tarifa del fabricante y de dónde sale el coste (no trae facturas)
   pvp_fab?: number | null; origen?: string | null;
+  // Vista nueva: códigos antiguos, otros códigos con los que se factura, comodín y metros del rollo o barra
+  antes?: string[] | null; tambien?: { codigo: string; precio: number | null; fecha: string | null }[] | null;
+  comodin?: boolean; metros?: number | null;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). */

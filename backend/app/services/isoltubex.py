@@ -128,6 +128,8 @@ def medida_laton(desc: str) -> tuple[str, float]:
     s = _n(desc)
     s = re.sub(r"\(\s*BOLSA[^)]*\)?|\bCROM\w*|\bM-H\b|\bH-H\b|''|3 PIEZAS", " ", s)
     s = re.sub(r"(\d) (\d/\d)", r"\1_\2", s)
+    # «1/2 M - 3/8 H» (macho primero): como las demás, hembra × macho → «3/8 H X 1/2 M»
+    s = re.sub(r"(\d[\d_/]*) M\s*-\s*(\d[\d_/]*) H\b", r"\2 H X \1 M", s)
     s = re.sub(r"\b[MH]\b", " ", s)
     toks = re.findall(r"\d+_\d/\d|\d+/\d+|\d+", s)
     partes, orden = [], 0.0
@@ -201,7 +203,7 @@ def _tubo(cod: str, desc: str) -> Optional[dict]:
     elif lin in ("PPRFCT-UV", "PPRFCT"):  # solo barras de 4 m: se elige el diámetro
         g = "PP-R Faser CT anti UV" if lin == "PPRFCT-UV" else "PP-R Faser CT"
         return {"f": F_PEX, "g": g, "t": "Barra 4 m", "m": f"Ø{d}", "o": float(d), "rank": 0,
-                "n": f"{g} Ø{d}, barra 4 m", "ud": "barra", "metros": 4}
+                "n": f"{g} Ø{d}, barra 4 m", "ud": "barra", "metros": 4, "mp": f"Ø{d}", "op": float(d)}
     medida = color or fmt
     if ais:
         orden = "ANR".index(ais.group(2))
@@ -209,8 +211,9 @@ def _tubo(cod: str, desc: str) -> Optional[dict]:
     if g == "Multicapa para gas":
         nombre = f"Multicapa para gas {t.lower().replace('ø', 'Ø')}, {fmt.lower()}"
     nombre = re.sub(r"\s+", " ", nombre).replace(" — rollo", ", rollo")
+    # mp/op: el diámetro, para juntar en la app todo lo del mismo tubo (barra, rollos, colores…)
     return {"f": f, "g": g, "t": t, "m": medida, "o": float(orden), "n": nombre, "ud": ud, "metros": metros,
-            "rank": d * 10 + (5 if "FIJA" in lin else 0)}
+            "rank": d * 10 + (5 if "FIJA" in lin else 0), "mp": f"Ø{d}", "op": float(d)}
 
 
 # ── Accesorios: tipo de pieza por la descripción ──────────────────────────
@@ -553,9 +556,24 @@ def leer(hojas: dict) -> list[dict]:
                 "margen": margen if margen is not None else (def_margen.get(p) if not sin_neto else None),
                 "nota": "Sin precio neto" if sin_neto else None, "apunte": apunte, "minimo": None, "compras": None,
                 "kg_m": None, "pestana": p, "origen": origen_tubos if tubo else origen_acc,
+                "metros": c.get("metros") if tubo else None, "mp": c.get("mp"), "op": c.get("op"),
                 "_k": (FAM_POS.get(c["f"], 99), (GRUPOS.get(c["f"]) or []).index(c["g"]) if c["g"] in (GRUPOS.get(c["f"]) or []) else 99,
                        c.get("rank", rango(c.get("t"))), c.get("t") or "", c.get("o") or 0, sin_neto),
             })
     arts.sort(key=lambda a: a.pop("_k"))
-    return arts
+    # La misma pieza dos veces (de la lista de netos y de la tarifa del fabricante, sin neto: PEX16-B4 y PEX-A16B4):
+    # se queda la que tiene precio y la otra va como «también se pide como …»
+    por_pieza: dict[tuple, list] = {}
+    for a in arts:
+        if a.get("tipo") and a.get("medida_c"):
+            por_pieza.setdefault((a["categoria"], a["subcategoria"], a["tipo"], a["medida_c"]), []).append(a)
+    quitar = set()
+    for xs in por_pieza.values():
+        con = [a for a in xs if a.get("coste")]
+        sin = [a for a in xs if not a.get("coste")]
+        if len(con) == 1 and sin:
+            con[0]["tambien"] = [{"codigo": b["ref"], "precio": None, "fecha": None} for b in sin]
+            con[0]["alias"] = [b["ref"] for b in sin]
+            quitar.update(b["ref"] for b in sin)
+    return [a for a in arts if a["ref"] not in quitar]
 

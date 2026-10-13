@@ -2,7 +2,10 @@
 
 Uso: python3 tools/zabaleta-clasifica.py backend/app/data/zabaleta_catalogo.json <carpeta con zab.json>
 zab.json = respuesta de la acción «hoja» del Apps Script con la pestaña «Tarifa» de la hoja de Zabaleta.
-Cuando entren referencias nuevas, añadir su regla o su nombre en NOMBRES y volver a generar."""
+Cuando entren referencias nuevas, añadir su regla o su nombre en NOMBRES y volver a generar.
+Los códigos comodín (INC, $4016…) y los artículos con dos códigos no se arreglan aquí, sino en la app al leer la
+hoja (backend/app/data/zabaleta_ajustes.json): dos referencias con el mismo nombre claro en la misma familia se
+juntan solas en la app como «código antiguo» → «código nuevo»."""
 import json, re, sys, unicodedata
 
 N = sys.argv[2] if len(sys.argv) > 2 else '.'

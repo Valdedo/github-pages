@@ -1,0 +1,36 @@
+{
+  "_que_es": "Arreglos de la tarifa de Zabaleta que la app aplica al leerla (oct. 2026). Ver services/tarifas_service.py: _comodines_zab y _equivalencias_zab.",
+  "_comodines": "Códigos que Zabaleta usa para lo que factura sin código propio: cada artículo distinto (por su descripción en la factura) va por separado. Si ya está con su propio código, se queda solo ese.",
+  "comodines": "^(INC|\\$.+)$",
+  "_antes": "Mismo artículo con código nuevo: código nuevo → códigos antiguos. Se enseña uno solo, con el precio del nuevo y el histórico de los dos.",
+  "antes": {
+    "30122174": ["M370300"],
+    "30122184": ["M370400"],
+    "30122194": ["M370500"],
+    "30122614": ["M413100"],
+    "30122634": ["M414100"],
+    "30122624": ["M414000"],
+    "30116584": ["CU00222"],
+    "30116864": ["0434006389"]
+  },
+  "_tambien": "Mismo artículo que a veces facturan con otro código más caro: el bueno → los otros. Se enseña solo el bueno.",
+  "tambien": {
+    "PAL10020": ["PE020"],
+    "PAL10025": ["PE025"]
+  },
+  "_articulos": "Familia, grupo y nombre claro de lo que salía mezclado en un código comodín (misma forma que zabaleta_catalogo.json; foto \"\" = sin foto, la pegatina).",
+  "articulos": {
+    "INC~mt-coquilla-cabelflex-9-22": {"f": "Fijación, aislamiento y herramienta", "g": "Aislamiento y vaina de tuberías", "n": "Coquilla aislante Cabelflex 9-22 (m)", "t": null, "m": null, "o": null, "foto": null},
+    "INC~manguito-hembra-1-x-28-mm": {"f": "Cobre", "g": "Racores de compresión (cobre / multicapa)", "n": "Manguito compresión hembra 1\" × 28", "t": null, "m": null, "o": null, "foto": "laton"},
+    "INC~gebo-terminal-1-2-h": {"f": "Cobre", "g": "Reparación de tuberías", "n": "Terminal Gebo 1/2\" hembra (tubo de hierro)", "t": null, "m": null, "o": null, "foto": null},
+    "INC~100gr-varilla-estano-plomo-33": {"f": "Gas, sellado y soldadura", "g": "Soldadura de cobre", "n": "Varilla de estaño-plomo 33% (100 g)", "t": null, "m": null, "o": null, "foto": null},
+    "$4016~rejilla-regulable-d80-color-blanco": {"f": "Chimeneas, estufas y ventilación", "g": "Ventilación y tubo flexible", "n": "Rejilla regulable Ø80 blanca (canalización de estufa)", "t": null, "m": null, "o": null, "foto": null},
+    "$4016~kit-wifi-para-modelo-coral": {"f": "Chimeneas, estufas y ventilación", "g": "Estufas", "n": "Kit wifi para estufa Coral", "t": null, "m": null, "o": null, "foto": ""},
+    "$4016~kit-de-canalizacion-izquierdo-para-modelo-coral": {"f": "Chimeneas, estufas y ventilación", "g": "Estufas", "n": "Kit de canalización izquierdo para estufa Coral", "t": null, "m": null, "o": null, "foto": ""},
+    "$4016~kit-de-canalizacion-derecho-para-modelo-coral": {"f": "Chimeneas, estufas y ventilación", "g": "Estufas", "n": "Kit de canalización derecho para estufa Coral", "t": null, "m": null, "o": null, "foto": ""},
+    "$4016~kit-firetek-para-modelo-cairo-90d-box": {"f": "Chimeneas, estufas y ventilación", "g": "Estufas", "n": "Kit Firetek para estufa Cairo 90-D Box", "t": null, "m": null, "o": null, "foto": ""},
+    "$4016~kit-turbina-2x210-m3-h-para-cairo-90d-box": {"f": "Chimeneas, estufas y ventilación", "g": "Estufas", "n": "Kit turbina 2 × 210 m³/h para estufa Cairo 90-D Box", "t": null, "m": null, "o": null, "foto": ""},
+    "$5036~dep-acumulador-80-litros-inox-316-horz-mural": {"f": "Termos y agua caliente", "g": "Acumuladores", "n": "Acumulador inox 316 80 L horizontal mural", "t": null, "m": null, "o": null, "foto": "acumulador"},
+    "$5036~cousinox-d-i-tank-in-tank-acero-al-carbono": {"f": "Termos y agua caliente", "g": "Acumuladores", "n": "Depósito Cousinox tank in tank (acero al carbono)", "t": null, "m": null, "o": null, "foto": "acumulador"}
+  }
+}

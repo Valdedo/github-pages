@@ -120,6 +120,25 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   no se copian al repo. En el ordenador (≥1100 px) las medidas van en filas con un panel fijo a la derecha
   (precio, coste y factura sin salir de la lista); en móvil, barra flotante «Ver ficha». La búsqueda sale en tabla en el
   ordenador; «/» lleva al buscador e Intro abre el primero. La factura abre su PDF (acción `archivos` del Apps Script sobre la carpeta ALBARANES/<proveedor>); si no lo encuentra, busca el nº en Drive.
+- **Tarifas: códigos y vista nueva (13/10/2026)**.
+  - Zabaleta, arreglos al leer la hoja (`_comodines_zab` y `_equivalencias_zab` en `tarifas_service.py`, datos en
+    `backend/app/data/zabaleta_ajustes.json`; valen para todos): (1) **códigos comodín** (INC, $4016, $5036…: Zabaleta los usa
+    para lo que no tiene código y la hoja juntaba en una fila artículos distintos con el precio del último): cada descripción
+    de «Detalle facturas» va como artículo propio (`ref` = `INC~<slug de la descripción>`, `comodin`), con su coste, el margen
+    de su grupo y el PVP redondeado como la hoja (`_pvp_zab`); si ya está con su código (misma descripción o «REF PM720»), se
+    queda solo ese. Su familia y nombre, en `articulos` del JSON. (2) **mismo artículo con dos códigos**: «antes» (Zabaleta le
+    cambió el código: se enseña el nuevo con el histórico de los dos; el viejo abre la misma ficha y se busca) y «tambien»
+    (PE020 → PAL10020, más caro). Dos referencias con el mismo nombre claro en la misma familia se juntan solas como «antes».
+  - Isoltubex: la misma pieza en la lista de netos y sin neto (PEX16-B4 / PEX-A16B4) → se queda la de precio, la otra como
+    «también» (`isoltubex.leer`). «Marsella reducido 1/2 M - 3/8 H» ya sale como ⅜″ × ½″.
+  - **Vista nueva de la familia, en pruebas (solo admin)**: `TarifaFamiliaPage` elige `FamiliaNueva` (encargado) o
+    `FamiliaActual` (tienda y Manolo, la de siempre). Medidas arriba (`mp`/`op`/`ms` de cada pieza, de `medida_principal` y
+    `medidas_de`: «todo lo de 20», una reducción 3/4"×1/2" sale también en 1/2"; solo si hay ≥4 y alguna junta grupos
+    distintos; `?medida=` en la dirección). Grupos con varias piezas de la misma medida (tubos con `metros`, `repes`, etiquetas
+    repetidas) van en filas con código, precio y €/m; los demás, en botones. Código a la vista en filas, panel, barra del móvil,
+    tabla de búsqueda y ficha (código antiguo, «también sale como», aviso de comodín, €/m). Clases `tfn-*` en `tarifas.css`.
+    Cuando Andrés la apruebe: dejar solo `FamiliaNueva` y quitar los `esEncargado()` de Resultados, panel y ficha.
+  - Pruebas: `backend/tests/test_tarifas.py` (datos inventados: el repo es público, no van precios reales).
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 

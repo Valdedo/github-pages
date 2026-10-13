@@ -316,3 +316,61 @@
   .tf-filita:nth-child(2) { border-top: 0; }
   .tf-filita:nth-child(odd) { border-right: 1px solid var(--border); }
 }
+
+/* ── Vista nueva de la familia (en pruebas, solo el encargado; oct. 2026) ───────────
+   Medidas arriba para ver juntas todas las piezas de una medida; filas con código, precio y €/m
+   cuando un grupo tiene varias piezas de la misma medida (formatos de tubo, colores…). */
+.tfn-cod { font-size: 12px; font-weight: 600; color: var(--text-3); letter-spacing: .3px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tfn-cod-td { white-space: nowrap; }
+.tf-barra .tfn-cod-barra { color: #fff; font-size: 12px; }
+.tf-barra .tfn-barra-m { color: #9BE3BA; font-weight: 700; }
+.tfn-medidas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tfn-medidas-tit { font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-right: 2px; }
+.tfn-med { flex-shrink: 0; min-height: 38px; min-width: 44px; padding: 0 11px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-1); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; transition: background .12s, border-color .12s; }
+.tfn-med:hover { border-color: var(--cf-bosque); background: var(--brand-pale); }
+.tfn-med[aria-pressed="true"] { background: var(--cf-bosque); border-color: var(--cf-bosque); color: #fff; }
+.tfn-med:focus-visible { outline: 2px solid var(--cf-bosque); outline-offset: 2px; }
+.tfn-filtro { margin: 0 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-size: 14px; color: var(--text-2); }
+.tfn-filtro strong { color: var(--text-1); }
+.tfn-quitar { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-1); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tfn-quitar:hover { background: var(--brand-pale); border-color: var(--cf-bosque); }
+.tfn-filas { background: var(--surface); border-radius: var(--r-lg); box-shadow: 0 1px 0 var(--border); overflow: hidden; display: flex; flex-direction: column; }
+.tfn-filas-grupo { background: var(--surface-2); box-shadow: none; border: 1px solid var(--border); border-radius: 12px; }
+.tfn-fila { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 14px; width: 100%; min-height: 52px; padding: 7px 14px; text-align: left; font: inherit; color: var(--text-1); background: none; border: 0; border-top: 1px solid var(--border); border-left: 3px solid transparent; cursor: pointer; box-sizing: border-box; }
+.tfn-fila:first-child { border-top: 0; }
+.tfn-fila:hover { background: var(--brand-pale); }
+.tfn-fila[aria-pressed="true"] { background: var(--brand-pale); border-left-color: var(--cf-bosque); }
+.tfn-fila:focus-visible { outline: 2px solid var(--cf-bosque); outline-offset: -2px; }
+.tfn-fila-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tfn-fila-nom { font-size: 14px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.tfn-fila-precio { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.tfn-fila-precio strong { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.tfn-fila-precio strong small { font-weight: 500; color: var(--text-3); margin-left: -4px; }
+.tfn-fila-precio > small { font-size: 12.5px; font-weight: 700; color: var(--cf-bosque, #1F5A3A); font-variant-numeric: tabular-nums; }
+.tfn-fila-precio em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--text-3); }
+.tfn-panel-cod { margin: -4px 0 0; font-size: 13px; color: var(--text-3); }
+.tfn-panel-cod .tfn-cod { font-size: 13px; color: var(--text-1); }
+.tfn-sin .tfn-fila-nom { color: var(--text-2); font-weight: 500; }
+.tfn-fila .tf-punto.sube { background: #C46A00; }
+.tfn-fila .tf-punto.baja { background: var(--cf-verde); }
+.tfn-aviso { background: #FDECD8; color: #8A4B10; border-radius: var(--r); padding: 8px 12px; }
+@media (min-width: 769px) {
+  /* En el ordenador: código en su columna, alineado, entre el nombre y el precio */
+  .tfn-fila { grid-template-columns: minmax(0, 1fr) 132px 118px; min-height: 44px; padding: 5px 16px; }
+  .tfn-fila-txt { display: contents; }
+  .tfn-fila-nom { grid-column: 1; }
+  .tfn-fila .tfn-cod { grid-column: 2; text-align: left; }
+  .tfn-fila-precio { grid-column: 3; }
+  .tf-fam-esc .tfn-filas-grupo .tfn-fila { padding: 5px 12px; }
+  /* Grupo en filas: el título encima y las filas a todo lo ancho (que quepan nombre, código y precio) */
+  .tf-fam-esc .tf-grupo.tfn-grupo-filas { display: block; padding: 10px 12px 12px 16px; }
+  .tf-fam-esc .tf-grupo.tfn-grupo-filas h3 { padding: 2px 0 8px; }
+  .tfn-tabla td:first-child { min-width: 280px; }
+}
+@media (max-width: 768px) {
+  /* Medidas en una sola tira que se desliza */
+  .tfn-medidas { flex-wrap: nowrap; overflow-x: auto; margin: 0 -14px; padding: 2px 14px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tfn-medidas::-webkit-scrollbar { display: none; }
+  .tfn-medidas-tit { display: none; }
+  .tfn-filas-grupo { margin-top: 2px; }
+}
