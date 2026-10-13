@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, FileText, MapPin, Play, Truck } from 'lucide-react';
+import { BookMarked, CalendarDays, FileText, MapPin, Play, Truck } from 'lucide-react';
 import { Ilustracion } from './Pegatinas';
 import { abrirTutorial } from './Tutorial';
 
@@ -8,10 +8,12 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-10-13';
+const VERSION = '2026-10-13b';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
+  { icono: CalendarDays, titulo: 'Tu círculo y tus turnos',
+    texto: 'Arriba a la derecha está tu inicial: tócala y ves tu turno de hoy y de mañana, tus turnos de la semana y lo tuyo (código, avisos, cerrar sesión).' },
   { icono: FileText, titulo: 'Nombres más claros',
     texto: '«Albaranes de compra» son los de proveedor. «Albaranes de venta» son los de TreyFACT a clientes.' },
   { icono: Truck, titulo: '«Al camión» prepara la carga',

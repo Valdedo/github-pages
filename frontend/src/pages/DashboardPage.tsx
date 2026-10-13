@@ -7,6 +7,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { CorreoCard } from '../components/CorreoCard';
 import { TurnoHoy } from '../components/TurnoHoy';
+import { MenuCuenta } from '../components/MenuCuenta';
 import { AvisosCard } from '../components/AvisosCard';
 import { VencimientosCard } from '../components/VencimientosCard';
 import { CabeceraPegatina } from '../components/CabeceraPegatina';
@@ -157,6 +158,7 @@ export function DashboardPage() {
           <Upload size={19} /> {subiendo ? 'Subiendo…' : 'Subir albaranes para firmar'}
         </button>
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden onChange={e => onFiles(e.target.files)} />
+        <MenuCuenta className="cuenta-inicio" />
       </header>
 
       <CorreoCard />

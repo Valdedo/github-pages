@@ -15,14 +15,12 @@ import { isReparto } from './reparto';
 import { Logo } from './components/Logo';
 import { AccessGate } from './components/AccessGate';
 import { Novedades, hayNovedades } from './components/Novedades';
-import { Tutorial, abrirTutorial } from './components/Tutorial';
-import { CodigosModal } from './components/CodigosModal';
-import { MiCodigoModal } from './components/MiCodigoModal';
-import { AvisosLink } from './components/AvisosCard';
+import { Tutorial } from './components/Tutorial';
+import { MenuCuenta } from './components/MenuCuenta';
 import { useCfToast } from './components/CfToast';
 import { arrancarCola } from './lib/offline';
 import { arrancarColaCargas } from './lib/offlineCargas';
-import { getRol, cerrarSesion, sesionPersonal } from './auth';
+import { getRol } from './auth';
 import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
 import './pages/consulta.css';
 
@@ -144,21 +142,6 @@ function SidebarNavGroup({ items, badges, collapsed }: {
   );
 }
 
-function SesionLinks() {
-  const [codigos, setCodigos] = useState(false);
-  const [mio, setMio] = useState(false);
-  return (
-    <div className="sesion-links">
-      <AvisosLink />
-      {getRol() !== 'reparto' && <button onClick={abrirTutorial}>Tutorial</button>}
-      {sesionPersonal() && <button onClick={() => setMio(true)}>Mi código</button>}
-      {getRol() === 'admin' && <button onClick={() => setCodigos(true)}>Códigos</button>}
-      <button onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); window.location.href = '/'; } }}>Cerrar sesión</button>
-      {codigos && <CodigosModal onClose={() => setCodigos(false)} />}
-      {mio && <MiCodigoModal onClose={() => setMio(false)} />}
-    </div>
-  );
-}
 
 function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed: boolean; onToggle: () => void }) {
   return (
@@ -190,8 +173,8 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
         </button>
       ) : (
         <>
+          <MenuCuenta lateral />
           <div className="sidebar-1950"><b>1950</b><span>Materiales de construcción en Boal y Villayón</span></div>
-          <SesionLinks />
         </>
       )}
     </aside>
@@ -254,6 +237,7 @@ function MobileHeader() {
           <Logo size={30} compact />
         </Link>
       )}
+      <MenuCuenta className="cuenta-cabecera" />
     </header>
   );
 }
@@ -301,7 +285,6 @@ function BottomNav({ badges }: { badges: NavBadge }) {
             </div>
           </div>
         ))}
-        <SesionLinks />
       </div>
 
       {/* Bottom nav (con un difuminado detrás para separarla del contenido) */}

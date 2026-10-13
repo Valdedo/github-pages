@@ -377,6 +377,9 @@ export function TurnosPage() {
   const [error, setError] = useState<string | null>(null);
   const [editar, setEditar] = useState<{ emp: TurnoEmpleado; t: TurnoDia } | null>(null);
   const [diaSel, setDiaSel] = useState<string | null>(null);
+  // De una persona: en el móvil, primero la semana (se lee mejor); en el ordenador, el mes
+  const [vistaP, setVistaP] = useState<'semana' | 'mes'>(() => (window.innerWidth <= 768 ? 'semana' : 'mes'));
+  const [tocar, setTocar] = useState<number | null>(null);
   const [verPasados, setVerPasados] = useState(false);
   const [hayEncargado, setHayEncargado] = useState(true);
   const [admin, setAdmin] = useState(esEncargado());
@@ -413,6 +416,8 @@ export function TurnosPage() {
   const pasados = (c?.empleados[0]?.dias ?? []).filter(d => d.fecha < hoy).length;
   const personaMes = cm?.empleados.find(e => e.id === quien);
   const elegir = (id: string) => { setQuien(id); setDiaSel(null); };
+  const porSemana = quien === 'todos' || vistaP === 'semana';
+  const moverSemana = (n: number) => { if (n < 0) setVerPasados(true); setSemana(s => iso(sumar(deIso(s), 7 * n))); };
 
   // Aviso de pocos en la tienda (de lunes a sábado)
   const cobertura = (c?.empleados[0]?.dias ?? []).map((d, i) => ({
@@ -456,16 +461,16 @@ export function TurnosPage() {
       <header className="inicio-head turnos-head">
         <div>
           <h1>Turnos</h1>
-          <p>{quien === 'todos' ? `Semana ${rangoSemana(semana)}` : `${cap(mesNombre(mes.getMonth()))} de ${mes.getFullYear()}`}</p>
+          <p>{porSemana ? `Semana ${rangoSemana(semana)}` : `${cap(mesNombre(mes.getMonth()))} de ${mes.getFullYear()}`}</p>
         </div>
         <div className="turnos-nav" role="group" aria-label="Cambiar de fecha">
           <button className="btn btn-ghost turnos-flecha" aria-label="Anterior"
-            onClick={() => quien === 'todos' ? (setVerPasados(true), setSemana(s => iso(sumar(deIso(s), -7)))) : setMes(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>
+            onClick={() => porSemana ? moverSemana(-1) : setMes(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}>
             <ChevronLeft size={20} />
           </button>
           <button className="btn btn-ghost" onClick={() => { setSemana(iso(lunes(new Date()))); const d = new Date(); setMes(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Hoy</button>
           <button className="btn btn-ghost turnos-flecha" aria-label="Siguiente"
-            onClick={() => quien === 'todos' ? setSemana(s => iso(sumar(deIso(s), 7))) : setMes(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>
+            onClick={() => porSemana ? moverSemana(1) : setMes(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}>
             <ChevronRight size={20} />
           </button>
         </div>
@@ -582,7 +587,47 @@ export function TurnosPage() {
         </>
       )}
 
-      {quien !== 'todos' && persona && personaMes && (
+      {quien !== 'todos' && persona && (
+        <div className="turnos-seg" role="tablist" aria-label="Cómo verlo">
+          <button role="tab" aria-selected={vistaP === 'semana'} className={vistaP === 'semana' ? 'on' : ''} onClick={() => setVistaP('semana')}>Semana</button>
+          <button role="tab" aria-selected={vistaP === 'mes'} className={vistaP === 'mes' ? 'on' : ''} onClick={() => setVistaP('mes')}>Mes</button>
+        </div>
+      )}
+
+      {quien !== 'todos' && persona && vistaP === 'semana' && (
+        <section className="turnos-semana" aria-label={`Semana de ${persona.nombre}`} style={{ ['--emp' as string]: persona.color }}
+          onTouchStart={e => setTocar(e.touches[0].clientX)}
+          onTouchEnd={e => { if (tocar == null) return; const dx = e.changedTouches[0].clientX - tocar; setTocar(null); if (Math.abs(dx) > 70) moverSemana(dx < 0 ? 1 : -1); }}>
+          {persona.dias.map(d => {
+            const fest = c?.festivos[d.fecha];
+            const domingo = deIso(d.fecha).getDay() === 0;
+            const tag = d.clase === 'trabajo' ? (d.tipo === 'manana' ? 'Mañana' : d.tipo === 'tarde' ? 'Tarde' : d.tipo === 'jornada' ? 'Jornada' : d.nombre)
+              : d.clase === 'vacaciones' ? 'Vacaciones' : d.clase === 'festivo' ? 'Festivo' : '';
+            const contenido = (
+              <>
+                <span className="tsem-dia"><small>{d.fecha === hoy ? 'Hoy' : cap(diaCorto(d.fecha))}</small><b>{deIso(d.fecha).getDate()}</b></span>
+                <span className="tsem-txt">
+                  <b>{d.clase === 'trabajo' ? d.horario.split(' · ').map((h, k) => <span key={k} className="tsem-tramo">{h}</span>) : d.clase === 'festivo' ? (fest || 'Festivo') : d.clase === 'vacaciones' ? 'Vacaciones' : domingo ? 'Cerrado' : 'Libras'}</b>
+                  {(() => { const extra = [d.clase === 'festivo' && d.horario !== (fest || 'Festivo') ? d.horario : '', d.nota].filter(Boolean).join(' · '); return extra ? <small>{extra}</small> : null; })()}
+                </span>
+                {tag && <span className={`tsem-tag t-${d.clase === 'trabajo' ? d.tipo : d.clase}`}>{tag}</span>}
+                {d.cambio && <span className="tc-cambio" title={d.nota || 'Cambiado a mano'} aria-label="Cambiado" />}
+                {admin && <Pencil className="tsem-lapiz" size={15} />}
+              </>
+            );
+            const cls = `tsem tsem-${d.clase}${d.fecha === hoy ? ' hoy' : ''}${d.fecha < hoy ? ' pasado' : ''}`;
+            return admin
+              ? <button key={d.fecha} className={cls} onClick={() => setEditar({ emp: persona, t: d })}>{contenido}</button>
+              : <div key={d.fecha} className={cls}>{contenido}</div>;
+          })}
+          <p className="turnos-ayuda">
+            {(() => { const h = persona.dias.reduce((s2, d) => s2 + (d.clase === 'trabajo' ? d.horas || 0 : 0), 0); return h ? `Esta semana: ${String(+h.toFixed(1)).replace('.', ',')} h. ` : ''; })()}
+            {admin ? 'Toca un día para cambiarlo. ' : ''}Desliza a los lados para cambiar de semana.
+          </p>
+        </section>
+      )}
+
+      {quien !== 'todos' && persona && personaMes && vistaP === 'mes' && (
         <section className="card turnos-mes" style={{ ['--emp' as string]: persona.color }} aria-label={`Mes de ${persona.nombre}`}>
           <div className="turnos-mes-head">
             <span className="turnohoy-avatar" style={{ background: persona.color }}>{persona.nombre.charAt(0)}</span>
@@ -597,12 +642,13 @@ export function TurnosPage() {
               const fuera = deIso(d.fecha).getMonth() !== mes.getMonth();
               return (
                 <button key={d.fecha}
-                  className={`turnos-cal-dia tc-${d.clase}${d.fecha === hoy ? ' hoy' : ''}${fuera ? ' fuera' : ''}${diaSel === d.fecha ? ' sel' : ''}`}
+                  className={`turnos-cal-dia tc-${d.clase}${d.clase === 'trabajo' && d.tipo ? ` tcal-${d.tipo}` : ''}${d.fecha === hoy ? ' hoy' : ''}${fuera ? ' fuera' : ''}${diaSel === d.fecha ? ' sel' : ''}`}
                   onClick={() => setDiaSel(d.fecha === diaSel ? null : d.fecha)}
                   aria-label={`${fechaLarga(d.fecha)}: ${d.clase === 'trabajo' ? `${d.nombre}, ${d.horario}` : d.nombre}`}>
                   <b>{deIso(d.fecha).getDate()}</b>
                   <span className="tcal-largo">{d.clase === 'trabajo' ? d.nombre : d.clase === 'libre' ? 'Libre' : d.clase === 'festivo' ? 'Festivo' : 'Vacac.'}</span>
                   <span className="tcal-corto" aria-hidden="true">{corto(d)}</span>
+                  <i className="tcal-barra" aria-hidden="true" />
                   {d.cambio && <i className="tc-cambio" />}
                 </button>
               );
@@ -618,6 +664,10 @@ export function TurnosPage() {
               {admin && <button className="btn btn-primary btn-sm" onClick={() => setEditar({ emp: persona, t: selT })}><Pencil size={14} /> Cambiar</button>}
             </div>
           ) : <p className="turnos-ayuda">Toca un día para ver el horario{admin ? ' o cambiarlo' : ''}.</p>}
+          <div className="tcal-leyenda" aria-hidden="true">
+            <span><i className="tcal-manana" />Mañana</span><span><i className="tcal-tarde" />Tarde</span>
+            <span><i className="tcal-jornada" />Jornada</span><span><i className="tcal-vac" />Vacaciones</span><span><i className="tcal-lib" />Libre</span>
+          </div>
         </section>
       )}
 

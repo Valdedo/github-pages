@@ -19,7 +19,10 @@ interface Paso {
 
 const PASOS: Paso[] = [
   { titulo: 'Te enseño lo nuevo en un minuto',
-    texto: 'Vamos paso a paso. Pulsa «Siguiente» para avanzar o «Saltar» si ya lo sabes. Puedes volver a verlo cuando quieras desde «Tutorial» en el menú.' },
+    texto: 'Vamos paso a paso. Pulsa «Siguiente» para avanzar o «Saltar» si ya lo sabes. Puedes volver a verlo cuando quieras: toca tu círculo de arriba y «Ver el tutorial».' },
+  { ruta: '/', sel: ['[data-tour="cuenta"]', '.cuenta-fila'], titulo: 'Tu círculo',
+    texto: 'Toca tu inicial y ves tu turno de hoy y de mañana. Desde ahí entras a tus turnos de la semana, tu código, los avisos y cerrar sesión.',
+    textoOtro: 'Aquí abajo está tu nombre: tócalo y ves tu turno de hoy y de mañana, tus turnos, tu código, los avisos y cerrar sesión.' },
   { ruta: '/firmas', sel: ['[data-tour="nav-firmas"]'], titulo: 'Albaranes de venta',
     texto: 'Aquí van los albaranes de TreyFACT a clientes. Los de proveedor están en «Albaranes de compra».' },
   { ruta: '/firmas', sel: ['[data-tour="subir-albaranes"]'], titulo: 'Sube el albarán',

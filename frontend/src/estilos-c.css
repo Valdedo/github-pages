@@ -311,3 +311,117 @@ html:has(.con-barra) { scroll-padding-bottom: 190px; }
 .tuto-botones { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
 .tuto-saltar { margin-right: auto; color: var(--text-3) !important; }
 @media (prefers-reduced-motion: reduce) { .tuto-hueco { animation: none; transition: none; } }
+
+/* ── El círculo de la cuenta (arriba a la derecha) ── */
+.cuenta { position: relative; flex-shrink: 0; }
+.cuenta-ava {
+  width: 42px; height: 42px; border-radius: 50%; border: 0; color: #fff; cursor: pointer;
+  font-family: var(--font-display); font-size: 19px; font-weight: 600; display: grid; place-items: center;
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--border); transition: transform .15s var(--ease-out);
+}
+.cuenta-ava:active { transform: scale(.94); }
+.cuenta-ava[aria-expanded="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--cf-verde); }
+.cuenta-ava.grande { width: 48px; height: 48px; font-size: 22px; box-shadow: none; cursor: default; }
+.cuenta-panel {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 320; width: min(340px, calc(100vw - 24px));
+  background: var(--surface); border-radius: 22px; box-shadow: 0 18px 44px rgb(18 58 38 / .24), 0 0 0 1px var(--border);
+  overflow: hidden; animation: cuenta-sale .18s var(--ease-out); transform-origin: top right;
+}
+@keyframes cuenta-sale { from { opacity: 0; transform: scale(.96) translateY(-4px); } }
+.cuenta-cab { display: flex; gap: 12px; align-items: center; padding: 16px 16px 12px; }
+.cuenta-cab b { display: block; font-size: 16px; }
+.cuenta-cab small { color: var(--text-3); font-size: 12.5px; }
+.cuenta-turnos {
+  display: flex; flex-direction: column; gap: 2px; width: calc(100% - 24px); margin: 0 12px 10px; padding: 10px 14px;
+  background: var(--brand-pale); border: 0; border-radius: 16px; font: inherit; text-align: left; cursor: pointer; color: inherit;
+}
+.cuenta-turnos:hover { background: var(--brand-light); }
+.cuenta-turnos > span { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; }
+.cuenta-turnos em { font-style: normal; width: 78px; flex-shrink: 0; font-size: 11.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
+.cuenta-turnos em i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cuenta-turnos b { font-size: 15px; color: var(--cf-bosque-2); }
+.cuenta-turnos b.libre { color: var(--text-3); font-weight: 600; }
+.cuenta-turnos-tit { font-size: 11.5px; font-weight: 700; color: var(--cf-bosque); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.cuenta-items { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.cuenta-items button {
+  display: flex; align-items: center; gap: 12px; min-height: 50px; padding: 0 16px; border: 0; background: none;
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--text-1); cursor: pointer; text-align: left;
+}
+.cuenta-items button + button { border-top: 1px solid var(--border); }
+.cuenta-items button:hover { background: var(--surface-2); }
+.cuenta-items button > svg:first-child { color: var(--cf-bosque); flex-shrink: 0; }
+.cuenta-items small { margin-left: auto; color: var(--text-3); font-weight: 500; font-size: 12.5px; }
+.cuenta-items button > svg:last-child:not(:first-child) { color: var(--text-3); }
+.cuenta-items small + svg { margin-left: 6px; }
+.cuenta-items button:not(:has(small)) > svg:last-child:not(:first-child) { margin-left: auto; }
+.cuenta-items .cuenta-salir { color: var(--danger); }
+.cuenta-items .cuenta-salir > svg:first-child { color: var(--danger); }
+.mobile-header .cuenta-cabecera { margin-left: auto; }
+.mobile-header .cuenta-ava { width: 36px; height: 36px; font-size: 17px; }
+.inicio-head .cuenta-inicio { margin-left: 4px; }
+@media (max-width: 768px) {
+  .inicio-head { position: relative; }
+  .inicio-head .cuenta-inicio { position: absolute; top: 14px; right: 14px; margin: 0; }
+  .inicio-head > div:first-child { padding-right: 52px; }
+}
+
+/* ── Turnos: semana de una persona y mes con colores (oct. 2026) ── */
+.turnos-seg { display: flex; background: var(--grey-200); border-radius: 999px; padding: 4px; margin: 4px 0 12px; max-width: 360px; }
+.turnos-seg button { flex: 1; border: 0; background: none; border-radius: 999px; padding: 9px 12px; font: inherit; font-weight: 700; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.turnos-seg button.on { background: var(--surface); color: var(--cf-bosque-2); box-shadow: 0 1px 3px rgb(0 0 0 / .1); }
+.turnos-semana { display: flex; flex-direction: column; gap: 7px; touch-action: pan-y; }
+.turnos-semana-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.turnos-semana-nav b { font-family: var(--font-display); font-size: 19px; font-weight: 600; }
+.turnos-flecha-red { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--cf-bosque); display: grid; place-items: center; cursor: pointer; }
+.tsem {
+  position: relative; display: flex; align-items: center; gap: 14px; width: 100%; min-height: 66px; padding: 10px 14px;
+  border-radius: 16px; background: var(--surface); border: 1.5px solid transparent; font: inherit; text-align: left; color: inherit;
+}
+button.tsem { cursor: pointer; }
+button.tsem:active { transform: scale(.985); }
+.tsem.hoy { border-color: var(--cf-verde); background: var(--brand-pale); }
+.tsem.pasado { opacity: .55; }
+.tsem-libre, .tsem-festivo { background: var(--surface-2); }
+.tsem-vacaciones { background: #F4F0FF; }
+.tsem-dia { width: 44px; flex-shrink: 0; text-align: center; display: flex; flex-direction: column; }
+.tsem-dia small { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.tsem.hoy .tsem-dia small { color: var(--cf-bosque); }
+.tsem-dia b { font: 600 24px var(--font-display); line-height: 1.1; }
+.tsem-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tsem-txt b { font-size: 16.5px; color: var(--cf-bosque-2); overflow-wrap: anywhere; }
+.tsem-libre .tsem-txt b, .tsem-festivo .tsem-txt b { color: var(--text-3); font-weight: 600; }
+.tsem-vacaciones .tsem-txt b { color: #5B4BB8; }
+.tsem-txt small { font-size: 12.5px; color: var(--text-3); }
+.tsem-tag { flex-shrink: 0; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--brand-light); color: var(--cf-bosque-2); white-space: nowrap; }
+.tsem-tag.t-tarde { background: #FFE7C7; color: #7A4A00; }
+.tsem-tag.t-vacaciones { background: #E6E0FF; color: #5B4BB8; }
+.tsem-tag.t-festivo { background: #FFF1D6; color: #7A4A00; }
+.tsem .tc-cambio { position: absolute; top: 8px; right: 8px; }
+.tsem-lapiz { color: var(--text-3); flex-shrink: 0; }
+/* Mes: rayita de color debajo del número (en el móvil sustituye al texto) */
+.tcal-barra { display: none; }
+.tcal-leyenda { display: none; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 12px; color: var(--text-2); }
+.tcal-leyenda span { display: flex; align-items: center; gap: 5px; }
+.tcal-leyenda i, .turnos-cal-dia .tcal-barra { width: 18px; height: 6px; border-radius: 3px; background: var(--cf-verde); }
+.tcal-leyenda .tcal-tarde, .turnos-cal-dia.tcal-tarde .tcal-barra { background: #F0A030; }
+.tcal-leyenda .tcal-jornada, .turnos-cal-dia.tcal-jornada .tcal-barra, .turnos-cal-dia.tcal-entrada .tcal-barra, .turnos-cal-dia.tcal-salida .tcal-barra { background: linear-gradient(90deg, var(--cf-verde) 50%, #F0A030 50%); }
+.tcal-leyenda .tcal-vac, .turnos-cal-dia.tc-vacaciones .tcal-barra { background: #7C6CD8; }
+.tcal-leyenda .tcal-lib, .turnos-cal-dia.tc-libre .tcal-barra, .turnos-cal-dia.tc-festivo .tcal-barra { background: transparent; border: 1.5px dashed var(--border-strong); }
+@media (max-width: 560px) {
+  .turnos-cal-dia { align-items: center; justify-content: center; gap: 5px; min-height: 56px; }
+  .turnos-cal-dia .tcal-corto, .turnos-cal-dia .tcal-largo { display: none !important; }
+  .turnos-cal-dia .tcal-barra { display: block; }
+  .tcal-leyenda { display: flex; }
+  .turnos-seg { max-width: none; }
+}
+/* En el menú lateral del ordenador: fila con tu círculo, nombre y turno de hoy; la tarjeta se abre hacia arriba */
+.cuenta-lateral { margin: 8px 6px 6px; }
+.cuenta-fila { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-2); font: inherit; text-align: left; cursor: pointer; color: inherit; }
+.cuenta-fila:hover, .cuenta-fila[aria-expanded="true"] { border-color: var(--cf-verde); background: var(--brand-pale); }
+.cuenta-fila .cuenta-ava { width: 34px; height: 34px; font-size: 16px; box-shadow: none; cursor: inherit; flex-shrink: 0; }
+.cuenta-fila-txt { min-width: 0; display: flex; flex-direction: column; }
+.cuenta-fila-txt b { font-size: 14px; }
+.cuenta-fila-txt small { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cuenta-lateral .cuenta-panel { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; transform-origin: bottom left; }
+.tsem-tramo { display: block; }
+@media (min-width: 420px) { .tsem-tramo { display: inline; } .tsem-tramo + .tsem-tramo::before { content: ' · '; } }
