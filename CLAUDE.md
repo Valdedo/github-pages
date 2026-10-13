@@ -88,6 +88,12 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   el horario grande, se desliza para cambiar de semana y el encargado toca un día para cambiarlo. Mes en el móvil = rayita de
   color por tipo (`tcal-<tipo>`) en vez de texto. «Turnos» sigue también en el menú (decisión de Andrés, primer mes).
 
+## Inicio (13/10/2026, simplificado)
+- Orden: saludo + subir albaranes + círculo · 3 accesos (precio, reparación, pedido; «firmar» ya no, está en la tarjeta) ·
+  correo / vencimientos / avisos solo si hay algo · tarjetas Por firmar, Por facturar, Cargas en curso y Pedidos sin completar
+  (solo si hay) · franja «Hoy en la tienda» (`EnLaTienda` en `TurnoHoy.tsx`) · «Para no olvidar» solo si hay algo · «Hoy»
+  agrupado por tipo (se despliega). Las reparaciones listas y pedidos llegados salen como «buenas noticias», no como tarjeta.
+
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`
   (los arreglos puntuales de datos también van ahí, ejecutándose una sola vez).

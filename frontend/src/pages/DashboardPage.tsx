@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Upload, PenLine, Check, Mail, Receipt, MessageCircle, FileText } from 'lucide-react';
-import { getDashboardStats, listFirmas, listDocuments, uploadFirmas, describeApiError } from '../api/client';
+import { ArrowUpRight, Upload, PenLine, Check, Mail, Receipt, MessageCircle, FileText, ChevronDown } from 'lucide-react';
+import { getDashboardStats, listFirmas, listDocuments, uploadFirmas, listarCargas, describeApiError, type OrdenCarga } from '../api/client';
 import { ES_MANUAL } from '../lib/proveedor';
 import { ConnectionError } from '../components/ConnectionError';
 import { FirmasAvisos } from '../components/FirmasAvisos';
 import { CorreoCard } from '../components/CorreoCard';
-import { TurnoHoy } from '../components/TurnoHoy';
+import { EnLaTienda } from '../components/TurnoHoy';
 import { MenuCuenta } from '../components/MenuCuenta';
 import { AvisosCard } from '../components/AvisosCard';
 import { VencimientosCard } from '../components/VencimientosCard';
@@ -55,6 +55,11 @@ const diasDesde = (iso: string) => {
   return Math.max(0, Math.round((b - a) / 86400000));
 };
 
+const RESUMEN: Record<Actividad['tipo'], (n: number) => string> = {
+  firma: n => `${n} albaranes firmados`, factura: n => `${n} albaranes facturados`, correo: n => `${n} enviados por correo`,
+  whatsapp: n => `${n} enviados por WhatsApp`, proveedor: n => `${n} albaranes de compra leídos`,
+};
+
 interface Actividad { key: string; at: string; titulo: string; detalle: string; tipo: 'firma' | 'correo' | 'whatsapp' | 'factura' | 'proveedor'; to: string }
 
 function Tile({ to, titulo, valor, detalle, destacado }: { to: string; titulo: string; valor: number; detalle: string; destacado?: boolean }) {
@@ -81,10 +86,13 @@ export function DashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [docs, setDocs] = useState<DocumentListItem[]>([]);
+  const [cargas, setCargas] = useState<OrdenCarga[]>([]);
+  const [abierto, setAbierto] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
-    const [st, fi, dc] = await Promise.allSettled([getDashboardStats(), listFirmas(), listDocuments()]);
+    const [st, fi, dc, cg] = await Promise.allSettled([getDashboardStats(), listFirmas(), listDocuments(), listarCargas()]);
+    if (cg.status === 'fulfilled') setCargas(cg.value.data);
     if (st.status === 'fulfilled') setStats(st.value.data);
     if (fi.status === 'fulfilled') setNotes(fi.value.data);
     if (dc.status === 'fulfilled') setDocs(dc.value.data);
@@ -126,7 +134,7 @@ export function DashboardPage() {
       const subido = utcAMadrid(d.created_at);
       if (subido.startsWith(hoy) && !ES_MANUAL(d.supplier_name)) a.push({ key: `d${d.id}`, at: subido, titulo: 'Albarán de compra leído', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
     });
-    return a.sort((x, y) => (y.at > x.at ? 1 : -1)).slice(0, 7);
+    return a.sort((x, y) => (y.at > x.at ? 1 : -1));
   }, [notes, s.recent_documents]);
 
   const onFiles = async (list: FileList | null) => {
@@ -143,6 +151,14 @@ export function DashboardPage() {
   };
 
   const iconos = { firma: PenLine, correo: Mail, whatsapp: MessageCircle, factura: Receipt, proveedor: FileText };
+  // «Hoy»: lo del mismo tipo, junto («6 albaranes firmados hoy», se despliega al tocarlo)
+  const grupos = (['firma', 'factura', 'correo', 'whatsapp', 'proveedor'] as const)
+    .map(tipo => ({ tipo, items: actividad.filter(a => a.tipo === tipo) }))
+    .filter(g => g.items.length)
+    .sort((a, b) => (b.items[0].at > a.items[0].at ? 1 : -1));
+  const enCurso = cargas.filter(o => o.estado !== 'entregado');
+  const porCargar = enCurso.filter(o => o.estado === 'preparando').length;
+  const enMovil = enCurso.filter(o => o.enviada_at).length;
 
   return (
     <div className="page inicio">
@@ -161,9 +177,14 @@ export function DashboardPage() {
         <MenuCuenta className="cuenta-inicio" />
       </header>
 
+      <section className="inicio-rapidos accesos-peg tres" aria-label="Accesos rápidos">
+        <AccesoPegatina to="/consulta" dibujo="precio" escala={1.15} lineas={['Consultar', 'un precio']} giro={3} color="#1F5A3A" />
+        <AccesoPegatina to="/reparaciones?new=1" dibujo="llaveSola" escala={1.4} lineas={['Nueva', 'reparación']} giro={-3} />
+        <AccesoPegatina to="/pedidos?new=1" dibujo="cajaMas" escala={1.5} lineas={['Nuevo', 'pedido']} giro={3} color="#1F5A3A" />
+      </section>
+
       <CorreoCard />
       <VencimientosCard />
-      <TurnoHoy />
       <AvisosCard />
 
       {(s.orders.recibido > 0 || s.repairs.reparada > 0) && (
@@ -191,19 +212,21 @@ export function DashboardPage() {
         </section>
       )}
 
-      <section className="inicio-tiles" aria-label="Pendiente">
+      <section className={`inicio-tiles${s.orders.pending > 0 ? '' : ' tres'}`} aria-label="Pendiente">
         <Tile to="/firmas?vista=firmar" destacado titulo="Por firmar" valor={loading ? 0 : porFirmar.length}
           detalle={detalleFirmar} />
         <Tile to="/firmas?vista=facturar" titulo="Por facturar" valor={loading ? 0 : porFacturar.length}
           detalle={porFacturar.length === 0 ? 'Nada pendiente' : `De ${empresasFacturar} empresa${empresasFacturar !== 1 ? 's' : ''}${importeFacturar > 0 ? ` · ${euros(importeFacturar)}` : ''}`} />
-        <Tile to="/reparaciones" titulo="Reparaciones listas" valor={s.repairs.reparada}
-          detalle={s.repairs.reparada ? 'Para avisar al cliente' : `${s.repairs.pending} en curso`} />
-        <Tile to="/pedidos" titulo="Pedidos sin completar" valor={s.orders.pending}
-          detalle={s.orders.pending ? 'Esperando al proveedor' : 'Todo recibido'} />
+        <Tile to="/cargas" titulo="Cargas en curso" valor={enCurso.length}
+          detalle={enCurso.length === 0 ? 'Nada por cargar' : [porCargar ? `${porCargar} por cargar` : '', enMovil ? `${enMovil} en el móvil de Melchor` : ''].filter(Boolean).join(' · ') || 'Cargadas, falta entregar'} />
+        {s.orders.pending > 0 && (
+          <Tile to="/pedidos" titulo="Pedidos sin completar" valor={s.orders.pending} detalle="Esperando al proveedor" />
+        )}
       </section>
+      <EnLaTienda />
 
       <div className="inicio-cols">
-        <section className="card inicio-bloque" aria-label="Para no olvidar">
+        <section className="card inicio-bloque inicio-olvidar" aria-label="Para no olvidar">
           <h2>Para no olvidar</h2>
           {porTerminar.length > 0 && (
             <Link to="/albaranes" className="inicio-aviso">
@@ -216,7 +239,6 @@ export function DashboardPage() {
             </Link>
           )}
           <div className="firmas-avisos inicio-avisos"><FirmasAvisos /></div>
-          {porTerminar.length === 0 && <p className="inicio-aldia">Todo al día. Aquí saldrá lo que se esté quedando atrás.</p>}
         </section>
 
 
@@ -226,14 +248,32 @@ export function DashboardPage() {
             <p style={{ color: 'var(--text-2)', fontSize: 15 }}>Todavía no se ha firmado ni enviado nada hoy.</p>
           ) : (
             <ul className="inicio-hoy cf-enter">
-              {actividad.map(a => {
-                const Icon = iconos[a.tipo];
+              {grupos.map(g => {
+                const Icon = iconos[g.tipo];
+                const ico = <span className={`inicio-hoy-ico ${g.tipo}`}>{g.tipo === 'firma' ? <Check size={16} strokeWidth={3} /> : <Icon size={16} />}</span>;
+                if (g.items.length === 1) {
+                  const a = g.items[0];
+                  return (
+                    <li key={a.key}>
+                      <Link to={a.to}>{ico}<span className="inicio-hoy-txt"><b>{a.titulo}</b><small>{a.detalle} · {hora(a.at)}</small></span></Link>
+                    </li>
+                  );
+                }
+                const abiertoG = abierto === g.tipo;
                 return (
-                  <li key={a.key}>
-                    <Link to={a.to}>
-                      <span className={`inicio-hoy-ico ${a.tipo}`}>{a.tipo === 'firma' ? <Check size={16} strokeWidth={3} /> : <Icon size={16} />}</span>
-                      <span className="inicio-hoy-txt"><b>{a.titulo}</b><small>{a.detalle} · {hora(a.at)}</small></span>
-                    </Link>
+                  <li key={g.tipo} className={`inicio-hoy-grupo${abiertoG ? ' abierto' : ''}`}>
+                    <button onClick={() => setAbierto(abiertoG ? null : g.tipo)} aria-expanded={abiertoG}>
+                      {ico}
+                      <span className="inicio-hoy-txt"><b>{RESUMEN[g.tipo](g.items.length)}</b><small>El último a las {hora(g.items[0].at)} · {g.items[0].detalle}</small></span>
+                      <ChevronDown size={18} className="inicio-hoy-flecha" />
+                    </button>
+                    {abiertoG && (
+                      <ul>
+                        {g.items.map(a => (
+                          <li key={a.key}><Link to={a.to}><span className="inicio-hoy-txt"><b>{a.titulo}</b><small>{a.detalle} · {hora(a.at)}</small></span></Link></li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 );
               })}
@@ -242,12 +282,6 @@ export function DashboardPage() {
         </section>
       </div>
 
-      <section className="inicio-rapidos accesos-peg" aria-label="Accesos rápidos">
-        <AccesoPegatina to="/firmas" dibujo="albaranBoli" escala={1.05} lineas={['Firmar', 'un albarán']} giro={-3} />
-        <AccesoPegatina to="/consulta" dibujo="precio" escala={1.15} lineas={['Consultar', 'un precio']} giro={3} color="#1F5A3A" />
-        <AccesoPegatina to="/reparaciones?new=1" dibujo="llaveSola" escala={1.4} lineas={['Nueva', 'reparación']} giro={3} color="#1F5A3A" />
-        <AccesoPegatina to="/pedidos?new=1" dibujo="cajaMas" escala={1.5} lineas={['Nuevo', 'pedido']} giro={-3} />
-      </section>
     </div>
   );
 }

@@ -429,3 +429,40 @@ button.tsem:active { transform: scale(.985); }
 .reparto-header .cuenta-reparto { margin-left: auto; }
 .reparto-header .cuenta-ava { width: 36px; height: 36px; font-size: 17px; box-shadow: 0 0 0 2px rgb(255 255 255 / .85); }
 .reparto-header .cuenta-panel { color: var(--text-1); }
+
+/* ── Inicio simplificado (13/10/2026) ── */
+.inicio-tiles.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.inicio-rapidos.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (min-width: 769px) { .inicio-rapidos.tres { max-width: 760px; } }
+@media (max-width: 1100px) { .inicio-tiles.tres { grid-template-columns: repeat(2, minmax(0, 1fr)); } .inicio-tiles.tres > :first-child { grid-column: 1 / -1; } }
+@media (max-width: 768px) {
+  .inicio-rapidos.tres { gap: 4px 8px !important; padding-top: 18px; }
+  .inicio-rapidos.tres .acceso-peg { max-width: 118px; justify-self: center; }
+}
+/* La sección «Para no olvidar» solo sale si hay algo */
+.inicio-olvidar:not(:has(.inicio-aviso, .firmas-avisos > *)) { display: none; }
+/* Hoy en la tienda: franja fina */
+.enlatienda {
+  display: flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; padding: 12px 18px; border-radius: 18px;
+  background: var(--surface); text-decoration: none; color: inherit; border: 1px solid transparent;
+}
+.enlatienda:hover { border-color: var(--border-strong); }
+.enlatienda-tit { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--cf-bosque); text-transform: uppercase; letter-spacing: .05em; }
+.enlatienda-lista { display: flex; flex-wrap: wrap; gap: 8px 18px; flex: 1; min-width: 0; }
+.enlatienda-p { display: flex; align-items: center; gap: 8px; }
+.enlatienda-p > span:last-child { display: flex; flex-direction: column; line-height: 1.2; }
+.enlatienda-p b { font-size: 14px; }
+.enlatienda-p small { font-size: 12px; color: var(--text-3); }
+.enlatienda-nadie { color: var(--text-3); flex: 1; }
+.enlatienda-ver { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--cf-bosque); margin-left: auto; }
+@media (max-width: 520px) {
+  .enlatienda { padding: 12px 14px; }
+  .enlatienda-lista { flex-basis: 100%; order: 3; gap: 8px 14px; }
+  .enlatienda-p small { display: none; }
+}
+/* Hoy: lo del mismo tipo junto */
+.inicio-hoy-grupo > button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: inherit; }
+.inicio-hoy-flecha { margin-left: auto; color: var(--text-3); transition: transform .2s; flex-shrink: 0; }
+.inicio-hoy-grupo.abierto .inicio-hoy-flecha { transform: rotate(180deg); }
+.inicio-hoy-grupo > ul { list-style: none; margin: 0 0 6px 44px; padding: 0; border-left: 2px solid var(--border); }
+.inicio-hoy-grupo > ul li a { display: flex; padding: 7px 0 7px 12px; text-decoration: none; color: inherit; }

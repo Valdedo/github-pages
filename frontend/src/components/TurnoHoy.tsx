@@ -85,3 +85,33 @@ export function TurnoHoy({ fijo, enlace = '/turnos' }: { fijo?: string; enlace?:
     </section>
   );
 }
+
+/** Franja fina de Inicio: quién está hoy en la tienda (el turno propio ya sale en el círculo). */
+export function EnLaTienda() {
+  const [c, setC] = useState<Cuadrante | null>(null);
+  useEffect(() => {
+    const cargar = () => getTurnosHoy().then(r => setC(r.data)).catch(() => { /* sin turnos: no se enseña */ });
+    cargar();
+    const t = setInterval(cargar, 10 * 60000);
+    return () => clearInterval(t);
+  }, []);
+  if (!c?.empleados.length) return null;
+  const hoy = c.empleados.filter(e => e.dias[0]?.clase === 'trabajo');
+  const corto = (t?: TurnoDia) => (t ? t.horario.replace(' · ', ' y ') : '');
+  return (
+    <Link to="/turnos" className="enlatienda" aria-label="Quién está hoy en la tienda. Ver turnos">
+      <span className="enlatienda-tit"><CalendarDays size={17} /> Hoy en la tienda</span>
+      {hoy.length === 0 ? <span className="enlatienda-nadie">Nadie: cerrado</span> : (
+        <span className="enlatienda-lista">
+          {hoy.map(e => (
+            <span key={e.id} className="enlatienda-p" title={`${e.nombre}: ${corto(e.dias[0])}`}>
+              <span className="turnohoy-cara" style={{ background: e.color }}>{e.nombre.charAt(0)}</span>
+              <span><b>{e.nombre}</b><small>{corto(e.dias[0])}</small></span>
+            </span>
+          ))}
+        </span>
+      )}
+      <span className="enlatienda-ver">Turnos <ArrowUpRight size={15} strokeWidth={2.6} /></span>
+    </Link>
+  );
+}

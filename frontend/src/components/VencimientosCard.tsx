@@ -37,17 +37,12 @@ export function VencimientosCard() {
       </section>
     ) : null;
   }
-  if (!d.conectado) {
-    return (
-      <section className="card venc-card venc-tranquila" aria-label="Vencimientos">
-        <span className="venc-ico"><CalendarClock size={20} /></span>
-        <span>Vencimientos de facturas: esperando a que el script de facturas mande los primeros datos.</span>
-      </section>
-    );
-  }
+  // Solo sale si vence algo, si hay una factura grande cerca o si el script ha dejado de mandar datos
+  if (!d.conectado) return null;
 
   const total = d.dias.reduce((t, g) => t + g.total, 0);
   const nada = d.dias.every(g => g.facturas.length === 0);
+  if (nada && !d.atrasado && !(d.grandes || []).length) return null;
   const viernes = d.dias.length > 3;
 
   return (
