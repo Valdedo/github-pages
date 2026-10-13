@@ -3,7 +3,7 @@ import { normaliza } from './texto';
 
 export interface TarifaResumen {
   id: string; nombre: string; sub: string;
-  articulos: number | null; familias: number | null; actualizada: string | null;
+  articulos: number | null; familias: number | null; actualizada: string | null; en_pruebas?: boolean;
 }
 export interface TarifaMedida {
   ref: string; codigo?: string | null; original?: string | null; foto?: string | null; descripcion: string; valor: string; ud_medida: string; unidad: string; ud_venta: string;

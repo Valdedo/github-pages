@@ -16,37 +16,42 @@ def puede_ver(request: Request):
 router = APIRouter(prefix="/api/tarifas", tags=["tarifas"], dependencies=[Depends(puede_ver)])
 
 
-def _prov(prov: str) -> str:
-    if prov not in ts.TARIFAS:
+def _admin(request: Request) -> bool:
+    return not acc.config() or getattr(request.state, "rol", None) == "admin"
+
+
+def _prov(prov: str, request: Request) -> str:
+    # Las tarifas «en pruebas» (Isoltubex, oct. 2026) solo las ve Andrés hasta que dé el visto bueno
+    if prov not in ts.TARIFAS or (ts.TARIFAS[prov].get("en_pruebas") and not _admin(request)):
         raise HTTPException(404, "Esa tarifa no está en el catálogo")
     return prov
 
 
 @router.get("")
-def proveedores(db: Session = Depends(get_db)):
-    return ts.resumen(db)
+def proveedores(request: Request, db: Session = Depends(get_db)):
+    return ts.resumen(db, en_pruebas=_admin(request))
 
 
 @router.get("/{prov}")
-def tarifa(prov: str, db: Session = Depends(get_db)):
+def tarifa(prov: str, request: Request, db: Session = Depends(get_db)):
     try:
-        return ts.tarifa(db, _prov(prov))
+        return ts.tarifa(db, _prov(prov, request))
     except RuntimeError as e:
         raise HTTPException(503, str(e))
 
 
 @router.post("/{prov}/actualizar")
-def actualizar(prov: str, db: Session = Depends(get_db)):
+def actualizar(prov: str, request: Request, db: Session = Depends(get_db)):
     try:
-        return ts.tarifa(db, _prov(prov), forzar=True)
+        return ts.tarifa(db, _prov(prov, request), forzar=True)
     except RuntimeError as e:
         raise HTTPException(503, str(e))
 
 
 @router.get("/{prov}/articulo")
-def articulo(prov: str, ref: str = Query(..., min_length=1), db: Session = Depends(get_db)):
+def articulo(prov: str, request: Request, ref: str = Query(..., min_length=1), db: Session = Depends(get_db)):
     try:
-        f = ts.ficha(db, _prov(prov), ref)
+        f = ts.ficha(db, _prov(prov, request), ref)
     except RuntimeError as e:
         raise HTTPException(503, str(e))
     if not f:

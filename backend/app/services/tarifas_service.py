@@ -52,6 +52,7 @@ TARIFAS = {
         "hoja": "1JGwpDqDF0yHzQfytvrpH00B3p3ohjO-M7AsdZoodPuM",  # TARIFA_ISOLTUBEX_2026 (la buena; hay dos copias viejas de abril)
         "pestanas": isoltubex.PESTANAS,
         "redondeo": "terminación comercial (…,50 / …,95)",
+        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
 }
 
@@ -557,9 +558,11 @@ def _grupos_sub(arts: list, orden: Optional[list] = None) -> list:
     return out
 
 
-def resumen(db: Session) -> list:
+def resumen(db: Session, en_pruebas: bool = True) -> list:
     out = []
     for prov, cfg in TARIFAS.items():
+        if cfg.get("en_pruebas") and not en_pruebas:
+            continue
         try:
             c, _ = copia(db, prov)  # la primera vez se lee de Drive para poder dar los números
         except RuntimeError:
@@ -570,6 +573,7 @@ def resumen(db: Session) -> list:
             "articulos": len(datos["articulos"]) if datos else None,
             "familias": len({a["categoria"] for a in datos["articulos"]}) if datos else None,
             "actualizada": _actualizada(c) if c and c.leido_at else None,
+            "en_pruebas": bool(cfg.get("en_pruebas")),
         })
     return out
 

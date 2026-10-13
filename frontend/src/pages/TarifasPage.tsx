@@ -231,7 +231,7 @@ export function TarifasPage() {
               <Link key={p.id} to={`/tarifas/${p.id}`} className="tf-prov">
                 <img src={pegatina(PEGATINA_PROVEEDOR[p.id] ?? 'prov-hierros')} alt="" className="tf-prov-peg" />
                 <span className="tf-prov-txt">
-                  <strong>{p.nombre}</strong>
+                  <strong>{p.nombre}{p.en_pruebas && <span className="tf-etiqueta" title="Solo la ves tú hasta que la apruebes"> En pruebas</span>}</strong>
                   <small>{p.sub}{p.articulos != null ? ` · ${p.articulos} artículos · ${p.familias} familias` : ''}</small>
                   {p.actualizada && <em>Actualizada el {fechaES(p.actualizada)}</em>}
                 </span>
