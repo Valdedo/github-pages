@@ -514,6 +514,7 @@ export function TarifaFamiliaPage() {
 
 // ── 4 · Ficha de un artículo ──────────────────────────────────────────────
 function Evolucion({ puntos, ud }: { puntos: { fecha: string; precio: number }[]; ud: string }) {
+  if (!puntos.length) return <p className="tf-nota">Aún no hay precio de compra apuntado.</p>;
   if (puntos.length < 2) {
     return <p className="tf-nota">Solo hay un precio de compra apuntado ({puntos[0] ? `${eur(puntos[0].precio)} en ${mesLargo(puntos[0].fecha)}` : '—'}).
       Cada precio nuevo que entre se irá añadiendo aquí.</p>;
@@ -583,18 +584,21 @@ export function TarifaFichaPage() {
   const foto = d && (
     <div className="tf-ficha-foto">
       <Foto src={fotoArticulo(d.familia.nombre, d.descripcion, d.foto)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
-      {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">Foto de referencia</span>}
+      {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">
+        {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex' : 'Foto de referencia'}</span>}
     </div>
   );
   const precios = d && (
     <div className="tf-precios">
       <div className="tf-precio-venta">
         <small>Venta sin IVA</small>
-        <strong>{eur(d.pvp)}<span>/{d.ud_venta}</span></strong>
-        <em>{eurUd(d.pvp_iva, d.ud_venta)} con IVA</em>
-        {d.nota && <span className={`tf-etiqueta${/revisar/i.test(d.nota) ? ' aviso' : ''}`}
-          title={/revisar/i.test(d.nota) ? 'El precio ha cambiado mucho: conviene mirarlo' : 'Primera vez que se compra'}>
+        {d.pvp != null ? <strong>{eur(d.pvp)}<span>/{d.ud_venta}</span></strong> : <strong>Sin precio</strong>}
+        {d.pvp_iva != null && <em>{eurUd(d.pvp_iva, d.ud_venta)} con IVA</em>}
+        {d.nota && <span className={`tf-etiqueta${/revisar|neto/i.test(d.nota) ? ' aviso' : ''}`}
+          title={/neto/i.test(d.nota) ? 'Sale en la tarifa de Isoltubex pero no tenemos su precio neto: hay que pedirlo'
+            : /revisar/i.test(d.nota) ? 'El precio ha cambiado mucho: conviene mirarlo' : 'Primera vez que se compra'}>
           {/revisar/i.test(d.nota) ? 'Revisar precio' : d.nota.charAt(0) + d.nota.slice(1).toLowerCase()}</span>}
+        {d.pvp == null && /neto/i.test(d.nota ?? '') && <span className="tf-nota" style={{ color: 'inherit', opacity: 0.9 }}>Pide el precio neto a Isoltubex antes de venderlo.</span>}
       </div>
       <div className="tf-caja tf-dato"><small>Coste actual</small><strong>{eurUd(d.coste, d.ud_venta)}</strong>
         <span>{eur(d.precio)} / {d.ud_compra}</span></div>
@@ -614,8 +618,10 @@ export function TarifaFichaPage() {
   );
   const compra = d && (
     <section className="tf-caja">
-      <h2>Última compra</h2>
-      {d.factura ? (
+      <h2>{d.origen && !d.factura ? 'De dónde sale el coste' : 'Última compra'}</h2>
+      {d.origen && !d.factura ? (
+        <p className="tf-nota">{d.precio != null ? d.origen : 'Isoltubex aún no nos ha pasado su precio neto.'}</p>
+      ) : d.factura ? (
         <>
           <div className="tf-factura">
             <span>Factura <strong>{d.factura.numero}</strong>{d.factura.seguro === false ? ' (la del mismo mes)' : ''}</span>
@@ -655,6 +661,7 @@ export function TarifaFichaPage() {
         {d.medida && <><dt>Medida</dt><dd>{conPor(d.medida)}</dd></>}
         <dt>Familia</dt><dd>{d.familia.nombre}{d.subcategoria ? ` · ${d.subcategoria}` : ''}</dd>
         {d.original && <><dt>En la factura</dt><dd className="tf-cod">{d.original}</dd></>}
+        {d.pvp_fab != null && <><dt>PVP de tarifa Isoltubex</dt><dd>{eurUd(d.pvp_fab, d.ud_compra)}</dd></>}
         <dt>Se compra por</dt><dd>{d.ud_compra}</dd>
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}

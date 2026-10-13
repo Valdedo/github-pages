@@ -32,15 +32,16 @@ export interface FichaTarifa {
   codigo?: string | null; subcategoria?: string | null; redondeo?: string | null;
   compras?: number | null; minimo?: number | null; nota?: string | null; apunte?: string | null;
   original?: string | null; tipo?: string | null; foto?: string | null;
+  // Isoltubex: PVP de la tarifa del fabricante y de dónde sale el coste (no trae facturas)
+  pvp_fab?: number | null; origen?: string | null;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). */
 export const PROXIMAMENTE = [
   { id: 'pladur', nombre: 'Pladur', sub: 'Construdeco · placas, perfilería y pastas', pegatina: 'prov-pladur' },
   { id: 'dinak', nombre: 'Dinak', sub: 'Construdeco · chimeneas', pegatina: 'prov-dinak' },
-  { id: 'isoltubex', nombre: 'Isoltubex', sub: 'Tubería y aislamiento', pegatina: 'prov-isoltubex' },
 ];
-export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta' };
+export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex' };
 
 export const pegatina = (nombre: string) => `/catalogo/st-${nombre}.png`;
 
@@ -83,9 +84,24 @@ const FAMILIAS: [RegExp, string][] = [
   [/redondos galv/, 'tubo-redondo-galv'], [/galvaniz/, 'tubo-galv'], [/iso/, 'tubo-iso'],
   [/cubierta|panel/, 'chapa-ondulada'], [/chapa/, 'chapa'], [/redondo/, 'redondo'],
 ];
+// Familias de Isoltubex (oct. 2026): nombres propios que no se cruzan con los de Zabaleta ni Hierros
+const ISOLTUBEX: [RegExp, string][] = [
+  [/^tuberia multicapa/, 'iso-tubo-multicapa'], [/^tuberia pex/, 'iso-tubo-pex'],
+  [/^accesorios multicapa/, 'iso-acc-multicapa'], [/^accesorios pe-rt/, 'iso-acc-pex'],
+  [/^accesorios de expansion/, 'iso-acc-expansion'], [/^accesorios de compresion/, 'iso-acc-compresion'],
+  [/^colectores y cajas/, 'iso-colector'], [/^accesorios de laton/, 'iso-acc-laton'], [/^herramientas y varios/, 'iso-herramienta'],
+];
+// Foto de cada familia de Isoltubex sin artículo elegido (del catálogo oficial, en /catalogo/iso)
+const ISO_FAMILIA: Record<string, string> = {
+  'iso-tubo-multicapa': 'i1038', 'iso-tubo-pex': 'i526', 'iso-acc-multicapa': 'i1065', 'iso-acc-pex': 'i1556',
+  'iso-acc-expansion': 'i2041', 'iso-acc-compresion': 'i1294', 'iso-colector': 'i1162', 'iso-acc-laton': 'i2410',
+  'iso-herramienta': 'i1231',
+};
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
+  const iso = ISOLTUBEX.find(([rx]) => rx.test(n));
+  if (iso) return iso[1];
   const z = ZABALETA.find(([rx]) => rx.test(n));
   if (z) return z[1];
   return FAMILIAS.find(([rx]) => rx.test(n))?.[1] ?? 'malla';
@@ -93,6 +109,9 @@ export function claveFamilia(nombre: string): string {
 /** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…).
  *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
 export function fotoArticulo(familia: string, descripcion?: string, foto?: string | null): string {
+  if (foto && foto.startsWith('/catalogo/')) return foto;  // Isoltubex: foto del catálogo oficial, ya elegida
+  const clave = claveFamilia(familia);
+  if (clave.startsWith('iso-')) return descripcion ? '' : ISO_FAMILIA[clave] ? `/catalogo/iso/${ISO_FAMILIA[clave]}.webp` : '';
   if (foto && FOTOS_ZAB[foto]) return FOTOS_ZAB[foto];  // la foto ya viene elegida en la clasificación
   const d = normaliza(descripcion || '');
   const zab = claveFamilia(familia);

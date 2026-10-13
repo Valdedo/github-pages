@@ -19,7 +19,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import mail_service
+from app.services import isoltubex, mail_service
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,14 @@ TARIFAS = {
         # NAVARRO ZABALETA (Drive de casafonsomc): PDF de las facturas, «Zabaleta_AAAA-MM-DD_nº.pdf»
         "carpeta_facturas": "1UZhkitUUjj0eAPbhywoQn2qMSvUYXUFu",
         "redondeo": "redondeado a 0,05 € (0,10 € desde 5 €)",
+    },
+    "isoltubex": {
+        "nombre": "Isoltubex",
+        "sub": "Multicapa, PEX, suelo radiante y latón",
+        "proveedor": "Isoltubex",
+        "hoja": "1JGwpDqDF0yHzQfytvrpH00B3p3ohjO-M7AsdZoodPuM",  # TARIFA_ISOLTUBEX_2026 (la buena; hay dos copias viejas de abril)
+        "pestanas": isoltubex.PESTANAS,
+        "redondeo": "terminación comercial (…,50 / …,95)",
     },
 }
 
@@ -311,7 +319,17 @@ def leer_zabaleta(hojas: dict) -> dict:
             "orden_familias": CATALOGO_ZAB["familias"], "orden_grupos": CATALOGO_ZAB["grupos"]}
 
 
-LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta}
+# ── Lector de la tarifa de Isoltubex ──────────────────────────────────────
+def leer_isoltubex(hojas: dict) -> dict:
+    """Una pestaña por tipo de accesorio; la organización (familia, grupo, tipo y medida) sale de
+    services/isoltubex.py. No trae facturas: el coste es el de las listas de netos de Isoltubex."""
+    arts = isoltubex.leer(hojas)
+    _, _, origen = isoltubex.fechas(hojas)
+    return {"articulos": arts, "log": [], "margen": None, "lineas": {}, "origen": origen,
+            "orden_familias": [f for f, _ in isoltubex.FAMILIAS], "orden_grupos": isoltubex.GRUPOS}
+
+
+LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -709,4 +727,5 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         "compras": len(lineas) or a.get("compras"), "minimo": a.get("minimo"), "nota": a.get("nota"),
         "apunte": a.get("apunte"),
         "medida": medida_txt,
+        "pvp_fab": a.get("pvp_fab"), "origen": a.get("origen") or datos.get("origen"),
     }

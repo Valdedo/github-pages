@@ -310,6 +310,90 @@ def art(name):
              f'<rect x="112" y="176" width="8" height="16" fill="#8893A0" stroke="{INK}" stroke-width="2"/>',
              f'<rect x="72" y="188" width="16" height="6" rx="2" fill="#2F7FD0"/>', f'<rect x="112" y="188" width="16" height="6" rx="2" fill="#D8443A"/>']
         return o
+    # familias de Isoltubex (oct. 2026)
+    BR = ('#E6C35A', '#C29A2E', '#9A7A1E')
+    CR = ('#E4E9EE', '#B9C2CB', '#8893A0')
+    ROJO = '#D8443A'
+    def rect(x, y, w, h, fill, rx=0, sw=SW):
+        return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{fill}" stroke="{INK}" stroke-width="{sw}"/>'
+    def ell(cx, cy, rx, ry, fill, sw=SW):
+        return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{fill}" stroke="{INK}" stroke-width="{sw}"/>'
+    def boca(cx, cy, rx, ry, col=CR[0], dentro='#3E454C'):  # extremo de un manguito visto de lado
+        return [ell(cx, cy, rx, ry, col), ell(cx, cy, rx * 0.55, ry * 0.62, dentro)]
+    def rollo(c1, c2, raya=None):
+        o = []
+        for k, r in enumerate([70, 58, 46, 34]):
+            o.append(ell(98, 112 + k * 1.5, r, round(r * 0.6, 1), c1 if k % 2 == 0 else c2))
+            if raya:
+                o.append(f'<ellipse cx="98" cy="{112 + k * 1.5}" rx="{r - 5}" ry="{(r - 5) * 0.6:.1f}" fill="none" stroke="{raya}" stroke-width="2" stroke-dasharray="10 12"/>')
+        o.append(ell(98, 117, 22, 13.2, '#F2F4F0'))
+        return o
+    if name == 'iso-tubo-multicapa':  # rollo blanco con el corte del tubo: blanco · aluminio · blanco
+        o = rollo('#F4F6F8', '#E2E7EC')
+        o += cyl((156, 140), 19, (14, 22), '#F4F6F8', '#D5DCE3', '#AEB8C2')
+        o += [circle((156, 140), 14, '#AEB8C2'), circle((156, 140), 11, '#F4F6F8', 2), circle((156, 140), 7.5, '#3E454C', 2)]
+        return o
+    if name == 'iso-tubo-pex':  # rollo rojo de PE-RT EVOH (suelo radiante)
+        o = rollo('#E2513F', '#C23A2C', raya='#F2B0A6')
+        o += cyl((156, 140), 16, (14, 22), '#E2513F', '#C23A2C', '#9A2C20', wall='#9A2C20', dark='#4A1610', rin=10)
+        return o
+    def manguito(tipo):  # unión de prensar vista de lado, con sus dos casquillos
+        anillo = {'mc': ROJO, 'pex': '#5D6166'}[tipo]
+        o = [rect(70, 108, 60, 40, BR[0], 4), f'<rect x="74" y="112" width="52" height="8" rx="3" fill="#F0D57E"/>']
+        for x in (22, 118):
+            o += [rect(x, 100, 60, 56, CR[0], 6), f'<rect x="{x + 4}" y="105" width="52" height="9" rx="4" fill="#FFFFFF"/>',
+                  rect(x + (52 if x == 22 else -2), 96, 12, 64, anillo, 3)]
+        o += boca(22, 128, 10, 28) + boca(178, 128, 10, 28)
+        return o
+    if name == 'iso-acc-multicapa':  # unión multicapa de prensar: latón, casquillos inox y anillo rojo
+        return manguito('mc')
+    if name == 'iso-acc-pex':  # te de prensar PE-RT/PEX con anillos grises
+        o = [rect(80, 46, 40, 70, CR[0], 6), f'<rect x="85" y="50" width="9" height="62" rx="4" fill="#FFFFFF"/>',
+             rect(76, 104, 48, 12, '#5D6166', 3)] + boca(100, 46, 20, 8)
+        o += manguito('pex')
+        return o
+    if name == 'iso-acc-expansion':  # codo F&R de latón con espigas y anillo de expansión azul
+        o = [rect(34, 116, 82, 40, BR[0], 4), rect(94, 50, 40, 86, BR[0], 4)]
+        for x in (44, 58, 72):
+            o.append(f'<line x1="{x}" y1="118" x2="{x}" y2="154" stroke="{BR[2]}" stroke-width="3"/>')
+        for y in (62, 76, 90):
+            o.append(f'<line x1="96" y1="{y}" x2="132" y2="{y}" stroke="{BR[2]}" stroke-width="3"/>')
+        o += [rect(98, 112, 36, 44, BR[1], 4)]
+        o += [rect(20, 110, 26, 52, '#2F7FD0', 6), f'<rect x="24" y="114" width="18" height="8" rx="3" fill="#7DB4EA"/>']
+        o += boca(20, 136, 8, 25, '#2F7FD0', '#1E3E66') + boca(114, 50, 20, 7, BR[0], '#5A4510')
+        return o
+    if name == 'iso-acc-compresion':  # racor de compresión: tuercas hexagonales cromadas y cuerpo de latón
+        o = [rect(76, 104, 48, 48, BR[0], 4)]
+        for x0 in (26, 120):  # tuerca hexagonal vista de lado: tres caras
+            o += [poly([(x0, 96), (x0 + 54, 96), (x0 + 54, 160), (x0, 160)], CR[0]),
+                  f'<rect x="{x0}" y="96" width="54" height="16" fill="#FFFFFF" stroke="{INK}" stroke-width="2"/>',
+                  f'<rect x="{x0}" y="144" width="54" height="16" fill="{CR[1]}" stroke="{INK}" stroke-width="2"/>']
+        for x in (80, 86, 92, 108, 114, 120):  # rosca del cuerpo
+            o.append(f'<line x1="{x}" y1="106" x2="{x}" y2="150" stroke="{BR[2]}" stroke-width="2"/>')
+        o += boca(26, 128, 9, 32, CR[0]) + boca(174, 128, 9, 32, CR[0])
+        return o
+    if name == 'iso-colector':  # colector de latón con tres salidas y tuercas cromadas
+        o = cyl((30, 96), 20, (140, 0), *BR, wall='#9A7A1E', dark='#5A4510', rin=12)
+        for x in (62, 104, 146):
+            o += [rect(x - 9, 112, 18, 28, BR[0], 2), poly([(x - 15, 138), (x + 15, 138), (x + 15, 166), (x - 15, 166)], CR[0]),
+                  f'<line x1="{x}" y1="140" x2="{x}" y2="164" stroke="{CR[2]}" stroke-width="2.4"/>']
+        o += [rect(152, 60, 14, 18, '#2F7FD0', 3), rect(78, 58, 14, 20, ROJO, 3)]
+        return o
+    if name == 'iso-acc-laton':  # codo de latón hembra-hembra para roscar
+        o = [rect(38, 112, 88, 46, BR[0], 6), rect(92, 46, 46, 92, BR[0], 6),
+             f'<rect x="44" y="118" width="76" height="9" rx="4" fill="#F0D57E"/>',
+             f'<rect x="98" y="52" width="10" height="80" rx="4" fill="#F0D57E"/>',
+             rect(96, 112, 38, 42, BR[1], 4)]
+        o += boca(38, 135, 9, 23, '#E6C35A', '#5A4510') + boca(115, 46, 23, 8, '#E6C35A', '#5A4510')
+        for i in range(3):
+            o.append(f'<line x1="{50 + i * 7}" y1="114" x2="{50 + i * 7}" y2="156" stroke="#B08A2A" stroke-width="2"/>')
+        return o
+    if name == 'iso-herramienta':  # prensadora manual: cabeza de acero con la mordaza y mangos azules
+        o = [f'<path d="M92 104 L58 176 Q54 184 62 186 L70 188 L106 112 Z" fill="#2F7FD0" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>',
+             f'<path d="M110 104 L160 170 Q166 178 158 182 L150 186 L96 116 Z" fill="#2F7FD0" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>',
+             circle((100, 70), 40, '#9AA3AD'), circle((100, 70), 18, '#F2F4F0'), rect(90, 98, 20, 22, '#6F7883', 3),
+             f'<rect x="64" y="38" width="22" height="10" rx="4" fill="#C9D1D9"/>', circle((100, 109), 5, '#D5DCE3', 2)]
+        return o
     raise KeyError(name)
 
 NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-cuadrado', 'tubo-rectangular', 'tubo-galv',
@@ -317,7 +401,9 @@ NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-c
          'prov-hierros', 'prov-pladur', 'prov-dinak', 'prov-zabaleta', 'prov-isoltubex',
          'zab-saneamiento', 'zab-evacuacion', 'zab-abastecimiento', 'zab-fontaneria', 'zab-calefaccion', 'zab-chimenea',
          'zab-canalon', 'zab-bombeo', 'zab-sanitario', 'zab-quimicos', 'zab-ferreteria',
-         'zab-laton', 'zab-multicapa', 'zab-llaves', 'zab-termo']
+         'zab-laton', 'zab-multicapa', 'zab-llaves', 'zab-termo',
+         'iso-tubo-multicapa', 'iso-tubo-pex', 'iso-acc-multicapa', 'iso-acc-pex', 'iso-acc-expansion',
+         'iso-acc-compresion', 'iso-colector', 'iso-acc-laton', 'iso-herramienta']
 
 S = 512
 for nm in NAMES:
