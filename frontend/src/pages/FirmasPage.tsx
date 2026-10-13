@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Upload, Search, PenLine, ChevronRight, FileDown, Mail, MessageCircle, HandHelping, Receipt, Check, X, Truck,
+  Upload, Search, PenLine, ChevronRight, FileDown, Mail, MessageCircle, HandHelping, Receipt, Check, X, Truck, MapPin,
 } from 'lucide-react';
 import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, repartoFirmas, describeApiError } from '../api/client';
 import { FirmasAvisos } from '../components/FirmasAvisos';
@@ -11,6 +11,7 @@ import { Vacio } from '../components/Pegatinas';
 import { AlCamionModal } from '../components/AlCamion';
 import { getRol } from '../auth';
 import type { ClientDeliveryNote } from '../types';
+import { agruparObras, SIN_OBRA, type GrupoObra } from '../lib/obras';
 
 type Vista = 'firmar' | 'facturar' | 'facturados' | 'todos';
 type Envio = '' | 'sin' | 'correo' | 'whatsapp' | 'copia';
@@ -80,7 +81,7 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
       )}
       <div className="firma-card-info" style={{ flex: 1, minWidth: 0 }}>
         <div className="firma-card-linea" style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>{n.numero}</span>
+          <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{n.numero}</span>
           <span style={{ fontSize: 13, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 160px', minWidth: 0 }}>
             {n.cliente || 'Cliente sin identificar'}
             {n.obra && <span style={{ color: 'var(--text-3)' }}> · {n.obra}</span>}
@@ -127,6 +128,7 @@ export function FirmasPage() {
   const [envio, setEnvio] = useState<Envio>('');
   const [search, setSearch] = useState('');
   const [cliente, setCliente] = useState(() => params.get('cliente') || '');
+  const [obra, setObra] = useState('');  // grupo de obra o referencia dentro del cliente
   const [mes, setMes] = useState('');
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
@@ -140,7 +142,7 @@ export function FirmasPage() {
     setVista(v); setSel(new Set());
     try { sessionStorage.setItem('firmasVista', v); } catch { /* nada */ }
   };
-  const quitarFiltros = () => { setSearch(''); setCliente(''); setMes(''); setEnvio(''); setSel(new Set()); };
+  const quitarFiltros = () => { setSearch(''); setCliente(''); setObra(''); setMes(''); setEnvio(''); setSel(new Set()); };
 
   // Los avisos enlazan a /firmas?vista=…&cliente=…: se aplica aunque ya se esté en Firmas
   useEffect(() => {
@@ -148,7 +150,7 @@ export function FirmasPage() {
     const cl = params.get('cliente');
     if (!v && !cl) return;
     if (v && VISTAS.some(x => x.value === v)) cambiarVista(v);
-    setCliente(cl || ''); setSearch(''); setMes(''); setEnvio(''); setSel(new Set());
+    setCliente(cl || ''); setObra(''); setSearch(''); setMes(''); setEnvio(''); setSel(new Set());
   }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback((quiet = false) => {
@@ -184,6 +186,18 @@ export function FirmasPage() {
     todos: notes.length,
   };
   const hayFiltros = !!(search.trim() || cliente || mes || envio);
+  // Obras y referencias de cada cliente, juntando las que son la misma escrita de otra forma
+  const obrasDe = useMemo(() => {
+    const m = new Map<string, (string | null)[]>();
+    notes.forEach(n => { const k = n.codigo_cliente || '—'; m.set(k, [...(m.get(k) || []), n.obra ?? null]); });
+    return new Map([...m.entries()].map(([k, os]) => [k, agruparObras(os)]));
+  }, [notes]);
+  const grupoObra = (n: ClientDeliveryNote) => obrasDe.get(n.codigo_cliente || '—')?.grupoDe(n.obra) ?? SIN_OBRA;
+  /** La lista partida por obras, en el orden de las obras del cliente (las más usadas primero). */
+  const porObra = (list: ClientDeliveryNote[], cod: string): { g: GrupoObra; list: ClientDeliveryNote[] }[] => {
+    const gs = obrasDe.get(cod)?.grupos || [];
+    return gs.map(g => ({ g, list: list.filter(n => grupoObra(n) === g.clave) })).filter(x => x.list.length);
+  };
   // Meses que tienen albaranes, del más reciente al más antiguo
   const meses = useMemo(() => {
     const set = new Set(notes.map(n => (n.fecha || '').slice(0, 7)).filter(m => /^\d{4}-\d{2}$/.test(m)));
@@ -199,10 +213,19 @@ export function FirmasPage() {
     if (envio === 'whatsapp' && !n.whatsapp_at) return false;
     if (envio === 'copia' && !n.copia_at) return false;
     if (cliente && n.codigo_cliente !== cliente) return false;
+    if (cliente && obra && grupoObra(n) !== obra) return false;
     if (mes && !(n.fecha || '').startsWith(mes)) return false;
     if (q && !`${n.numero} ${n.cliente ?? ''} ${n.codigo_cliente ?? ''} ${n.obra ?? ''} ${n.factura_ref ?? ''}`.toLowerCase().includes(q)) return false;
     return true;
   });
+
+  const obrasCliente = cliente ? (obrasDe.get(cliente)?.grupos || []) : [];
+  // Lo que se ve con los filtros, sin contar el de obra (para los números de cada obra)
+  const sinObraFiltro = cliente ? notes.filter(n => n.codigo_cliente === cliente && enLaVista(vista, n)
+    && (!mes || (n.fecha || '').startsWith(mes))
+    && (!q || `${n.numero} ${n.cliente ?? ''} ${n.codigo_cliente ?? ''} ${n.obra ?? ''} ${n.factura_ref ?? ''}`.toLowerCase().includes(q))
+    && (envio !== 'sin' || !enviado(n)) && (envio !== 'correo' || !!n.emailed_at)
+    && (envio !== 'whatsapp' || !!n.whatsapp_at) && (envio !== 'copia' || !!n.copia_at)) : [];
 
   // En «Por facturar» se agrupa por empresa
   const grupos = useMemo(() => {
@@ -368,7 +391,7 @@ export function FirmasPage() {
           <input className="form-input" placeholder="Buscar nº, cliente u obra…" title="Busca por número de albarán, cliente, obra o factura" value={search}
             onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }} />
         </div>
-        <select className="form-input" value={cliente} onChange={e => { setCliente(e.target.value); setSel(new Set()); }}
+        <select className="form-input" value={cliente} onChange={e => { setCliente(e.target.value); setObra(''); setSel(new Set()); }}
           style={{ margin: 0, flex: '1 1 180px', maxWidth: 260 }} aria-label="Cliente">
           <option value="">Todos los clientes</option>
           {clientes.map(([cod, nom]) => <option key={cod} value={cod}>{nom} ({cod})</option>)}
@@ -390,6 +413,29 @@ export function FirmasPage() {
           <button className="btn btn-ghost btn-sm" onClick={quitarFiltros}><X size={14} /> Quitar filtros</button>
         )}
       </div>
+
+      {cliente && obrasCliente.length > 1 && (
+        <div className="firma-obras" role="group" aria-label="Obras y referencias del cliente">
+          <span className="firma-obras-titulo"><MapPin size={14} /> Obras y referencias</span>
+          <div className="firma-obras-chips">
+            <button className={`firma-obra${!obra ? ' on' : ''}`} aria-pressed={!obra} onClick={() => { setObra(''); setSel(new Set()); }}>
+              Todas <span>{sinObraFiltro.length}</span>
+            </button>
+            {obrasCliente.map(g => {
+              const n = sinObraFiltro.filter(x => grupoObra(x) === g.clave).length;
+              return (
+                <button key={g.clave} className={`firma-obra${obra === g.clave ? ' on' : ''}${g.clave === SIN_OBRA ? ' sin' : ''}`} aria-pressed={obra === g.clave}
+                  title={g.variantes.length ? `También escrito: ${g.variantes.join(' · ')}` : undefined}
+                  onClick={() => { setObra(obra === g.clave ? '' : g.clave); setSel(new Set()); }}>
+                  {g.nombre} <span>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          {(() => { const g = obrasCliente.find(x => x.clave === obra); return g && g.variantes.length > 0
+            ? <small className="firma-obras-tambien">Se juntan porque parecen la misma: «{[g.nombre, ...g.variantes].join('», «')}».</small> : null; })()}
+        </div>
+      )}
 
       {selectable && filtered.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, fontSize: 13 }}>
@@ -450,7 +496,25 @@ export function FirmasPage() {
                     </button>
                   </div>
                 </div>
-                <div className="firma-lista cf-enter">{g.list.map(row)}</div>
+                {(() => {
+                  const partes = porObra(g.list, g.cod);
+                  if (partes.length < 2) return <div className="firma-lista cf-enter">{g.list.map(row)}</div>;
+                  return partes.map(({ g: o, list }) => (
+                    <div key={o.clave} className="firma-obra-grupo">
+                      <div className="firma-obra-cab">
+                        <span className="firma-obra-nombre" title={o.variantes.length ? `También escrito: ${o.variantes.join(' · ')}` : undefined}>
+                          <MapPin size={14} /> {o.nombre}
+                          <small>{list.length} {list.length !== 1 ? 'albaranes' : 'albarán'}{list.some(n => n.importe != null) && <> · {fmtEuros(list.reduce((s2, n) => s2 + (n.importe ?? 0), 0))}</>}</small>
+                        </span>
+                        <span className="firma-obra-acc">
+                          <a className="btn btn-ghost btn-sm" href={firmasCombinadoUrl(list.map(n => n.id))} title="Un solo PDF con los albaranes de esta obra"><FileDown size={14} /> PDF</a>
+                          <button className="btn btn-ghost btn-sm" onClick={() => marcarFacturados(list, true)}><Receipt size={14} /> Facturar esta obra</button>
+                        </span>
+                      </div>
+                      <div className="firma-lista cf-enter">{list.map(row)}</div>
+                    </div>
+                  ));
+                })()}
               </section>
             );
           })}
@@ -466,7 +530,16 @@ export function FirmasPage() {
                 ? <>En el camión de reparto: <b>{enCamion}</b>. Se ven en el móvil de reparto y se pueden firmar en la obra.</>
                 : <>Pulsa «Al camión» en los que salen a reparto: al repartidor le llega un aviso y solo verá esos.</>}</span></p>
           )}
-          <div className="firma-lista cf-enter">{filtered.map(row)}</div>
+          {cliente && !obra && porObra(filtered, cliente).length > 1 ? (
+            porObra(filtered, cliente).map(({ g: o, list }) => (
+              <div key={o.clave} className="firma-obra-grupo suelto">
+                <div className="firma-obra-cab">
+                  <span className="firma-obra-nombre"><MapPin size={14} /> {o.nombre}<small>{list.length} {list.length !== 1 ? 'albaranes' : 'albarán'}</small></span>
+                </div>
+                <div className="firma-lista cf-enter">{list.map(row)}</div>
+              </div>
+            ))
+          ) : <div className="firma-lista cf-enter">{filtered.map(row)}</div>}
         </>
       )}
 

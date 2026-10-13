@@ -63,6 +63,10 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - «Albaranes de compra» (`/albaranes`, abajo en el móvil «Compras»): los de proveedor que se leen con IA.
 - «Albaranes de venta» (`/firmas`, abajo «Ventas»): los de TreyFACT a clientes; firmar, al camión, facturar.
 - «Órdenes de carga» (`/cargas`) va en el grupo Clientes, debajo de los de venta.
+- En «Albaranes de venta», al elegir un cliente salen sus **obras y referencias** como botones (campo `obra` del albarán,
+  REFERENCIA de TreyFACT) y la lista se agrupa por obra; en «Por facturar» cada empresa se parte por obras, con PDF y
+  «Facturar esta obra». Las que son la misma escrita distinto se juntan solas (`lib/obras.ts`: `agruparObras`, `mismaObra`:
+  sin tildes ni signos, palabras vacías fuera, abreviaturas, letras cambiadas, misma calle y número). Solo en el navegador.
 
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`

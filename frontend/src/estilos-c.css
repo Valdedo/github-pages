@@ -231,3 +231,33 @@ html:has(.con-barra) { scroll-padding-bottom: 190px; }
 @media (max-width: 345px) {
   .bottom-nav-item span:last-child { font-size: 10.5px; letter-spacing: -0.01em; }
 }
+
+/* ── Albaranes de venta: obras y referencias del cliente (13/10/2026) ── */
+.firma-obras { margin: -4px 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.firma-obras-titulo { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.firma-obras-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.firma-obra {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 14px; max-width: 100%;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-1);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-align: left;
+}
+.firma-obra span { flex-shrink: 0; min-width: 22px; padding: 0 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; text-align: center; }
+.firma-obra:hover { border-color: var(--border-strong); }
+.firma-obra.on { background: var(--cf-bosque); border-color: var(--cf-bosque); color: #fff; }
+.firma-obra.on span { background: rgb(255 255 255 / .2); color: #fff; }
+.firma-obra.sin:not(.on) { color: var(--text-2); font-weight: 500; font-style: italic; }
+.firma-obras-tambien { color: var(--text-3); font-size: 12.5px; overflow-wrap: anywhere; }
+.firma-obra-grupo { margin-top: 12px; }
+.firma-obra-grupo.suelto { margin-top: 18px; }
+.firma-obra-grupo.suelto:first-of-type { margin-top: 4px; }
+.firma-obra-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; padding: 0 4px 8px; }
+.firma-obra-nombre { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; font-weight: 700; font-size: 14.5px; color: var(--cf-bosque); overflow-wrap: anywhere; }
+.firma-obra-nombre small { font-weight: 500; color: var(--text-3); font-size: 12.5px; }
+.firma-obra-acc { display: flex; gap: 6px; flex-wrap: wrap; }
+.firma-empresa .firma-obra-grupo { padding: 0 12px; }
+.firma-empresa .firma-obra-grupo:last-child { padding-bottom: 12px; }
+@media (max-width: 520px) {
+  .firma-obras-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; margin: 0 -14px; padding-left: 14px; padding-right: 14px; scrollbar-width: none; }
+  .firma-obra { flex-shrink: 0; white-space: nowrap; }
+  .firma-obra-acc { width: 100%; }
+}
