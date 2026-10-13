@@ -67,6 +67,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   REFERENCIA de TreyFACT) y la lista se agrupa por obra; en «Por facturar» cada empresa se parte por obras, con PDF y
   «Facturar esta obra». Las que son la misma escrita distinto se juntan solas (`lib/obras.ts`: `agruparObras`, `mismaObra`:
   sin tildes ni signos, palabras vacías fuera, abreviaturas, letras cambiadas, misma calle y número). Solo en el navegador.
+- Lectura de la obra en el PDF (`firma_service._obra`): en TreyFACT la etiqueta «OBRA /» + «REFERENCIA» va en dos renglones a
+  la izquierda y el texto a su derecha, en uno o dos renglones (a menudo centrado entre los dos); se junta todo. El 13/10/2026
+  se releyó la obra de todos los albaranes ya subidos (arreglo puntual `obra_v2` en `database.py`).
 
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`

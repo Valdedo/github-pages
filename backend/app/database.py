@@ -146,6 +146,38 @@ def _run_migrations():
             except Exception:
                 conn.rollback()
 
+        # Arreglo puntual (13/10/2026): la obra / referencia se leía mal (solo el renglón de «REFERENCIA»).
+        # Se vuelve a leer de cada PDF original con la lectura nueva; solo cambia si ahora sale algo.
+        try:
+            conn.execute(sa.text("ALTER TABLE client_delivery_notes ADD COLUMN obra_v2 INTEGER"))
+            conn.commit()
+            primera_vez = True
+        except Exception:
+            conn.rollback()
+            primera_vez = False
+        if primera_vez:
+            try:
+                from pathlib import Path
+                from app.services.firma_service import parse_albaran
+                filas = conn.execute(sa.text("SELECT id, original_path, obra FROM client_delivery_notes")).fetchall()
+                cambiadas = 0
+                for nid, ruta, vieja in filas:
+                    try:
+                        p = Path(ruta or "")
+                        if not p.exists():
+                            continue
+                        nueva = parse_albaran(p.read_bytes(), p.name).obra or None
+                        if nueva and nueva != vieja:
+                            conn.execute(sa.text("UPDATE client_delivery_notes SET obra = :o WHERE id = :i"), {"o": nueva, "i": nid})
+                            cambiadas += 1
+                    except Exception:
+                        continue
+                conn.commit()
+                import logging
+                logging.getLogger(__name__).info("Obra/referencia releída en %s albaranes de venta", cambiadas)
+            except Exception:
+                conn.rollback()
+
         # Fix existing rows that still have NULL after ALTER TABLE ADD COLUMN
         # (SQLite only sets DEFAULT for new rows, not existing ones)
         null_fixes = [

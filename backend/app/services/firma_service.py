@@ -120,10 +120,48 @@ def parse_albaran(pdf_bytes: bytes, filename: str = "") -> AlbaranMeta:
         line = [w for w in cands if first is not None and abs(w["top"] - first) < 3]
         meta.cliente = " ".join(w["text"] for w in sorted(line, key=lambda w: w["x0"])).strip()
 
-    lbl = _find_seq(words, ["REFERENCIA"])
-    if lbl:
-        meta.obra = _line_right_of(words, lbl)[:200]
+    meta.obra = _obra(words)[:200]
     return meta
+
+
+def _obra(words) -> str:
+    """En TreyFACT la etiqueta va en dos renglones a la izquierda («OBRA /» y debajo «REFERENCIA») y lo que
+    se escribió va a su derecha, en uno o dos renglones a la altura de la etiqueta (a menudo en medio de los dos).
+    Todo lo de la derecha es la obra o referencia: se junta en una sola."""
+    ref = _find_seq(words, ["REFERENCIA"])
+    obra = next((w for w in words if w["text"].upper().rstrip("/") == "OBRA"
+                 and (not ref or (abs(w["x0"] - ref[0]["x0"]) < 15 and 0 < ref[0]["top"] - w["top"] < 25))), None)
+    if not ref and not obra:
+        return ""
+    etiqueta = [w for w in ([obra] if obra else []) + (ref or [])]
+    # La barra «/» de «OBRA /» puede venir como palabra suelta
+    etiqueta += [w for w in words if w["text"] == "/" and obra and abs(w["top"] - obra["top"]) < 3 and w["x0"] - obra["x1"] < 12]
+    x_fin_etiqueta = max(w["x1"] for w in etiqueta)
+    arriba = min(w["top"] for w in etiqueta) - 3
+    abajo = max(w["bottom"] for w in etiqueta) + 3
+    lado = [w for w in words if w not in etiqueta and w["x0"] > x_fin_etiqueta + 2
+            and w["top"] >= arriba and w["bottom"] <= abajo]
+    if not lado:
+        return ""
+    # Renglones de arriba abajo; en cada uno, hasta un hueco grande (otra columna)
+    lado.sort(key=lambda w: (round(w["top"]), w["x0"]))
+    renglones, actual = [], []
+    for w in lado:
+        if actual and abs(w["top"] - actual[0]["top"]) >= 3:
+            renglones.append(actual); actual = []
+        actual.append(w)
+    renglones.append(actual)
+    partes = []
+    for r in renglones:
+        r.sort(key=lambda w: w["x0"])
+        txt, x = [], None
+        for w in r:
+            if x is not None and w["x0"] - x > 40:
+                break
+            txt.append(w["text"]); x = w["x1"]
+        if txt:
+            partes.append(" ".join(txt))
+    return " · ".join(p for p in partes if p.strip()).strip()
 
 
 def _find_slot(pdf_bytes: bytes) -> Optional[tuple]:
