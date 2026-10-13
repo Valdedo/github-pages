@@ -117,6 +117,9 @@ def _run_migrations():
         ("supplier_orders", "marcado_pedido", "BOOLEAN"),
         # Catálogo de tarifas: PDF de facturas del proveedor para abrirlas directamente
         ("tarifa_copias", "archivos",     "TEXT"),
+        # Órdenes de carga desde el albarán de TreyFACT (oct. 2026)
+        ("entregas_carga", "albaran_id",  "INTEGER REFERENCES client_delivery_notes(id) ON DELETE SET NULL"),
+        ("lineas_carga", "codigo",        "VARCHAR(40)"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

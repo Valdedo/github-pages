@@ -8,6 +8,8 @@ import { FirmasAvisos } from '../components/FirmasAvisos';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { Vacio } from '../components/Pegatinas';
+import { AlCamionModal } from '../components/AlCamion';
+import { getRol } from '../auth';
 import type { ClientDeliveryNote } from '../types';
 
 type Vista = 'firmar' | 'facturar' | 'facturados' | 'todos';
@@ -62,10 +64,13 @@ export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: bo
   );
 }
 
-function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado }: {
+function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado, enCarga }: {
   n: ClientDeliveryNote; selectable: boolean; selected: boolean; sinEstado?: boolean;
   onToggle: () => void; onOpen: () => void; onCamion?: () => void; camionOcupado?: boolean;
+  /** Con órdenes de carga: «Al camión» prepara la carga; si ya va en una, la abre. */
+  enCarga?: boolean;
 }) {
+  const enCamion = enCarga ? !!n.carga_id : !!n.reparto_at;
   return (
     <div className={`card firma-card${selected ? ' selected' : ''}`} onClick={onOpen} role="button" tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter') onOpen(); }}>
@@ -87,11 +92,11 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
         {n.nota && <div style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
       </div>
       {onCamion && (
-        <button className={`camion-btn${n.reparto_at ? ' on' : ''}`} disabled={camionOcupado} aria-busy={camionOcupado}
+        <button className={`camion-btn${enCamion ? ' on' : ''}`} disabled={camionOcupado} aria-busy={camionOcupado}
           onClick={e => { e.stopPropagation(); if (!camionOcupado) onCamion(); }}
-          title={n.reparto_at ? 'Sacar del camión de reparto' : 'Mandar al camión de reparto'}
-          aria-label={n.reparto_at ? `Sacar ${n.numero} del camión` : `Mandar ${n.numero} al camión`}>
-          <Truck size={17} /> <span>{n.reparto_at ? 'En el camión' : 'Al camión'}</span>
+          title={enCarga ? (enCamion ? 'Abrir su orden de carga' : 'Preparar la orden de carga') : enCamion ? 'Sacar del camión de reparto' : 'Mandar al camión de reparto'}
+          aria-label={enCarga ? (enCamion ? `Abrir la orden de carga de ${n.numero}` : `Mandar ${n.numero} al camión`) : enCamion ? `Sacar ${n.numero} del camión` : `Mandar ${n.numero} al camión`}>
+          <Truck size={17} /> <span>{enCamion ? (enCarga ? 'En carga' : 'En el camión') : 'Al camión'}</span>
         </button>
       )}
       <ChevronRight size={16} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
@@ -127,6 +132,9 @@ export function FirmasPage() {
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
   const { toast, show } = useCfToast();
   const raton = conRaton();
+  // Órdenes de carga desde el albarán (en pruebas: solo el encargado)
+  const conCargas = getRol() === 'admin';
+  const [alCamion, setAlCamion] = useState<ClientDeliveryNote | null>(null);
 
   const cambiarVista = (v: Vista) => {
     setVista(v); setSel(new Set());
@@ -304,12 +312,15 @@ export function FirmasPage() {
     } catch (err) { show(describeApiError(err), { error: true }); }
     finally { ocupar(false); }
   };
-  const enCamion = notes.filter(n => n.status === 'pendiente' && n.reparto_at).length;
+  const enCamion = notes.filter(n => n.status === 'pendiente' && (conCargas ? n.carga_id : n.reparto_at)).length;
 
   const row = (n: ClientDeliveryNote) => (
     <NoteRow key={n.id} n={n} selectable={selectable} selected={sel.has(n.id)}
       onToggle={() => toggle(n.id)} onOpen={() => navigate(`/firmas/${n.id}`)}
-      onCamion={n.status === 'pendiente' ? () => camion(n) : undefined} camionOcupado={camionOcupado.has(n.id)}
+      onCamion={n.status !== 'pendiente' ? undefined
+        : conCargas ? () => (n.carga_id ? navigate(`/cargas/${n.carga_id}`) : setAlCamion(n))
+        : () => camion(n)}
+      camionOcupado={camionOcupado.has(n.id)} enCarga={conCargas}
       sinEstado={vista === 'firmar'} />
   );
 
@@ -447,9 +458,13 @@ export function FirmasPage() {
       ) : (
         <>
           {vista === 'firmar' && filtered.length > 0 && (
-            <p className="camion-resumen"><Truck size={16} /> {enCamion
-              ? <>En el camión de reparto: <b>{enCamion}</b>. Se ven en el móvil de reparto y se pueden firmar en la obra.</>
-              : <>Pulsa «Al camión» en los que salen a reparto: al repartidor le llega un aviso y solo verá esos.</>}</p>
+            <p className="camion-resumen"><Truck size={16} /> {conCargas
+              ? (enCamion
+                ? <>En órdenes de carga: <b>{enCamion}</b>. Los demás se firman aquí, en la tienda.</>
+                : <>Los que se firman en la tienda, ábrelos y firma. Los que van a obra: «Al camión» prepara la carga con sus materiales, sin precios.</>)
+              : enCamion
+                ? <>En el camión de reparto: <b>{enCamion}</b>. Se ven en el móvil de reparto y se pueden firmar en la obra.</>
+                : <>Pulsa «Al camión» en los que salen a reparto: al repartidor le llega un aviso y solo verá esos.</>}</p>
           )}
           <div className="firma-lista cf-enter">{filtered.map(row)}</div>
         </>
@@ -491,6 +506,7 @@ export function FirmasPage() {
         </div>
       )}
 
+      {alCamion && <AlCamionModal albaranes={[alCamion]} onClose={() => { setAlCamion(null); load(true); }} />}
       {toast}
     </div>
   );

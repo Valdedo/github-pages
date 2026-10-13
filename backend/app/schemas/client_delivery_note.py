@@ -27,6 +27,9 @@ class ClientDeliveryNoteResponse(BaseModel):
     backup_at: Optional[datetime] = None
     reparto_at: Optional[datetime] = None
     reparto_orden: Optional[int] = None
+    # Orden de carga en la que va (si va en alguna) y cómo está esa entrega
+    carga_id: Optional[int] = None
+    carga_estado: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

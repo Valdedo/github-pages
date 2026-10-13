@@ -71,6 +71,7 @@ def _dir() -> Path:
 # ── Respuestas ───────────────────────────────────────────────────────────
 class LineaOut(BaseModel):
     id: int
+    codigo: Optional[str] = None
     cantidad: Optional[float] = None
     unidad: Optional[str] = None
     descripcion: str
@@ -87,6 +88,8 @@ class EntregaOut(BaseModel):
     id: int
     orden_id: int
     numero: Optional[str] = None
+    albaran_id: Optional[int] = None
+    albaran_numero: Optional[str] = None
     cliente: str
     lugar: Optional[str] = None
     telefono: Optional[str] = None
@@ -140,11 +143,17 @@ def _parecidas(db: Session, o: OrdenCarga) -> List[dict]:
             for x in otras if _norm(x.cliente) in nombres][:5]
 
 
+def _ent(e: EntregaCarga) -> EntregaOut:
+    out = EntregaOut.model_validate(e)
+    out.albaran_numero = e.albaran.numero if e.albaran_id and e.albaran else None
+    return out
+
+
 def _out(o: OrdenCarga, db: Optional[Session] = None) -> OrdenOut:
     return OrdenOut(
         id=o.id, estado=o.estado, fotos=json.loads(o.fotos or "[]"), texto=o.texto, notas=o.notas,
         creado_por=o.creado_por, enviada_at=o.enviada_at, created_at=o.created_at,
-        entregas=[EntregaOut.model_validate(e) for e in o.entregas],
+        entregas=[_ent(e) for e in o.entregas],
         parecidas=_parecidas(db, o) if db is not None else [],
     )
 
@@ -197,6 +206,7 @@ def _anadir_entregas(db: Session, o: OrdenCarga, datos: dict) -> None:
             servir=bool(ent.get("servir", True)), pagado=bool(ent.get("pagado", False)),
             notas="; ".join(x for x in [ent.get("cuando"), ent.get("notas")] if x) or None,
             dudas=ent.get("dudas") or None,
+            albaran_id=ent.get("albaran_id"),
         )
         e.cliente_leido = None  # solo se rellena si alguien corrige el nombre
         db.add(e)
@@ -209,9 +219,11 @@ def _anadir_entregas(db: Session, o: OrdenCarga, datos: dict) -> None:
             if cant is not None and cant <= 0:
                 cant = None  # se revisa a mano
             db.add(LineaCarga(
-                entrega_id=e.id, orden_n=j, cantidad=cant, unidad=(ln.get("unidad") or None),
+                entrega_id=e.id, orden_n=j, codigo=(ln.get("codigo") or None), cantidad=cant, unidad=(ln.get("unidad") or None),
                 descripcion=(ln.get("descripcion") or "").strip(), original=ln.get("original") or None,
                 duda=ln.get("duda") or None, leido=(ln.get("descripcion") or "").strip() or None,
+                # Lo que viene del albarán de TreyFACT ya está revisado: no hay que aprender nada
+                confirmada=bool(ent.get("albaran_id")),
             ))
         db.flush()
 
@@ -399,6 +411,106 @@ def borrar(oid: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+# ── Desde el albarán de TreyFACT ─────────────────────────────────────────
+class DesdeAlbaranes(BaseModel):
+    ids: List[int]
+    orden_id: Optional[int] = None
+
+
+def _albaranes_libres(db: Session, ids: List[int]):
+    """Los albaranes pedidos, sin firmar y que no van ya en otra orden de carga."""
+    from app.models.client_delivery_note import ClientDeliveryNote
+    notes = db.query(ClientDeliveryNote).filter(ClientDeliveryNote.id.in_(ids)).all()
+    if len(notes) != len(set(ids)):
+        raise HTTPException(404, "Algún albarán ya no está. Actualiza la lista.")
+    for n in notes:
+        if n.status != "pendiente":
+            raise HTTPException(409, f"El albarán {n.numero} ya está firmado.")
+        ya = db.query(EntregaCarga).filter(EntregaCarga.albaran_id == n.id).first()
+        if ya:
+            raise HTTPException(409, {"orden": ya.orden_id, "mensaje": f"El albarán {n.numero} ya va en una orden de carga."})
+    return sorted(notes, key=lambda n: ids.index(n.id))
+
+
+async def _leer_albaran(db: Session, n) -> dict:
+    """Entrega con los materiales del albarán (sin precios)."""
+    from app.models.client_delivery_note import ClientContact
+    from app.services import albaran_lineas
+    try:
+        datos = await albaran_lineas.leer(Path(n.original_path).read_bytes())
+    except FileNotFoundError:
+        raise HTTPException(404, f"No se encuentra el PDF del albarán {n.numero}. Vuelve a subirlo.")
+    except ValueError as ex:
+        raise HTTPException(422, f"Albarán {n.numero}: {ex}")
+    except Exception as ex:
+        logger.exception("Error leyendo las líneas del albarán %s", n.numero)
+        raise HTTPException(502, f"No se pudo leer el albarán {n.numero}: {ex}")
+    if not datos["lineas"]:
+        raise HTTPException(422, f"No se encontró ningún material en el albarán {n.numero}.")
+    tel = None
+    if n.codigo_cliente:
+        c = db.get(ClientContact, n.codigo_cliente)
+        tel = c.telefono if c else None
+    return {"cliente": n.cliente or f"Cliente {n.codigo_cliente or ''}".strip(), "lugar": n.obra or None,
+            "telefono": tel, "servir": True, "notas": datos.get("notas"), "albaran_id": n.id,
+            "lineas": datos["lineas"]}
+
+
+@router.post("/desde-albaranes", response_model=OrdenOut)
+async def desde_albaranes(data: DesdeAlbaranes, request: Request, db: Session = Depends(get_db)):
+    """Una orden de carga nueva (o más entregas en un viaje) con los albaranes de TreyFACT."""
+    if not data.ids:
+        raise HTTPException(400, "Elige algún albarán")
+    if data.orden_id:
+        o = _orden(db, data.orden_id)
+        if o.estado == "entregado":
+            raise HTTPException(409, "Ese viaje ya está entregado. Empieza uno nuevo.")
+    notes = _albaranes_libres(db, data.ids)
+    entregas = [await _leer_albaran(db, n) for n in notes]  # la IA tarda: fuera del cerrojo
+    with _NUMERANDO:
+        _albaranes_libres(db, data.ids)  # por si otro lo metió mientras se leía
+        if data.orden_id:
+            o = _orden(db, data.orden_id)
+        else:
+            o = OrdenCarga(creado_por=getattr(request.state, "persona", None))
+            db.add(o)
+            db.flush()
+        _anadir_entregas(db, o, {"entregas": entregas})
+        db.flush(); db.refresh(o); _estado(o)
+        db.commit()
+    db.refresh(o)
+    if o.enviada_at and data.orden_id:
+        from app.services import push_service
+        push_service.avisar(push_service.a_reparto, "Más carga en el viaje",
+                            ", ".join(e["cliente"] for e in entregas), f"/reparto/cargas/{o.id}", f"carga-{o.id}")
+    return _out(o, db)
+
+
+@router.post("/entregas/{eid}/releer", response_model=OrdenOut)
+async def releer(eid: int, db: Session = Depends(get_db)):
+    """Vuelve a leer los materiales del albarán (si se subió una versión nueva)."""
+    e = _entrega(db, eid)
+    _no_bloqueada(e)
+    if not e.albaran_id or not e.albaran:
+        raise HTTPException(422, "Esta entrega no viene de un albarán")
+    datos = await _leer_albaran(db, e.albaran)
+    e = _entrega(db, eid)
+    _no_bloqueada(e)
+    for ln in list(e.lineas):
+        db.delete(ln)
+    db.flush()
+    for j, ln in enumerate(datos["lineas"]):
+        db.add(LineaCarga(entrega_id=e.id, orden_n=j, codigo=ln.get("codigo"), cantidad=ln.get("cantidad"),
+                          unidad=ln.get("unidad"), descripcion=ln["descripcion"], duda=ln.get("duda"),
+                          leido=ln["descripcion"], confirmada=True))
+    e.cliente = datos["cliente"][:200]
+    e.lugar = datos["lugar"] or e.lugar
+    e.dudas = None
+    db.flush(); db.refresh(e.orden); _estado(e.orden)
+    db.commit()
+    return _out(_orden(db, e.orden_id), db)
+
+
 # ── Entregas ─────────────────────────────────────────────────────────────
 class EntregaIn(BaseModel):
     cliente: Optional[str] = None
@@ -438,7 +550,7 @@ def editar_entrega(eid: int, data: EntregaIn, db: Session = Depends(get_db)):
         setattr(e, k, v)
     db.commit()
     db.refresh(e)
-    return e
+    return _ent(e)
 
 
 @router.delete("/entregas/{eid}")
@@ -519,14 +631,20 @@ async def firmar(
         db.flush(); db.refresh(e.orden); _estado(e.orden)
         db.commit()
     db.refresh(e)
+    if e.albaran_id:
+        # La misma firma va al albarán de TreyFACT, que queda firmado y archivado por cliente
+        from app.api.firmas import firmar_desde_entrega
+        firmar_desde_entrega(db, e.albaran_id, png, e.firmado_por, e.firmado_dni or "", e.firmado_at)
+        db.refresh(e)
     from app.services.backup_service import backup_en_segundo_plano
     backup_en_segundo_plano()
     if _es_reparto(request):
         from app.services import push_service
-        push_service.avisar(lambda s: s.rol == "admin", f"Entregado: {e.cliente}",
-                            f"Firmado por {e.firmado_por}. Falta pasarlo a TreyFACT.", f"/cargas/{e.orden_id}",
+        detalle = (f"Firmado por {e.firmado_por}. El albarán {e.albaran.numero} queda firmado." if e.albaran_id and e.albaran
+                   else f"Firmado por {e.firmado_por}. Falta pasarlo a TreyFACT.")
+        push_service.avisar(lambda s: s.rol == "admin", f"Entregado: {e.cliente}", detalle, f"/cargas/{e.orden_id}",
                             f"entrega-{e.id}")
-    return e
+    return _ent(e)
 
 
 @router.post("/entregas/{eid}/foto", response_model=EntregaOut)
@@ -547,13 +665,23 @@ async def subir_foto_entrega(eid: int, request: Request, foto: UploadFile = File
     if e.estado == "entregada":
         from app.services.backup_service import backup_en_segundo_plano
         backup_en_segundo_plano()
-    return e
+    return _ent(e)
 
 
 @router.post("/entregas/{eid}/anular-firma", response_model=EntregaOut)
 def anular_firma(eid: int, db: Session = Depends(get_db)):
     """Para repetir una firma mal hecha."""
     e = _entrega(db, eid)
+    n = e.albaran if e.albaran_id else None
+    if n is not None and n.status == "firmado" and n.signed_by == e.firmado_por:
+        if n.facturado_at:
+            raise HTTPException(409, f"El albarán {n.numero} ya está facturado: no se puede repetir la firma.")
+        if n.signed_path:
+            Path(n.signed_path).unlink(missing_ok=True)
+        n.signed_path = None
+        n.status = "pendiente"
+        n.signed_at = n.signed_by = n.signer_dni = None
+        n.backup_at = None
     if e.firma_archivo:
         (_dir() / e.firma_archivo).unlink(missing_ok=True)
     e.firma_archivo = e.firmado_por = e.firmado_dni = None
@@ -563,7 +691,7 @@ def anular_firma(eid: int, db: Session = Depends(get_db)):
     db.flush(); db.refresh(e.orden); _estado(e.orden)
     db.commit()
     db.refresh(e)
-    return e
+    return _ent(e)
 
 
 def _hoja(db: Session, eid: int, request: Optional[Request] = None):
@@ -633,7 +761,7 @@ def lista(eid: int, data: Lista, request: Request, db: Session = Depends(get_db)
         e.lista_at = None
     db.commit()
     db.refresh(e)
-    return e
+    return _ent(e)
 
 
 def _no_bloqueada(e: EntregaCarga) -> None:
@@ -653,7 +781,7 @@ def treyfact(eid: int, data: Treyfact, db: Session = Depends(get_db)):
     e.treyfact_at = datetime.utcnow() if data.pasado else None
     db.commit()
     db.refresh(e)
-    return e
+    return _ent(e)
 
 
 # ── Líneas ───────────────────────────────────────────────────────────────

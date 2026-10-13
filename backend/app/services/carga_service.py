@@ -193,7 +193,7 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
     lineas_txt = []
     for ln, llevado in filas:
         partes = simpleSplit(_sin_sup(ln.descripcion).upper(), "Helvetica", 7.6, 230) or [""]
-        lineas_txt.append((partes, llevado, _sin_sup(ln.unidad or "")))
+        lineas_txt.append((partes, llevado, _sin_sup(ln.unidad or ""), (getattr(ln, "codigo", None) or "")[:14]))
     paginas, actual, alto = [], [], 0
     LIMITE = 340  # alto útil de la tabla (pt)
     for item in lineas_txt:
@@ -227,6 +227,10 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
         c.setFillColor(gris_caja); c.rect(bx, T(163), X1 - bx + 2, 91, stroke=0, fill=1)
         c.setFillColor(black); c.setFont("Helvetica-Bold", 12.5)
         c.drawRightString(X1 - 30, T(88), f"HOJA DE ENTREGA  {e.numero or e.id}")
+        alb = getattr(e, "albaran", None) if getattr(e, "albaran_id", None) else None
+        if alb is not None:
+            c.setFont("Helvetica", 8.2)
+            c.drawRightString(X1 - 30, T(100), f"Albarán {alb.numero}")
         c.setFont("Helvetica-Bold", 8.2)
         c.drawString(bx + 10, T(106), "OBRA /"); c.drawString(bx + 10, T(116), "REFERENCIA")
         c.drawString(bx + 10, T(136), "Fecha"); c.drawString(bx + 10, T(151), "Hora")
@@ -264,8 +268,10 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
         cabecera()
         y = 290
         c.setFillColor(black)
-        for partes, llevado, unidad in filas_pag:
+        for partes, llevado, unidad, codigo in filas_pag:
             c.setFont("Helvetica", 7.6)
+            if codigo:
+                c.drawString(X0 + 2, T(y), codigo)
             for i, p in enumerate(partes):
                 c.drawString(110, T(y + i * 9), p)
             c.drawRightString(388, T(y), f"{llevado:.2f}".replace(".", ",") if llevado is not None else "")

@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Te
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.client_delivery_note import ClientDeliveryNote  # noqa: F401 (relación)
 
 
 class OrdenCarga(Base):
@@ -39,6 +40,10 @@ class EntregaCarga(Base):
     orden_id: Mapped[int] = mapped_column(Integer, ForeignKey("ordenes_carga.id", ondelete="CASCADE"), index=True)
     orden_n: Mapped[int] = mapped_column(Integer, default=0)
     numero: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)  # OC-2026-0001
+    # Albarán de TreyFACT del que sale esta entrega (lo normal desde oct. 2026). Al firmar,
+    # la firma pasa también a ese albarán.
+    albaran_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("client_delivery_notes.id", ondelete="SET NULL"), nullable=True, index=True)
 
     cliente: Mapped[str] = mapped_column(String(200), default="")
     cliente_leido: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # lo que entendió la IA
@@ -67,6 +72,7 @@ class EntregaCarga(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     orden: Mapped["OrdenCarga"] = relationship("OrdenCarga", back_populates="entregas")
+    albaran: Mapped[Optional["ClientDeliveryNote"]] = relationship("ClientDeliveryNote", lazy="joined")
     lineas: Mapped[List["LineaCarga"]] = relationship(
         "LineaCarga", back_populates="entrega", cascade="all, delete-orphan", order_by="LineaCarga.orden_n",
     )
@@ -78,6 +84,7 @@ class LineaCarga(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     entrega_id: Mapped[int] = mapped_column(Integer, ForeignKey("entregas_carga.id", ondelete="CASCADE"), index=True)
     orden_n: Mapped[int] = mapped_column(Integer, default=0)
+    codigo: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)  # código del artículo en TreyFACT
     cantidad: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     unidad: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)   # sacos, m³, ud, kg…
     descripcion: Mapped[str] = mapped_column(Text, default="")

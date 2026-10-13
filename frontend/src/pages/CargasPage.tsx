@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Camera, Images, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
-  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, Mic, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2, Lock, LockOpen, PackageCheck,
+  Camera, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
+  AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2, Lock, LockOpen, PackageCheck,
 } from 'lucide-react';
 import {
-  listarCargas, verCarga, borrarCarga, leerCarga, fotoCargaUrl, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
+  listarCargas, verCarga, borrarCarga, fotoCargaUrl, releerAlbaranCarga, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
   borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, treyfactEntregaCarga,
   nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError, enviarCarga, listaEntregaCarga,
   type OrdenCarga, type EntregaCarga, type LineaCarga,
@@ -18,7 +18,8 @@ import { coincide, fechaES, plural } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { SignaturePad } from './FirmaDetailPage';
 import { HojaVisor } from '../components/HojaVisor';
-import { CamionPegatina, SelloHecho, Vacio } from '../components/Pegatinas';
+import { SelloHecho, Vacio } from '../components/Pegatinas';
+import { ElegirAlbaranes, LeyendoAlbaran } from '../components/AlCamion';
 import { sinRed } from '../lib/offline';
 import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reducirFoto, listaSinRed, estaLista } from '../lib/offlineCargas';
 
@@ -51,107 +52,6 @@ const materiales = (n: number) => plural(n, 'material', 'materiales');
 /** Señal de «cargado solo una parte» (medio círculo relleno, visible en cualquier móvil). */
 const Medio = () => <span className="carga-medio" aria-hidden="true" />;
 
-// ─── Nueva orden: foto o texto ───────────────────────────────────────────────
-
-function NuevaOrden({ ordenId, onHecho, compacto }: { ordenId?: number; onHecho: (o: OrdenCarga) => void; compacto?: boolean }) {
-  const camara = useRef<HTMLInputElement>(null);
-  const galeria = useRef<HTMLInputElement>(null);
-  const [escribir, setEscribir] = useState(false);
-  const [texto, setTexto] = useState('');
-  const [leyendo, setLeyendo] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [repetida, setRepetida] = useState<{ id: number; mensaje: string; fotos: File[] } | null>(null);
-  const navigate = useNavigate();
-
-  const enviar = async (fotos: File[], t: string, forzar = false) => {
-    if (!fotos.length && !t.trim()) return;
-    setLeyendo(true); setError(null); setRepetida(null);
-    try {
-      const { data } = await leerCarga(fotos, t, ordenId, forzar);
-      setEscribir(false); setTexto('');
-      onHecho(data);
-    } catch (err) {
-      const r = err as { response?: { status?: number; data?: { detail?: { repetida?: number; mensaje?: string } } } };
-      const det = r.response?.data?.detail;
-      if (r.response?.status === 409 && det?.repetida) setRepetida({ id: det.repetida, mensaje: det.mensaje || 'Esta foto ya se subió.', fotos });
-      else setError(mensajeError(err, describeApiError(err)));
-    } finally {
-      setLeyendo(false);
-      if (camara.current) camara.current.value = '';
-      if (galeria.current) galeria.current.value = '';
-    }
-  };
-  const elegir = (e: React.ChangeEvent<HTMLInputElement>) => enviar(Array.from(e.target.files || []), '');
-
-  return (
-    <>
-      <div className={`carga-nueva${compacto ? ' compacto' : ''}`}>
-        <button className="btn btn-primary btn-lg" onClick={() => camara.current?.click()} disabled={leyendo}>
-          <Camera size={20} /> {compacto ? 'Foto de otro pedido' : 'Foto de la libreta'}
-        </button>
-        <button className="btn btn-ghost btn-lg" onClick={() => galeria.current?.click()} disabled={leyendo}>
-          <Images size={20} /> Elegir fotos
-        </button>
-        <button className="btn btn-ghost btn-lg" onClick={() => setEscribir(true)} disabled={leyendo}>
-          <PenLine size={20} /> Escribir o dictar
-        </button>
-        <input ref={camara} type="file" accept="image/*" capture="environment" hidden onChange={elegir} />
-        <input ref={galeria} type="file" accept="image/*" multiple hidden onChange={elegir} />
-      </div>
-      {error && <div className="doc-aviso error" style={{ marginTop: 12 }}>{error}</div>}
-      {repetida && (
-        <div className="doc-aviso subidas carga-repetida" style={{ marginTop: 12 }}>
-          <AlertTriangle size={18} />
-          <div>
-            <b>Foto repetida</b>
-            <span>{repetida.mensaje}</span>
-            <span className="carga-repetida-botones">
-              {repetida.id !== ordenId && <button className="btn btn-primary btn-sm" onClick={() => navigate(`/cargas/${repetida.id}`)}>Abrir esa orden</button>}
-              <button className="btn btn-ghost btn-sm" onClick={() => enviar(repetida.fotos, '', true)}>Leerla igualmente</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setRepetida(null)}>Cancelar</button>
-            </span>
-          </div>
-        </div>
-      )}
-
-      {escribir && (
-        <div className="modal-overlay" onClick={() => !leyendo && setEscribir(false)}>
-          <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span style={{ fontWeight: 700, fontSize: 17 }}>Escribir o dictar el pedido</span>
-              <button className="modal-close" onClick={() => setEscribir(false)} aria-label="Cerrar">✕</button>
-            </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <textarea className="form-input" rows={6} autoFocus value={texto} onChange={e => setTexto(e.target.value)}
-                placeholder={'Mari Carmen, Arbón, 685 53 99 69. Servir esta semana: 2 metros de trito en bolsa, 10 sacos de cemento y 8 varillas del 12.'} />
-              <small style={{ color: 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                <Mic size={14} /> En el móvil, pulsa el micrófono del teclado para dictarlo.
-              </small>
-              {error && <div className="doc-aviso error">{error}</div>}
-            </div>
-            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              <button className="btn btn-ghost" onClick={() => setEscribir(false)} disabled={leyendo}>Cancelar</button>
-              <button className="btn btn-primary" onClick={() => enviar([], texto)} disabled={leyendo || !texto.trim()}>
-                {leyendo ? 'Leyendo…' : 'Preparar la carga'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {leyendo && (
-        <div className="carga-leyendo" role="status">
-          <div className="card">
-            <CamionPegatina modo="rodando" ancho={230} />
-            <b>Leyendo la hoja…</b>
-            <small>Un momento, estoy pasando el cuaderno a limpio.</small>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 // ─── Lista ───────────────────────────────────────────────────────────────────
 
 export function CargasPage() {
@@ -163,6 +63,7 @@ export function CargasPage() {
   const cerrarHoja = useCallback(() => setHoja(null), []);
   const { toast, show } = useCfToast();
   const [buscar, setBuscar] = useState('');
+  const [nueva, setNueva] = useState(false);
 
   const load = useCallback(() => {
     listarCargas().then(r => {
@@ -176,7 +77,8 @@ export function CargasPage() {
   const enCurso = (ordenes || []).filter(o => o.estado !== 'entregado');
   // Los que se marcan como pasados se quedan a la vista (en verde) hasta salir de la pantalla
   const [recien, setRecien] = useState<Set<number>>(new Set());
-  const porPasarTodas = (ordenes || []).flatMap(o => o.entregas.filter(e => e.estado === 'entregada' && (!e.treyfact_at || recien.has(e.id))));
+  // Solo las de antes (de la libreta): las que salen de un albarán ya están en TreyFACT
+  const porPasarTodas = (ordenes || []).flatMap(o => o.entregas.filter(e => !e.albaran_id && e.estado === 'entregada' && (!e.treyfact_at || recien.has(e.id))));
   const quedan = porPasarTodas.filter(e => !e.treyfact_at).length;
   // Buscador: cliente, pueblo, número de albarán, teléfono o material
   const coincideEntrega = (e: EntregaCarga) => coincide(buscar, e.cliente, e.lugar, e.numero, e.telefono, ...e.lineas.map(l => l.descripcion));
@@ -203,14 +105,14 @@ export function CargasPage() {
       <div className="inicio-head" style={{ marginBottom: 14 }}>
         <div>
           <h1>Órdenes de carga <span className="aviso-chip" style={{ verticalAlign: 'middle' }}>En pruebas</span></h1>
-          <p>Saca una foto a la hoja de la libreta y la app prepara la carga y la hoja de entrega para firmar.</p>
+          <p>Haz el albarán en TreyFACT, súbelo en «Firmar albaranes» y mándalo al camión. La app saca los materiales y prepara la hoja de entrega sin precios.</p>
         </div>
+        <button className="btn btn-primary btn-lg" onClick={() => setNueva(true)}><Truck size={19} /> Nueva carga</button>
       </div>
-
-      <NuevaOrden onHecho={o => navigate(`/cargas/${o.id}`)} />
+      {nueva && <ElegirAlbaranes onClose={() => setNueva(false)} />}
 
       <div className="firma-vistas" role="tablist" style={{ margin: '18px 0 12px' }}>
-        {([['curso', 'En curso', enCurso.length], ['treyfact', 'Por pasar a TreyFACT', quedan], ['todas', 'Todas', (ordenes || []).length]] as const).map(([k, t, n]) => (
+        {([['curso', 'En curso', enCurso.length], ...(quedan > 0 || vista === 'treyfact' ? [['treyfact', 'Por pasar a TreyFACT', quedan] as const] : []), ['todas', 'Todas', (ordenes || []).length]] as const).map(([k, t, n]) => (
           <button key={k} role="tab" aria-selected={vista === k} className={`firma-vista${vista === k ? ' on' : ''}`} onClick={() => setVista(k)}>
             {t}<span className="firma-vista-n">{n}</span>
           </button>
@@ -254,7 +156,7 @@ export function CargasPage() {
       ) : lista.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><ClipboardCheck size={40} style={{ color: 'var(--text-3)' }} /></div>
-          <div className="empty-state-text">{buscar.trim() ? `Ninguna orden con «${buscar.trim()}».` : vista === 'curso' ? 'No hay nada por cargar ni por entregar.' : 'Todavía no hay órdenes de carga.'}</div>
+          <div className="empty-state-text">{buscar.trim() ? `Ninguna orden con «${buscar.trim()}».` : vista === 'curso' ? 'No hay nada por cargar ni por entregar. Pulsa «Nueva carga» o «Al camión» en un albarán.' : 'Todavía no hay órdenes de carga.'}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -576,7 +478,7 @@ function EnviarMelchor({ o, onCambio, show }: {
         </>
       ) : (
         <>
-          <span className="carga-enviar-txt"><Truck size={20} /><span><b>¿Lista para cargar?</b><small>Revísala y mándasela: le aparece en su móvil para empezar a prepararla.</small></span></span>
+          <span className="carga-enviar-txt"><Truck size={20} /><span><b>¿La lleva Melchor?</b><small>Mándasela y le aparece en su móvil para cargarla. Si la lleva otro, no hace falta: se carga y se firma desde aquí.</small></span></span>
           <button className="btn btn-primary" onClick={() => cambiar(true)} disabled={enviando}><Send size={16} /> {enviando ? 'Enviando…' : 'Enviar a Melchor'}</button>
         </>
       )}
@@ -606,6 +508,8 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
   const [online, setOnline] = useState(navigator.onLine);
   const fotoEntrega = useRef<HTMLInputElement>(null);
   const [fotoPara, setFotoPara] = useState<number | null>(null);
+  const [anadir, setAnadir] = useState(false);
+  const [releyendo, setReleyendo] = useState(false);
 
   const load = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -699,6 +603,13 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
     if (!await confirm({ title: 'Repetir la firma', message: 'Se borra la firma de esta entrega para volver a firmarla.', confirmLabel: 'Borrar firma', danger: true })) return;
     try { await anularFirmaCarga(e.id); load(); }
     catch (err) { show(`No se pudo: ${describeApiError(err)}`, { error: true }); }
+  };
+
+  const releer = async (e: EntregaCarga) => {
+    setReleyendo(true);
+    try { setO((await releerAlbaranCarga(e.id)).data); show('Materiales puestos al día con el albarán'); }
+    catch (err) { show(`No se pudo: ${mensajeError(err, describeApiError(err))}`, { error: true }); }
+    finally { setReleyendo(false); }
   };
 
   const subirFotoEntrega = async (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -813,7 +724,10 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                 <div className="carga-card-chips" style={{ marginTop: 8 }}>
                   <span className="cat-chip">{e.servir ? 'Servir' : 'Recoge en tienda'}</span>
                   {e.pagado && <span className="cat-chip">Pagado</span>}
-                  {e.numero && <span className="cat-chip gris">{e.numero}</span>}
+                  {e.albaran_numero && (reparto
+                    ? <span className="cat-chip gris"><FileText size={12} /> Albarán {e.albaran_numero}</span>
+                    : <button className="cat-chip gris carga-albaran-chip" onClick={() => navigate(`/firmas/${e.albaran_id}`)} title="Abrir el albarán de TreyFACT"><FileText size={12} /> Albarán {e.albaran_numero}</button>)}
+                  {e.numero && !e.albaran_numero && <span className="cat-chip gris">{e.numero}</span>}
                   {e.treyfact_at && !reparto && <span className="cat-chip ok"><Check size={13} /> Pasado a TreyFACT</span>}
                 </div>
               </div>
@@ -823,7 +737,18 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
               </div>
             </div>
 
-            {e.dudas && !firmada && !reparto && <div className="doc-aviso subidas" style={{ margin: '0 16px 10px' }}><AlertTriangle size={18} /><div><b>Revisa</b>{e.dudas}</div></div>}
+            {e.dudas && !firmada && !reparto && (
+              <div className="doc-aviso subidas" style={{ margin: '0 16px 10px' }}><AlertTriangle size={18} />
+                <div>
+                  <b>Revisa</b>{e.dudas}
+                  {e.albaran_id && !bloqueada && (
+                    <button className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start', marginTop: 6 }} onClick={() => (online ? releer(e) : sinCobertura())} disabled={releyendo}>
+                      Volver a leer el albarán
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             {lista && <div className="carga-lista-banda"><Lock size={16} /> Carga confirmada. La lista está bloqueada para no tocarla sin querer.</div>}
             {dudas.length > 0 && !bloqueada && !reparto && (
               <div className="carga-revisar">Hay {dudas.length} material{dudas.length !== 1 ? 'es' : ''} marcado{dudas.length !== 1 ? 's' : ''} para revisar. Tócalo para corregirlo.</div>
@@ -903,12 +828,14 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
       })}
       <input ref={fotoEntrega} type="file" accept="image/*" capture="environment" hidden onChange={subirFotoEntrega} />
 
-      {!reparto && (
-        <div className="card seccion" style={{ marginTop: 14 }}>
+      {!reparto && o.estado !== 'entregado' && (
+        <div className="card seccion carga-mas-viaje" style={{ marginTop: 14 }}>
           <div className="seccion-titulo">¿Va algo más en este viaje?</div>
-          <NuevaOrden compacto ordenId={o.id} onHecho={d => { setO(d); show('Pedido añadido al viaje'); }} />
+          <button className="btn btn-ghost btn-lg" onClick={() => (online ? setAnadir(true) : sinCobertura())}><Plus size={18} /> Añadir albaranes</button>
         </div>
       )}
+      {anadir && <ElegirAlbaranes ordenId={o.id} onClose={() => setAnadir(false)} onHecho={d => { setO(d); setAnadir(false); show('Añadido al viaje'); }} />}
+      {releyendo && <LeyendoAlbaran n={1} />}
 
       {!reparto && <details className="mas-opciones pedido-mas" style={{ marginTop: 16 }} open={mas} onToggle={ev => setMas((ev.target as HTMLDetailsElement).open)}>
         <summary>Más opciones</summary>

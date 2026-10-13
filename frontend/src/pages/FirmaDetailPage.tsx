@@ -12,6 +12,7 @@ import { useCfToast } from '../components/CfToast';
 import { SelloHecho } from '../components/Pegatinas';
 import { TopazPad, type TopazHandle } from '../components/TopazPad';
 import { isReparto } from '../reparto';
+import { AlCamionModal } from '../components/AlCamion';
 import { getRol } from '../auth';
 import { fmtFecha, fmtFirmado, fmtEuros, Marcas } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
@@ -145,6 +146,7 @@ export function FirmaDetailPage() {
   const [factRef, setFactRef] = useState<string | null>(null); // null: sin tocar
   const [printPages, setPrintPages] = useState<string[]>([]);
   const [camionGuardando, setCamionGuardando] = useState(false);
+  const [alCamion, setAlCamion] = useState(false);
   const [borrando, setBorrando] = useState(false);
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
   // En el reparto siempre se firma en la pantalla del móvil
@@ -504,7 +506,18 @@ export function FirmaDetailPage() {
                 </div>
               )}
               {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
-              {!reparto && (
+              {!reparto && getRol() === 'admin' && (
+                note.carga_id
+                  ? <button className="firma-toggle on" onClick={() => navigate(`/cargas/${note.carga_id}`)}>
+                      <span className="box"><Check size={14} /></span>
+                      <Truck size={16} /> Va en una orden de carga · abrirla
+                    </button>
+                  : <button className="firma-toggle" onClick={() => setAlCamion(true)}>
+                      <span className="box" />
+                      <Truck size={16} /> Al camión (preparar la carga)
+                    </button>
+              )}
+              {!reparto && getRol() !== 'admin' && (
                 <button className={`firma-toggle${note.reparto_at ? ' on' : ''}`} onClick={camion} disabled={camionGuardando} aria-busy={camionGuardando} aria-pressed={!!note.reparto_at}>
                   <span className="box">{note.reparto_at && <Check size={14} />}</span>
                   <Truck size={16} /> {camionGuardando ? 'Guardando…' : note.reparto_at ? 'En el camión de reparto' : 'Mandar al camión de reparto'}
@@ -528,6 +541,7 @@ export function FirmaDetailPage() {
       </div>
 
       {hecho && <SelloHecho texto="FIRMADO" titulo="Albarán firmado" />}
+      {alCamion && note && <AlCamionModal albaranes={[note]} onClose={() => setAlCamion(false)} />}
       {printing && createPortal(
         <div id="firma-print">{printPages.map(src => <img key={src} src={src} alt="" />)}</div>,
         document.body,

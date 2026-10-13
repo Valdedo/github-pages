@@ -385,11 +385,12 @@ export const getCorreo = (refrescar = false) => api.get<CorreoResumen>(`/api/cor
 
 // ── Órdenes de carga (en pruebas) ──────────────────────────────
 export interface LineaCarga {
-  id: number; cantidad: number | null; unidad: string | null; descripcion: string;
+  id: number; codigo?: string | null; cantidad: number | null; unidad: string | null; descripcion: string;
   original: string | null; duda: string | null; cargado: number | null; cargado_ok: boolean;
 }
 export interface EntregaCarga {
   id: number; orden_id: number; numero: string | null; cliente: string; lugar: string | null;
+  albaran_id?: number | null; albaran_numero?: string | null;  // albarán de TreyFACT del que sale
   telefono: string | null; cuando: string | null; servir: boolean; pagado: boolean;
   notas: string | null; dudas: string | null; estado: 'pendiente' | 'entregada';
   firmado_por: string | null; firmado_at: string | null; treyfact_at: string | null; lineas: LineaCarga[];
@@ -408,6 +409,11 @@ export const verCarga = (id: number) => api.get<OrdenCarga>(`/api/cargas/${id}`)
 export const paraCargar = () => api.get<OrdenCarga[]>('/api/cargas/para-cargar');
 export const enviarCarga = (id: number, enviar: boolean) => api.post<OrdenCarga>(`/api/cargas/${id}/enviar`, { enviar });
 export const borrarCarga = (id: number) => api.delete(`/api/cargas/${id}`);
+/** Orden de carga nueva con albaranes de TreyFACT, o más albaranes en un viaje (ordenId). */
+export const cargaDesdeAlbaranes = (ids: number[], ordenId?: number) =>
+  api.post<OrdenCarga>('/api/cargas/desde-albaranes', { ids, orden_id: ordenId ?? null }, { timeout: 180000 });
+export const releerAlbaranCarga = (entregaId: number) =>
+  api.post<OrdenCarga>(`/api/cargas/entregas/${entregaId}/releer`, {}, { timeout: 120000 });
 export const leerCarga = (fotos: File[], texto: string, ordenId?: number, forzar = false) => {
   const form = new FormData();
   if (forzar) form.append('forzar', 'true');

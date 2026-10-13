@@ -289,5 +289,7 @@ export interface ClientDeliveryNote {
   backup_at?: string | null;
   reparto_at?: string | null;
   reparto_orden?: number | null;
+  carga_id?: number | null;      // orden de carga en la que va
+  carga_estado?: 'pendiente' | 'entregada' | null;
   created_at: string;
 }

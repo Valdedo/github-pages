@@ -82,6 +82,23 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
+## Órdenes de carga desde el albarán de TreyFACT (desde el 13/10/2026, en pruebas: solo admin)
+- Forma de trabajo: el albarán se hace en TreyFACT (valorado o no) → se sube en «Firmar albaranes» → o se firma en la
+  tienda, o «Al camión» (`components/AlCamion.tsx`: `AlCamionModal` elige viaje nuevo o uno en preparación;
+  `ElegirAlbaranes` desde «Nueva carga» y «Añadir albaranes» en la orden). Ya **no** hay foto de la libreta en la
+  interfaz (decisión de Andrés); el endpoint `/api/cargas/leer` sigue para las órdenes antiguas.
+- `POST /api/cargas/desde-albaranes` {ids, orden_id?}: lee los materiales del PDF con `services/albaran_lineas.py`
+  (texto del PDF → IA; solo código, cantidad, unidad y descripción; nunca precios) y crea una entrega por albarán
+  (`EntregaCarga.albaran_id`, `LineaCarga.codigo`). Un albarán solo puede ir en una orden.
+- Al firmar la entrega, la misma firma pasa al albarán (`firmas.firmar_desde_entrega`): queda «firmado» y archivado por
+  cliente. «Repetir la firma» lo devuelve a pendiente (no si está facturado). La hoja lleva «Albarán S-…» y los códigos.
+- Si se sube otra versión de un albarán que va en una carga, la entrega avisa y sale «Volver a leer el albarán»
+  (`POST /api/cargas/entregas/{eid}/releer`). No se puede borrar un albarán que va en una carga sin firmar.
+- «Por pasar a TreyFACT» solo queda para las entregas antiguas de la libreta (sin `albaran_id`).
+- `GET /api/firmas` devuelve `carga_id` / `carga_estado` de cada albarán (`con_carga`).
+- Para tienda (Patricia, Oscar) sigue el «Al camión» antiguo (reparto de albaranes) hasta que Andrés lo apruebe.
+- Enviar a Melchor es opcional: si la lleva otro, se carga y se firma desde la propia orden.
+
 ## Órdenes de carga → Melchor
 - Andrés prepara la orden en `/cargas/:id` y pulsa «Enviar a Melchor» (`POST /api/cargas/{id}/enviar`, campo
   `enviada_at`; «Retirar» la quita). Le llega un aviso push y le sale en su Inicio («Para cargar»,
@@ -127,5 +144,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).
 - Análisis: ordenar por importe gastado (falta `SUM` en `top-products`).
 - Festivo nacional de agosto 2027 marcado «por confirmar» en `turnos_service.py` (revisar con el BOE).
-- Ideas aparcadas: márgenes de impresión de etiquetas, sección Clientes, importar albaranes de venta
-  en TreyFACT.
+- Probar la lectura de materiales con albaranes reales de TreyFACT (en local solo con PDFs de imitación).
+- Siguiente paso pensado: carpeta vigilada en el PC de la tienda que sube sola los PDF que se guardan desde TreyFACT;
+  más adelante, leer (solo leer) la base de datos de TreyFACT.
+- Ideas aparcadas: márgenes de impresión de etiquetas, sección Clientes.

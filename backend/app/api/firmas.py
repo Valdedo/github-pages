@@ -83,8 +83,23 @@ def list_notes(
             ClientDeliveryNote.numero.ilike(like) | ClientDeliveryNote.cliente.ilike(like)
             | ClientDeliveryNote.codigo_cliente.ilike(like) | ClientDeliveryNote.obra.ilike(like)
         )
-    return (query.order_by(ClientDeliveryNote.fecha.desc(), ClientDeliveryNote.numero.desc())
-            .limit(limit).all())
+    notes = (query.order_by(ClientDeliveryNote.fecha.desc(), ClientDeliveryNote.numero.desc())
+             .limit(limit).all())
+    return con_carga(db, notes)
+
+
+def con_carga(db: Session, notes):
+    """Apunta en cada albarán en qué orden de carga va (si va en alguna)."""
+    from app.models.carga import EntregaCarga
+    ids = [n.id for n in notes]
+    mapa = {}
+    for i in range(0, len(ids), 500):
+        for aid, oid, est in (db.query(EntregaCarga.albaran_id, EntregaCarga.orden_id, EntregaCarga.estado)
+                              .filter(EntregaCarga.albaran_id.in_(ids[i:i + 500])).all()):
+            mapa[aid] = (oid, est)
+    for n in notes:
+        n.carga_id, n.carga_estado = mapa.get(n.id, (None, None))
+    return notes
 
 
 @router.get("/stats")
@@ -171,6 +186,12 @@ def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
         note.page_count = meta.page_count
         note.importe = meta.importe
         note.original_path = str(path)
+        if pendiente:
+            # Si ya va en una orden de carga, que se vea que el albarán ha cambiado
+            from app.models.carga import EntregaCarga
+            for e in db.query(EntregaCarga).filter(EntregaCarga.albaran_id == note.id,
+                                                   EntregaCarga.estado != "entregada").all():
+                e.dudas = "Se ha subido una versión nueva del albarán. Pulsa «Volver a leer el albarán» para poner sus materiales."
         db.commit()
         db.refresh(note)
         out.append(note)
@@ -322,7 +343,7 @@ def shared_pdf(token: str, filename: str, db: Session = Depends(get_db)):
 
 @router.get("/{note_id}", response_model=ClientDeliveryNoteResponse)
 def get_note(note_id: int, db: Session = Depends(get_db)):
-    return _get(db, note_id)
+    return con_carga(db, [_get(db, note_id)])[0]
 
 
 @router.put("/{note_id}", response_model=ClientDeliveryNoteResponse)
@@ -447,9 +468,51 @@ def _firmar(db: Session, request: Request, n: ClientDeliveryNote, png: bytes, no
     return n
 
 
+def firmar_desde_entrega(db: Session, note_id: int, png: bytes, nombre: str, dni: str,
+                         cuando_utc: datetime) -> bool:
+    """La firma de la hoja de entrega (orden de carga) pasa también al albarán de TreyFACT.
+    Si el albarán ya estaba firmado (p. ej. en la tienda), no se toca. Devuelve si se firmó."""
+    tomado = (db.query(ClientDeliveryNote)
+              .filter(ClientDeliveryNote.id == note_id, ClientDeliveryNote.status == "pendiente")
+              .update({ClientDeliveryNote.status: "firmando"}, synchronize_session=False))
+    db.commit()
+    if tomado != 1:
+        return False
+    n = _get(db, note_id)
+    try:
+        ahora = cuando_utc.replace(tzinfo=ZoneInfo("UTC")).astimezone(TZ)
+        signed = stamp_signature(Path(n.original_path).read_bytes(), png, n.numero, n.cliente or "",
+                                 nombre[:80], (dni or "").strip()[:20], ahora.strftime("%d/%m/%Y a las %H:%M"))
+        path = _dir() / f"{uuid.uuid4().hex}_firmado.pdf"
+        path.write_bytes(signed)
+        n.signed_path = str(path)
+        n.status = "firmado"
+        n.signed_at = ahora.replace(tzinfo=None)
+        n.signed_by = nombre[:200]
+        n.signer_dni = (dni or "").strip() or None
+        n.page_count = len(PdfReader(io.BytesIO(signed)).pages)
+        db.commit()
+    except Exception:
+        logger.exception("No se pudo pasar la firma de la entrega al albarán %s", n.numero)
+        db.rollback()
+        db.query(ClientDeliveryNote).filter(ClientDeliveryNote.id == note_id,
+                                            ClientDeliveryNote.status == "firmando") \
+            .update({ClientDeliveryNote.status: "pendiente"}, synchronize_session=False)
+        db.commit()
+        return False
+    c = _contacto(db, n)
+    if c and c.auto_email and c.email:
+        threading.Thread(target=_correo_automatico, args=(n.id, c.email), daemon=True).start()
+    backup_en_segundo_plano()
+    return True
+
+
 @router.delete("/{note_id}")
 def delete_note(note_id: int, db: Session = Depends(get_db)):
     n = _get(db, note_id)
+    con_carga(db, [n])
+    if n.carga_id and n.carga_estado != "entregada":
+        raise HTTPException(409, "Este albarán va en una orden de carga. Quítalo de la orden antes de borrarlo.")
     for p in (n.original_path, n.signed_path):
         if p:
             Path(p).unlink(missing_ok=True)
