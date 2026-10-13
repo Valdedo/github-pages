@@ -123,7 +123,7 @@ export function DashboardPage() {
     });
     s.recent_documents.forEach(d => {
       const subido = utcAMadrid(d.created_at);
-      if (subido.startsWith(hoy) && !ES_MANUAL(d.supplier_name)) a.push({ key: `d${d.id}`, at: subido, titulo: 'Albarán de proveedor procesado', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
+      if (subido.startsWith(hoy) && !ES_MANUAL(d.supplier_name)) a.push({ key: `d${d.id}`, at: subido, titulo: 'Albarán de compra leído', detalle: d.supplier_name || d.original_filename, tipo: 'proveedor', to: `/documento/${d.id}` });
     });
     return a.sort((x, y) => (y.at > x.at ? 1 : -1)).slice(0, 7);
   }, [notes, s.recent_documents]);

@@ -506,7 +506,7 @@ export function FirmaDetailPage() {
                 </div>
               )}
               {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
-              {!reparto && getRol() === 'admin' && (
+              {!reparto && (
                 note.carga_id
                   ? <button className="firma-toggle on" onClick={() => navigate(`/cargas/${note.carga_id}`)}>
                       <span className="box"><Check size={14} /></span>
@@ -517,12 +517,7 @@ export function FirmaDetailPage() {
                       <Truck size={16} /> Al camión (preparar la carga)
                     </button>
               )}
-              {!reparto && getRol() !== 'admin' && (
-                <button className={`firma-toggle${note.reparto_at ? ' on' : ''}`} onClick={camion} disabled={camionGuardando} aria-busy={camionGuardando} aria-pressed={!!note.reparto_at}>
-                  <span className="box">{note.reparto_at && <Check size={14} />}</span>
-                  <Truck size={16} /> {camionGuardando ? 'Guardando…' : note.reparto_at ? 'En el camión de reparto' : 'Mandar al camión de reparto'}
-                </button>
-              )}
+              
               <div className="firma-acciones">
                 <button className="btn btn-ghost" onClick={() => padRef.current?.clear()} disabled={!hasInk}>
                   <Eraser size={15} /> Borrar firma

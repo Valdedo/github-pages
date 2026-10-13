@@ -6,7 +6,7 @@
 
 @media (min-width: 769px) {
   /* ── Menú lateral: que quepa entero en un portátil (1366×768) ── */
-  .sidebar-item { gap: 12px; font-size: 15px; }
+  .sidebar-item { gap: 10px; font-size: 15px; }
   .sidebar-item-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sidebar-item-icon { flex-shrink: 0; }
 }

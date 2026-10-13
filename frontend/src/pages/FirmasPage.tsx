@@ -132,8 +132,8 @@ export function FirmasPage() {
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
   const { toast, show } = useCfToast();
   const raton = conRaton();
-  // Órdenes de carga desde el albarán (en pruebas: solo el encargado)
-  const conCargas = getRol() === 'admin';
+  // «Al camión» prepara la orden de carga con los materiales del albarán
+  const conCargas = getRol() !== 'reparto';
   const [alCamion, setAlCamion] = useState<ClientDeliveryNote | null>(null);
 
   const cambiarVista = (v: Vista) => {
@@ -332,8 +332,8 @@ export function FirmasPage() {
 
       <div className="inicio-head firmas-head">
         <div>
-          <h1>Firmar albaranes</h1>
-          <p>{raton ? 'Arrastra aquí los PDF de treyFACT o pulsa el botón.' : 'Sube aquí los PDF de treyFACT.'}</p>
+          <h1>Albaranes de venta</h1>
+          <p>Los de TreyFACT a clientes: firmar, mandar al camión y facturar. {raton ? 'Arrastra aquí los PDF o pulsa el botón.' : 'Sube aquí los PDF.'}</p>
         </div>
         <button className="btn btn-primary btn-lg" disabled={uploading}
           onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } }}>
@@ -458,13 +458,13 @@ export function FirmasPage() {
       ) : (
         <>
           {vista === 'firmar' && filtered.length > 0 && (
-            <p className="camion-resumen"><Truck size={16} /> {conCargas
+            <p className="camion-resumen"><Truck size={16} /> <span>{conCargas
               ? (enCamion
                 ? <>En órdenes de carga: <b>{enCamion}</b>. Los demás se firman aquí, en la tienda.</>
                 : <>Los que se firman en la tienda, ábrelos y firma. Los que van a obra: «Al camión» prepara la carga con sus materiales, sin precios.</>)
               : enCamion
                 ? <>En el camión de reparto: <b>{enCamion}</b>. Se ven en el móvil de reparto y se pueden firmar en la obra.</>
-                : <>Pulsa «Al camión» en los que salen a reparto: al repartidor le llega un aviso y solo verá esos.</>}</p>
+                : <>Pulsa «Al camión» en los que salen a reparto: al repartidor le llega un aviso y solo verá esos.</>}</span></p>
           )}
           <div className="firma-lista cf-enter">{filtered.map(row)}</div>
         </>

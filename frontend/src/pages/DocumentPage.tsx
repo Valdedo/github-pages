@@ -201,7 +201,7 @@ export function DocumentPage() {
           <>
             
             <div className="empty-state-text">Documento no encontrado.</div>
-            <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/albaranes')}>← Volver a albaranes</button>
+            <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/albaranes')}>← Volver a albaranes de compra</button>
           </>
         ) : (
           <>
@@ -235,7 +235,7 @@ export function DocumentPage() {
         <div className="doc-hero-izq" style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
           {/* Prev / Next + counter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <button className="doc-volver" onClick={() => navigate('/albaranes')}><ArrowLeft size={16} /> Albaranes</button>
+            <button className="doc-volver" onClick={() => navigate('/albaranes')}><ArrowLeft size={16} /> Albaranes de compra</button>
             <button
               className="doc-hero-nav-btn"
               onClick={() => prevId && navigate(`/documento/${prevId}`)}

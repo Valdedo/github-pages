@@ -104,8 +104,8 @@ export function CargasPage() {
       {hoja != null && <HojaVisor entregaId={hoja} onClose={cerrarHoja} />}
       <div className="inicio-head" style={{ marginBottom: 14 }}>
         <div>
-          <h1>Órdenes de carga <span className="aviso-chip" style={{ verticalAlign: 'middle' }}>En pruebas</span></h1>
-          <p>Haz el albarán en TreyFACT, súbelo en «Firmar albaranes» y mándalo al camión. La app saca los materiales y prepara la hoja de entrega sin precios.</p>
+          <h1>Órdenes de carga</h1>
+          <p>Haz el albarán en TreyFACT, súbelo en «Albaranes de venta» y mándalo al camión. La app saca los materiales y prepara la hoja de entrega sin precios.</p>
         </div>
         <button className="btn btn-primary btn-lg" onClick={() => setNueva(true)}><Truck size={19} /> Nueva carga</button>
       </div>

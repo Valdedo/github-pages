@@ -59,6 +59,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   las fechas de Andrés. Salen la primera apertura del día (`cfFiestaDia`); tienen prioridad sobre las sorpresas.
   Ver una: `?fiesta=<otono|halloween|navidad|nochevieja|reyes|antroxu|sanjuan|asturias|cumple|aniversario>` (`&nombre=` para cumple).
 
+## Nombres de los apartados (13/10/2026, para no confundir)
+- «Albaranes de compra» (`/albaranes`, abajo en el móvil «Compras»): los de proveedor que se leen con IA.
+- «Albaranes de venta» (`/firmas`, abajo «Ventas»): los de TreyFACT a clientes; firmar, al camión, facturar.
+- «Órdenes de carga» (`/cargas`) va en el grupo Clientes, debajo de los de venta.
+
 ## Estructura
 - `backend/` FastAPI + SQLAlchemy + SQLite. Migraciones = lista de `ALTER TABLE` en `app/database.py`
   (los arreglos puntuales de datos también van ahí, ejecutándose una sola vez).
@@ -82,8 +87,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
-## Órdenes de carga desde el albarán de TreyFACT (desde el 13/10/2026, en pruebas: solo admin)
-- Forma de trabajo: el albarán se hace en TreyFACT (valorado o no) → se sube en «Firmar albaranes» → o se firma en la
+## Órdenes de carga desde el albarán de TreyFACT (desde el 13/10/2026, para todos: admin y tienda)
+- Forma de trabajo: el albarán se hace en TreyFACT (valorado o no) → se sube en «Albaranes de venta» → o se firma en la
   tienda, o «Al camión» (`components/AlCamion.tsx`: `AlCamionModal` elige viaje nuevo o uno en preparación;
   `ElegirAlbaranes` desde «Nueva carga» y «Añadir albaranes» en la orden). Ya **no** hay foto de la libreta en la
   interfaz (decisión de Andrés); el endpoint `/api/cargas/leer` sigue para las órdenes antiguas.
@@ -96,7 +101,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (`POST /api/cargas/entregas/{eid}/releer`). No se puede borrar un albarán que va en una carga sin firmar.
 - «Por pasar a TreyFACT» solo queda para las entregas antiguas de la libreta (sin `albaran_id`).
 - `GET /api/firmas` devuelve `carga_id` / `carga_estado` de cada albarán (`con_carga`).
-- Para tienda (Patricia, Oscar) sigue el «Al camión» antiguo (reparto de albaranes) hasta que Andrés lo apruebe.
+- Desde el 13/10/2026 lo usa toda la tienda (backend `_acceso` en `api/cargas.py`: admin y tienda; reparto con su lista).
+  El «Al camión» antiguo (`reparto_at` en albaranes) ya no se ofrece; lo que ya estuviera en el camión sigue en el móvil de Melchor.
 - Enviar a Melchor es opcional: si la lleva otro, se carga y se firma desde la propia orden.
 
 ## Órdenes de carga → Melchor

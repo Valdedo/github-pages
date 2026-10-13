@@ -148,7 +148,7 @@ export function ElegirAlbaranes({ ordenId, onClose, onHecho }: { ordenId?: numbe
           <button className="modal-close" onClick={onClose} aria-label="Cerrar" disabled={!!leyendo}>✕</button>
         </div>
         <div className="alcamion-cuerpo">
-          <p className="alcamion-ayuda">Elige los albaranes de TreyFACT que van en el camión. Si no está, súbelo antes en «Firmar albaranes».</p>
+          <p className="alcamion-ayuda">Elige los albaranes de TreyFACT que van en el camión. Si no está, súbelo antes en «Albaranes de venta».</p>
           <div className="search-bar alcamion-buscar">
             <Search size={17} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
             <input type="search" value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar nº, cliente u obra…" aria-label="Buscar albarán" />
@@ -156,7 +156,7 @@ export function ElegirAlbaranes({ ordenId, onClose, onHecho }: { ordenId?: numbe
           </div>
           {err ? <div className="doc-aviso error">{err}</div>
             : notes == null ? <small className="alcamion-cargando">Cargando albaranes…</small>
-            : lista.length === 0 ? <div className="alcamion-vacio">{buscar.trim() ? `Ningún albarán sin firmar con «${buscar.trim()}».` : 'No hay albaranes sin firmar fuera de otras cargas. Súbelos en «Firmar albaranes».'}</div>
+            : lista.length === 0 ? <div className="alcamion-vacio">{buscar.trim() ? `Ningún albarán sin firmar con «${buscar.trim()}».` : 'No hay albaranes sin firmar fuera de otras cargas. Súbelos en «Albaranes de venta».'}</div>
             : (
               <div className="alcamion-lista">
                 {lista.map(n => (

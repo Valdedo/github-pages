@@ -86,7 +86,7 @@ export function HomePage() {
       {/* ── Page header ── */}
       <div className="inicio-head" style={{ marginBottom: 16 }}>
         <div>
-          <h1>Albaranes de proveedor</h1>
+          <h1>Albaranes de compra</h1>
           <p>
             {loading ? 'Cargando…'
               : loadError ? '—'

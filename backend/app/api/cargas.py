@@ -1,5 +1,5 @@
-"""Órdenes de carga (en pruebas: las prepara el encargado; Melchor ve solo las que se le envían).
-Foto de la libreta → entregas con materiales → cargar marcando → firma del cliente → hoja de entrega PDF."""
+"""Órdenes de carga: se preparan en la tienda a partir del albarán de TreyFACT; Melchor ve solo las que se le envían.
+Albarán → entregas con materiales (sin precios) → cargar marcando → firma del cliente → hoja de entrega PDF."""
 import json
 import logging
 import re
@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.turnos import solo_encargado
+from app.services import access_service as acc
 from app.config import settings
 from app.database import get_db
 from app.models.carga import EntregaCarga, LineaCarga, OrdenCarga
@@ -47,7 +47,8 @@ def _acceso(request: Request):
         if not any(m == request.method and rx.match(request.url.path) for m, rx in _REPARTO):
             raise HTTPException(403, "Esto solo lo puede hacer la tienda")
         return
-    solo_encargado(request)
+    if acc.config() and getattr(request.state, "rol", None) not in ("admin", "tienda"):
+        raise HTTPException(403, "Esto no se puede hacer con este código")
 
 
 def _suya(request: Request, o: "OrdenCarga") -> None:
@@ -642,7 +643,7 @@ async def firmar(
         from app.services import push_service
         detalle = (f"Firmado por {e.firmado_por}. El albarán {e.albaran.numero} queda firmado." if e.albaran_id and e.albaran
                    else f"Firmado por {e.firmado_por}. Falta pasarlo a TreyFACT.")
-        push_service.avisar(lambda s: s.rol == "admin", f"Entregado: {e.cliente}", detalle, f"/cargas/{e.orden_id}",
+        push_service.avisar(push_service.a_tienda, f"Entregado: {e.cliente}", detalle, f"/cargas/{e.orden_id}",
                             f"entrega-{e.id}")
     return _ent(e)
 

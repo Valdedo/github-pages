@@ -227,3 +227,7 @@ html:has(.con-barra) { scroll-padding-bottom: 190px; }
   .alcamion .modal-pie-botones { flex-direction: column-reverse; }
   .alcamion .modal-pie-botones .btn { width: 100%; }
 }
+/* Móviles muy estrechos (320 px): que «Compras» y «Ventas» quepan enteros abajo */
+@media (max-width: 345px) {
+  .bottom-nav-item span:last-child { font-size: 10.5px; letter-spacing: -0.01em; }
+}

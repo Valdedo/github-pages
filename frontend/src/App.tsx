@@ -76,7 +76,8 @@ interface NavBadge {
 type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean; soloEncargado?: boolean };
 const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'Clientes', items: [
-    { to: '/firmas', label: 'Firmar albaranes', short: 'Firmas', icon: PenLine, badge: 'firmas' },
+    { to: '/firmas', label: 'Albaranes de venta', short: 'Ventas', icon: PenLine, badge: 'firmas' },
+    { to: '/cargas', label: 'Órdenes de carga', short: 'Cargas', icon: ClipboardCheck },
     { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart, badge: 'orders' },
     { to: '/reparaciones', label: 'Reparaciones', icon: Wrench, badge: 'repairs' },
   ] },
@@ -85,7 +86,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
     { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
   ] },
   { titulo: 'Proveedores', items: [
-    { to: '/albaranes', label: 'Albaranes de proveedor', short: 'Albaranes', icon: FileText },
+    { to: '/albaranes', label: 'Albaranes de compra', short: 'Compras', icon: FileText },
     { to: '/catalogo', label: 'Catálogo', icon: BookOpen },
     { to: '/analisis', label: 'Análisis de compras', icon: BarChart2 },
     { to: '/ajustes', label: 'Márgenes y precios', icon: SlidersHorizontal, soloEncargado: true },
@@ -95,7 +96,6 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   ] },
   // Lo que se está probando: solo lo ve el encargado
   { titulo: 'En pruebas', items: [
-    { to: '/cargas', label: 'Órdenes de carga', icon: ClipboardCheck, soloEncargado: true },
     { to: '/tarifas', label: 'Tarifas', icon: BookMarked, soloEncargado: true },
     { to: '/vencimientos', label: 'Vencimientos', icon: CalendarClock, soloEncargado: true },
   ] },
@@ -483,8 +483,8 @@ function FullShell() {
               <Route path="/firmas/:id" element={<FirmaDetailPage />} />
               <Route path="/turnos" element={<TurnosPage />} />
               <Route path="/ajustes" element={soloAdmin(<AjustesPage />)} />
-              <Route path="/cargas" element={soloAdmin(<CargasPage />)} />
-              <Route path="/cargas/:id" element={soloAdmin(<OrdenCargaPage />)} />
+              <Route path="/cargas" element={<CargasPage />} />
+              <Route path="/cargas/:id" element={<OrdenCargaPage />} />
               <Route path="/tarifas" element={soloAdmin(<TarifasPage />)} />
               <Route path="/vencimientos" element={soloAdmin(<VencimientosPage />)} />
               <Route path="/tarifas/:prov" element={soloAdmin(<TarifaProveedorPage />)} />
