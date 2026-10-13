@@ -83,6 +83,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   ] },
   { titulo: 'Mostrador', items: [
     { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
+    { to: '/tarifas', label: 'Tarifas de proveedor', short: 'Tarifas', icon: BookMarked },
     { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
   ] },
   { titulo: 'Proveedores', items: [
@@ -96,7 +97,6 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   ] },
   // Lo que se está probando: solo lo ve el encargado
   { titulo: 'En pruebas', items: [
-    { to: '/tarifas', label: 'Tarifas', icon: BookMarked, soloEncargado: true },
     { to: '/vencimientos', label: 'Vencimientos', icon: CalendarClock, soloEncargado: true },
   ] },
 ];
@@ -485,11 +485,11 @@ function FullShell() {
               <Route path="/ajustes" element={soloAdmin(<AjustesPage />)} />
               <Route path="/cargas" element={<CargasPage />} />
               <Route path="/cargas/:id" element={<OrdenCargaPage />} />
-              <Route path="/tarifas" element={soloAdmin(<TarifasPage />)} />
+              <Route path="/tarifas" element={<TarifasPage />} />
               <Route path="/vencimientos" element={soloAdmin(<VencimientosPage />)} />
-              <Route path="/tarifas/:prov" element={soloAdmin(<TarifaProveedorPage />)} />
-              <Route path="/tarifas/:prov/:fam" element={soloAdmin(<TarifaFamiliaPage />)} />
-              <Route path="/tarifas/:prov/:fam/ficha" element={soloAdmin(<TarifaFichaPage />)} />
+              <Route path="/tarifas/:prov" element={<TarifaProveedorPage />} />
+              <Route path="/tarifas/:prov/:fam" element={<TarifaFamiliaPage />} />
+              <Route path="/tarifas/:prov/:fam/ficha" element={<TarifaFichaPage />} />
             </Routes>
           </Suspense>
         </main>

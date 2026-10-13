@@ -79,7 +79,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   ordenador, oct. 2026: menú que cabe en 1366×768, tabla de artículos compacta por debajo de ~1180 px,
   original al lado del albarán desde 1600 px, panel de firma con el botón siempre a la vista). Utilidades en
   `src/lib/` (`texto.ts` búsqueda sin tildes/fechas/plurales, `descargas.ts`, `estados.ts`).
-- **Tarifas** (en pruebas, solo admin): `/tarifas` → proveedor → familia → medidas → ficha. Las tarifas siguen en
+- **Tarifas de proveedor** (desde el 13/10/2026 para la tienda también: admin, tienda y consulta; en el menú, grupo Mostrador): `/tarifas` → proveedor → familia → medidas → ficha. Las tarifas siguen en
   Google Sheets (las actualizan las tareas programadas de Claude); la app las lee con la acción `hoja` del Apps Script
   (`tools/correo-casafonso.gs`, la hoja tiene que estar compartida con casafonsomc), guarda copia en `tarifa_copias`
   y apunta cada precio visto en `tarifa_precios` (evolución). Lector por proveedor en `services/tarifas_service.py`

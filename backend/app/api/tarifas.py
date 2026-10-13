@@ -9,8 +9,8 @@ from app.services import tarifas_service as ts
 
 
 def puede_ver(request: Request):
-    if acc.config() and getattr(request.state, "rol", None) not in ("admin", "consulta"):
-        raise HTTPException(403, "Las tarifas solo las ven Andrés y Manolo por ahora")
+    if acc.config() and getattr(request.state, "rol", None) not in ("admin", "tienda", "consulta"):
+        raise HTTPException(403, "Con este código no se pueden ver las tarifas")
 
 
 router = APIRouter(prefix="/api/tarifas", tags=["tarifas"], dependencies=[Depends(puede_ver)])

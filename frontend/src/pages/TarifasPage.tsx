@@ -218,7 +218,7 @@ export function TarifasPage() {
 
   return (
     <div className="page-wide tf">
-      <Cabecera pruebas={!esConsulta()} titulo="Tarifas" sub="Las tarifas de proveedor, por familias y medidas." />
+      <Cabecera titulo="Tarifas" sub="Las tarifas de proveedor, por familias y medidas." />
       {error && <ConnectionError message={error} onRetry={cargar} />}
       <Buscador q={q} setQ={setQ} placeholder="Buscar en todas: 50x50x4, codo 110…" onEnter={abrirPrimero} />
       {q.trim() ? (
