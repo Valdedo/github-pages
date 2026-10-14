@@ -120,10 +120,12 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   no se copian al repo. En el ordenador (≥1100 px) las medidas van en filas con un panel fijo a la derecha
   (precio, coste y factura sin salir de la lista); en móvil, barra flotante «Ver ficha». La búsqueda sale en tabla en el
   ordenador; «/» lleva al buscador e Intro abre el primero. La factura abre su PDF (acción `archivos` del Apps Script sobre la carpeta ALBARANES/<proveedor>); si no lo encuentra, busca el nº en Drive.
-- **Mallas J. Silva Moreira (14/10/2026, en pruebas: solo admin)**: hoja «TARIFA_SILVA_MOREIRA_2026» `1oIoL…` en Mi unidad
+- **Mallas J. Silva Moreira (14/10/2026, en pruebas: solo admin)**: hoja «TARIFA_SILVA_MOREIRA_2026» `1ROnV…` en Mi unidad
   de Andrés (compartida con casafonsomc). Pestañas INICIO (nº de pedido) y TARIFA: una fila por rollo (código, familia, gama,
   alto/alambres/separación, metros, rollos/palé, coste del pedido 520.42043 de may-26, margen, PVP, PVP+IVA, €/m, precio desde
-  5 rollos y de palé, con y sin IVA). Márgenes en las celdas amarillas (35 % / 25 % / 15 % sobre coste), PVP a 0,10 €.
+  5 rollos y de palé, con y sin IVA). Márgenes sobre coste fila a fila en las celdas amarillas (L tarifa, T desde 5 rollos, U palé): ligera 100 m 40/30/20 %,
+  ligera 50 m 45/30/20 %, fuerte y nudo fijo 35/25/15 % (decisión de Andrés, 14/10/2026). PVP a 0,10 €. `desde` en TARIFAS
+  obliga a releer copias anteriores a esa hora (la primera hoja `1oIoL…` está en la papelera).
   Lector `leer_silva` en `tarifas_service.py`: familia → gama → «Rollo de N m» con las medidas en botones; los precios por
   cantidad van en `apunte` de la ficha. Fotos oficiales de jsilvamoreira.pt (Ovimor L → ligera, Ovimor M → fuerte, Nodimor →
   nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`).

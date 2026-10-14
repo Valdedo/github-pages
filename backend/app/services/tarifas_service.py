@@ -59,7 +59,9 @@ TARIFAS = {
         "nombre": "Mallas Silva Moreira",
         "sub": "Malla ganadera anudada y nudo fijo",
         "proveedor": "J. Silva Moreira & Irmãos (vía Representaciones Bernardo)",
-        "hoja": "1oIoLlZT3tbgNSi-0tMEd21tPZKAgQWGaH3zPYbIdnRI",  # TARIFA_SILVA_MOREIRA_2026 (Mi unidad de Andrés)
+        "hoja": "1ROnVpheyHxewvwpA8ba2khdJ0xPaHuZYuue_qBin5rI",  # TARIFA_SILVA_MOREIRA_2026 (Mi unidad de Andrés)
+        # Copias leídas antes de esto son de la primera hoja (márgenes iguales para todo): se vuelve a leer
+        "desde": datetime(2026, 10, 14, 14, 45),
         "pestanas": ["INICIO", "TARIFA"],
         "redondeo": "redondeado a 0,10 € (con IVA, a 0,05 €)",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
@@ -610,7 +612,8 @@ def copia(db: Session, prov: str, forzar: bool = False) -> tuple[Optional[Tarifa
     y se devuelve también un aviso."""
     c = db.get(TarifaCopia, prov)
     ahora = datetime.utcnow()
-    vieja = not c or not c.leido_at or ahora - c.leido_at > REFRESCO
+    desde = TARIFAS[prov].get("desde")
+    vieja = not c or not c.leido_at or ahora - c.leido_at > REFRESCO or bool(desde and c.leido_at < desde)
     reciente_error = c and c.error_at and ahora - c.error_at < REINTENTO_ERROR
     if forzar or (vieja and not reciente_error):
         try:
