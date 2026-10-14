@@ -14,10 +14,10 @@ import {
 import './tarifas.css';
 
 // Lo leído se guarda mientras la app está abierta, para ir y volver entre pantallas sin esperar
-const cache: Record<string, Tarifa> = {};
+export const cache: Record<string, Tarifa> = {};
 const fichas: Record<string, FichaTarifa> = {};
 const leyendo: Record<string, Promise<Tarifa>> = {};
-const leerTarifa = (prov: string) =>
+export const leerTarifa = (prov: string) =>
   leyendo[prov] ??= getTarifa(prov).then(r => (cache[prov] = r.data)).finally(() => { delete leyendo[prov]; });
 
 function useTarifa(prov: string) {
@@ -51,7 +51,7 @@ function useFicha(prov: string, ref: string | null) {
 }
 
 /** Foto de referencia; si no carga, se queda la pegatina de la familia. */
-function Foto({ src, alt, respaldo, className }: { src: string; alt: string; respaldo: string; className?: string }) {
+export function Foto({ src, alt, respaldo, className }: { src: string; alt: string; respaldo: string; className?: string }) {
   const [mal, setMal] = useState(false);
   useEffect(() => setMal(false), [src]);
   return mal || !src
@@ -119,24 +119,24 @@ function Buscador({ q, setQ, placeholder, onEnter, autoFocus }: {
   );
 }
 
-const enlaceFicha = (prov: string, fam: string, ref: string) => `/tarifas/${prov}/${fam}/ficha?ref=${encodeURIComponent(ref)}`;
-const etiquetaMedida = (m: TarifaMedida) => [m.valor, m.ud_medida].filter(Boolean).join(' ');
+export const enlaceFicha = (prov: string, fam: string, ref: string) => `/tarifas/${prov}/${fam}/ficha?ref=${encodeURIComponent(ref)}`;
+export const etiquetaMedida = (m: TarifaMedida) => [m.valor, m.ud_medida].filter(Boolean).join(' ');
 /** «50X50X4» → «50×50×4» para leerlo mejor */
-const conPor = (s: string) => s.replace(/(\d)\s*X\s*(?=\d)/g, '$1×');
+export const conPor = (s: string) => s.replace(/(\d)\s*X\s*(?=\d)/g, '$1×');
 const udLarga = (u: string) => u === 'm' ? 'metro' : u === 'ud' ? 'unidad' : u;
 /** «7,50 €/m»; si no hay precio, solo «—» */
 const eurUd = (v: number | null | undefined, ud: string) => v == null ? '—' : `${eur(v)}/${ud}`;
 /** El código del proveedor tal como se enseña; el comodín de Zabaleta («INC») no identifica a nadie. */
-const codigoVisible = (m: { codigo?: string | null; comodin?: boolean }) =>
+export const codigoVisible = (m: { codigo?: string | null; comodin?: boolean }) =>
   m.comodin ? `sin código (${m.codigo})` : (m.codigo ?? '');
 /** Precio por metro de un rollo o una barra, en el precio que se está enseñando. */
-const porMetro = (m: TarifaMedida, modo: ModoPrecio) => {
+export const porMetro = (m: TarifaMedida, modo: ModoPrecio) => {
   const p = precioModo(m, modo);
   return m.metros && m.metros > 1 && p != null ? p / m.metros : null;
 };
 
-type Resultado = { t: Tarifa; f: TarifaFamilia; m: TarifaMedida };
-function buscar(ts: Tarifa[], q: string): Resultado[] {
+export type Resultado = { t: Tarifa; f: TarifaFamilia; m: TarifaMedida };
+export function buscar(ts: Tarifa[], q: string): Resultado[] {
   // «50x50x4» y «50 x 50 x 4» deben encontrar «50X50X4»
   const limpio = q.replace(/(\d)\s*[x×*]\s*(?=\d)/gi, '$1x');
   const out: Resultado[] = [];
@@ -539,12 +539,12 @@ function FamiliaActual() {
 // - Si un grupo tiene varias piezas de la misma medida (formatos de un tubo, colores, la misma pieza con dos
 //   códigos), va en filas con su código, el precio y lo que sale el metro; si hay una por medida, en botones.
 // - El código del proveedor, a la vista en las filas, en el panel, en la barra del móvil y en la ficha.
-type Bloque = { g: TarifaGrupo; items: TarifaMedida[]; filas: boolean } | { sueltos: TarifaMedida[] };
-type Seccion = { t: string | null; bloques: Bloque[] };
+export type Bloque = { g: TarifaGrupo; items: TarifaMedida[]; filas: boolean } | { sueltos: TarifaMedida[] };
+export type Seccion = { t: string | null; bloques: Bloque[] };
 
 /** La familia ordenada para enseñarla: por subcategoría, con cada grupo y sus sueltos en el orden de la tarifa.
  *  Las piezas que repetían medida y venían sueltas («repes») vuelven a su grupo, al lado de su pareja. */
-function seccionesDe(f: TarifaFamilia): Seccion[] {
+export function seccionesDe(f: TarifaFamilia): Seccion[] {
   const porRef = new Map<string, TarifaMedida>();
   for (const g of f.grupos) if (!g.titulo) for (const m of g.medidas) porRef.set(m.ref, m);
   const usados = new Set<string>();
@@ -576,7 +576,7 @@ function seccionesDe(f: TarifaFamilia): Seccion[] {
 
 /** Medidas de la familia para filtrar. Solo si hay varias y alguna junta piezas de grupos distintos (si cada
  *  medida es de un solo grupo, el filtro no aporta nada: ya están juntas). */
-function medidasDe(secciones: Seccion[]): { mp: string; op: number | null }[] {
+export function medidasDe(secciones: Seccion[]): { mp: string; op: number | null }[] {
   const m = new Map<string, { mp: string; op: number | null; grupos: Set<string> }>();
   for (const sc of secciones) for (const b of sc.bloques) {
     const items = 'sueltos' in b ? b.sueltos : b.items;

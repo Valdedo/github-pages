@@ -142,6 +142,19 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
+## Mostrador: tarifas en la tableta (14/10/2026, en pruebas: solo admin)
+- Tableta junto al ordenador de ventas: buscar con el dedo y ver el precio en grande para pasarlo a TreyFACT.
+  `/mostrador` (`pages/MostradorPage.tsx` + `mostrador.css`), a pantalla completa y sin el menú (`AppShell` en `App.tsx`;
+  a la tienda le manda a `/tarifas`). En el menú: En pruebas → «Tarifas en la tableta».
+- Lee todas las tarifas al entrar (búsqueda al instante; lo más parecido arriba: código exacto, luego lo que empieza igual).
+  Reutiliza lo exportado de `TarifasPage.tsx` (`buscar`, `seccionesDe`, `medidasDe`, `Foto`, `cache`…), vista nueva de familias.
+- Horizontal (≥900 px): navegación a la izquierda y panel fijo a la derecha (precio sin IVA enorme, con IVA, €/m, código);
+  vertical: el panel sube desde abajo. Todo tocable ≥56 px. Estado en la dirección (`p`, `f`, `m`, `q`, `r`) para que «atrás» funcione.
+- Coste y margen tapados por defecto (el cliente ve la tableta): botón del ojo (`cfMostradorCoste`, sessionStorage).
+- «Apuntado»: lista del cliente de delante con cantidades, casilla para tachar lo ya pasado a TreyFACT y total; se queda en la
+  tableta (`cfMostradorLista`), «Borrar lista» con deshacer. «Lo último que miraste» en la portada (`cfMostradorRecientes`).
+- Pantalla siempre encendida (Wake Lock) y botón de pantalla completa donde el navegador lo permite.
+
 ## Órdenes de carga desde el albarán de TreyFACT (desde el 13/10/2026, para todos: admin y tienda)
 - Forma de trabajo: el albarán se hace en TreyFACT (valorado o no) → se sube en «Albaranes de venta» → o se firma en la
   tienda, o «Al camión» (`components/AlCamion.tsx`: `AlCamionModal` elige viaje nuevo o uno en preparación;

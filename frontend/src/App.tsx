@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Link, Navigate, useNavigate, use
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import {
   LayoutDashboard, FileText, Wrench, ShoppingCart,
-  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck, BookMarked, CalendarClock
+  BarChart2, ChevronLeft, Menu, BookOpen, Search, Tag, MoreHorizontal, PenLine, CalendarDays, SlidersHorizontal, ClipboardCheck, BookMarked, CalendarClock, Tablet
 } from 'lucide-react';
 
 // Siempre a mano (también sin cobertura en el reparto): Inicio, firmas y reparto
@@ -61,6 +61,7 @@ const VencimientosPage = porPartes(() => import('./pages/VencimientosPage'), 'Ve
 const TarifaProveedorPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaProveedorPage');
 const TarifaFamiliaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFamiliaPage');
 const TarifaFichaPage = porPartes(() => import('./pages/TarifasPage'), 'TarifaFichaPage');
+const MostradorPage = porPartes(() => import('./pages/MostradorPage'), 'MostradorPage');
 const ConsultaInicio = porPartes(() => import('./pages/ConsultaInicio'), 'ConsultaInicio');
 
 /** Mientras llega un apartado: discreto (solo aparece si tarda). */
@@ -99,6 +100,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   // Lo que se está probando: solo lo ve el encargado
   { titulo: 'En pruebas', items: [
     { to: '/vencimientos', label: 'Vencimientos', icon: CalendarClock, soloEncargado: true },
+    { to: '/mostrador', label: 'Tarifas en la tableta', short: 'Tableta', icon: Tablet, soloEncargado: true },
   ] },
 ];
 const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
@@ -419,6 +421,10 @@ function AppShell() {
     arrancarCola(); arrancarColaCargas(); // órdenes de carga: toda la tienda y el reparto
   }, []);
   if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /><NuevaVersion /></>;
+  // Mostrador (tableta junto al ordenador de ventas): a pantalla completa, sin el menú. En pruebas: solo el encargado.
+  if (location.pathname === '/mostrador' && getRol() === 'admin') {
+    return <><Suspense fallback={<Cargando />}><MostradorPage /></Suspense><AvisosGlobales /><NuevaVersion /></>;
+  }
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
   return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /><NuevaVersion /></>;
 }
@@ -487,6 +493,7 @@ function FullShell() {
               <Route path="/cargas/:id" element={<OrdenCargaPage />} />
               <Route path="/tarifas" element={<TarifasPage />} />
               <Route path="/vencimientos" element={soloAdmin(<VencimientosPage />)} />
+              <Route path="/mostrador" element={<Navigate to="/tarifas" replace />} />
               <Route path="/tarifas/:prov" element={<TarifaProveedorPage />} />
               <Route path="/tarifas/:prov/:fam" element={<TarifaFamiliaPage />} />
               <Route path="/tarifas/:prov/:fam/ficha" element={<TarifaFichaPage />} />
