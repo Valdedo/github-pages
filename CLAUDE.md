@@ -125,7 +125,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   alto/alambres/separación, metros, rollos/palé, coste del pedido 520.42043 de may-26, margen, PVP, PVP+IVA, €/m, precio desde
   5 rollos y de palé, con y sin IVA). Márgenes en las celdas amarillas (35 % / 25 % / 15 % sobre coste), PVP a 0,10 €.
   Lector `leer_silva` en `tarifas_service.py`: familia → gama → «Rollo de N m» con las medidas en botones; los precios por
-  cantidad van en `apunte` de la ficha. Sin foto (la de «malla» es de simple torsión): sale la pegatina.
+  cantidad van en `apunte` de la ficha. Fotos oficiales de jsilvamoreira.pt (Ovimor L → ligera, Ovimor M → fuerte, Nodimor →
+  nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`).
 - **Tarifas: códigos y vista nueva (13/10/2026)**.
   - Zabaleta, arreglos al leer la hoja (`_comodines_zab` y `_equivalencias_zab` en `tarifas_service.py`, datos en
     `backend/app/data/zabaleta_ajustes.json`; valen para todos): (1) **códigos comodín** (INC, $4016, $5036…: Zabaleta los usa

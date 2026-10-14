@@ -523,11 +523,14 @@ def leer_silva(hojas: dict) -> dict:
         if fam not in familias:
             familias.append(fam)
         tipo = f"Rollo de {m} m" if m else "Rollo"
+        n = normaliza(fam)
+        # Fotos oficiales de jsilvamoreira.pt (Ovimor L / Ovimor M / Nodimor), en frontend/public/catalogo/silva
+        foto = "/catalogo/silva/" + ("nudo-fijo" if "nudo fijo" in n else "fuerte" if "fuerte" in n else "ligera") + ".webp"
         arts.append({
             "ref": cod, "codigo": cod, "categoria": fam, "subcategoria": gama, "descripcion": f[7] or cod,
             "nombre": f"{fam} {med or ''} · rollo de {m} m ({gama})".replace("  ", " "),
             "tipo": tipo, "medida_c": med, "orden": alto, "mp": f"{alto:g} cm" if alto else None, "op": alto,
-            "unidad": "rollo", "ud_venta": "rollo", "ud_compra": "rollo",
+            "foto": foto, "unidad": "rollo", "ud_venta": "rollo", "ud_compra": "rollo",
             "precio": coste, "fecha": fecha, "precio_ant": None, "fecha_ant": None, "evol": None,
             "coste": coste, "pvp": numero(f[12]), "pvp_iva": numero(f[13]), "margen": porcentaje(f[11]),
             "metros": m, "kg_m": None, "minimo": None, "compras": 1, "nota": None,

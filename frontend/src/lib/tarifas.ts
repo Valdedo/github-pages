@@ -131,7 +131,10 @@ export function fotoArticulo(familia: string, descripcion?: string, foto?: strin
   const zab = claveFamilia(familia);
   if (zab.startsWith('zab-')) return foto === null ? (descripcion ? '' : fotoZabaleta(zab, '')) : fotoZabaleta(zab, d);
   const varios = claveFamilia(familia) === 'malla' && !/malla|valla|hercules/.test(normaliza(familia));
-  if (/anudada|nudo fijo/.test(normaliza(familia))) return '';  // malla ganadera (Silva Moreira): la foto de «malla» es de simple torsión
+  // Malla ganadera de Silva Moreira: fotos oficiales de jsilvamoreira.pt (la foto de «malla» es de simple torsión)
+  const fam = normaliza(familia);
+  if (/nudo fijo/.test(fam)) return '/catalogo/silva/nudo-fijo.webp';
+  if (/anudada/.test(fam)) return `/catalogo/silva/${/fuerte/.test(fam) ? 'fuerte' : 'ligera'}.webp`;
   if (/^panel/.test(d)) return FOTOS['panel-sandwich'];
   if (/^malla|^poste|^base poste|^abrazadera/.test(d)) return FOTOS['malla'];
   if (/^chapa/.test(d) && /onduladas?|trapezoidal|lacada|colaborante/.test(d)) return FOTOS['chapa-ondulada'];
