@@ -1,0 +1,504 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+  ChevronLeft, ChevronRight, Search, X, Home, Eye, EyeOff, Maximize, Minimize, Plus, Minus, ClipboardList,
+  Check, Trash2, LogOut, Clock,
+} from 'lucide-react';
+import { getTarifas, describeApiError } from '../api/client';
+import { normaliza } from '../lib/texto';
+import { ConnectionError } from '../components/ConnectionError';
+import { useCfToast } from '../components/CfToast';
+import { useAnchoVentana } from '../hooks/useIsMobile';
+import {
+  PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, mesLargo, esReciente,
+  type Tarifa, type TarifaResumen, type TarifaMedida, type TarifaFamilia,
+} from '../lib/tarifas';
+import {
+  cache, leerTarifa, Foto, buscar, conPor, codigoVisible, etiquetaMedida, porMetro, seccionesDe, medidasDe,
+  enlaceFicha, type Bloque,
+} from './TarifasPage';
+import './mostrador.css';
+
+// ════════════════════════════════════════════════════════════════════════
+// Mostrador (tableta junto al ordenador de ventas). En pruebas, oct. 2026.
+// Buscar con el dedo un artículo de las tarifas y ver su precio en grande para
+// pasarlo a TreyFACT. Todo en una pantalla: a la izquierda se navega
+// (proveedor → familia → medida) o se busca; a la derecha, el precio elegido
+// y la lista de lo apuntado para el cliente que está delante.
+// El coste va tapado (el cliente ve la tableta): el ojo de arriba lo enseña.
+// ════════════════════════════════════════════════════════════════════════
+
+type Elegido = { t: Tarifa; f: TarifaFamilia; m: TarifaMedida };
+type Apunte = { prov: string; fam: string; ref: string; codigo: string; descripcion: string; ud: string; pvp: number | null; pvp_iva: number | null; cant: number; hecho: boolean };
+type Reciente = { prov: string; fam: string; ref: string };
+
+const LISTA = 'cfMostradorLista';
+const RECIENTES = 'cfMostradorRecientes';
+const COSTE = 'cfMostradorCoste';
+const leer = <T,>(k: string, def: T): T => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) as T : def; } catch { return def; } };
+const guardar = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* nada */ } };
+const num = (v: number) => v.toLocaleString('es-ES', { maximumFractionDigits: 2 });
+const margen = (m: TarifaMedida) => m.pvp != null && m.coste ? (m.pvp / m.coste - 1) * 100 : null;
+
+function buscarArticulo(ts: Tarifa[], prov: string, ref: string): Elegido | null {
+  const t = ts.find(x => x.id === prov);
+  if (!t) return null;
+  for (const f of t.familias) for (const g of f.grupos) for (const m of g.medidas) if (m.ref === ref) return { t, f, m };
+  return null;
+}
+
+/** La búsqueda de siempre, con lo más parecido arriba: el código exacto, luego lo que empieza igual. */
+function buscarOrdenado(ts: Tarifa[], q: string) {
+  const nq = normaliza(q).replace(/\s+/g, '');
+  const nqd = normaliza(q).replace(/(\d)\s*[x×*]\s*(?=\d)/g, '$1x');
+  const nota = (m: TarifaMedida) => {
+    const cod = normaliza(m.codigo ?? '').replace(/\s+/g, '');
+    if (cod && cod === nq) return 0;
+    if ((m.alias ?? []).some(a => normaliza(a).replace(/\s+/g, '') === nq)) return 0;
+    if (cod && cod.startsWith(nq)) return 1;
+    if (normaliza(conPor(m.descripcion)).replace(/×/g, 'x').startsWith(nqd)) return 2;
+    return 3;
+  };
+  return buscar(ts, q).map((r, i) => ({ r, n: nota(r.m), i })).sort((a, b) => a.n - b.n || a.i - b.i).map(x => x.r);
+}
+
+/** Pantalla siempre encendida mientras se usa (donde el navegador lo permite). */
+function usePantallaEncendida() {
+  useEffect(() => {
+    type Lock = { release: () => Promise<void> };
+    const wl = (navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<Lock> } }).wakeLock;
+    if (!wl) return;
+    let lock: Lock | null = null;
+    const pedir = () => { if (document.visibilityState === 'visible') wl.request('screen').then(l => { lock = l; }).catch(() => { /* nada */ }); };
+    pedir();
+    document.addEventListener('visibilitychange', pedir);
+    return () => { document.removeEventListener('visibilitychange', pedir); lock?.release().catch(() => { /* nada */ }); };
+  }, []);
+}
+
+function usePantallaCompleta() {
+  const [on, setOn] = useState(() => !!document.fullscreenElement);
+  useEffect(() => {
+    const h = () => setOn(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', h);
+    return () => document.removeEventListener('fullscreenchange', h);
+  }, []);
+  const puede = typeof document.documentElement.requestFullscreen === 'function';
+  const cambiar = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => { /* nada */ });
+    else document.documentElement.requestFullscreen().catch(() => { /* nada */ });
+  };
+  return { on, puede, cambiar };
+}
+
+export function MostradorPage() {
+  usePantallaEncendida();
+  const pantalla = usePantallaCompleta();
+  const ancho = useAnchoVentana();
+  const horizontal = ancho >= 900;
+  const [sp, setSp] = useSearchParams();
+  const { toast, show } = useCfToast();
+
+  // ── Datos: todas las tarifas a la vez (para buscar al instante) ──
+  const [lista, setLista] = useState<TarifaResumen[] | null>(null);
+  const [tarifas, setTarifas] = useState<Tarifa[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const cargar = useCallback(() => {
+    setError(null);
+    getTarifas().then(async r => {
+      setLista(r.data);
+      const ts = await Promise.all(r.data.map(p => cache[p.id] ? Promise.resolve(cache[p.id]) : leerTarifa(p.id)));
+      setTarifas(ts);
+    }).catch(e => setError(describeApiError(e)));
+  }, []);
+  useEffect(cargar, [cargar]);
+
+  // ── Dónde estamos (en la dirección, para que «atrás» funcione) ──
+  const prov = sp.get('p') ?? '';
+  const fam = sp.get('f') ?? '';
+  const medida = sp.get('m');
+  const q = sp.get('q') ?? '';
+  const sel = sp.get('r') ?? ''; // «prov|ref»
+  const ir = (cambios: Record<string, string | null>, reemplazar = false) => {
+    const n = new URLSearchParams(sp);
+    for (const [k, v] of Object.entries(cambios)) if (v) n.set(k, v); else n.delete(k);
+    setSp(n, { replace: reemplazar });
+  };
+  const t = tarifas.find(x => x.id === prov) ?? null;
+  const f = t?.familias.find(x => x.id === fam) ?? null;
+  const [selProv, selRef] = sel.split('|');
+  const elegido = sel ? buscarArticulo(tarifas, selProv, selRef ?? '') : null;
+
+  // ── Coste tapado por defecto ──
+  const [verCoste, setVerCoste] = useState(() => { try { return sessionStorage.getItem(COSTE) === '1'; } catch { return false; } });
+  useEffect(() => { try { sessionStorage.setItem(COSTE, verCoste ? '1' : '0'); } catch { /* nada */ } }, [verCoste]);
+
+  // ── Lo último mirado y lo apuntado (se queda en la tableta) ──
+  const [recientes, setRecientes] = useState<Reciente[]>(() => leer(RECIENTES, []));
+  const [apuntes, setApuntes] = useState<Apunte[]>(() => leer(LISTA, []));
+  useEffect(() => guardar(LISTA, apuntes), [apuntes]);
+  const elegir = (e: Elegido) => {
+    ir({ r: `${e.t.id}|${e.m.ref}` }, true);
+    setVerLista(false);
+    setRecientes(rs => {
+      const n = [{ prov: e.t.id, fam: e.f.id, ref: e.m.ref }, ...rs.filter(x => !(x.prov === e.t.id && x.ref === e.m.ref))].slice(0, 12);
+      guardar(RECIENTES, n);
+      return n;
+    });
+  };
+  const [verLista, setVerLista] = useState(false);
+  const apuntar = (e: Elegido, cant: number) => {
+    setApuntes(as => {
+      const i = as.findIndex(a => a.prov === e.t.id && a.ref === e.m.ref && !a.hecho);
+      if (i >= 0) return as.map((a, j) => j === i ? { ...a, cant: a.cant + cant } : a);
+      return [...as, { prov: e.t.id, fam: e.f.id, ref: e.m.ref, codigo: e.m.codigo ?? '', descripcion: e.m.descripcion, ud: e.m.ud_venta, pvp: e.m.pvp, pvp_iva: e.m.pvp_iva, cant, hecho: false }];
+    });
+    show(`Apuntado: ${num(cant)} ${e.m.ud_venta} · ${conPor(e.m.descripcion)}`);
+  };
+  const borrarLista = () => {
+    const antes = apuntes;
+    setApuntes([]);
+    show('Lista borrada', { undo: () => setApuntes(antes) });
+  };
+
+  // ── Búsqueda ──
+  const resultados = useMemo(() => q.trim() && tarifas.length ? buscarOrdenado(tarifas, q) : [], [tarifas, q]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [texto, setTexto] = useState(q);
+  useEffect(() => setTexto(q), [q]);
+  // Se busca al escribir, sin llenar el «atrás» de letras
+  useEffect(() => {
+    if (texto === q) return;
+    const h = setTimeout(() => ir({ q: texto.trim() ? texto : null }, !!q), 180);
+    return () => clearTimeout(h);
+  }, [texto]); // eslint-disable-line react-hooks/exhaustive-deps
+  const alInicio = () => { setTexto(''); setSp(new URLSearchParams(sel ? { r: sel } : {})); };
+
+  // ── Contenido de la izquierda ──
+  let migas: { t: string; on: () => void }[] = [];
+  if (!q && t) migas = [{ t: 'Proveedores', on: () => ir({ p: null, f: null, m: null }) }, ...(f ? [{ t: t.nombre, on: () => ir({ f: null, m: null }) }] : [])];
+  const volver = q ? () => { setTexto(''); ir({ q: null }); } : migas.length ? migas[migas.length - 1].on : null;
+
+  let cuerpo: ReactNode;
+  if (error && !tarifas.length) cuerpo = <ConnectionError message={error} onRetry={cargar} />;
+  else if (q.trim()) cuerpo = !tarifas.length
+    ? <div className="mo-vacio"><span className="spinner" /> Leyendo las tarifas…</div>
+    : <Resultados res={resultados} q={q} sel={sel} onElegir={elegir} />;
+  else if (prov && f && t) cuerpo = <Familia t={t} f={f} medida={medida} sel={sel} onMedida={m => ir({ m }, true)} onElegir={elegir} />;
+  else if (prov && t) cuerpo = <Familias t={t} onFamilia={id => ir({ f: id, m: null })} />;
+  else if (prov && !t) cuerpo = <div className="mo-vacio"><span className="spinner" /> Leyendo la tarifa…</div>;
+  else cuerpo = (
+    <Portada lista={lista} tarifas={tarifas} recientes={recientes} sel={sel}
+      onProveedor={id => ir({ p: id, f: null, m: null })} onElegir={elegir} />
+  );
+
+  const titulo = q.trim() ? `Buscando «${q.trim()}»` : f ? f.nombre : t ? t.nombre : 'Tarifas';
+  const pendientes = apuntes.filter(a => !a.hecho).length;
+
+  const panel = verLista
+    ? <ListaApuntes apuntes={apuntes} setApuntes={setApuntes} onBorrar={borrarLista} onCerrar={() => setVerLista(false)} horizontal={horizontal}
+      onAbrir={a => { const e = buscarArticulo(tarifas, a.prov, a.ref); if (e) elegir(e); }} />
+    : <PanelPrecio e={elegido} verCoste={verCoste} horizontal={horizontal} onApuntar={apuntar}
+      onCerrar={() => ir({ r: null }, true)} />;
+
+  return (
+    <div className={`mo${horizontal ? ' mo-h' : ' mo-v'}${(elegido || verLista) && !horizontal ? ' mo-con-hoja' : ''}`}>
+      {toast}
+      <header className="mo-cab">
+        <button type="button" className="mo-cab-btn mo-inicio" onClick={alInicio} aria-label="Inicio de las tarifas">
+          <Home size={26} />
+        </button>
+        <div className="mo-buscar">
+          <Search size={26} aria-hidden="true" />
+          <input ref={inputRef} type="search" enterKeyHint="search" value={texto} onChange={e => setTexto(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); inputRef.current?.blur(); if (resultados[0] && resultados.length === 1) elegir(resultados[0]); } }}
+            placeholder="Buscar: tubo 110, codo, 50x50, código…" aria-label="Buscar en las tarifas" autoComplete="off" autoCorrect="off" spellCheck={false} />
+          {texto && <button type="button" className="mo-buscar-x" onClick={() => { setTexto(''); ir({ q: null }); inputRef.current?.focus(); }} aria-label="Borrar búsqueda"><X size={26} /></button>}
+        </div>
+        <button type="button" className={`mo-cab-btn mo-lista-btn${verLista ? ' on' : ''}`} onClick={() => setVerLista(v => !v)} aria-pressed={verLista}>
+          <ClipboardList size={26} /><span>Apuntado</span>{pendientes > 0 && <b>{pendientes}</b>}
+        </button>
+        <button type="button" className={`mo-cab-btn${verCoste ? ' on' : ''}`} onClick={() => setVerCoste(v => !v)} aria-pressed={verCoste}
+          aria-label={verCoste ? 'Tapar el coste' : 'Enseñar el coste'} title={verCoste ? 'Tapar el coste' : 'Enseñar el coste'}>
+          {verCoste ? <Eye size={26} /> : <EyeOff size={26} />}<span>Coste</span>
+        </button>
+        {pantalla.puede && (
+          <button type="button" className="mo-cab-btn" onClick={pantalla.cambiar} aria-label={pantalla.on ? 'Salir de pantalla completa' : 'Pantalla completa'}>
+            {pantalla.on ? <Minimize size={26} /> : <Maximize size={26} />}
+          </button>
+        )}
+        <Link to="/" className="mo-cab-btn mo-salir" aria-label="Salir del mostrador"><LogOut size={24} /></Link>
+      </header>
+
+      <div className="mo-cuerpo">
+        <main className="mo-izq">
+          <div className="mo-titulo">
+            {volver && <button type="button" className="mo-volver" onClick={volver} aria-label="Volver"><ChevronLeft size={34} /></button>}
+            {f && !q.trim() && <img src={pegatina(claveFamilia(f.nombre))} alt="" className="mo-titulo-peg" />}
+            {!f && t && !q.trim() && <img src={pegatina(PEGATINA_PROVEEDOR[t.id] ?? 'prov-hierros')} alt="" className="mo-titulo-peg" />}
+            <div className="mo-titulo-txt">
+              {migas.length > 1 && <nav className="mo-migas" aria-label="Estás en">{migas.map((m, i) => (
+                <span key={i}><button type="button" onClick={m.on}>{m.t}</button>{i < migas.length - 1 && <ChevronRight size={16} />}</span>
+              ))}</nav>}
+              <h1>{titulo}</h1>
+            </div>
+            <span className="mo-pruebas">En pruebas</span>
+          </div>
+          {error && tarifas.length > 0 && <ConnectionError message={error} onRetry={cargar} />}
+          {cuerpo}
+        </main>
+        {horizontal ? <aside className="mo-der">{panel}</aside> : (elegido || verLista) && <div className="mo-hoja">{panel}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── Portada: proveedores grandes y lo último que se miró ──────────────────
+function Portada({ lista, tarifas, recientes, sel, onProveedor, onElegir }: {
+  lista: TarifaResumen[] | null; tarifas: Tarifa[]; recientes: Reciente[]; sel: string;
+  onProveedor: (id: string) => void; onElegir: (e: Elegido) => void;
+}) {
+  const ultimos = recientes.map(r => buscarArticulo(tarifas, r.prov, r.ref)).filter((x): x is Elegido => !!x).slice(0, 8);
+  return (
+    <>
+      <div className="mo-provs">
+        {(lista ?? []).map(p => (
+          <button key={p.id} type="button" className="mo-prov" onClick={() => onProveedor(p.id)}>
+            <img src={pegatina(PEGATINA_PROVEEDOR[p.id] ?? 'prov-hierros')} alt="" />
+            <strong>{p.nombre}</strong>
+            <small>{p.articulos != null ? `${p.articulos} artículos` : p.sub}</small>
+          </button>
+        ))}
+        {!lista && [0, 1, 2].map(i => <div key={i} className="mo-prov skeleton" />)}
+      </div>
+      {ultimos.length > 0 && (
+        <>
+          <h2 className="mo-sec"><Clock size={18} /> Lo último que miraste</h2>
+          <div className="mo-filas">
+            {ultimos.map(e => <FilaArticulo key={e.t.id + e.m.ref} e={e} nombre={e.m.descripcion} sel={sel} onElegir={onElegir} conFamilia />)}
+          </div>
+        </>
+      )}
+      {lista && !tarifas.length && <p className="mo-nota"><span className="spinner spinner-sm" /> Preparando la búsqueda…</p>}
+    </>
+  );
+}
+
+// ── Familias de un proveedor ───────────────────────────────────────────────
+function Familias({ t, onFamilia }: { t: Tarifa; onFamilia: (id: string) => void }) {
+  return (
+    <div className="mo-familias">
+      {t.familias.map(f => (
+        <button key={f.id} type="button" className="mo-familia" onClick={() => onFamilia(f.id)}>
+          <img src={pegatina(claveFamilia(f.nombre))} alt="" />
+          <strong>{f.nombre}</strong>
+          <small>{f.n} {f.n === 1 ? 'artículo' : 'artículos'}</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Una familia: medidas arriba y piezas en botones o filas grandes ────────
+function Familia({ t, f, medida, sel, onMedida, onElegir }: {
+  t: Tarifa; f: TarifaFamilia; medida: string | null; sel: string; onMedida: (m: string | null) => void; onElegir: (e: Elegido) => void;
+}) {
+  const secciones = useMemo(() => seccionesDe(f), [f]);
+  const medidas = useMemo(() => medidasDe(secciones), [secciones]);
+  const med = medida && medidas.some(x => x.mp === medida) ? medida : null;
+  const fila = (m: TarifaMedida, nombre: string) => <FilaArticulo key={m.ref} e={{ t, f, m }} nombre={nombre} sel={sel} onElegir={onElegir} />;
+  const bloque = (b: Bloque, i: number) => {
+    if ('sueltos' in b) return <div key={i} className="mo-filas">{b.sueltos.map(m => fila(m, m.descripcion))}</div>;
+    const repetidas = new Set(b.items.filter((m, j) => b.items.findIndex(x => x.valor === m.valor) !== j).map(m => m.valor));
+    return (
+      <section key={i} className="mo-grupo">
+        <h3>{conPor(b.g.titulo!)}</h3>
+        {b.filas
+          ? <div className="mo-filas">{b.items.map(m => fila(m, !m.valor || repetidas.has(m.valor) ? m.descripcion : etiquetaMedida(m)))}</div>
+          : (
+            <div className="mo-botones">
+              {b.items.map(m => (
+                <button key={m.ref} type="button" className="mo-boton" aria-pressed={sel === `${t.id}|${m.ref}`} onClick={() => onElegir({ t, f, m })}>
+                  <span>{conPor(etiquetaMedida(m)) || conPor(m.descripcion)}</span>
+                  <strong>{eur(m.pvp)}</strong>
+                  {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
+                </button>
+              ))}
+            </div>
+          )}
+      </section>
+    );
+  };
+  const filtradas = med ? secciones.map(sc => ({
+    t: sc.t, items: sc.bloques.flatMap(b => ('sueltos' in b ? b.sueltos : b.items)).filter(m => (m.ms ?? [m.mp]).includes(med)),
+  })).filter(sc => sc.items.length) : [];
+
+  return (
+    <>
+      {medidas.length > 0 && (
+        <div className="mo-medidas" role="group" aria-label="Medida">
+          <button type="button" aria-pressed={!med} onClick={() => onMedida(null)}>Todas</button>
+          {medidas.map(x => <button key={x.mp} type="button" aria-pressed={med === x.mp} onClick={() => onMedida(med === x.mp ? null : x.mp)}>{conPor(x.mp)}</button>)}
+        </div>
+      )}
+      {med ? filtradas.map(sc => (
+        <section key={sc.t ?? '-'} className="mo-sub">
+          {sc.t && <h2 className="mo-sub-tit">{sc.t}</h2>}
+          <div className="mo-filas">{sc.items.map(m => fila(m, m.descripcion))}</div>
+        </section>
+      )) : secciones.map((sc, i) => (
+        <section key={sc.t ?? i} className="mo-sub">
+          {sc.t && <h2 className="mo-sub-tit">{sc.t}</h2>}
+          {sc.bloques.map(bloque)}
+        </section>
+      ))}
+    </>
+  );
+}
+
+/** Fila grande: nombre, código y precio de venta sin IVA. */
+function FilaArticulo({ e, nombre, sel, onElegir, conFamilia }: {
+  e: Elegido; nombre: string; sel: string; onElegir: (e: Elegido) => void; conFamilia?: boolean;
+}) {
+  const { t, f, m } = e;
+  return (
+    <button type="button" className={`mo-fila${m.pvp == null ? ' mo-sin' : ''}`} aria-pressed={sel === `${t.id}|${m.ref}`} onClick={() => onElegir(e)}>
+      {conFamilia && <img src={pegatina(claveFamilia(f.nombre))} alt="" className="mo-fila-peg" />}
+      <span className="mo-fila-txt">
+        <strong>{conPor(nombre)}</strong>
+        <small>
+          {m.codigo && <span className="mo-cod">{codigoVisible(m)}</span>}
+          {conFamilia && <span>{t.nombre} · {f.nombre}</span>}
+        </small>
+      </span>
+      <span className="mo-fila-precio">
+        {m.pvp != null ? <>{esReciente(m.fecha) && m.evol ? <i className={`mo-punto ${m.evol > 0 ? 'sube' : 'baja'}`} /> : null}{eur(m.pvp)}<small>/{m.ud_venta}</small></> : <em>Sin precio</em>}
+      </span>
+    </button>
+  );
+}
+
+function Resultados({ res, q, sel, onElegir }: { res: Elegido[]; q: string; sel: string; onElegir: (e: Elegido) => void }) {
+  const MAX = 60;
+  if (!res.length) return <div className="mo-vacio">No hay nada con «{q}». Prueba con menos palabras o solo la medida (p. ej. 110).</div>;
+  return (
+    <>
+      <p className="mo-nota">{res.length} {res.length === 1 ? 'artículo' : 'artículos'}{res.length > MAX ? ` · se enseñan los ${MAX} primeros, añade una palabra más` : ''}</p>
+      <div className="mo-filas">
+        {res.slice(0, MAX).map(e => <FilaArticulo key={e.t.id + e.m.ref} e={e} nombre={e.m.descripcion} sel={sel} onElegir={onElegir} conFamilia />)}
+      </div>
+    </>
+  );
+}
+
+// ── Panel del precio (derecha en horizontal, hoja de abajo en vertical) ──
+function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
+  e: Elegido | null; verCoste: boolean; horizontal: boolean; onApuntar: (e: Elegido, cant: number) => void; onCerrar: () => void;
+}) {
+  const [cant, setCant] = useState(1);
+  useEffect(() => setCant(1), [e?.m.ref]);
+  if (!e) {
+    return (
+      <div className="mo-panel mo-panel-vacio">
+        <span className="mo-panel-vacio-ico"><Search size={44} /></span>
+        <strong>Toca un artículo</strong>
+        <p>Aquí sale su precio en grande para pasarlo al albarán, y puedes apuntarlo para el cliente.</p>
+      </div>
+    );
+  }
+  const { t, f, m } = e;
+  const pm = porMetro(m, 'venta');
+  const mg = margen(m);
+  const paso = 1;
+  const foto = fotoArticulo(f.nombre, m.descripcion, m.foto);
+  return (
+    <div className="mo-panel">
+      {!horizontal && <button type="button" className="mo-hoja-x" onClick={onCerrar} aria-label="Cerrar"><X size={28} /></button>}
+      {horizontal && (
+        <div className="mo-panel-foto">
+          <Foto src={foto} alt={conPor(m.descripcion)} respaldo={pegatina(claveFamilia(f.nombre))} />
+        </div>
+      )}
+      <div className="mo-panel-cab">
+        <h2>{conPor(m.descripcion)}</h2>
+        <p>{t.nombre} · {f.nombre}</p>
+      </div>
+      {m.codigo && (
+        <div className="mo-panel-cod"><small>Código</small><span className="mo-cod mo-cod-g">{codigoVisible(m)}</span></div>
+      )}
+      <div className="mo-precio">
+        <small>Precio sin IVA</small>
+        {m.pvp != null ? <strong>{eur(m.pvp).replace(' €', '')}<span> €/{m.ud_venta}</span></strong> : <strong className="mo-precio-no">Sin precio</strong>}
+        <div className="mo-precio-otros">
+          {m.pvp_iva != null && <span>Con IVA <b>{eur(m.pvp_iva)}/{m.ud_venta}</b></span>}
+          {pm != null && <span>Sale el metro a <b>{eur(pm)}</b> ({m.metros} m)</span>}
+        </div>
+      </div>
+      {verCoste && (
+        <div className="mo-coste">
+          <span>Coste <b>{eur(m.coste)}/{m.ud_venta}</b></span>
+          {mg != null && <span>Margen <b>+{num(Math.round(mg))} %</b></span>}
+          <span>{m.fecha ? `Precio de ${mesLargo(m.fecha)}` : ''}{m.evol ? <em className={m.evol > 0 ? 'sube' : 'baja'}> {pct(m.evol)}</em> : null}</span>
+        </div>
+      )}
+      {m.pvp != null && (
+        <div className="mo-apuntar">
+          <div className="mo-cant" role="group" aria-label="Cantidad">
+            <button type="button" onClick={() => setCant(c => Math.max(paso, c - paso))} aria-label="Uno menos" disabled={cant <= paso}><Minus size={28} /></button>
+            <input inputMode="decimal" value={String(cant).replace('.', ',')} aria-label="Cantidad"
+              onChange={ev => { const v = parseFloat(ev.target.value.replace(',', '.')); if (!isNaN(v) && v > 0) setCant(v); else if (ev.target.value === '') setCant(0); }}
+              onBlur={() => { if (!cant) setCant(1); }} />
+            <button type="button" onClick={() => setCant(c => c + paso)} aria-label="Uno más"><Plus size={28} /></button>
+          </div>
+          <button type="button" className="mo-apuntar-btn" onClick={() => cant > 0 && onApuntar(e, cant)} disabled={!cant}>
+            <ClipboardList size={24} /> Apuntar{cant > 0 && m.pvp != null ? <small>{eur(cant * m.pvp)}</small> : null}
+          </button>
+        </div>
+      )}
+      <Link className="mo-ficha" to={enlaceFicha(t.id, f.id, m.ref)}>Ver ficha completa (factura, evolución) <ChevronRight size={18} /></Link>
+    </div>
+  );
+}
+
+// ── Lo apuntado para el cliente de delante ─────────────────────────────────
+function ListaApuntes({ apuntes, setApuntes, onBorrar, onCerrar, onAbrir, horizontal }: {
+  apuntes: Apunte[]; setApuntes: (f: (a: Apunte[]) => Apunte[]) => void; onBorrar: () => void; onCerrar: () => void;
+  onAbrir: (a: Apunte) => void; horizontal: boolean;
+}) {
+  const total = apuntes.reduce((s, a) => s + (a.pvp ?? 0) * a.cant, 0);
+  const totalIva = apuntes.reduce((s, a) => s + (a.pvp_iva ?? (a.pvp ?? 0) * 1.21) * a.cant, 0);
+  const cambia = (i: number, c: Partial<Apunte>) => setApuntes(as => as.map((a, j) => j === i ? { ...a, ...c } : a));
+  return (
+    <div className="mo-panel mo-apuntes">
+      <div className="mo-apuntes-cab">
+        <h2>Apuntado</h2>
+        <button type="button" className="mo-txt-btn" onClick={onCerrar}>{horizontal ? 'Volver al precio' : <X size={28} />}</button>
+      </div>
+      {!apuntes.length ? (
+        <p className="mo-nota">Aún no hay nada. Elige un artículo y pulsa «Apuntar». Al pasarlo a TreyFACT, toca la casilla para tacharlo.</p>
+      ) : (
+        <>
+          <ul className="mo-apuntes-lista">
+            {apuntes.map((a, i) => (
+              <li key={i} className={a.hecho ? 'hecho' : ''}>
+                <button type="button" className="mo-check" aria-pressed={a.hecho} onClick={() => cambia(i, { hecho: !a.hecho })}
+                  aria-label={a.hecho ? 'Marcar como no pasado' : 'Marcar como pasado a TreyFACT'}>{a.hecho && <Check size={24} strokeWidth={3} />}</button>
+                <button type="button" className="mo-apunte-txt" onClick={() => onAbrir(a)}>
+                  <strong>{num(a.cant)} {a.ud} · {conPor(a.descripcion)}</strong>
+                  <small>{a.codigo && <span className="mo-cod">{a.codigo}</span>} {eur(a.pvp)}/{a.ud}</small>
+                </button>
+                <span className="mo-apunte-imp">{eur((a.pvp ?? 0) * a.cant)}</span>
+                <button type="button" className="mo-apunte-x" onClick={() => setApuntes(as => as.filter((_, j) => j !== i))} aria-label="Quitar"><X size={22} /></button>
+              </li>
+            ))}
+          </ul>
+          <div className="mo-total">
+            <span>Total sin IVA <b>{eur(total)}</b></span>
+            <span>Con IVA <b>{eur(totalIva)}</b></span>
+          </div>
+          <button type="button" className="mo-borrar" onClick={onBorrar}><Trash2 size={22} /> Borrar lista (siguiente cliente)</button>
+        </>
+      )}
+    </div>
+  );
+}
