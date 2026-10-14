@@ -55,7 +55,7 @@ export const PROXIMAMENTE = [
   { id: 'pladur', nombre: 'Pladur', sub: 'Construdeco · placas, perfilería y pastas', pegatina: 'prov-pladur' },
   { id: 'dinak', nombre: 'Dinak', sub: 'Construdeco · chimeneas', pegatina: 'prov-dinak' },
 ];
-export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex' };
+export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla' };
 
 export const pegatina = (nombre: string) => `/catalogo/st-${nombre}.png`;
 
@@ -131,6 +131,7 @@ export function fotoArticulo(familia: string, descripcion?: string, foto?: strin
   const zab = claveFamilia(familia);
   if (zab.startsWith('zab-')) return foto === null ? (descripcion ? '' : fotoZabaleta(zab, '')) : fotoZabaleta(zab, d);
   const varios = claveFamilia(familia) === 'malla' && !/malla|valla|hercules/.test(normaliza(familia));
+  if (/anudada|nudo fijo/.test(normaliza(familia))) return '';  // malla ganadera (Silva Moreira): la foto de «malla» es de simple torsión
   if (/^panel/.test(d)) return FOTOS['panel-sandwich'];
   if (/^malla|^poste|^base poste|^abrazadera/.test(d)) return FOTOS['malla'];
   if (/^chapa/.test(d) && /onduladas?|trapezoidal|lacada|colaborante/.test(d)) return FOTOS['chapa-ondulada'];

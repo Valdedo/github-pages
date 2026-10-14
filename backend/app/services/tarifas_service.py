@@ -55,6 +55,15 @@ TARIFAS = {
         "redondeo": "terminación comercial (…,50 / …,95)",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
+    "silva": {
+        "nombre": "Mallas Silva Moreira",
+        "sub": "Malla ganadera anudada y nudo fijo",
+        "proveedor": "J. Silva Moreira & Irmãos (vía Representaciones Bernardo)",
+        "hoja": "1oIoLlZT3tbgNSi-0tMEd21tPZKAgQWGaH3zPYbIdnRI",  # TARIFA_SILVA_MOREIRA_2026 (Mi unidad de Andrés)
+        "pestanas": ["INICIO", "TARIFA"],
+        "redondeo": "redondeado a 0,10 € (con IVA, a 0,05 €)",
+        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
+    },
 }
 
 REFRESCO = timedelta(hours=3)          # se vuelve a leer si la copia tiene más de esto
@@ -477,7 +486,65 @@ def leer_isoltubex(hojas: dict) -> dict:
             "orden_familias": [f for f, _ in isoltubex.FAMILIAS], "orden_grupos": isoltubex.GRUPOS}
 
 
-LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex}
+# ── Lector de la tarifa de mallas de J. Silva Moreira ─────────────────────
+def leer_silva(hojas: dict) -> dict:
+    """Pestaña «TARIFA»: una fila por rollo (código, familia, gama, alto, alambres, separación, metros, descripción
+    del proveedor, rollos por palé, coste, fecha, margen, PVP, PVP+IVA, €/m, precio desde 5 rollos y precio de palé,
+    cada uno con IVA). El coste sale del pedido de mayo de 2026; cada rollo es su propia «línea»."""
+    filas = hojas.get("TARIFA") or []
+    ini = next((i for i, f in enumerate(filas) if f and normaliza(f[0]) == "codigo"), None)
+    if ini is None:
+        return {"articulos": [], "log": [], "margen": None, "lineas": {}}
+    pedido = ""
+    for f in hojas.get("INICIO") or []:
+        m = re.search(r"[Pp]edido\s+([\d.]+)", " ".join(map(str, f)))
+        if m:
+            pedido = m.group(1)
+    arts, lineas, familias = [], {}, []
+    for f in filas[ini + 1:]:
+        f = [str(x).strip() for x in f] + [""] * (19 - len(f))
+        cod, fam, gama = f[0], f[1], f[2]
+        if not cod or not fam:
+            continue
+        alto, alam, sep, metros = (numero(x) for x in f[3:7])
+        coste = numero(f[9])
+        fecha = dia(f[10]) or mes(f[10])
+        med = f"{alto:g}/{alam:g}/{sep:g}" if alto and alam and sep else None
+        m = int(metros) if metros else None
+        rollos = int(numero(f[8]) or 0) or None
+        q, qi, pa, pai = numero(f[15]), numero(f[16]), numero(f[17]), numero(f[18])
+        dinero = lambda v: f"{v:.2f}".replace(".", ",") + " €"
+        apunte = []
+        if q:
+            apunte.append(f"Desde 5 rollos: {dinero(q)}" + (f" ({dinero(qi)} con IVA)" if qi else "") + " el rollo.")
+        if pa:
+            apunte.append(f"Palé completo{f' ({rollos} rollos)' if rollos else ''}: {dinero(pa)}"
+                          + (f" ({dinero(pai)} con IVA)" if pai else "") + " el rollo.")
+        if fam not in familias:
+            familias.append(fam)
+        tipo = f"Rollo de {m} m" if m else "Rollo"
+        arts.append({
+            "ref": cod, "codigo": cod, "categoria": fam, "subcategoria": gama, "descripcion": f[7] or cod,
+            "nombre": f"{fam} {med or ''} · rollo de {m} m ({gama})".replace("  ", " "),
+            "tipo": tipo, "medida_c": med, "orden": alto, "mp": f"{alto:g} cm" if alto else None, "op": alto,
+            "unidad": "rollo", "ud_venta": "rollo", "ud_compra": "rollo",
+            "precio": coste, "fecha": fecha, "precio_ant": None, "fecha_ant": None, "evol": None,
+            "coste": coste, "pvp": numero(f[12]), "pvp_iva": numero(f[13]), "margen": porcentaje(f[11]),
+            "metros": m, "kg_m": None, "minimo": None, "compras": 1, "nota": None,
+            "apunte": " ".join(apunte) or None,
+            "origen": f"Coste del pedido {pedido} a J. Silva Moreira, por rollo, porte incluido y sin IVA (compra intracomunitaria)."
+                      if pedido else "Coste del último pedido a J. Silva Moreira, por rollo, porte incluido.",
+        })
+        if coste and fecha:
+            lineas[cod] = [{"fecha": fecha, "factura": pedido or "pedido", "precio": coste, "cantidad": None,
+                            "bruto": None, "dto1": None, "dto2": None}]
+    log = [{"numero": pedido, "fecha": arts[0]["fecha"], "cambios": 0, "nuevos": len(arts), "notas": ""}] if pedido and arts else []
+    grupos = {fa: list(dict.fromkeys(a["subcategoria"] for a in arts if a["categoria"] == fa)) for fa in familias}
+    return {"articulos": arts, "log": log, "margen": None, "lineas": lineas,
+            "orden_familias": familias, "orden_grupos": grupos}
+
+
+LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────

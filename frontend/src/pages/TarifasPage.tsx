@@ -302,7 +302,7 @@ export function TarifaProveedorPage() {
       {error && <ConnectionError message={error} onRetry={cargar} />}
       {t?.aviso && <div className="doc-aviso subidas">{t.aviso}</div>}
       <div className="tf-fila-busca">
-        <Buscador q={q} setQ={setQ} placeholder={prov === 'zabaleta' ? 'Buscar: codo 110, SN8 315, referencia…' : 'Buscar: 50x50x4, IPN 120, pletina…'} onEnter={abrirPrimero} />
+        <Buscador q={q} setQ={setQ} placeholder={prov === 'zabaleta' ? 'Buscar: codo 110, SN8 315, referencia…' : prov === 'silva' ? 'Buscar: 120/9/15, nudo fijo, 50 m…' : 'Buscar: 50x50x4, IPN 120, pletina…'} onEnter={abrirPrimero} />
         {t && uf && !q.trim() && (
           <a className="tf-ultima" href={uf.enlace} target="_blank" rel="noopener noreferrer"
             title="Abrir la última factura que se apuntó en la tarifa">
