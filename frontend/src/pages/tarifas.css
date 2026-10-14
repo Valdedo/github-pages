@@ -374,3 +374,14 @@
   .tfn-medidas-tit { display: none; }
   .tfn-filas-grupo { margin-top: 2px; }
 }
+
+/* Precios por cantidad (Silva Moreira: desde 5 rollos y palé) */
+.tf-escala-dd small { display: block; font-size: 11px; font-weight: 500; color: var(--text-3); }
+.tf-barra-escalas { color: #fff; opacity: .9; font-weight: 600; }
+.tf-escalas table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.tf-escalas th { text-align: right; font-size: 12px; font-weight: 600; color: var(--text-3); padding: 0 0 6px; }
+.tf-escalas td { text-align: right; padding: 8px 0; border-top: 1px solid var(--border); white-space: nowrap; }
+.tf-escalas th:first-child, .tf-escalas td:first-child { text-align: left; white-space: normal; padding-right: 8px; }
+.tf-escalas th + th, .tf-escalas td + td { padding-left: 10px; }
+.tf-escalas td strong { color: var(--brand-700, #1F5A3A); }
+@media (max-width: 360px) { .tf-escalas th:last-child, .tf-escalas td:last-child { display: none; } }

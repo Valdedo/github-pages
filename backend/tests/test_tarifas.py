@@ -84,7 +84,7 @@ def test_silva_lee_rollos_y_precios_por_cantidad():
         "INICIO": [["T"], ["Coste", "Pedido 111.22222 del 01/01/2026"]],
         "TARIFA": [["T"], ["Margen tarifa:", "35%"], [], ["Código", "Familia", "Gama"],
                    ["A1", "Malla anudada ligera", "Gama X", "100", "8", "15", "100", "X 8-100-15 100m", "10",
-                    "10,00 €", "ene-26", "35%", "13,50 €", "16,35 €", "0,14 €", "12,50 €", "15,15 €", "11,50 €", "13,90 €"],
+                    "10,00 €", "ene-26", "35%", "13,50 €", "16,35 €", "0,14 €", "12,50 €", "15,15 €", "11,50 €", "13,90 €", "25%", "15%"],
                    ["A2", "Malla anudada ligera", "Gama X", "120", "9", "15", "100", "X 9-120-15 100m", "10",
                     "1.000,00 €", "ene-26", "35%", "1.350,00 €", "1.633,50 €", "", "", "", "", ""]],
     }
@@ -92,8 +92,11 @@ def test_silva_lee_rollos_y_precios_por_cantidad():
     a, b = d["articulos"]
     assert a["medida_c"] == "100/8/15" and a["tipo"] == "Rollo de 100 m" and a["metros"] == 100
     assert a["coste"] == 10 and a["pvp"] == 13.5 and a["margen"] == 35
-    assert "Desde 5 rollos: 12,50 €" in a["apunte"] and "Palé completo (10 rollos): 11,50 €" in a["apunte"]
-    assert b["coste"] == 1000 and b["apunte"] is None
-    assert d["lineas"]["A1"][0]["factura"] == "111.22222"
+    assert a["escalas"] == [
+        {"nombre": "Desde 5 rollos", "pvp": 12.5, "pvp_iva": 15.15, "margen": 25.0},
+        {"nombre": "Palé completo (10 rollos)", "pvp": 11.5, "pvp_iva": 13.9, "margen": 15.0}]
+    assert b["coste"] == 1000 and b["escalas"] is None
+    assert d["lineas"]["A1"][0]["factura"] == "111.22222" and d["lineas"]["A1"][0]["fecha"] == "2026-01-01"
     grupos = ts._grupos_sub(d["articulos"], d["orden_grupos"]["Malla anudada ligera"])
     assert [m["valor"] for m in grupos[0]["medidas"]] == ["100/8/15", "120/9/15"]
+    assert grupos[0]["medidas"][0]["escalas"][1]["pvp"] == 11.5 and "escalas" not in grupos[0]["medidas"][1]

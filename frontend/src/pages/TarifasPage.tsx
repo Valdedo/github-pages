@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type KeyboardEvent, Fragment } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
@@ -383,6 +383,8 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'venta' }: {
             <dt>Con IVA</dt><dd>{eurUd(sel.pvp_iva, sel.ud_venta)}</dd>
             <dt>Coste</dt><dd>{eurUd(sel.coste, sel.ud_venta)}</dd>
             {pm != null && <><dt>Sale el metro a</dt><dd>{eur(pm)}/m{modo === 'coste' ? ' de coste' : ''}</dd></>}
+            {sel.escalas?.map(e => <Fragment key={e.nombre}><dt>{e.nombre}</dt>
+              <dd className="tf-escala-dd">{eurUd(modo === 'iva' ? e.pvp_iva : e.pvp, sel.ud_venta)}<small>{modo === 'iva' ? 'con IVA' : 'sin IVA'}</small></dd></Fragment>)}
             <dt>Precio de</dt><dd>{mesLargo(sel.fecha) || '—'}{sel.evol ? <span className={`tf-mini-evol ${sel.evol > 0 ? 'sube' : 'baja'}`}>{pct(sel.evol)}</span> : null}</dd>
             <dt>Última factura</dt>
             <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
@@ -759,6 +761,7 @@ function FamiliaNueva() {
                 <strong>{eur(sel.pvp)}<small>/{sel.ud_venta}</small></strong>
                 <small>{eur(sel.pvp_iva)} con IVA · coste {eur(sel.coste)}</small>
                 {porMetro(sel, 'venta') != null && <small className="tfn-barra-m">sale a {eur(porMetro(sel, 'venta'))}/m</small>}
+                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => `${e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé')} ${eur(e.pvp)}`).join(' · ')}</small> : null}
               </div>
               <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
                 Ver ficha <ChevronRight size={18} />
@@ -868,6 +871,22 @@ export function TarifaFichaPage() {
         <span>{d.redondeo ?? 'redondeado a 0,10 €'}</span></div>
     </div>
   );
+  const escalas = d?.escalas?.length ? (
+    <section className="tf-caja tf-escalas">
+      <h2>Precio por cantidad</h2>
+      <table>
+        <thead><tr><th>Cantidad</th><th>Sin IVA</th><th>Con IVA</th><th>Margen</th></tr></thead>
+        <tbody>
+          <tr><td>Suelto</td><td>{eur(d.pvp)}</td><td>{eur(d.pvp_iva)}</td><td>{d.margen != null ? `${String(d.margen).replace('.', ',')} %` : '—'}</td></tr>
+          {d.escalas.map(e => (
+            <tr key={e.nombre}><td>{e.nombre}</td><td><strong>{eur(e.pvp)}</strong></td><td>{eur(e.pvp_iva)}</td>
+              <td>{e.margen != null ? `${String(e.margen).replace('.', ',')} %` : '—'}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="tf-nota">Precio por {d.ud_venta}. Desde 5 rollos vale mezclando medidas.</p>
+    </section>
+  ) : null;
   const evolucion = d && (
     <section className="tf-caja">
       <div className="tf-caja-cab">
@@ -954,12 +973,12 @@ export function TarifaFichaPage() {
       {!d && !error && <div className="tf-ficha"><div className="tf-ficha-foto skeleton" /><div className="tf-caja skeleton" style={{ height: 260 }} /></div>}
       {d && (ancho ? (
         <div className="tf-ficha tf-ficha-esc">
-          <div className="tf-col">{precios}{foto}{carac}</div>
+          <div className="tf-col">{precios}{escalas}{foto}{carac}</div>
           <div className="tf-col">{compra}{evolucion}{otras}</div>
         </div>
       ) : (
         <div className="tf-ficha">
-          <div className="tf-col">{foto}{precios}{otras}{evolucion}{compra}{carac}</div>
+          <div className="tf-col">{foto}{precios}{escalas}{otras}{evolucion}{compra}{carac}</div>
         </div>
       ))}
     </div>

@@ -497,14 +497,14 @@ def leer_silva(hojas: dict) -> dict:
     ini = next((i for i, f in enumerate(filas) if f and normaliza(f[0]) == "codigo"), None)
     if ini is None:
         return {"articulos": [], "log": [], "margen": None, "lineas": {}}
-    pedido = ""
+    pedido, fecha_pedido = "", None
     for f in hojas.get("INICIO") or []:
-        m = re.search(r"[Pp]edido\s+([\d.]+)", " ".join(map(str, f)))
+        m = re.search(r"[Pp]edido\s+([\d.]+)(?:\s+del\s+(\d{1,2}/\d{1,2}/\d{4}))?", " ".join(map(str, f)))
         if m:
-            pedido = m.group(1)
+            pedido, fecha_pedido = m.group(1), dia(m.group(2))
     arts, lineas, familias = [], {}, []
     for f in filas[ini + 1:]:
-        f = [str(x).strip() for x in f] + [""] * (19 - len(f))
+        f = [str(x).strip() for x in f] + [""] * (21 - len(f))
         cod, fam, gama = f[0], f[1], f[2]
         if not cod or not fam:
             continue
@@ -515,13 +515,13 @@ def leer_silva(hojas: dict) -> dict:
         m = int(metros) if metros else None
         rollos = int(numero(f[8]) or 0) or None
         q, qi, pa, pai = numero(f[15]), numero(f[16]), numero(f[17]), numero(f[18])
-        dinero = lambda v: f"{v:.2f}".replace(".", ",") + " €"
-        apunte = []
+        # Precios por cantidad (se enseñan en el panel, la barra del móvil y la ficha)
+        escalas = []
         if q:
-            apunte.append(f"Desde 5 rollos: {dinero(q)}" + (f" ({dinero(qi)} con IVA)" if qi else "") + " el rollo.")
+            escalas.append({"nombre": "Desde 5 rollos", "pvp": q, "pvp_iva": qi, "margen": porcentaje(f[19]) if len(f) > 19 else None})
         if pa:
-            apunte.append(f"Palé completo{f' ({rollos} rollos)' if rollos else ''}: {dinero(pa)}"
-                          + (f" ({dinero(pai)} con IVA)" if pai else "") + " el rollo.")
+            escalas.append({"nombre": f"Palé completo ({rollos} rollos)" if rollos else "Palé completo", "pvp": pa,
+                            "pvp_iva": pai, "margen": porcentaje(f[20]) if len(f) > 20 else None})
         if fam not in familias:
             familias.append(fam)
         tipo = f"Rollo de {m} m" if m else "Rollo"
@@ -536,14 +536,14 @@ def leer_silva(hojas: dict) -> dict:
             "precio": coste, "fecha": fecha, "precio_ant": None, "fecha_ant": None, "evol": None,
             "coste": coste, "pvp": numero(f[12]), "pvp_iva": numero(f[13]), "margen": porcentaje(f[11]),
             "metros": m, "kg_m": None, "minimo": None, "compras": 1, "nota": None,
-            "apunte": " ".join(apunte) or None,
+            "apunte": None, "escalas": escalas or None,
             "origen": f"Coste del pedido {pedido} a J. Silva Moreira, por rollo, porte incluido y sin IVA (compra intracomunitaria)."
                       if pedido else "Coste del último pedido a J. Silva Moreira, por rollo, porte incluido.",
         })
         if coste and fecha:
-            lineas[cod] = [{"fecha": fecha, "factura": pedido or "pedido", "precio": coste, "cantidad": None,
+            lineas[cod] = [{"fecha": fecha_pedido or fecha, "factura": pedido or "pedido", "precio": coste, "cantidad": None,
                             "bruto": None, "dto1": None, "dto2": None}]
-    log = [{"numero": pedido, "fecha": arts[0]["fecha"], "cambios": 0, "nuevos": len(arts), "notas": ""}] if pedido and arts else []
+    log = [{"numero": pedido, "fecha": fecha_pedido or arts[0]["fecha"], "cambios": 0, "nuevos": len(arts), "notas": ""}] if pedido and arts else []
     grupos = {fa: list(dict.fromkeys(a["subcategoria"] for a in arts if a["categoria"] == fa)) for fa in familias}
     return {"articulos": arts, "log": log, "margen": None, "lineas": lineas,
             "orden_familias": familias, "orden_grupos": grupos}
@@ -742,6 +742,7 @@ def _item(a: dict, valor: str = "", ud: str = "") -> dict:
             # Para la vista nueva (oct. 2026): otros códigos del mismo artículo, código comodín, metros de un rollo
             # o barra (para el €/m) y la medida por la que se filtra la familia
             "alias": a.get("alias"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"), "mp": mp, "op": op,
+            **({"escalas": a["escalas"]} if a.get("escalas") else {}),
             **({"ms": ms} if len(ms) > 1 else {})}
 
 
@@ -1033,4 +1034,5 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         "pvp_fab": a.get("pvp_fab"), "origen": a.get("origen") or datos.get("origen"),
         # Vista nueva (oct. 2026): otros códigos del mismo artículo, código comodín y metros del rollo o barra
         "antes": a.get("antes"), "tambien": a.get("tambien"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"),
+        "escalas": a.get("escalas"),
     }

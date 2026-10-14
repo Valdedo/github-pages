@@ -126,8 +126,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   5 rollos y de palé, con y sin IVA). Márgenes sobre coste fila a fila en las celdas amarillas (L tarifa, T desde 5 rollos, U palé): ligera 100 m 40/30/20 %,
   ligera 50 m 45/30/20 %, fuerte y nudo fijo 35/25/15 % (decisión de Andrés, 14/10/2026). PVP a 0,10 €. `desde` en TARIFAS
   obliga a releer copias anteriores a esa hora (la primera hoja `1oIoL…` está en la papelera).
-  Lector `leer_silva` en `tarifas_service.py`: familia → gama → «Rollo de N m» con las medidas en botones; los precios por
-  cantidad van en `apunte` de la ficha. Fotos oficiales de jsilvamoreira.pt (Ovimor L → ligera, Ovimor M → fuerte, Nodimor →
+  Lector `leer_silva` en `tarifas_service.py`: familia → gama → «Rollo de N m» con las medidas en botones. Precios por cantidad
+  en `escalas` (nombre, pvp, pvp_iva, margen; columnas P–S y T–U de la hoja): filas en el panel del ordenador, línea en la barra
+  del móvil y caja «Precio por cantidad» en la ficha (`tf-escalas`). La fecha del pedido sale de INICIO («del dd/mm/aaaa»). Fotos oficiales de jsilvamoreira.pt (Ovimor L → ligera, Ovimor M → fuerte, Nodimor →
   nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`).
 - **Tarifas: códigos y vista nueva (13/10/2026)**.
   - Zabaleta, arreglos al leer la hoja (`_comodines_zab` y `_equivalencias_zab` en `tarifas_service.py`, datos en

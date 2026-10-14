@@ -18,7 +18,10 @@ export interface TarifaMedida {
   mp?: string | null; op?: number | null;
   /** Todas sus medidas cuando tiene varias (una reducción 3/4"×1/2" sale también en 1/2") */
   ms?: string[];
+  /** Precios por cantidad (Silva Moreira: desde 5 rollos y palé completo) */
+  escalas?: Escala[] | null;
 }
+export interface Escala { nombre: string; pvp: number | null; pvp_iva: number | null; margen: number | null }
 /** «repes»: piezas que repiten medida en el grupo y vienen en la lista de sueltos (la vista nueva las junta) */
 export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[]; repes?: string[] }
 export interface TarifaFamilia { id: string; nombre: string; clave: string; n: number; grupos: TarifaGrupo[] }
@@ -32,6 +35,7 @@ export interface Tarifa {
   familias: TarifaFamilia[];
 }
 export interface FichaTarifa {
+  escalas?: Escala[] | null;
   proveedor: string; proveedor_nombre: string; aviso: string | null;
   familia: { id: string; nombre: string; clave: string };
   descripcion: string; unidad: string; ud_venta: string; ud_compra: string;
