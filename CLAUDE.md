@@ -56,7 +56,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   → momento especial → despegue normal → pegatina final. Fechas en `fiestaDe()`: otoño (22 sep–20 dic), Halloween (31 oct),
   Navidad (20–30 dic), Nochevieja (31 dic–1 ene), Reyes (5–6 ene), Antroxu (dom–mar de Carnaval, calculado desde la Pascua),
   San Juan (23–24 jun), Día de Asturias (8 sep), cumpleaños (`CUMPLES`, vacío) y aniversario (`ANIVERSARIO`, null): faltan
-  las fechas de Andrés. Salen la primera apertura del día (`cfFiestaDia`); tienen prioridad sobre las sorpresas.
+  las fechas de Andrés. Las de uno a tres días salen la primera apertura de cada uno de esos días (`cfFiestaDia`); las de
+  temporada (`TEMPORADAS`: otoño y Navidad) la primera vez y luego como mucho una vez por semana (`cfFiestaTemporada`,
+  `DIAS_ENTRE`; cada día cansaba, Andrés 15/10/2026). Tienen prioridad sobre las sorpresas.
   Ver una: `?fiesta=<otono|halloween|navidad|nochevieja|reyes|antroxu|sanjuan|asturias|cumple|aniversario>` (`&nombre=` para cumple).
 
 ## Nombres de los apartados (13/10/2026, para no confundir)

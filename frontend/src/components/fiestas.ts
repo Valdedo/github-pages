@@ -2,7 +2,8 @@
  * Fiestas del arranque (todos los usuarios): la animación de siempre, pero vestida para la fecha.
  * Cada fiesta: intro (fondo y efectos sobre el logo) → llega el camión decorado → momento especial →
  * el despegue normal (el logo a la puerta y el camión se va) → pegatina final. Unos 6–7 s.
- * Sale la primera vez que se abre la app cada día (en ese móvil). Para verla otro día: ?fiesta=<nombre>
+ * Las de uno a tres días salen la primera vez que se abre la app cada uno de esos días (en ese móvil); las de
+ * temporada (otoño, Navidad), la primera vez y luego como mucho una vez por semana. Para verla otro día: ?fiesta=<nombre>
  * (y &nombre=Patricia para el cumpleaños).
  * Piezas de dibujo en fiestasEscena.ts.
  */
@@ -49,12 +50,45 @@ export function fiestaDe(d: Date): FiestaHoy | null {
 }
 
 const CLAVE_DIA = 'cfFiestaDia';
+/** Fiestas largas (otoño: tres meses; Navidad: once días): cada día cansaba (Andrés, 15/10/2026). Salen la primera
+ *  vez de la temporada y luego como mucho una vez por semana. Las de uno a tres días siguen saliendo cada uno de esos días. */
+const TEMPORADAS: Fiesta[] = ['otono', 'navidad'];
+const CLAVE_TEMPORADA = 'cfFiestaTemporada';   // { "otono-2026": "2026-10-15" } última vez que salió en este móvil
+const DIAS_ENTRE = 7;
+const fechaTxt = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const diasEntre = (a: string, d: Date) => {
+  const [y, m, dia] = a.split('-').map(Number);
+  return Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(y, m - 1, dia).getTime()) / 86400000);
+};
+
+/** ¿Toca hoy la fiesta de temporada? Si toca, la apunta. Sin almacenamiento, no sale (mejor que salir siempre). */
+function tocaTemporada(f: Fiesta, d: Date): boolean {
+  try {
+    const clave = `${f}-${d.getFullYear()}`;
+    const mapa: Record<string, string> = JSON.parse(localStorage.getItem(CLAVE_TEMPORADA) || '{}') || {};
+    let ultima = mapa[clave];
+    if (!ultima) {
+      // Quien ya la vio con la regla de antes (una vez al día) cuenta desde ese día, para que no le salga otra vez ya
+      const m = new RegExp(`^${f}-(\\d{4})-(\\d{1,2})-(\\d{1,2})$`).exec(localStorage.getItem(CLAVE_DIA) || '');
+      if (m && Number(m[1]) === d.getFullYear()) {
+        ultima = mapa[clave] = `${m[1]}-${m[2]}-${m[3]}`;
+        localStorage.setItem(CLAVE_TEMPORADA, JSON.stringify(mapa));
+      }
+    }
+    if (ultima && diasEntre(ultima, d) < DIAS_ENTRE) return false;
+    mapa[clave] = fechaTxt(d);
+    localStorage.setItem(CLAVE_TEMPORADA, JSON.stringify(mapa));
+    return true;
+  } catch { return false; }
+}
+
 export function eligeFiesta(): FiestaHoy | null {
   const q = new URLSearchParams(window.location.search), pedida = q.get('fiesta') as Fiesta | null;
   if (pedida && TODAS.includes(pedida)) return { f: pedida, nombre: q.get('nombre') || 'Andrés' };
   const d = new Date(), hoy = fiestaDe(d);
   if (!hoy) return null;
-  const marca = `${hoy.f}-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  if (TEMPORADAS.includes(hoy.f)) return tocaTemporada(hoy.f, d) ? hoy : null;
+  const marca = `${hoy.f}-${fechaTxt(d)}`;
   try {
     if (localStorage.getItem(CLAVE_DIA) === marca) return null;   // ya salió hoy en este móvil
     localStorage.setItem(CLAVE_DIA, marca);
