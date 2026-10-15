@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Vacio } from '../components/Pegatinas';
 import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff, AlertTriangle } from 'lucide-react';
 import { listFirmas, describeApiError, paraCargar, verCarga, type OrdenCarga } from '../api/client';
-import { CargasReparto, cargasPendientes } from '../components/CargasReparto';
+import { CargasReparto, cargasEntregadas, cargasPendientes } from '../components/CargasReparto';
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
 import { setReparto } from '../reparto';
@@ -51,12 +51,15 @@ export function RepartoPage() {
     const c = () => setGuardadas(cola());
     const cc = () => setColaCargas(n => n + 1);
     window.addEventListener('cf-cola-cargas', cc);
+    // Al enviarse una firma hecha sin cobertura, se vuelve a pedir la lista (si no, la orden volvía a salir un rato)
+    const enviada = () => load(true);
+    window.addEventListener('cf-cola-cargas-enviada', enviada);
     const on = () => { setOnline(true); load(true); };
     const off = () => setOnline(false);
     window.addEventListener('cf-cola', c);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
-    return () => { clearInterval(t); window.removeEventListener('cf-cola-cargas', cc); window.removeEventListener('cf-cola', c); window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+    return () => { clearInterval(t); window.removeEventListener('cf-cola-cargas', cc); window.removeEventListener('cf-cola-cargas-enviada', enviada); window.removeEventListener('cf-cola', c); window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, [load]);
 
   const enCola = new Set(guardadas.map(g => g.id));
@@ -71,6 +74,7 @@ export function RepartoPage() {
   const entregadoHoy = firmadosHoy.length + esperando.length;
   const otros = pendientes.length - (verTodos ? 0 : camion.length);
   const porCargar = cargasPendientes(cargas);
+  const cargasHechas = cargasEntregadas(cargas);
   // Albaranes de venta sin firmar de la tienda (para firmar uno que no va en ninguna carga, p. ej. si recogen en el almacén)
   const verPendientes = (n: number) => n === 1 ? 'Firmar otro albarán de la tienda (1)' : `Firmar otro albarán de la tienda (${n})`;
 
@@ -86,7 +90,7 @@ export function RepartoPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div>
             <span>Hola, {nombre}</span>
-            <h1>{camion.length ? `${camion.length} en el camión` : porCargar ? (porCargar === 1 ? '1 carga pendiente' : `${porCargar} cargas pendientes`) : entregadoHoy > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
+            <h1>{camion.length ? `${camion.length} en el camión` : porCargar ? (porCargar === 1 ? '1 carga pendiente' : `${porCargar} cargas pendientes`) : entregadoHoy > 0 || cargasHechas > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
           </div>
           <button className="btn btn-sm" style={{ marginLeft: 'auto', background: 'rgb(255 255 255 / .14)', color: '#fff' }} onClick={() => load()} aria-label="Actualizar">
             <RefreshCw size={16} /> Actualizar

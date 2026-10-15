@@ -70,6 +70,7 @@ button.venc-dia-cab:disabled { cursor: default; opacity: 1; }
   font: inherit; font-size: 15px; font-weight: 600; color: var(--text-1); cursor: pointer; }
 .firmante.on { background: var(--cf-bosque); border-color: var(--cf-bosque); color: #fff; }
 .carga-firma .carga-foto-entrega { margin-top: 10px; }
+.carga-firma-botones .carga-firma-error { grid-column: 1 / -1; margin: 0; }
 .carga-firma-botones { position: sticky; bottom: 0; z-index: 2; background: var(--bg); margin: 14px -16px 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
   box-shadow: 0 -8px 16px -10px rgb(18 58 38 / .25); }
 

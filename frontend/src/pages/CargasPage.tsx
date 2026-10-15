@@ -317,9 +317,9 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
   const pad = useRef<{ clear: () => void; toBlob: () => Promise<Blob | null>; isEmpty: () => boolean } | null>(null);
   const camara = useRef<HTMLInputElement>(null);
   const [tinta, setTinta] = useState(false);
-  // Vacío: antes se ponía el nombre de la empresa y la hoja decía que había firmado «CONSTRUCCIONES …».
-  // Debajo salen, para tocarlos, los que firmaron otras veces por este cliente.
-  const [nombre, setNombre] = useState('');
+  // Sale ya puesto el nombre del cliente del albarán, para que Melchor no tenga que escribir (Andrés, 15/10/2026).
+  // Si firma una persona concreta, debajo salen para tocarlos los que firmaron otras veces por este cliente.
+  const [nombre, setNombre] = useState(e.cliente || '');
   const [dni, setDni] = useState('');
   const [verLista, setVerLista] = useState(false);
   const [foto, setFoto] = useState<{ blob: Blob; url: string } | null>(null);
@@ -387,7 +387,7 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
               autoComplete="off" autoCapitalize="words" placeholder="Quien recibe el material" />
             {(e.firmantes || []).length > 0 && (
               <div className="firmantes" aria-label="Firmaron otras veces">
-                {(e.firmantes || []).map(f => (
+                {[e.cliente, ...(e.firmantes || [])].filter(Boolean).map(f => (
                   <button key={f} type="button" className={`firmante${nombre === f ? ' on' : ''}`} onClick={() => setNombre(f)}>{f}</button>
                 ))}
               </div>
@@ -413,8 +413,9 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
           )}
           <input ref={camara} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
         </div>
-        {error && <div className="doc-aviso error" style={{ marginTop: 10 }}>{error}</div>}
         <div className="carga-firma-botones">
+          {/* El aviso, en la barra fija: abajo del todo quedaba tapado y parecía que «Firmar» no hacía nada */}
+          {error && <div className="doc-aviso error carga-firma-error" role="alert">{error}</div>}
           <button className="btn btn-ghost btn-lg" onClick={() => pad.current?.clear()} disabled={!tinta}><Eraser size={18} /> Borrar</button>
           <button className="btn btn-primary btn-lg" onClick={firmar} disabled={saving || !tinta}>
             {saving ? 'Guardando…' : <><Check size={20} /> Firmar</>}

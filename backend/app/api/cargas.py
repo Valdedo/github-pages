@@ -206,6 +206,43 @@ def _estado(o: OrdenCarga) -> None:
         o.estado = "preparando"
 
 
+def cerrar_por_albaran(db: Session, note_id: int, png: bytes, nombre: str, dni: str, cuando_utc: datetime,
+                       persona: Optional[str]) -> int:
+    """Melchor firmó el albarán directamente («Firmar otro albarán de la tienda») y ese albarán va en una de sus
+    órdenes de carga: la entrega queda entregada con la misma firma. Si no, la orden se le quedaba en el móvil para
+    siempre. (Lo firmado en la tienda no cierra la entrega: se puede firmar en el mostrador y llevarlo después.)
+    Devuelve cuántas entregas se cerraron."""
+    entregas = (db.query(EntregaCarga)
+                .filter(EntregaCarga.albaran_id == note_id, EntregaCarga.estado != "entregada").all())
+    if not entregas:
+        return 0
+    for e in entregas:
+        archivo = f"firma_{e.id}_{uuid.uuid4().hex[:8]}.png"
+        (_dir() / archivo).write_bytes(png)
+        e.firma_archivo = archivo
+        e.firmado_por = nombre.strip()[:200]
+        e.firmado_dni = (dni or "").strip()[:30] or None
+        e.firmado_at = cuando_utc
+        e.entregado_por = persona
+        e.lista_at = e.lista_at or cuando_utc
+        e.estado = "entregada"
+        e.drive_at = None
+        for ln in e.lineas:
+            if not ln.cargado_ok and ln.cargado is None:
+                ln.cargado_ok = True  # el cliente firmó el albarán entero
+    with _NUMERANDO:
+        for e in entregas:
+            if not e.numero:
+                e.numero = _numero(db)
+                db.flush()
+        for o in {e.orden_id: e.orden for e in entregas}.values():
+            db.refresh(o)
+            _estado(o)
+        db.commit()
+    logger.info("Albarán %s firmado en el reparto: %d entrega(s) de carga cerradas", note_id, len(entregas))
+    return len(entregas)
+
+
 def _anadir_entregas(db: Session, o: OrdenCarga, datos: dict) -> None:
     base = len(o.entregas)
     for i, ent in enumerate(datos.get("entregas") or []):

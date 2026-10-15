@@ -198,6 +198,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `components/CargasReparto.tsx`, `GET /api/cargas/para-cargar`), y abre `/reparto/cargas/:id` (misma página con `reparto`).
 - Melchor solo puede: ver las enviadas, marcar cargado, firmar, poner la foto y ver la hoja (lista `_REPARTO` en
   `app/api/cargas.py`). Al firmar le llega un aviso a Andrés.
+- Lo ya entregado y firmado desaparece de su Inicio (antes se quedaba 18 h como «carga entregada» y parecía pendiente;
+  `para-cargar` lo sigue devolviendo y el Inicio dice «Todo entregado»). Si Melchor firma un albarán desde «Firmar otro
+  albarán de la tienda» y ese albarán va en una de sus órdenes, la entrega queda cerrada con esa firma
+  (`cargas.cerrar_por_albaran`, desde `firmas._firmar` con rol reparto). Lo firmado en la tienda **no** cierra la entrega
+  (se puede firmar en el mostrador y llevarlo después): si no se va a llevar, quitar la entrega de la orden.
 - «Listo para llevar» (`PUT /api/cargas/entregas/{eid}/lista`, campo `lista_at`): al acabar de cargar se confirma y la lista
   queda bloqueada (el servidor rechaza cambios de líneas con 409); solo entonces sale «Firma del cliente». «Desbloquear
   para cambiar» lo deshace. Vale sin cobertura (tipo `lista` en `lib/offlineCargas.ts`). Igual para todos los roles.
@@ -235,7 +240,9 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   entrega» (`POST /api/firmas/{id}/firma-de-entrega`). **Anular la firma** (`POST /api/firmas/{id}/anular-firma`): no si está
   facturado ni si va en una carga ya entregada; está en «Más opciones» del albarán.
 - **Quién firma**: botones con los nombres que ya firmaron para ese cliente (`firmantes`) en el albarán y en la firma del camión.
-  El nombre ya no viene relleno con la empresa. Materiales plegados en la firma del camión y botones siempre a la vista.
+  En la firma del camión el nombre del cliente sale ya puesto (Andrés lo quiere así: Melchor no escribe nada; el mismo
+  15/10/2026 se probó vacío y se volvió atrás); los botones sirven para poner a una persona. Materiales plegados y botones
+  siempre a la vista; los avisos («Falta el nombre…») salen en la barra fija de «Firmar».
 - **Sin cobertura**: la cola de cargas ya no pierde nada (401/403/5xx esperan; 404/409 avisan con «Reintentar» o «Quitar y
   volver a firmar»); el service worker baja todos los trozos de la app nueva antes de borrar los viejos (pantalla en blanco
   sin cobertura tras publicar). Pantalla de error propia (`components/ErrorPantalla.tsx`) en vez de la página en blanco.

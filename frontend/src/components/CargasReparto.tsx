@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, CheckCircle, ClipboardCheck, MapPin } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, MapPin } from 'lucide-react';
 import type { OrdenCarga } from '../api/client';
 import { firmaEnCola, marcaEnCola, estaLista } from '../lib/offlineCargas';
 
@@ -20,12 +20,12 @@ function cuentas(o: OrdenCarga) {
   return { total, hechas, firmadas, lista: listas === o.entregas.length && o.entregas.length > 0, entregada: firmadas === o.entregas.length && o.entregas.length > 0 };
 }
 
-/** «Para cargar»: las órdenes que la tienda le ha mandado a Melchor. */
+/** «Para cargar»: las órdenes que la tienda le ha mandado a Melchor. Las ya entregadas y firmadas desaparecen
+ *  (Andrés, 15/10/2026: antes se quedaban 18 horas como «carga entregada» y parecía que seguían pendientes). */
 export function CargasReparto({ ordenes }: { ordenes: OrdenCarga[] }) {
   const navigate = useNavigate();
-  if (!ordenes.length) return null;
   const pendientes = ordenes.filter(o => !cuentas(o).entregada);
-  const hechas = ordenes.filter(o => cuentas(o).entregada);
+  if (!pendientes.length) return null;
   return (
     <section className="cargas-reparto">
       {pendientes.length > 0 && (
@@ -56,21 +56,10 @@ export function CargasReparto({ ordenes }: { ordenes: OrdenCarga[] }) {
           </div>
         </>
       )}
-      {hechas.length > 0 && (
-        <div style={{ marginTop: pendientes.length ? 16 : 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {hechas.map(o => (
-            <button key={o.id} className="card reparto-card hecho" onClick={() => navigate(`/reparto/cargas/${o.id}`)}>
-              <CheckCircle size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0, textAlign: 'left', fontSize: 14 }}>
-                <strong>{o.entregas.map(e => e.cliente).join(' · ')}</strong> · carga entregada
-              </div>
-              <ChevronRight size={16} style={{ color: 'var(--text-3)' }} />
-            </button>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
 
 export const cargasPendientes = (ordenes: OrdenCarga[]) => ordenes.filter(o => !cuentas(o).entregada).length;
+/** Las entregadas en las últimas horas (no se enseñan, pero el Inicio dice «Todo entregado»). */
+export const cargasEntregadas = (ordenes: OrdenCarga[]) => ordenes.filter(o => cuentas(o).entregada).length;

@@ -489,6 +489,15 @@ def _firmar(db: Session, request: Request, n: ClientDeliveryNote, png: bytes, no
     db.commit()
     db.refresh(n)
     logger.info("Albarán %s firmado por %s", n.numero, nombre)
+    if getattr(request.state, "rol", None) == "reparto":
+        # Firmado por Melchor fuera de la orden de carga: su entrega queda cerrada y la orden no se le queda colgada
+        try:
+            from app.api.cargas import cerrar_por_albaran
+            cerrar_por_albaran(db, n.id, png, nombre, dni, ahora.astimezone(ZoneInfo("UTC")).replace(tzinfo=None),
+                               getattr(request.state, "persona", None))
+        except Exception as e:  # nunca debe impedir que el albarán quede firmado
+            logger.warning("No se pudo cerrar la entrega del albarán %s: %s", n.numero, e)
+            db.rollback()
 
     c = _contacto(db, n)
     if c and c.auto_email and c.email:
