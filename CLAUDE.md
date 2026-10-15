@@ -73,7 +73,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 
 ## Novedades y tutorial
 - `components/Novedades.tsx`: aviso que sale una vez por dispositivo al abrir la app (clave `cfNovedadesVistas` = `VERSION`);
-  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`.
+  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-10-15` (tarifas con IVA, «Volver», firmantes
+  y anular firma, buscar sin tildes).
 - `components/Tutorial.tsx`: tutorial guiado con hueco de luz sobre cada botón (`PASOS`: ruta, selectores `data-tour`/clase,
   texto; si no encuentra el botón, el cartel sale en el centro). Se abre desde las Novedades o «Tutorial» del menú (`abrirTutorial`).
   Al cambiar pantallas, mantener los `data-tour` (`nav-*`, `subir-albaranes`, `filtro-cliente`, `nueva-carga`).
@@ -130,6 +131,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   en `escalas` (nombre, pvp, pvp_iva, margen; columnas P–S y T–U de la hoja): filas en el panel del ordenador, línea en la barra
   del móvil y caja «Precio por cantidad» en la ficha (`tf-escalas`). La fecha del pedido sale de INICIO («del dd/mm/aaaa»). Fotos oficiales de jsilvamoreira.pt (Ovimor L → ligera, Ovimor M → fuerte, Nodimor →
   nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`).
+- **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
+  búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.
+  Botones «Con IVA | Sin IVA | Coste» (`MODOS`, «Con IVA» el primero); lo elegido se recuerda en la pestaña y la ficha y la
+  búsqueda lo siguen (`modoGuardado`/`guardarModo` en `lib/tarifas.ts`, clave `cfTarifaModoIva`). `conIva()` usa el PVP+IVA
+  de la hoja y, si falta, PVP × 1,21.
 - **Tarifas: códigos y vista nueva (13/10/2026)**.
   - Zabaleta, arreglos al leer la hoja (`_comodines_zab` y `_equivalencias_zab` en `tarifas_service.py`, datos en
     `backend/app/data/zabaleta_ajustes.json`; valen para todos): (1) **códigos comodín** (INC, $4016, $5036…: Zabaleta los usa
@@ -158,10 +164,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   a la tienda le manda a `/tarifas`). En el menú: En pruebas → «Tarifas en la tableta».
 - Lee todas las tarifas al entrar (búsqueda al instante; lo más parecido arriba: código exacto, luego lo que empieza igual).
   Reutiliza lo exportado de `TarifasPage.tsx` (`buscar`, `seccionesDe`, `medidasDe`, `Foto`, `cache`…), vista nueva de familias.
-- Horizontal (≥900 px): navegación a la izquierda y panel fijo a la derecha (precio sin IVA enorme, con IVA, €/m, código);
+- Horizontal (≥900 px): navegación a la izquierda y panel fijo a la derecha (precio con IVA enorme y el sin IVA debajo para
+  TreyFACT, €/m, código; hasta el 15/10/2026 el enorme era el sin IVA);
   vertical: el panel sube desde abajo. Todo tocable ≥56 px. Estado en la dirección (`p`, `f`, `m`, `q`, `r`) para que «atrás» funcione.
 - Coste y margen tapados por defecto (el cliente ve la tableta): botón del ojo (`cfMostradorCoste`, sessionStorage).
-- «Apuntado»: lista del cliente de delante con cantidades, casilla para tachar lo ya pasado a TreyFACT y total; se queda en la
+- «Apuntado»: lista del cliente de delante con cantidades, casilla para tachar lo ya pasado a TreyFACT y total (con IVA, y debajo sin IVA); se queda en la
   tableta (`cfMostradorLista`), «Borrar lista» con deshacer. «Lo último que miraste» en la portada (`cfMostradorRecientes`).
 - Pantalla siempre encendida (Wake Lock) y botón de pantalla completa donde el navegador lo permite.
 
@@ -209,7 +216,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `venc_ajustes`, se cambian desde el engranaje de la tarjeta; push una sola vez por factura, `venc_avisos`) y
   pendiente por proveedor con su forma de pago y a cuántos días suele vencer.
 
-## Repaso general (15/10/2026)
+## Repaso general (15/10/2026, publicado ese día)
 Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`). Andrés pidió dejar como estaban el botón
 único de «Subir albaranes» (compra/venta separados) y qué precio manda entre tarifas y «Consultar precio» (casi no se usa).
 - **Precios**: el PVP sin IVA se saca ahora del PVP con IVA ya redondeado (`margin_service.calculate_pricing`), así la etiqueta

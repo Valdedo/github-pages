@@ -218,8 +218,18 @@ export const pct = (v: number | null | undefined) =>
   v == null ? '' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v), 1)} %`;
 
 export type ModoPrecio = 'venta' | 'iva' | 'coste';
+/** Precio con IVA: el de la hoja; si la hoja no lo trae, el sin IVA + 21 %. */
+export const conIva = (m: { pvp?: number | null; pvp_iva?: number | null }) =>
+  m.pvp_iva ?? (m.pvp != null ? Math.round(m.pvp * 121) / 100 : null);
 export const precioModo = (m: TarifaMedida, modo: ModoPrecio) =>
-  modo === 'venta' ? m.pvp : modo === 'iva' ? m.pvp_iva : m.coste;
+  modo === 'venta' ? m.pvp : modo === 'iva' ? conIva(m) : m.coste;
+/** En todas las tarifas sale primero el precio con IVA (Andrés, 15/10/2026). Lo que se elija se recuerda en la pestaña
+ *  (clave nueva: las pestañas que ya tenían guardado «sin IVA» empiezan también con IVA). */
+const CLAVE_MODO = 'cfTarifaModoIva';
+export const modoGuardado = (): ModoPrecio => {
+  try { const v = sessionStorage.getItem(CLAVE_MODO); return v === 'venta' || v === 'coste' ? v : 'iva'; } catch { return 'iva'; }
+};
+export const guardarModo = (m: ModoPrecio) => { try { sessionStorage.setItem(CLAVE_MODO, m); } catch { /* nada */ } };
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 /** «sep-26» → «sep 2026»; «2026-09-30» → «30 sep 2026» */

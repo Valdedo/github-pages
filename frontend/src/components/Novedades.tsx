@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, CalendarDays, FileText, MapPin, Play, Truck } from 'lucide-react';
+import { ArrowLeft, BookMarked, Play, Search, Signature } from 'lucide-react';
 import { Ilustracion } from './Pegatinas';
 import { abrirTutorial } from './Tutorial';
 
@@ -8,20 +8,18 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-10-13b';
+const VERSION = '2026-10-15';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
-  { icono: CalendarDays, titulo: 'Tu círculo y tus turnos',
-    texto: 'Arriba a la derecha está tu inicial: tócala y ves tu turno de hoy y de mañana, tus turnos de la semana y lo tuyo (código, avisos, cerrar sesión).' },
-  { icono: FileText, titulo: 'Nombres más claros',
-    texto: '«Albaranes de compra» son los de proveedor. «Albaranes de venta» son los de TreyFACT a clientes.' },
-  { icono: Truck, titulo: '«Al camión» prepara la carga',
-    texto: 'En un albarán de venta que va a obra, pulsa «Al camión»: salen solos los materiales para cargar y la hoja de entrega sin precios. Cuando firma el cliente, el albarán queda firmado también.' },
-  { icono: MapPin, titulo: 'Obras de cada cliente',
-    texto: 'Al elegir un cliente salen sus obras. En «Por facturar» se puede facturar obra por obra.' },
-  { icono: BookMarked, titulo: 'Tarifas de proveedor',
-    texto: 'Ya las tienes en el menú, en «Mostrador». Busca por medidas, por ejemplo «50x50x4».', ir: '/tarifas' },
+  { icono: BookMarked, titulo: 'Tarifas con IVA',
+    texto: 'Ahora sale primero el precio con IVA. El sin IVA sigue al lado, y arriba puedes cambiar a «Sin IVA».', ir: '/tarifas' },
+  { icono: ArrowLeft, titulo: '«Volver» en el móvil',
+    texto: 'Arriba a la izquierda en cada pantalla. Al volver a «Albaranes de venta» sigue la misma búsqueda y el mismo sitio de la lista.' },
+  { icono: Signature, titulo: 'Firmar más rápido',
+    texto: 'Salen los nombres de quien suele firmar por ese cliente: tócalo y listo. Si se firmó por error: «Más opciones» → «Anular la firma».' },
+  { icono: Search, titulo: 'Buscar sin tildes',
+    texto: '«pardinas» encuentra «PARDIÑAS», y cada palabra se busca por separado.' },
 ];
 
 export const hayNovedades = () => { try { return localStorage.getItem(CLAVE) !== VERSION; } catch { return false; } };

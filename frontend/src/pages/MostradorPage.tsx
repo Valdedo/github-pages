@@ -10,7 +10,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import { useAnchoVentana } from '../hooks/useIsMobile';
 import {
-  PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, mesLargo, esReciente,
+  PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, mesLargo, esReciente, conIva,
   type Tarifa, type TarifaResumen, type TarifaMedida, type TarifaFamilia,
 } from '../lib/tarifas';
 import {
@@ -320,7 +320,7 @@ function Familia({ t, f, medida, sel, onMedida, onElegir }: {
               {b.items.map(m => (
                 <button key={m.ref} type="button" className="mo-boton" aria-pressed={sel === `${t.id}|${m.ref}`} onClick={() => onElegir({ t, f, m })}>
                   <span>{conPor(etiquetaMedida(m)) || conPor(m.descripcion)}</span>
-                  <strong>{eur(m.pvp)}</strong>
+                  <strong>{eur(conIva(m))}</strong>
                   {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
                 </button>
               ))}
@@ -362,7 +362,7 @@ function FilaArticulo({ e, nombre, sel, onElegir, conFamilia }: {
 }) {
   const { t, f, m } = e;
   return (
-    <button type="button" className={`mo-fila${m.pvp == null ? ' mo-sin' : ''}`} aria-pressed={sel === `${t.id}|${m.ref}`} onClick={() => onElegir(e)}>
+    <button type="button" className={`mo-fila${conIva(m) == null ? ' mo-sin' : ''}`} aria-pressed={sel === `${t.id}|${m.ref}`} onClick={() => onElegir(e)}>
       {conFamilia && <img src={pegatina(claveFamilia(f.nombre))} alt="" className="mo-fila-peg" />}
       <span className="mo-fila-txt">
         <strong>{conPor(nombre)}</strong>
@@ -372,7 +372,7 @@ function FilaArticulo({ e, nombre, sel, onElegir, conFamilia }: {
         </small>
       </span>
       <span className="mo-fila-precio">
-        {m.pvp != null ? <>{esReciente(m.fecha) && m.evol ? <i className={`mo-punto ${m.evol > 0 ? 'sube' : 'baja'}`} /> : null}{eur(m.pvp)}<small>/{m.ud_venta}</small></> : <em>Sin precio</em>}
+        {conIva(m) != null ? <>{esReciente(m.fecha) && m.evol ? <i className={`mo-punto ${m.evol > 0 ? 'sube' : 'baja'}`} /> : null}{eur(conIva(m))}<small>/{m.ud_venta}</small></> : <em>Sin precio</em>}
       </span>
     </button>
   );
@@ -410,7 +410,8 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
     );
   }
   const { t, f, m } = e;
-  const pm = porMetro(m, 'venta');
+  const pm = porMetro(m, 'iva');
+  const iva = conIva(m);
   const mg = margen(m);
   const paso = 1;
   const foto = fotoArticulo(f.nombre, m.descripcion, m.foto);
@@ -430,10 +431,10 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
         <div className="mo-panel-cod"><small>Código</small><span className="mo-cod mo-cod-g">{codigoVisible(m)}</span></div>
       )}
       <div className="mo-precio">
-        <small>Precio sin IVA</small>
-        {m.pvp != null ? <strong>{eur(m.pvp).replace(' €', '')}<span> €/{m.ud_venta}</span></strong> : <strong className="mo-precio-no">Sin precio</strong>}
+        <small>Precio con IVA</small>
+        {iva != null ? <strong>{eur(iva).replace(' €', '')}<span> €/{m.ud_venta}</span></strong> : <strong className="mo-precio-no">Sin precio</strong>}
         <div className="mo-precio-otros">
-          {m.pvp_iva != null && <span>Con IVA <b>{eur(m.pvp_iva)}/{m.ud_venta}</b></span>}
+          {m.pvp != null && <span>Sin IVA <b>{eur(m.pvp)}/{m.ud_venta}</b></span>}
           {pm != null && <span>Sale el metro a <b>{eur(pm)}</b> ({m.metros} m)</span>}
         </div>
       </div>
@@ -444,7 +445,7 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
           <span>{m.fecha ? `Precio de ${mesLargo(m.fecha)}` : ''}{m.evol ? <em className={m.evol > 0 ? 'sube' : 'baja'}> {pct(m.evol)}</em> : null}</span>
         </div>
       )}
-      {m.pvp != null && (
+      {iva != null && (
         <div className="mo-apuntar">
           <div className="mo-cant" role="group" aria-label="Cantidad">
             <button type="button" onClick={() => ponCant(Math.max(paso, cant - paso))} aria-label="Uno menos" disabled={cant <= paso}><Minus size={28} /></button>
@@ -459,7 +460,7 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
             <button type="button" onClick={() => ponCant(cant + paso)} aria-label="Uno más"><Plus size={28} /></button>
           </div>
           <button type="button" className="mo-apuntar-btn" onClick={() => cant > 0 && onApuntar(e, cant)} disabled={!cant}>
-            <ClipboardList size={24} /> Apuntar{cant > 0 && m.pvp != null ? <small>{eur(cant * m.pvp)}</small> : null}
+            <ClipboardList size={24} /> Apuntar{cant > 0 && iva != null ? <small>{eur(cant * iva)}</small> : null}
           </button>
         </div>
       )}
@@ -474,7 +475,7 @@ function ListaApuntes({ apuntes, setApuntes, onBorrar, onCerrar, onAbrir, horizo
   onAbrir: (a: Apunte) => void; horizontal: boolean;
 }) {
   const total = apuntes.reduce((s, a) => s + (a.pvp ?? 0) * a.cant, 0);
-  const totalIva = apuntes.reduce((s, a) => s + (a.pvp_iva ?? (a.pvp ?? 0) * 1.21) * a.cant, 0);
+  const totalIva = apuntes.reduce((s, a) => s + (conIva(a) ?? 0) * a.cant, 0);
   const cambia = (i: number, c: Partial<Apunte>) => setApuntes(as => as.map((a, j) => j === i ? { ...a, ...c } : a));
   return (
     <div className="mo-panel mo-apuntes">
@@ -493,16 +494,16 @@ function ListaApuntes({ apuntes, setApuntes, onBorrar, onCerrar, onAbrir, horizo
                   aria-label={a.hecho ? 'Marcar como no pasado' : 'Marcar como pasado a TreyFACT'}>{a.hecho && <Check size={24} strokeWidth={3} />}</button>
                 <button type="button" className="mo-apunte-txt" onClick={() => onAbrir(a)}>
                   <strong>{num(a.cant)} {a.ud} · {conPor(a.descripcion)}</strong>
-                  <small>{a.codigo && <span className="mo-cod">{a.codigo}</span>} {eur(a.pvp)}/{a.ud}</small>
+                  <small>{a.codigo && <span className="mo-cod">{a.codigo}</span>} {eur(conIva(a))}/{a.ud} con IVA</small>
                 </button>
-                <span className="mo-apunte-imp">{eur((a.pvp ?? 0) * a.cant)}</span>
+                <span className="mo-apunte-imp">{eur((conIva(a) ?? 0) * a.cant)}</span>
                 <button type="button" className="mo-apunte-x" onClick={() => setApuntes(as => as.filter((_, j) => j !== i))} aria-label="Quitar"><X size={22} /></button>
               </li>
             ))}
           </ul>
           <div className="mo-total">
-            <span>Total sin IVA <b>{eur(total)}</b></span>
-            <span>Con IVA <b>{eur(totalIva)}</b></span>
+            <span>Total con IVA <b>{eur(totalIva)}</b></span>
+            <span>Sin IVA <b>{eur(total)}</b></span>
           </div>
           <button type="button" className="mo-borrar" onClick={onBorrar}><Trash2 size={22} /> Borrar lista (siguiente cliente)</button>
         </>

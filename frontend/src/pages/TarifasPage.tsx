@@ -9,6 +9,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import {
   PROXIMAMENTE, PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, precioModo, mesLargo, esReciente,
+  conIva, modoGuardado, guardarModo,
   type Tarifa, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
 import './tarifas.css';
@@ -173,6 +174,7 @@ function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: str
   const MAX = 100;
   if (!res.length) return <div className="tf-vacio">No hay nada con «{q}» en {donde}. Prueba con menos palabras o solo la medida (p. ej. 50x50).</div>;
   const vistos = res.slice(0, MAX);
+  const iva = modoGuardado() !== 'venta';
   const pie = <p className="tf-nota tf-res-cuenta">{res.length} {res.length === 1 ? 'artículo' : 'artículos'}{res.length > MAX ? ` (se enseñan los ${MAX} primeros; afina la búsqueda)` : ''}{movil ? '' : ' · Intro abre el primero'}</p>;
   if (movil) {
     return (
@@ -183,7 +185,7 @@ function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: str
             <Link key={t.id + m.ref} to={enlaceFicha(t.id, f.id, m.ref)} className="tf-fila">
               <img src={pegatina(claveFamilia(f.nombre))} alt="" className="tf-fila-peg" />
               <span className="tf-fila-txt"><strong>{conPor(m.descripcion)}</strong><small>{nueva && m.codigo ? <><span className="tfn-cod">{codigoVisible(m)}</span> · </> : null}{f.nombre}</small></span>
-              <span className="tf-fila-precio">{eur(m.pvp)}<small>/{m.ud_venta} sin IVA</small></span>
+              <span className="tf-fila-precio">{eur(iva ? conIva(m) : m.pvp)}<small>/{m.ud_venta} {iva ? 'con' : 'sin'} IVA</small></span>
               <ChevronRight size={18} className="tf-fila-flecha" />
             </Link>
           ))}
@@ -199,7 +201,7 @@ function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: str
           <thead>
             <tr>
               <th>Artículo</th>{nueva && <th>Código</th>}<th>Familia</th>
-              <th className="num">Coste</th><th className="num">Venta sin IVA</th><th className="num">Con IVA</th>
+              <th className="num">Con IVA</th><th className="num">Sin IVA</th><th className="num">Coste</th>
               <th className="num">Precio de compra</th>
             </tr>
           </thead>
@@ -213,9 +215,9 @@ function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: str
                 </td>
                 {nueva && <td className="tfn-cod tfn-cod-td">{codigoVisible(m)}</td>}
                 <td className="tf-tabla-fam">{f.nombre}</td>
+                <td className="num tf-fuerte">{eur(conIva(m))}<small>/{m.ud_venta}</small></td>
+                <td className="num">{eur(m.pvp)}<small>/{m.ud_venta}</small></td>
                 <td className="num tf-gris">{eur(m.coste)}<small>/{m.ud_venta}</small></td>
-                <td className="num tf-fuerte">{eur(m.pvp)}<small>/{m.ud_venta}</small></td>
-                <td className="num">{eur(m.pvp_iva)}<small>/{m.ud_venta}</small></td>
                 <td className="num tf-gris">{mesLargo(m.fecha)}{m.evol ? <span className={`tf-mini-evol ${m.evol > 0 ? 'sube' : 'baja'}`}>{pct(m.evol)}</span> : null}</td>
               </tr>
             ))}
@@ -358,10 +360,17 @@ export function TarifaProveedorPage() {
 
 // ── 3 · Medidas de una familia ────────────────────────────────────────────
 const MODOS: { v: ModoPrecio; t: string; largo: string; frase: string }[] = [
-  { v: 'venta', t: 'Sin IVA', largo: 'Venta sin IVA', frase: 'venta sin IVA' },
   { v: 'iva', t: 'Con IVA', largo: 'Venta con IVA', frase: 'venta con IVA' },
+  { v: 'venta', t: 'Sin IVA', largo: 'Venta sin IVA', frase: 'venta sin IVA' },
   { v: 'coste', t: 'Coste', largo: 'Coste de compra', frase: 'coste de compra' },
 ];
+
+/** Qué precio se enseña: con IVA por defecto; se recuerda mientras la pestaña siga abierta. */
+function useModoPrecio() {
+  const [modo, setModo] = useState<ModoPrecio>(modoGuardado);
+  useEffect(() => guardarModo(modo), [modo]);
+  return [modo, setModo] as const;
+}
 
 function Leyenda() {
   return (
@@ -373,11 +382,12 @@ function Leyenda() {
 }
 
 /** Panel de la derecha (ordenador): la medida elegida con todos sus precios y su factura, sin salir de la lista. */
-function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'venta' }: {
+function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
   prov: string; fam: string; f: TarifaFamilia; sel: TarifaMedida | null; total: number; nueva?: boolean; modo?: ModoPrecio;
 }) {
   const { d, error } = useFicha(prov, sel?.ref ?? null);
-  const pm = sel && nueva ? porMetro(sel, modo === 'coste' ? 'coste' : 'venta') : null;
+  const iva = modo !== 'venta'; // el precio grande: con IVA, salvo que se haya elegido «Sin IVA»
+  const pm = sel && nueva ? porMetro(sel, modo === 'coste' ? 'coste' : iva ? 'iva' : 'venta') : null;
   return (
     <aside className="tf-panel" aria-live="polite">
       <div className="tf-panel-foto">
@@ -396,15 +406,15 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'venta' }: {
             {d?.antes?.length ? <> · antes <span className="tfn-cod">{d.antes.join(', ')}</span></> : null}
             {d?.tambien?.length ? <> · también <span className="tfn-cod">{d.tambien.map(x => x.codigo).join(', ')}</span></> : null}</p>}
           <div className="tf-panel-precio">
-            <small>Venta sin IVA</small>
-            <strong>{eur(sel.pvp)}<span>/{sel.ud_venta}</span></strong>
+            <small>{iva ? 'Venta con IVA' : 'Venta sin IVA'}</small>
+            <strong>{eur(iva ? conIva(sel) : sel.pvp)}<span>/{sel.ud_venta}</span></strong>
           </div>
           <dl className="tf-panel-lista">
-            <dt>Con IVA</dt><dd>{eurUd(sel.pvp_iva, sel.ud_venta)}</dd>
+            <dt>{iva ? 'Sin IVA' : 'Con IVA'}</dt><dd>{eurUd(iva ? sel.pvp : conIva(sel), sel.ud_venta)}</dd>
             <dt>Coste</dt><dd>{eurUd(sel.coste, sel.ud_venta)}</dd>
-            {pm != null && <><dt>Sale el metro a</dt><dd>{eur(pm)}/m{modo === 'coste' ? ' de coste' : ''}</dd></>}
+            {pm != null && <><dt>Sale el metro a</dt><dd>{eur(pm)}/m{modo === 'coste' ? ' de coste' : iva ? ' con IVA' : ' sin IVA'}</dd></>}
             {sel.escalas?.map(e => <Fragment key={e.nombre}><dt>{e.nombre}</dt>
-              <dd className="tf-escala-dd">{eurUd(modo === 'iva' ? e.pvp_iva : e.pvp, sel.ud_venta)}<small>{modo === 'iva' ? 'con IVA' : 'sin IVA'}</small></dd></Fragment>)}
+              <dd className="tf-escala-dd">{eurUd(iva ? conIva(e) : e.pvp, sel.ud_venta)}<small>{iva ? 'con IVA' : 'sin IVA'}</small></dd></Fragment>)}
             <dt>Precio de</dt><dd>{mesLargo(sel.fecha) || '—'}{sel.evol ? <span className={`tf-mini-evol ${sel.evol > 0 ? 'sube' : 'baja'}`}>{pct(sel.evol)}</span> : null}</dd>
             <dt>Última factura</dt>
             <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
@@ -429,9 +439,9 @@ function FamiliaActual() {
   const navigate = useNavigate();
   const { t, error, cargando, cargar } = useTarifa(prov);
   const ancho = !useIsMobile(1099); // con panel a la derecha
-  const [modo, setModo] = useState<ModoPrecio>(() => { try { return (sessionStorage.getItem('cfTarifaModo') as ModoPrecio) || 'venta'; } catch { return 'venta'; } });
+  const [modo, setModo] = useModoPrecio();
+  const iva = modo !== 'venta';
   const [sel, setSel] = useState<TarifaMedida | null>(null);
-  useEffect(() => { try { sessionStorage.setItem('cfTarifaModo', modo); } catch { /* nada */ } }, [modo]);
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
     window.addEventListener('keydown', h);
@@ -521,7 +531,7 @@ function FamiliaActual() {
             <p className="tf-nota tf-fam-ayuda">Precios de <strong>{modoActual.frase}</strong>. Haz clic en una medida para ver sus datos a la derecha.</p>
             {lista}
           </div>
-          <PanelMedida prov={prov} fam={fam} f={f} sel={sel} total={total} />
+          <PanelMedida prov={prov} fam={fam} f={f} sel={sel} total={total} modo={modo} />
         </div>
       )}
       {f && !ancho && (
@@ -542,8 +552,8 @@ function FamiliaActual() {
                 <strong>{conPor(sel.descripcion)}</strong>
               </div>
               <div className="tf-barra-precio">
-                <strong>{eur(sel.pvp)}<small>/{sel.ud_venta}</small></strong>
-                <small>{eur(sel.pvp_iva)} con IVA · coste {eur(sel.coste)}</small>
+                <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
+                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA · coste {eur(sel.coste)}</small>
               </div>
               <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
                 Ver ficha <ChevronRight size={18} />
@@ -643,9 +653,9 @@ function FamiliaNueva() {
   const [sp, setSp] = useSearchParams();
   const { t, error, cargando, cargar } = useTarifa(prov);
   const ancho = !useIsMobile(1099); // con panel a la derecha
-  const [modo, setModo] = useState<ModoPrecio>(() => { try { return (sessionStorage.getItem('cfTarifaModo') as ModoPrecio) || 'venta'; } catch { return 'venta'; } });
+  const [modo, setModo] = useModoPrecio();
+  const iva = modo !== 'venta';
   const [sel, setSel] = useState<TarifaMedida | null>(null);
-  useEffect(() => { try { sessionStorage.setItem('cfTarifaModo', modo); } catch { /* nada */ } }, [modo]);
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
     window.addEventListener('keydown', h);
@@ -778,10 +788,10 @@ function FamiliaNueva() {
                 <strong>{conPor(sel.descripcion)}</strong>
               </div>
               <div className="tf-barra-precio">
-                <strong>{eur(sel.pvp)}<small>/{sel.ud_venta}</small></strong>
-                <small>{eur(sel.pvp_iva)} con IVA · coste {eur(sel.coste)}</small>
-                {porMetro(sel, 'venta') != null && <small className="tfn-barra-m">sale a {eur(porMetro(sel, 'venta'))}/m</small>}
-                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => `${e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé')} ${eur(e.pvp)}`).join(' · ')}</small> : null}
+                <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
+                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA · coste {eur(sel.coste)}</small>
+                {porMetro(sel, iva ? 'iva' : 'venta') != null && <small className="tfn-barra-m">sale a {eur(porMetro(sel, iva ? 'iva' : 'venta'))}/m</small>}
+                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => `${e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé')} ${eur(iva ? conIva(e) : e.pvp)}`).join(' · ')}</small> : null}
               </div>
               <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
                 Ver ficha <ChevronRight size={18} />
@@ -832,6 +842,7 @@ function Evolucion({ puntos, ud }: { puntos: { fecha: string; precio: number; co
 /** Las otras medidas del mismo grupo, para saltar de una a otra sin volver atrás. */
 function OtrasMedidas({ prov, fam, refActual }: { prov: string; fam: string; refActual: string }) {
   const { t } = useTarifa(prov);
+  const precio = (m: TarifaMedida) => eur(modoGuardado() === 'venta' ? m.pvp : conIva(m));
   const g = t?.familias.find(f => f.id === fam)?.grupos.find(x => x.titulo && x.medidas.some(m => m.ref === refActual));
   if (!g || g.medidas.length < 2) return null;
   return (
@@ -840,11 +851,11 @@ function OtrasMedidas({ prov, fam, refActual }: { prov: string; fam: string; ref
       <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
         {g.medidas.map(m => m.ref === refActual ? (
           <span key={m.ref} className="tf-chip" aria-current="true" data-actual="1">
-            <span>{etiquetaMedida(m)}</span><strong>{eur(m.pvp)}</strong>
+            <span>{etiquetaMedida(m)}</span><strong>{precio(m)}</strong>
           </span>
         ) : (
           <Link key={m.ref} className="tf-chip" to={enlaceFicha(prov, fam, m.ref)} replace title={conPor(m.descripcion)}>
-            <span>{etiquetaMedida(m)}</span><strong>{eur(m.pvp)}</strong>
+            <span>{etiquetaMedida(m)}</span><strong>{precio(m)}</strong>
           </Link>
         ))}
       </div>
@@ -860,6 +871,9 @@ export function TarifaFichaPage() {
   const { t } = useTarifa(prov);
   const ancho = !useIsMobile(999);
   const nueva = esEncargado(); // vista nueva (en pruebas): código a la vista, códigos antiguos y precio por metro
+  const iva = modoGuardado() !== 'venta'; // con IVA en grande, salvo que se haya elegido «Sin IVA» en la lista
+  const grande = d ? (iva ? conIva(d) : d.pvp) : null;
+  const otro = d ? (iva ? d.pvp : conIva(d)) : null;
   const familiaNombre = d?.familia.nombre ?? t?.familias.find(f => f.id === fam)?.nombre ?? 'Familia';
   const evol = d?.historial && d.historial.length > 1
     ? ((d.historial[d.historial.length - 1].precio - d.historial[d.historial.length - 2].precio) / d.historial[d.historial.length - 2].precio) * 100
@@ -875,10 +889,10 @@ export function TarifaFichaPage() {
   const precios = d && (
     <div className="tf-precios">
       <div className="tf-precio-venta">
-        <small>Venta sin IVA</small>
-        {d.pvp != null ? <strong>{eur(d.pvp)}<span>/{d.ud_venta}</span></strong> : <strong>Sin precio</strong>}
-        {d.pvp_iva != null && <em>{eurUd(d.pvp_iva, d.ud_venta)} con IVA</em>}
-        {nueva && d.pvp != null && (d.metros ?? 0) > 1 && <em>sale a {eur(d.pvp / d.metros!)}/m ({d.metros} m)</em>}
+        <small>{iva ? 'Venta con IVA' : 'Venta sin IVA'}</small>
+        {grande != null ? <strong>{eur(grande)}<span>/{d.ud_venta}</span></strong> : <strong>Sin precio</strong>}
+        {otro != null && <em>{eurUd(otro, d.ud_venta)} {iva ? 'sin' : 'con'} IVA</em>}
+        {nueva && grande != null && (d.metros ?? 0) > 1 && <em>sale a {eur(grande / d.metros!)}/m ({d.metros} m)</em>}
         {d.nota && <span className={`tf-etiqueta${/revisar|neto/i.test(d.nota) ? ' aviso' : ''}`}
           title={/neto/i.test(d.nota) ? 'Sale en la tarifa de Isoltubex pero no tenemos su precio neto: hay que pedirlo'
             : /revisar/i.test(d.nota) ? 'El precio ha cambiado mucho: conviene mirarlo' : 'Primera vez que se compra'}>
@@ -895,11 +909,11 @@ export function TarifaFichaPage() {
     <section className="tf-caja tf-escalas">
       <h2>Precio por cantidad</h2>
       <table>
-        <thead><tr><th>Cantidad</th><th>Sin IVA</th><th>Con IVA</th><th>Margen</th></tr></thead>
+        <thead><tr><th>Cantidad</th><th>Con IVA</th><th>Sin IVA</th><th>Margen</th></tr></thead>
         <tbody>
-          <tr><td>Suelto</td><td>{eur(d.pvp)}</td><td>{eur(d.pvp_iva)}</td><td>{d.margen != null ? `${String(d.margen).replace('.', ',')} %` : '—'}</td></tr>
+          <tr><td>Suelto</td><td>{eur(conIva(d))}</td><td>{eur(d.pvp)}</td><td>{d.margen != null ? `${String(d.margen).replace('.', ',')} %` : '—'}</td></tr>
           {d.escalas.map(e => (
-            <tr key={e.nombre}><td>{e.nombre}</td><td><strong>{eur(e.pvp)}</strong></td><td>{eur(e.pvp_iva)}</td>
+            <tr key={e.nombre}><td>{e.nombre}</td><td><strong>{eur(conIva(e))}</strong></td><td>{eur(e.pvp)}</td>
               <td>{e.margen != null ? `${String(e.margen).replace('.', ',')} %` : '—'}</td></tr>
           ))}
         </tbody>
