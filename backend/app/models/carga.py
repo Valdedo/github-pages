@@ -59,6 +59,9 @@ class EntregaCarga(Base):
     estado: Mapped[str] = mapped_column(String(20), default="pendiente", index=True)
     # «Listo para llevar»: la carga se confirmó y la lista queda bloqueada hasta firmar (o desbloquear)
     lista_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Se subió otra versión del albarán después de leer sus materiales: al firmar, la firma no se le pasa
+    # sola (en la tienda se comprueba y se le pasa con «Pasarle la firma de la entrega»)
+    albaran_cambiado: Mapped[bool] = mapped_column(Boolean, default=False)
     firma_archivo: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     firmado_por: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     firmado_dni: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)

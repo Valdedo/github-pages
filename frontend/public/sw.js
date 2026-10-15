@@ -26,8 +26,9 @@ const esHTML = res => res.ok && (res.headers.get('content-type') || '').includes
 const esLegacy = p => /-legacy[-.]/.test(p);
 
 /** Guarda la portada y los archivos que usa (y borra los de versiones anteriores).
- *  Las partes que se cargan al abrir cada apartado (carga por partes) no se descargan aquí:
- *  se guardan la primera vez que se usan. */
+ *  También las partes que se cargan al abrir cada apartado (carga por partes): antes solo se guardaban
+ *  la primera vez que se usaban, y tras publicar una versión nueva una pantalla aún no abierta (p. ej. la
+ *  orden de carga en el móvil de Melchor) se quedaba en blanco sin cobertura. */
 async function guardarApp(res) {
   const c = await caches.open(APP);
   const r = res || await fetch('/', { cache: 'no-store' });
@@ -48,6 +49,10 @@ async function guardarApp(res) {
         for (const m of js.match(/[\w.-]+-[\w-]{8}\.(?:js|css)/g) || []) vigentes.add(`/assets/${m}`);
       } catch { /* nada */ }
     }
+  }
+  for (const p of vigentes) {
+    if (esLegacy(p) || !/\.(js|css)$/.test(p) || await c.match(p)) continue;
+    try { const y = await fetch(p); if (y.ok && !esHTML(y)) await c.put(p, y.clone()); } catch { /* sin red: ya se guardará */ }
   }
   for (const k of await c.keys()) {
     const p = new URL(k.url).pathname;

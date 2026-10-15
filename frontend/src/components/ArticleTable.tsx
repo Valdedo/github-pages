@@ -12,6 +12,7 @@ import { useConfirm } from './ConfirmModal';
 import { borrarArticuloYa, mensajeError } from '../lib/descargas';
 import type { Article } from '../types/index';
 import { Trash2 } from 'lucide-react';
+import { numES } from '../lib/texto';
 
 const NUMERICOS = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
 const OPCIONALES = ['descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'recargo_pct'];
@@ -67,7 +68,7 @@ interface Props {
 
 /** Número a la española (coma decimal). Con 4 decimales no se rellenan ceros de más. */
 const num = (n: number, digits = 2) =>
-  n.toLocaleString('es-ES', { minimumFractionDigits: Math.min(digits, 2), maximumFractionDigits: digits });
+  numES(n, Math.min(digits, 2), digits);
 
 const fmt = (n: number | undefined | null, digits = 2) =>
   n == null ? '—' : num(n, digits);
@@ -748,7 +749,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
             {table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} style={{ padding: '24px', textAlign: 'center', color: 'var(--grey-500)' }}>
-                  {search ? 'No hay artículos que coincidan con la búsqueda.' : 'No se han detectado artículos. Usa "Reprocesar extracción" o añade artículos manualmente.'}
+                  {search ? 'No hay artículos que coincidan con la búsqueda.' : 'No se ha leído ningún artículo. Prueba «Más» → «Volver a leer», o añádelos a mano.'}
                 </td>
               </tr>
             ) : (

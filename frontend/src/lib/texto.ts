@@ -43,3 +43,17 @@ export const plural = (n: number, uno: string, varios?: string) => `${n} ${n ===
 
 /** Orden de la lista de albaranes que se está viendo, para que ‹ › del albarán vayan en el mismo orden. */
 export const ORDEN_ALBARANES = 'cfOrdenAlbaranes';
+
+/** Número a la española con punto de miles siempre («1.549,31»). El formato de España del navegador no pone
+ *  el punto en los números de 4 cifras («1549,31») y la app salía unas veces con él y otras sin él. */
+export function numES(v: number, minDec = 2, maxDec = minDec): string {
+  if (v == null || !isFinite(v)) return '';
+  const neg = v < 0 && Math.abs(v) >= 0.5 * 10 ** -maxDec;
+  let s = Math.abs(v).toFixed(maxDec);
+  if (maxDec > minDec) s = s.replace(new RegExp(`0{1,${maxDec - minDec}}$`), '').replace(/\.$/, '');
+  const [ent, frac] = s.split('.');
+  return `${neg ? '-' : ''}${ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${frac ? ',' + frac : ''}`;
+}
+
+/** «1.549,31 €» (vacío si no hay importe). Espacio duro antes del €: así nunca se queda solo en otra línea. */
+export const euros = (v?: number | null) => (v == null || !isFinite(v) ? '' : `${numES(v)}\u00a0€`);

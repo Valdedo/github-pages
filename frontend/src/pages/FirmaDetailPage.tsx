@@ -5,6 +5,7 @@ import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Ch
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
   getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, repartoFirmas, type MarcasFirma,
+  anularFirmaAlbaran, firmaDeEntrega,
 } from '../api/client';
 import { firmaGuardada, ponerEnCola, sinRed, reintentarFirma, descartarFirma } from '../lib/offline';
 import { ConnectionError } from '../components/ConnectionError';
@@ -148,6 +149,7 @@ export function FirmaDetailPage() {
   const [camionGuardando, setCamionGuardando] = useState(false);
   const [alCamion, setAlCamion] = useState(false);
   const [borrando, setBorrando] = useState(false);
+  const [pasando, setPasando] = useState(false);
   // En el ordenador se puede firmar con la tableta Topaz; se recuerda la elección
   // En el reparto siempre se firma en la pantalla del móvil
   const esPC = !reparto && typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
@@ -333,6 +335,30 @@ export function FirmaDetailPage() {
     } finally { setBorrando(false); }
   };
 
+  /** Firma hecha por error (otro albarán, otra persona…): vuelve a «Por firmar». */
+  const onAnular = async () => {
+    if (!note || pasando) return;
+    if (!window.confirm(`¿Anular la firma del albarán ${note.numero}? Volverá a «Por firmar» y habrá que firmarlo otra vez.`)) return;
+    setPasando(true);
+    try {
+      const { data } = await anularFirmaAlbaran(note.id);
+      setNote(data);
+      show('Firma anulada: el albarán vuelve a «Por firmar»');
+    } catch (err) { show(describeApiError(err), { error: true }); }
+    finally { setPasando(false); }
+  };
+  /** El albarán cambió después de cargarlo: se le pasa la firma de la hoja de entrega. */
+  const onFirmaEntrega = async () => {
+    if (!note || pasando) return;
+    setPasando(true);
+    try {
+      const { data } = await firmaDeEntrega(note.id);
+      setNote(data);
+      show('Firma de la entrega pasada al albarán');
+    } catch (err) { show(describeApiError(err), { error: true }); }
+    finally { setPasando(false); }
+  };
+
   const guardarFactRef = () => {
     if (!note || factRef === null) return;
     const v = factRef.trim();
@@ -477,6 +503,19 @@ export function FirmaDetailPage() {
             </>
           ) : (
             <>
+              {note.firma_entrega && !reparto && (
+                <div className="firma-de-entrega" role="status">
+                  <Truck size={22} />
+                  <div>
+                    <b>{note.firma_entrega}</b>
+                    <small>Pero este albarán se cambió después de cargarlo, así que la firma no se le ha pasado sola.
+                      Si lo que se entregó coincide con este albarán, pásale la firma de la entrega.</small>
+                    <button className="btn btn-primary" onClick={onFirmaEntrega} disabled={pasando}>
+                      {pasando ? 'Pasando…' : 'Pasarle la firma de la entrega'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ fontWeight: 600 }}>Recibí conforme</div>
                 {esPC && (
@@ -497,6 +536,13 @@ export function FirmaDetailPage() {
                 <input className="form-input" value={nombre} maxLength={MAX_NOMBRE} onChange={e => setNombre(e.target.value)} autoComplete="off" />
                 {nombre.length > MAX_NOMBRE - 15 && <small className="firma-limite">{nombre.length}/{MAX_NOMBRE}</small>}
               </label>
+              {(note.firmantes || []).length > 0 && (
+                <div className="firmantes" aria-label="Firmaron otras veces por este cliente">
+                  {(note.firmantes || []).map(f => (
+                    <button key={f} type="button" className={`firmante${nombre === f ? ' on' : ''}`} onClick={() => setNombre(f)}>{f}</button>
+                  ))}
+                </div>
+              )}
               <label className="form-label">DNI (opcional)
                 <input className="form-input" value={dni} maxLength={MAX_DNI} onChange={e => setDni(e.target.value)} autoComplete="off" autoCapitalize="characters" />
               </label>
@@ -529,9 +575,20 @@ export function FirmaDetailPage() {
             </>
           )}
           {note.nota && <div style={{ fontSize: 12, color: 'var(--warning)' }}>{note.nota}</div>}
-          {!reparto && <button className="firma-borrar" onClick={onDelete} disabled={borrando}>
-            <Trash2 size={13} /> {borrando ? 'Borrando…' : 'Borrar este albarán'}
-          </button>}
+          {/* Lo que no tiene vuelta atrás, aparte y lejos de «Firmar albarán» */}
+          {!reparto && (
+            <details className="firma-mas-opciones">
+              <summary>Más opciones</summary>
+              {firmado && !note.facturado_at && note.carga_estado !== 'entregada' && (
+                <button className="firma-borrar" onClick={onAnular} disabled={pasando}>
+                  <Eraser size={13} /> {pasando ? 'Anulando…' : 'Anular la firma (se firmó por error)'}
+                </button>
+              )}
+              <button className="firma-borrar" onClick={onDelete} disabled={borrando}>
+                <Trash2 size={13} /> {borrando ? 'Borrando…' : 'Borrar este albarán'}
+              </button>
+            </details>
+          )}
         </div>
       </div>
 

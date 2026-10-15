@@ -14,6 +14,7 @@ import { CabeceraPegatina } from '../components/CabeceraPegatina';
 import { Ilustracion, AccesoPegatina } from '../components/Pegatinas';
 import { useIsMobile } from '../hooks';
 import type { ClientDeliveryNote, DashboardStats, DocumentListItem } from '../types';
+import { euros } from '../lib/texto';
 
 const EMPTY_STATS: DashboardStats = {
   documents: { total: 0, processing: 0 },
@@ -22,7 +23,6 @@ const EMPTY_STATS: DashboardStats = {
   recent_documents: [],
 };
 
-const euros = (v: number) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
 function saludo() {
   const h = new Date().getHours();
@@ -141,11 +141,16 @@ export function DashboardPage() {
     const files = Array.from(list || []).filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf');
     if (!files.length) { if (list?.length) setLoadError('Solo se pueden subir archivos PDF'); return; }
     setSubiendo(true);
+    const aviso = (txt: string) => window.dispatchEvent(new CustomEvent('cf-cola-aviso', { detail: txt }));
     try {
-      const { data } = await uploadFirmas(files);
-      navigate(data.some(d => d.status === 'pendiente') ? '/firmas?vista=firmar' : '/firmas?vista=todos');
+      const { data, rechazados } = await uploadFirmas(files);
+      if (rechazados.length) aviso(`No se pudo subir: ${rechazados.map(r => r.nombre).join(', ')}`);
+      const pend = data.filter(d => d.status === 'pendiente');
+      // Uno solo y listo para firmar: se abre directamente
+      if (pend.length === 1 && data.length === 1) { navigate(`/firmas/${pend[0].id}`); return; }
+      navigate(pend.length ? '/firmas?vista=firmar' : '/firmas?vista=todos');
     } catch (err) {
-      setLoadError(`No se pudieron subir: ${describeApiError(err)}`);
+      aviso(`No se pudieron subir: ${describeApiError(err)}`);
       setSubiendo(false);
     }
   };

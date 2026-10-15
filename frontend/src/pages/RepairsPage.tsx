@@ -129,12 +129,17 @@ function RepairModal({
   const set = (k: keyof RepairFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  // Escape cierra; en el ordenador, tocar fuera también
+  // Escape cierra; en el ordenador, tocar fuera también. Si se ha cambiado algo, pregunta antes (se perdía sin avisar)
+  const inicial = useRef(JSON.stringify(form));
+  const cambiado = JSON.stringify(form) !== inicial.current;
+  const cerrar = () => { if (!cambiado || window.confirm('¿Cerrar sin guardar? Se perderá lo que has escrito.')) onClose(); };
+  const cerrarRef = useRef(cerrar);
+  cerrarRef.current = cerrar;
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrarRef.current(); };
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
-  }, [onClose]);
+  }, []);
 
   const presupuesto = leerImporte(form.estimated_price);
   const handleSubmit = async (e: React.FormEvent) => {
@@ -174,13 +179,13 @@ function RepairModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && window.innerWidth > 768) onClose(); }}>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && window.innerWidth > 768) cerrar(); }}>
       <div className="modal rep-modal" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 16 }}>
             {repair ? 'Editar reparación' : 'Nueva reparación'}
           </span>
-          <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={18} /></button>
+          <button className="modal-close" onClick={cerrar} aria-label="Cerrar"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
@@ -257,7 +262,7 @@ function RepairModal({
             </div>
           </div>
           <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="button" className="btn btn-ghost" onClick={cerrar}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Guardando…' : repair ? 'Guardar cambios' : 'Crear reparación'}
             </button>

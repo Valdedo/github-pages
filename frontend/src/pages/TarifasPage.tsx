@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
-import { coincide, fechaES } from '../lib/texto';
+import { fechaES, normaliza } from '../lib/texto';
 import { esConsulta, esEncargado } from '../auth';
 import { useIsMobile } from '../hooks';
 import { ConnectionError } from '../components/ConnectionError';
@@ -124,6 +124,13 @@ export const etiquetaMedida = (m: TarifaMedida) => [m.valor, m.ud_medida].filter
 /** «50X50X4» → «50×50×4» para leerlo mejor */
 export const conPor = (s: string) => s.replace(/(\d)\s*X\s*(?=\d)/g, '$1×');
 const udLarga = (u: string) => u === 'm' ? 'metro' : u === 'ud' ? 'unidad' : u;
+/** En los botones de medida solo va el precio: si todo el grupo se vende igual (y no por unidad), se dice una vez
+ *  en el título («· precio por metro»); si se mezclan, cada botón lleva la suya. */
+const udGrupo = (ms: TarifaMedida[]) => {
+  const uds = [...new Set(ms.map(m => m.ud_venta))];
+  return uds.length === 1 && uds[0] !== 'ud' ? <small className="tf-grupo-ud"> · precio por {udLarga(uds[0])}</small> : null;
+};
+const udMezcla = (ms: TarifaMedida[]) => new Set(ms.map(m => m.ud_venta)).size > 1;
 /** «7,50 €/m»; si no hay precio, solo «—» */
 const eurUd = (v: number | null | undefined, ud: string) => v == null ? '—' : `${eur(v)}/${ud}`;
 /** El código del proveedor tal como se enseña; el comodín de Zabaleta («INC») no identifica a nadie. */
@@ -139,9 +146,22 @@ export type Resultado = { t: Tarifa; f: TarifaFamilia; m: TarifaMedida };
 export function buscar(ts: Tarifa[], q: string): Resultado[] {
   // «50x50x4» y «50 x 50 x 4» deben encontrar «50X50X4»
   const limpio = q.replace(/(\d)\s*[x×*]\s*(?=\d)/gi, '$1x');
+  const palabras = normaliza(limpio).split(/\s+/).filter(Boolean);
   const out: Resultado[] = [];
-  for (const t of ts) for (const f of t.familias) for (const g of f.grupos) for (const m of g.medidas)
-    if (coincide(limpio, m.descripcion, f.nombre, g.titulo, g.seccion, m.codigo, m.original, ...(m.alias ?? []))) out.push({ t, f, m });
+  if (!palabras.length) return out;
+  // Una cifra corta («110», «40») es una medida: cuenta como número entero en el nombre («Ø110», «75-110»)
+  // o como principio de un código, pero no como trozo de un código (PE110040 es de Ø40, no de 110).
+  const cortas = palabras.map(p => (/^\d{1,3}$/.test(p) ? new RegExp(`(^|[^\\d])${p}([^\\d]|$)`) : null));
+  for (const t of ts) for (const f of t.familias) for (const g of f.grupos) for (const m of g.medidas) {
+    const texto = [m.descripcion, f.nombre, g.titulo, g.seccion, m.original, ...(m.alias ?? [])].map(normaliza).join(' \u0001 ');
+    const codigos = [m.codigo, ...(m.alias ?? [])].filter(Boolean).map(c => normaliza(c));
+    const vale = palabras.every((p, i) => {
+      const rx = cortas[i];
+      if (rx) return rx.test(texto) || codigos.some(c => c.startsWith(p));
+      return texto.includes(p) || codigos.some(c => c.includes(p));
+    });
+    if (vale) out.push({ t, f, m });
+  }
   return out;
 }
 
@@ -425,13 +445,13 @@ function FamiliaActual() {
 
   const chips = (g: TarifaGrupo, i: number) => (
     <section key={i} className="tf-grupo">
-      <h3>{conPor(g.titulo!)}</h3>
+      <h3>{conPor(g.titulo!)}{udGrupo(g.medidas)}</h3>
       <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
         {g.medidas.map(m => (
           <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
             onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={conPor(m.descripcion)}>
             <span>{etiquetaMedida(m)}</span>
-            <strong>{eur(precioModo(m, modo))}</strong>
+            <strong>{eur(precioModo(m, modo))}{udMezcla(g.medidas) && <small>/{m.ud_venta}</small>}</strong>
             {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
           </button>
         ))}
@@ -656,7 +676,7 @@ function FamiliaNueva() {
         <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
           onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={`${conPor(m.descripcion)}${m.codigo ? ` · ${codigoVisible(m)}` : ''}`}>
           <span>{etiquetaMedida(m)}</span>
-          <strong>{eur(precioModo(m, modo))}</strong>
+          <strong>{eur(precioModo(m, modo))}{udMezcla(items) && <small>/{m.ud_venta}</small>}</strong>
           {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
         </button>
       ))}
@@ -669,7 +689,7 @@ function FamiliaNueva() {
     const repetidas = new Set(b.items.filter((m, j) => b.items.findIndex(x => x.valor === m.valor) !== j).map(m => m.valor));
     return (
       <section key={i} className={`tf-grupo${b.filas ? ' tfn-grupo-filas' : ''}`}>
-        <h3>{conPor(b.g.titulo!)}</h3>
+        <h3>{conPor(b.g.titulo!)}{!b.filas && udGrupo(b.items)}</h3>
         {b.filas
           ? <div className="tfn-filas tfn-filas-grupo">{b.items.map(m => fila(m, !m.valor || repetidas.has(m.valor) ? m.descripcion : etiquetaMedida(m)))}</div>
           : botones(b.items)}
@@ -816,7 +836,7 @@ function OtrasMedidas({ prov, fam, refActual }: { prov: string; fam: string; ref
   if (!g || g.medidas.length < 2) return null;
   return (
     <section className="tf-caja">
-      <h2>Otras medidas · {conPor(g.titulo!)}</h2>
+      <h2>Otras medidas · {conPor(g.titulo!)}{udGrupo(g.medidas)}</h2>
       <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
         {g.medidas.map(m => m.ref === refActual ? (
           <span key={m.ref} className="tf-chip" aria-current="true" data-actual="1">

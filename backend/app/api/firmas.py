@@ -89,17 +89,45 @@ def list_notes(
 
 
 def con_carga(db: Session, notes):
-    """Apunta en cada albarán en qué orden de carga va (si va en alguna)."""
+    """Apunta en cada albarán en qué orden de carga va (si va en alguna) y si tiene una hoja de entrega
+    firmada cuya firma no se le pasó sola (el albarán cambió después de cargar)."""
     from app.models.carga import EntregaCarga
     ids = [n.id for n in notes]
-    mapa = {}
+    mapa, firmas = {}, {}
     for i in range(0, len(ids), 500):
-        for aid, oid, est in (db.query(EntregaCarga.albaran_id, EntregaCarga.orden_id, EntregaCarga.estado)
-                              .filter(EntregaCarga.albaran_id.in_(ids[i:i + 500])).all()):
+        for aid, oid, est, cambiado, num, quien, cuando in (
+                db.query(EntregaCarga.albaran_id, EntregaCarga.orden_id, EntregaCarga.estado,
+                         EntregaCarga.albaran_cambiado, EntregaCarga.numero, EntregaCarga.firmado_por,
+                         EntregaCarga.firmado_at)
+                .filter(EntregaCarga.albaran_id.in_(ids[i:i + 500])).all()):
             mapa[aid] = (oid, est)
+            if est == "entregada" and cambiado and cuando:
+                hora = cuando.replace(tzinfo=ZoneInfo("UTC")).astimezone(TZ)
+                firmas[aid] = f"La hoja de entrega {num or ''} la firmó {quien or 'el cliente'} el {hora:%d/%m} a las {hora:%H:%M}"
     for n in notes:
         n.carga_id, n.carga_estado = mapa.get(n.id, (None, None))
+        n.firma_entrega = firmas.get(n.id) if n.status == "pendiente" else None
     return notes
+
+
+def firmantes(db: Session, n: ClientDeliveryNote, limite: int = 4) -> List[str]:
+    """Las últimas personas que firmaron por este cliente (para elegirlas con un toque al firmar)."""
+    if not n.codigo_cliente:
+        return []
+    filas = (db.query(ClientDeliveryNote.signed_by)
+             .filter(ClientDeliveryNote.codigo_cliente == n.codigo_cliente, ClientDeliveryNote.signed_by.isnot(None))
+             .order_by(ClientDeliveryNote.signed_at.desc()).limit(40).all())
+    out, vistos = [], set()
+    empresa = re.sub(r"\W+", "", (n.cliente or "").lower())
+    for (nombre,) in filas:
+        k = re.sub(r"\W+", "", (nombre or "").lower())
+        if not k or k in vistos or k == empresa:  # el nombre de la empresa no es una persona
+            continue
+        vistos.add(k)
+        out.append(nombre.strip())
+        if len(out) >= limite:
+            break
+    return out
 
 
 @router.get("/stats")
@@ -192,6 +220,9 @@ def upload(files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
             for e in db.query(EntregaCarga).filter(EntregaCarga.albaran_id == note.id,
                                                    EntregaCarga.estado != "entregada").all():
                 e.dudas = "Se ha subido una versión nueva del albarán. Pulsa «Volver a leer el albarán» para poner sus materiales."
+                # Hasta que se vuelva a leer, la firma de la hoja no pasa sola a este albarán (podría
+                # llevar cosas que no iban en el camión)
+                e.albaran_cambiado = True
         db.commit()
         db.refresh(note)
         out.append(note)
@@ -343,7 +374,9 @@ def shared_pdf(token: str, filename: str, db: Session = Depends(get_db)):
 
 @router.get("/{note_id}", response_model=ClientDeliveryNoteResponse)
 def get_note(note_id: int, db: Session = Depends(get_db)):
-    return con_carga(db, [_get(db, note_id)])[0]
+    n = con_carga(db, [_get(db, note_id)])[0]
+    n.firmantes = firmantes(db, n) if n.status == "pendiente" else []
+    return n
 
 
 @router.put("/{note_id}", response_model=ClientDeliveryNoteResponse)
@@ -505,6 +538,54 @@ def firmar_desde_entrega(db: Session, note_id: int, png: bytes, nombre: str, dni
         threading.Thread(target=_correo_automatico, args=(n.id, c.email), daemon=True).start()
     backup_en_segundo_plano()
     return True
+
+
+@router.post("/{note_id}/firma-de-entrega", response_model=ClientDeliveryNoteResponse)
+def firma_de_entrega(note_id: int, db: Session = Depends(get_db)):
+    """El albarán cambió después de cargarlo y la firma de la hoja de entrega no se le pasó sola.
+    En la tienda, comprobado que lo entregado coincide, se le pasa con un toque."""
+    from app.models.carga import EntregaCarga
+    n = _get(db, note_id)
+    if n.status != "pendiente":
+        raise HTTPException(409, f"El albarán {n.numero} ya está firmado")
+    e = (db.query(EntregaCarga).filter(EntregaCarga.albaran_id == note_id, EntregaCarga.estado == "entregada")
+         .order_by(EntregaCarga.firmado_at.desc()).first())
+    png = Path(settings.upload_dir) / "cargas" / (e.firma_archivo or "") if e else None
+    if not e or not e.firma_archivo or not png.exists():
+        raise HTTPException(404, "No hay ninguna hoja de entrega firmada de este albarán")
+    if not firmar_desde_entrega(db, n.id, png.read_bytes(), e.firmado_por or "", e.firmado_dni or "",
+                                e.firmado_at or datetime.utcnow()):
+        raise HTTPException(409, "No se pudo pasar la firma. Vuelve a probar en un momento.")
+    e.albaran_cambiado = False
+    n = _get(db, note_id)
+    if n.nota and "versión anterior" in n.nota:
+        n.nota = None
+    db.commit()
+    return con_carga(db, [_get(db, note_id)])[0]
+
+
+@router.post("/{note_id}/anular-firma", response_model=ClientDeliveryNoteResponse)
+def anular_firma(note_id: int, db: Session = Depends(get_db)):
+    """Firma hecha por error (otro albarán, otra persona…): el albarán vuelve a «Por firmar»."""
+    n = _get(db, note_id)
+    if n.status != "firmado":
+        raise HTTPException(409, f"El albarán {n.numero} no está firmado")
+    if n.facturado_at:
+        raise HTTPException(409, f"El albarán {n.numero} ya está facturado. Quítale antes la marca de facturado.")
+    con_carga(db, [n])
+    if n.carga_estado == "entregada":
+        raise HTTPException(409, "Esta firma viene de la hoja de entrega. Repítela desde su orden de carga («Repetir la firma»).")
+    if n.signed_path:
+        Path(n.signed_path).unlink(missing_ok=True)
+    quien = n.signed_by
+    n.signed_path = None
+    n.status = "pendiente"
+    n.signed_at = n.signed_by = n.signer_dni = None
+    n.backup_at = None
+    n.nota = f"Firma anulada el {datetime.now(TZ):%d/%m a las %H:%M}" + (f" (la había firmado {quien})" if quien else "")
+    db.commit()
+    logger.info("Firma del albarán %s anulada", n.numero)
+    return con_carga(db, [_get(db, note_id)])[0]
 
 
 @router.delete("/{note_id}")

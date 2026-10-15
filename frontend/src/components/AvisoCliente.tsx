@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MessageCircle, CheckCheck } from 'lucide-react';
-import { fechaES } from '../lib/texto';
+import { fechaES, numES as numTexto } from '../lib/texto';
 
 /** Número para wa.me: solo cifras y con el 34 delante si es un número español. */
 export function telWhatsApp(tel?: string | null): string | null {
@@ -35,7 +35,7 @@ export const textoPedido = (cliente: string, articulos: string[]) => {
     'Puede pasar a recogerlo cuando quiera. Un saludo.';
 };
 
-export const fmtEur = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+export const fmtEur = (n: number) => `${numTexto(n)} €`;
 
 export type LecturaImporte = { ok: true; n: number | null } | { ok: false; error: string };
 

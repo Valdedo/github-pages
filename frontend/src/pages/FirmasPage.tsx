@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Upload, Search, PenLine, ChevronRight, FileDown, Mail, MessageCircle, HandHelping, Receipt, Check, X, Truck, MapPin,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, repartoFirmas, describeApiError } from '../api/client';
 import { FirmasAvisos } from '../components/FirmasAvisos';
@@ -12,6 +13,7 @@ import { AlCamionModal } from '../components/AlCamion';
 import { getRol } from '../auth';
 import type { ClientDeliveryNote } from '../types';
 import { agruparObras, SIN_OBRA, type GrupoObra } from '../lib/obras';
+import { coincide, euros } from '../lib/texto';
 
 type Vista = 'firmar' | 'facturar' | 'facturados' | 'todos';
 type Envio = '' | 'sin' | 'correo' | 'whatsapp' | 'copia';
@@ -36,7 +38,7 @@ export function fmtFirmado(iso?: string | null): string {
 }
 
 export const fmtEuros = (v?: number | null) =>
-  v == null ? '' : v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  euros(v);
 
 const enviado = (n: ClientDeliveryNote) => !!(n.emailed_at || n.whatsapp_at || n.copia_at);
 
@@ -113,25 +115,36 @@ const conRaton = () => typeof window !== 'undefined' && !!window.matchMedia?.('(
 export function FirmasPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState<ClientDeliveryNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [vista, setVista] = useState<Vista>(() => {
-    const v = params.get('vista') as Vista | null;
-    if (v && VISTAS.some(x => x.value === v)) return v;
-    try { return (sessionStorage.getItem('firmasVista') as Vista) || 'firmar'; } catch { return 'firmar'; }
-  });
-  const [envio, setEnvio] = useState<Envio>('');
-  const [search, setSearch] = useState('');
-  const [cliente, setCliente] = useState(() => params.get('cliente') || '');
-  const [obra, setObra] = useState('');  // grupo de obra o referencia dentro del cliente
+  // La vista y los filtros van en la dirección (?vista=&cliente=&obra=&q=&mes=&envio=): al abrir un albarán y
+  // volver, siguen puestos (antes se perdían y había que volver a elegir el cliente cada vez). Los avisos que
+  // enlazan a /firmas?vista=…&cliente=… también funcionan así.
+  const vistaUrl = params.get('vista') as Vista | null;
+  const vista: Vista = vistaUrl && VISTAS.some(x => x.value === vistaUrl) ? vistaUrl : (() => {
+    try { const v = sessionStorage.getItem('firmasVista') as Vista | null; return v && VISTAS.some(x => x.value === v) ? v : 'firmar'; }
+    catch { return 'firmar'; }
+  })();
+  const envio = (params.get('envio') || '') as Envio;
+  const search = params.get('q') || '';
+  const cliente = params.get('cliente') || '';
+  const obra = params.get('obra') || '';  // grupo de obra o referencia dentro del cliente
+  const mes = params.get('mes') || '';
+  /** Un solo cambio de filtros por acción (dos seguidos se pisarían). */
+  const ponFiltros = (cambios: Record<string, string>) => setParams(prev => {
+    const n = new URLSearchParams(prev);
+    for (const [k, v] of Object.entries(cambios)) { if (v) n.set(k, v); else n.delete(k); }
+    return n;
+  }, { replace: true });
+  // En el móvil los desplegables van dentro de «Filtrar» (si no, ocupaban la primera pantalla entera)
+  const [verFiltros, setVerFiltros] = useState(false);
   // «Por facturar»: cada cliente plegado o desplegado (los de más de 3 albaranes empiezan plegados)
   const [plegado, setPlegado] = useState<Record<string, boolean>>({});
-  const [mes, setMes] = useState('');
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
   const { toast, show } = useCfToast();
@@ -140,20 +153,13 @@ export function FirmasPage() {
   const conCargas = getRol() !== 'reparto';
   const [alCamion, setAlCamion] = useState<ClientDeliveryNote | null>(null);
 
-  const cambiarVista = (v: Vista) => {
-    setVista(v); setSel(new Set());
+  const SIN_FILTROS = { q: '', cliente: '', obra: '', mes: '', envio: '' };
+  const cambiarVista = (v: Vista, sinFiltros = false) => {
+    ponFiltros({ vista: v, ...(sinFiltros ? SIN_FILTROS : {}) }); setSel(new Set());
     try { sessionStorage.setItem('firmasVista', v); } catch { /* nada */ }
   };
-  const quitarFiltros = () => { setSearch(''); setCliente(''); setObra(''); setMes(''); setEnvio(''); setSel(new Set()); };
-
-  // Los avisos enlazan a /firmas?vista=…&cliente=…: se aplica aunque ya se esté en Firmas
-  useEffect(() => {
-    const v = params.get('vista') as Vista | null;
-    const cl = params.get('cliente');
-    if (!v && !cl) return;
-    if (v && VISTAS.some(x => x.value === v)) cambiarVista(v);
-    setCliente(cl || ''); setObra(''); setSearch(''); setMes(''); setEnvio(''); setSel(new Set());
-  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const quitarFiltros = () => { ponFiltros(SIN_FILTROS); setSel(new Set()); };
+  const nFiltros = (cliente ? 1 : 0) + (envio ? 1 : 0) + (mes ? 1 : 0);
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setLoading(true);
@@ -207,7 +213,9 @@ export function FirmasPage() {
     return [...set].sort().reverse();
   }, [notes, mes]);
 
-  const q = search.trim().toLowerCase();
+  const q = search.trim();
+  // Sin distinguir tildes ni la ñ, y cada palabra por separado (como en el resto de la app)
+  const buscaEn = (n: ClientDeliveryNote) => coincide(q, n.numero, n.cliente, n.codigo_cliente, n.obra, n.factura_ref);
   const filtered = notes.filter(n => {
     if (!enLaVista(vista, n)) return false;
     if (envio === 'sin' && enviado(n)) return false;
@@ -217,7 +225,7 @@ export function FirmasPage() {
     if (cliente && n.codigo_cliente !== cliente) return false;
     if (cliente && obra && grupoObra(n) !== obra) return false;
     if (mes && !(n.fecha || '').startsWith(mes)) return false;
-    if (q && !`${n.numero} ${n.cliente ?? ''} ${n.codigo_cliente ?? ''} ${n.obra ?? ''} ${n.factura_ref ?? ''}`.toLowerCase().includes(q)) return false;
+    if (q && !buscaEn(n)) return false;
     return true;
   });
 
@@ -225,7 +233,7 @@ export function FirmasPage() {
   // Lo que se ve con los filtros, sin contar el de obra (para los números de cada obra)
   const sinObraFiltro = cliente ? notes.filter(n => n.codigo_cliente === cliente && enLaVista(vista, n)
     && (!mes || (n.fecha || '').startsWith(mes))
-    && (!q || `${n.numero} ${n.cliente ?? ''} ${n.codigo_cliente ?? ''} ${n.obra ?? ''} ${n.factura_ref ?? ''}`.toLowerCase().includes(q))
+    && (!q || buscaEn(n))
     && (envio !== 'sin' || !enviado(n)) && (envio !== 'correo' || !!n.emailed_at)
     && (envio !== 'whatsapp' || !!n.whatsapp_at) && (envio !== 'copia' || !!n.copia_at)) : [];
 
@@ -309,10 +317,12 @@ export function FirmasPage() {
       const fallos = [...rechazados.map(r => `${r.nombre} (${(r.motivo || 'no vale').replace(/^./, ch => ch.toLowerCase())})`), ...noPdf];
       if (fallos.length) partes.push(`No se pudo: ${fallos.join(', ')}`);
       setUploadMsg({ text: partes.join('. '), error: !data.length });
-      if (data.length) {
-        cambiarVista(pend.length ? 'firmar' : 'todos');
-        if (pend.length) quitarFiltros();
+      // Uno solo y listo para firmar: se abre directamente (lo normal es firmarlo o mandarlo al camión ya)
+      if (pend.length === 1 && data.length === 1 && !fallos.length) {
+        navigate(`/firmas/${pend[0].id}`);
+        return;
       }
+      if (data.length) cambiarVista(pend.length ? 'firmar' : 'todos', pend.length > 0);
       load(true);
     } catch (err) {
       setUploadMsg({ text: `No se pudo subir: ${describeApiError(err)}`, error: true });
@@ -387,18 +397,27 @@ export function FirmasPage() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, margin: '12px 0 16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 200px' }}>
+      <div className="firmas-busca">
+        <div className="firmas-busca-campo">
           <Search size={17} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
           <input className="form-input" placeholder="Buscar nº, cliente u obra…" title="Busca por número de albarán, cliente, obra o factura" value={search}
-            onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }} />
+            onChange={e => ponFiltros({ q: e.target.value })} style={{ paddingLeft: 42, paddingRight: search ? 44 : undefined, margin: 0, borderRadius: 999 }}
+            enterKeyHint="search" />
+          {search && (
+            <button type="button" className="firmas-busca-x" onClick={() => ponFiltros({ q: '' })} aria-label="Borrar la búsqueda"><X size={17} /></button>
+          )}
         </div>
-        <select className="form-input" data-tour="filtro-cliente" value={cliente} onChange={e => { setCliente(e.target.value); setObra(''); setSel(new Set()); }}
+        <button type="button" className={`btn firmas-filtrar-btn${nFiltros ? ' activo' : ''}`} data-tour="filtrar"
+          aria-expanded={verFiltros} onClick={() => setVerFiltros(v => !v)}>
+          <SlidersHorizontal size={17} /> Filtrar{nFiltros ? ` · ${nFiltros}` : ''}
+        </button>
+        <div className={`firmas-filtros${verFiltros ? ' abiertos' : ''}`}>
+        <select className="form-input" data-tour="filtro-cliente" value={cliente} onChange={e => { ponFiltros({ cliente: e.target.value, obra: '' }); setSel(new Set()); }}
           style={{ margin: 0, flex: '1 1 180px', maxWidth: 260 }} aria-label="Cliente">
           <option value="">Todos los clientes</option>
           {clientes.map(([cod, nom]) => <option key={cod} value={cod}>{nom} ({cod})</option>)}
         </select>
-        <select className="form-input" value={envio} onChange={e => setEnvio(e.target.value as Envio)}
+        <select className="form-input" value={envio} onChange={e => ponFiltros({ envio: e.target.value })}
           style={{ margin: 0, flex: '0 1 190px' }} aria-label="Envío">
           <option value="">Cualquier envío</option>
           <option value="sin">Sin enviar ni entregar</option>
@@ -406,13 +425,14 @@ export function FirmasPage() {
           <option value="whatsapp">Enviados por WhatsApp</option>
           <option value="copia">Copia entregada</option>
         </select>
-        <select className="form-input firmas-mes-sel" value={mes} onChange={e => setMes(e.target.value)} aria-label="Mes"
+        <select className="form-input firmas-mes-sel" value={mes} onChange={e => ponFiltros({ mes: e.target.value })} aria-label="Mes"
           style={{ margin: 0, flex: '0 1 170px' }}>
           <option value="">Cualquier mes</option>
           {meses.map(m => <option key={m} value={m}>{nombreMes(m)}</option>)}
         </select>
+        </div>
         {hayFiltros && (
-          <button className="btn btn-ghost btn-sm" onClick={quitarFiltros}><X size={14} /> Quitar filtros</button>
+          <button className={`btn btn-ghost btn-sm firmas-quitar${nFiltros ? '' : ' solo-busca'}`} onClick={quitarFiltros}><X size={14} /> Quitar filtros</button>
         )}
       </div>
 
@@ -420,7 +440,7 @@ export function FirmasPage() {
         <div className="firma-obras" role="group" aria-label="Obras y referencias del cliente">
           <span className="firma-obras-titulo"><MapPin size={14} /> Obras y referencias</span>
           <div className="firma-obras-chips">
-            <button className={`firma-obra${!obra ? ' on' : ''}`} aria-pressed={!obra} onClick={() => { setObra(''); setSel(new Set()); }}>
+            <button className={`firma-obra${!obra ? ' on' : ''}`} aria-pressed={!obra} onClick={() => { ponFiltros({ obra: '' }); setSel(new Set()); }}>
               Todas <span>{sinObraFiltro.length}</span>
             </button>
             {obrasCliente.map(g => {
@@ -428,7 +448,7 @@ export function FirmasPage() {
               return (
                 <button key={g.clave} className={`firma-obra${obra === g.clave ? ' on' : ''}${g.clave === SIN_OBRA ? ' sin' : ''}`} aria-pressed={obra === g.clave}
                   title={g.variantes.length ? `También escrito: ${g.variantes.join(' · ')}` : undefined}
-                  onClick={() => { setObra(obra === g.clave ? '' : g.clave); setSel(new Set()); }}>
+                  onClick={() => { ponFiltros({ obra: obra === g.clave ? '' : g.clave }); setSel(new Set()); }}>
                   {g.nombre} <span>{n}</span>
                 </button>
               );

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, ChevronRight } from 'lucide-react';
+import { CalendarClock, ChevronDown, ChevronRight } from 'lucide-react';
 import { getVencimientos, type VencResumen } from '../api/client';
 import { veVencimientos } from '../auth';
 import { AvisoAtrasado, euros, Factura, Grandes } from './VencComun';
@@ -18,6 +18,8 @@ const subDia = (iso: string, etiqueta: string) => {
 export function VencimientosCard() {
   const [d, setD] = useState<VencResumen | null>(null);
   const [error, setError] = useState(false);
+  // En el móvil cada día va plegado (salvo hoy): con todo abierto la tarjeta ocupaba más de una pantalla
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const cargar = useCallback(() => {
     getVencimientos().then(({ data }) => { setD(data); setError(false); }).catch(() => setError(true));
   }, []);
@@ -60,16 +62,24 @@ export function VencimientosCard() {
       <Grandes lista={d.grandes} />
 
       <div className={`venc-dias${viernes ? ' cuatro' : ''}`}>
-        {d.dias.map((g, i) => (
-          <div key={g.fecha} className={`venc-dia${i === 0 ? ' hoy' : ''}${g.finde ? ' finde' : ''}${g.facturas.length ? '' : ' vacio'}`}>
-            <div className="venc-dia-cab">
-              <span className="venc-dia-et">{g.etiqueta}</span>
-              <span className="venc-dia-fecha">{subDia(g.fecha, g.etiqueta)}</span>
-              <span className="venc-dia-total">{g.facturas.length ? euros(g.total) : 'Nada'}</span>
+        {d.dias.map((g, i) => {
+          const n = g.facturas.length;
+          const abierto = abiertos[g.fecha] ?? i === 0;
+          return (
+            <div key={g.fecha} className={`venc-dia${i === 0 ? ' hoy' : ''}${g.finde ? ' finde' : ''}${n ? '' : ' vacio'}${abierto ? '' : ' plegado'}`}>
+              <button type="button" className="venc-dia-cab" disabled={!n} aria-expanded={n ? abierto : undefined}
+                onClick={() => setAbiertos(a => ({ ...a, [g.fecha]: !abierto }))}>
+                <span className="venc-dia-et">{g.etiqueta}</span>
+                <span className="venc-dia-fecha">
+                  {subDia(g.fecha, g.etiqueta)}
+                  {n > 0 && <span className="venc-dia-n"> · {n} factura{n !== 1 ? 's' : ''} <ChevronDown size={15} /></span>}
+                </span>
+                <span className="venc-dia-total">{n ? euros(g.total) : 'Nada'}</span>
+              </button>
+              {n > 0 && <ul className="venc-lista">{g.facturas.map(f => <Factura key={f.id} f={f} />)}</ul>}
             </div>
-            {g.facturas.length > 0 && <ul className="venc-lista">{g.facturas.map(f => <Factura key={f.id} f={f} />)}</ul>}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <Link to="/vencimientos" className="venc-mas venc-mas-link">

@@ -25,7 +25,7 @@ class NuevoCodigo(BaseModel):
 
 
 def _valido(c: Optional[str]) -> bool:
-    return bool(c) and bool(re.fullmatch(r"\S{4,32}", c))
+    return bool(c) and bool(re.fullmatch(r"\S{6,32}", c))  # 6 como mínimo (antes 4; los ya puestos siguen valiendo)
 
 
 def _sesion(request: Request) -> Optional[dict]:
@@ -54,9 +54,9 @@ def configurar(data: Configurar):
     if acc.config(fresh=True):
         raise HTTPException(403, "Los códigos ya están creados. Solo Andrés puede cambiarlos.")
     if not _valido(data.tienda):
-        raise HTTPException(400, "El código de la tienda debe tener al menos 4 caracteres, sin espacios")
+        raise HTTPException(400, "El código de la tienda debe tener al menos 6 caracteres, sin espacios")
     if data.reparto and not _valido(data.reparto):
-        raise HTTPException(400, "El código de reparto debe tener al menos 4 caracteres, sin espacios")
+        raise HTTPException(400, "El código de reparto debe tener al menos 6 caracteres, sin espacios")
     if data.reparto and data.reparto == data.tienda:
         raise HTTPException(400, "Los dos códigos tienen que ser distintos")
     acc.crear_inicial(data.tienda, data.reparto or None)
@@ -76,7 +76,7 @@ def poner_codigo(data: NuevoCodigo, request: Request):
         raise HTTPException(403, "Solo Andrés puede cambiar los códigos")
     codigo = data.codigo.strip()
     if not _valido(codigo):
-        raise HTTPException(400, "El código debe tener al menos 4 caracteres, sin espacios")
+        raise HTTPException(400, "El código debe tener al menos 6 números o letras, sin espacios")
     if acc.en_uso(codigo, excepto=persona):
         raise HTTPException(400, "Ese código ya lo usa otra persona; elige otro")
     acc.poner_codigo(persona, codigo)
@@ -115,7 +115,7 @@ class MiCodigo(BaseModel):
 
 @router.post("/mi-codigo")
 def mi_codigo(data: MiCodigo, request: Request):
-    """Cada persona puede poner su propio código (de 4 a 8 números), sabiendo el actual."""
+    """Cada persona puede poner su propio código (de 6 a 8 números), sabiendo el actual."""
     s = _sesion(request)
     if not s or s["persona"] == "tienda":
         raise HTTPException(403, "El código de la tienda solo lo cambia Andrés")
@@ -126,8 +126,8 @@ def mi_codigo(data: MiCodigo, request: Request):
         acc.fallo(ip)
         raise HTTPException(400, "El código actual no es correcto")
     nuevo = data.nuevo.strip()
-    if not re.fullmatch(r"\d{4,8}", nuevo):
-        raise HTTPException(400, "El código tiene que ser de 4 a 8 números")
+    if not re.fullmatch(r"\d{6,8}", nuevo):
+        raise HTTPException(400, "El código tiene que ser de 6 a 8 números")
     if acc.en_uso(nuevo, excepto=s["persona"]):
         # No se dice si lo tiene otra persona (así no se pueden adivinar códigos ajenos)
         acc.fallo(ip)

@@ -10,11 +10,11 @@ import logging
 import threading
 import time
 from datetime import date, datetime, timedelta
-from typing import List, Optional
+from typing import Any, List, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -47,20 +47,52 @@ def puede_ver(request: Request):
 
 
 # ── Lo que manda el script ─────────────────────────────────────
+# Lo que manda el script se acepta aunque venga raro («1.234,56», un número como texto…): un importe que no
+# se entiende se queda sin importe (sale en «Para revisar») en vez de rechazar todo el envío y parar la
+# sincronización hasta que alguien lo mire.
+def _importe(v) -> Optional[float]:
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    from app.services.tarifas_service import numero
+    return numero(v)
+
+
 class Plazo(BaseModel):
-    fecha: Optional[str] = None
-    importe: Optional[float] = None
+    fecha: Optional[Any] = None
+    importe: Optional[Any] = None
+
+    @field_validator("importe", mode="before")
+    @classmethod
+    def _imp(cls, v):
+        return _importe(v)
+
+    @field_validator("fecha", mode="before")
+    @classmethod
+    def _fec(cls, v):
+        return str(v) if v not in (None, "") else None
 
 
 class Factura(BaseModel):
     file_id: str
-    proveedor: str = ""
-    numero: Optional[str] = None
-    fecha_factura: Optional[str] = None
-    importe: Optional[float] = None
-    forma_pago: Optional[str] = None
-    url: Optional[str] = None
+    proveedor: Optional[Any] = ""
+    numero: Optional[Any] = None
+    fecha_factura: Optional[Any] = None
+    importe: Optional[Any] = None
+    forma_pago: Optional[Any] = None
+    url: Optional[Any] = None
     vencimientos: List[Plazo] = []
+
+    @field_validator("importe", mode="before")
+    @classmethod
+    def _imp(cls, v):
+        return _importe(v)
+
+    @field_validator("proveedor", "numero", "fecha_factura", "forma_pago", "url", mode="before")
+    @classmethod
+    def _texto(cls, v):
+        return str(v) if v not in (None, "") else None
 
 
 class Lote(BaseModel):
@@ -455,17 +487,33 @@ def _avisar_grandes(h: date, r: dict) -> None:
                             f"grande-{g['id']}")
 
 
+def _toca_avisar(h: date) -> bool:
+    """El aviso de la mañana, una sola vez al día aunque el servidor se reinicie (se apunta en la base de datos)."""
+    db = SessionLocal()
+    try:
+        k = f"dia|{h.isoformat()}"
+        if db.get(VencAviso, k):
+            return False
+        db.add(VencAviso(clave=k))
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        return False
+    finally:
+        db.close()
+
+
 def arrancar_aviso() -> None:
-    """De lunes a sábado, a las 9 de la mañana, aviso a Andrés si algo vence (los viernes, hasta el lunes)."""
+    """De lunes a sábado, desde las 9 de la mañana, aviso a Andrés si algo vence (los viernes, hasta el lunes).
+    Si a las 9 el servidor estaba parado (p. ej. publicando), avisa en cuanto vuelve, hasta las 12."""
     def bucle():
-        avisado = None
         time.sleep(90)
         while True:
             try:
                 ahora = datetime.now(TZ)
                 h = ahora.date()
-                if ahora.weekday() < 6 and ahora.hour == 9 and avisado != h:
-                    avisado = h
+                if ahora.weekday() < 6 and 9 <= ahora.hour < 12 and _toca_avisar(h):
                     _avisar_hoy(h)
             except Exception as e:
                 logger.warning("Error avisando de vencimientos: %s", e)

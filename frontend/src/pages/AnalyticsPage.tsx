@@ -5,11 +5,11 @@ import { getPriceHistory, getSupplierComparison, getTopProducts, describeApiErro
 import { ConnectionError } from '../components/ConnectionError';
 import { nombreProveedor } from '../lib/proveedor';
 import { buscarCatalogo } from '../lib/catalogo';
-import { fechaES, normaliza } from '../lib/texto';
+import { fechaES, normaliza, numES } from '../lib/texto';
 import type { CatalogArticle, PriceHistoryEntry, SupplierComparisonEntry, TopProduct } from '../types';
 
 const eur = (n: number | null | undefined) =>
-  n == null ? '—' : n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  n == null ? '—' : `${numES(n)} €`;
 const pct = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + '%');
 const fecha = fechaES;
 const codigoDe = (a: CatalogArticle) => a.codigo_principal || a.ean || a.codigo_fabricante || a.codigo_proveedor || '';

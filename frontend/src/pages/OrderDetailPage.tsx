@@ -297,8 +297,13 @@ export function OrderDetailPage() {
     } finally { setTocando(null); }
   };
 
+  // Mientras se guarda (y un momento después) los botones no responden: «Ya lo he pedido» se convierte en
+  // «Ha llegado todo» en el mismo sitio y un doble toque marcaba las dos cosas
+  const [ocupado, setOcupado] = useState(false);
   const cambiarEstado = async (status: OrderStatus, texto: string) => {
-    if (!order) return;
+    if (!order || ocupado) return;
+    setOcupado(true);
+    setTimeout(() => setOcupado(false), 900);
     const antes = order.status;
     const fechaAntes = order.order_date;
     const recibidasAntes = order.lines.map(l => [l.id, l.cantidad_recibida] as const);
@@ -480,20 +485,20 @@ export function OrderDetailPage() {
 
         <div className="rep-acciones">
           {order.status === 'pendiente' && (
-            <button className="btn btn-primary btn-lg" onClick={() => cambiarEstado('pedido', 'Marcado como pedido')}>
+            <button className="btn btn-primary btn-lg" disabled={ocupado} onClick={() => cambiarEstado('pedido', 'Marcado como pedido')}>
               <Check size={18} /> Ya lo he pedido al proveedor
             </button>
           )}
           {(order.status === 'pedido' || order.status === 'parcial') && totalPending > 0 && (
             <>
               <span className="pedido-pista">Cuando llegue, toca cada artículo abajo.</span>
-              <button className="btn btn-primary btn-lg" onClick={() => cambiarEstado('recibido', 'Todo recibido')}>
+              <button className="btn btn-primary btn-lg" disabled={ocupado} onClick={() => cambiarEstado('recibido', 'Todo recibido')}>
                 <Package size={18} /> Ha llegado todo
               </button>
             </>
           )}
           {order.status === 'recibido' && (
-            <button className="btn btn-ghost btn-lg" onClick={() => cambiarEstado('entregado', 'Pedido entregado al cliente')}>
+            <button className="btn btn-ghost btn-lg" disabled={ocupado} onClick={() => cambiarEstado('entregado', 'Pedido entregado al cliente')}>
               <HandCoins size={18} /> Se lo ha llevado el cliente
             </button>
           )}

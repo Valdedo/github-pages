@@ -17,7 +17,9 @@ export function DriveEstado({ doc }: { doc: Document }) {
   useEffect(() => { setD(doc); }, [doc]);
 
   // Recién leído: la copia tarda unos segundos; se mira hasta que aparezca
-  const reciente = Date.now() - new Date(doc.created_at.replace(' ', 'T')).getTime() < 15 * 60000;
+  // created_at viene en UTC sin zona: sin la «Z» se leía como hora de Madrid y en las dos primeras horas no parecía reciente
+  const iso = (doc.created_at || '').replace(' ', 'T');
+  const reciente = Date.now() - new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`).getTime() < 15 * 60000;
   useEffect(() => {
     if (doc.status !== 'completed' || d.drive_at || d.drive_error || !reciente) return;
     let n = 0;

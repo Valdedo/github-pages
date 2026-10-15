@@ -120,6 +120,10 @@ def _run_migrations():
         # Órdenes de carga desde el albarán de TreyFACT (oct. 2026)
         ("entregas_carga", "albaran_id",  "INTEGER REFERENCES client_delivery_notes(id) ON DELETE SET NULL"),
         ("lineas_carga", "codigo",        "VARCHAR(40)"),
+        # Repaso del 15/10/2026: el albarán cambió después de leer sus materiales (no se le pasa la firma solo)
+        ("entregas_carga", "albaran_cambiado", "BOOLEAN DEFAULT 0"),
+        # Huella del archivo de un albarán de compra, para no leer dos veces el mismo
+        ("documents", "huella",           "VARCHAR(64)"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:
@@ -175,6 +179,39 @@ def _run_migrations():
                 conn.commit()
                 import logging
                 logging.getLogger(__name__).info("Obra/referencia releída en %s albaranes de venta", cambiadas)
+            except Exception:
+                conn.rollback()
+
+        def una_vez(tabla: str, marca: str) -> bool:
+            """Arreglo puntual: la columna marca que ya se hizo. Si se crea ahora, es la primera vez."""
+            try:
+                conn.execute(sa.text(f"ALTER TABLE {tabla} ADD COLUMN {marca} INTEGER"))
+                conn.commit()
+                return True
+            except Exception:
+                conn.rollback()
+                return False
+
+        # Arreglo puntual (15/10/2026): el precio sin IVA (el que va a TreyFACT) se saca del de la etiqueta,
+        # con 4 decimales, para que TreyFACT cobre lo mismo que la etiqueta. El de la etiqueta no cambia.
+        if una_vez("articles", "precio_v2"):
+            try:
+                conn.execute(sa.text(
+                    "UPDATE articles SET pvp_sin_iva = ROUND(pvp_con_iva / (1 + COALESCE(iva_pct, 21) / 100.0), 4) "
+                    "WHERE pvp_con_iva > 0"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
+        # Arreglo puntual (15/10/2026): las líneas sin código eran ART-0001, ART-0002… en cada albarán y se
+        # repetían entre albaranes. Pasan a ART-<albarán>-<línea> (únicos).
+        if una_vez("articles", "codigo_v2"):
+            try:
+                conn.execute(sa.text(
+                    "UPDATE articles SET codigo_principal = 'ART-' || document_id || '-' || "
+                    "CAST(SUBSTR(codigo_principal, 5) AS INTEGER) "
+                    "WHERE codigo_principal GLOB 'ART-[0-9][0-9][0-9][0-9]'"))
+                conn.commit()
             except Exception:
                 conn.rollback()
 

@@ -53,7 +53,7 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
           <p className="turnos-ayuda">Solo Andrés puede cambiar los códigos. Si has olvidado el tuyo, pídeselo a él.</p>
         ) : personas === null ? <p>Cargando…</p> : (
           <>
-            <p className="turnos-ayuda">Cada persona tiene su código (mínimo 4 números o letras, sin espacios). Al cambiar uno, solo esa persona tendrá que volver a escribirlo.</p>
+            <p className="turnos-ayuda">Cada persona tiene su código (mínimo 6 números o letras, sin espacios). Al cambiar uno, solo esa persona tendrá que volver a escribirlo.</p>
             <div className="codigos-lista">
               {personas.map(p => (
                 <div key={p.id} className="codigos-persona">
@@ -63,8 +63,8 @@ export function CodigosModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <input className="form-input" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder="Código nuevo" maxLength={32}
                     value={nuevo[p.id] || ''} onChange={e => setNuevo(n => ({ ...n, [p.id]: e.target.value.replace(/\s/g, '') }))}
-                    onKeyDown={e => { if (e.key === 'Enter' && (nuevo[p.id] || '').trim().length >= 4) guardar(p); }} aria-label={`Código nuevo de ${p.nombre}`} />
-                  <button className="btn btn-primary codigos-cambiar" disabled={guardando === p.id || (nuevo[p.id] || '').trim().length < 4} onClick={() => guardar(p)}>
+                    onKeyDown={e => { if (e.key === 'Enter' && (nuevo[p.id] || '').trim().length >= 6) guardar(p); }} aria-label={`Código nuevo de ${p.nombre}`} />
+                  <button className="btn btn-primary codigos-cambiar" disabled={guardando === p.id || (nuevo[p.id] || '').trim().length < 6} onClick={() => guardar(p)}>
                     {guardando === p.id ? 'Guardando…' : 'Cambiar'}
                   </button>
                 </div>

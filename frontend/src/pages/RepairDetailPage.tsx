@@ -220,8 +220,13 @@ export function RepairDetailPage() {
   };
 
   /** Cambia el estado guardando a la vez lo que se haya escrito (no se pierde nada). */
+  // Mientras se guarda (y un momento después) el botón no responde: cambia de texto en el mismo sitio y
+  // un doble toque marcaba también el paso siguiente
+  const [ocupado, setOcupado] = useState(false);
   const cambiarEstado = async (status: RepairStatus, extra: Parameters<typeof updateRepair>[1] = {}) => {
-    if (!repair) return;
+    if (!repair || ocupado) return;
+    setOcupado(true);
+    setTimeout(() => setOcupado(false), 900);
     let datos: Parameters<typeof updateRepair>[1] = {};
     if (dirty) {
       const d = datosFormulario();
@@ -339,7 +344,7 @@ export function RepairDetailPage() {
 
         <div className="rep-acciones">
           {nextStep && (
-            <button className={`btn ${repair.status === 'reparada' ? 'btn-ghost' : 'btn-primary'} btn-lg`}
+            <button className={`btn ${repair.status === 'reparada' ? 'btn-ghost' : 'btn-primary'} btn-lg`} disabled={ocupado}
               onClick={() => nextStep.status === 'entregada' ? setEntregando(true) : cambiarEstado(nextStep.status)}>
               {nextStep.status === 'entregada' ? <HandCoins size={18} /> : null}
               {nextStep.label} {nextStep.status !== 'entregada' && <ChevronRight size={18} />}

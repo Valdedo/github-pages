@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, X, Download, FileText, BookOpen } from 'lucide-react';
 import { getCatalog, getCatalogFamilies, describeApiError } from '../api/client';
 import { descargar, rutaCatalogo } from '../lib/descargas';
-import { coincide, fechaES, sinComodines } from '../lib/texto';
+import { coincide, fechaES, sinComodines, numES } from '../lib/texto';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { ES_MANUAL, nombreProveedor } from '../lib/proveedor';
@@ -11,7 +11,7 @@ import type { CatalogArticle } from '../types';
 
 type SortKey = 'descripcion' | 'pvp_con_iva' | 'margen_pct' | 'supplier_name' | 'doc_date';
 
-const eur = (v: number) => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur = (v: number) => `${numES(v)} €`;
 const fecha = fechaES;
 
 const ORDENES: { v: string; t: string; key: SortKey; dir: 'asc' | 'desc' }[] = [

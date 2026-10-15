@@ -15,7 +15,7 @@ const errorSubida = (e: unknown, porDefecto: string) => {
   const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
   const det = typeof detail === 'string' ? detail : null;
   if (status === 413) return 'El archivo es demasiado grande para el servidor. Máximo 20 MB.';
-  if (status === 409) return det || 'Ya hay una extracción en curso para este documento.';
+  if (status === 409) return det || 'Este albarán ya se está leyendo. Espera a que termine.';
   if ((e as { code?: string })?.code === 'ERR_NETWORK') return 'Sin conexión con el servidor. Esto necesita cobertura.';
   return det || porDefecto;
 };

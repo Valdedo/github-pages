@@ -55,7 +55,9 @@ def _num(v) -> Optional[float]:
     s = str(v or "").strip().replace("€", "").replace("%", "").replace(" ", "").replace(" ", "")
     if not re.search(r"\d", s) or "falta" in s.lower():
         return None
-    if "," in s:
+    if "," in s and "." in s and s.rfind(".") > s.rfind(","):
+        s = s.replace(",", "")  # «1,090.00»: formato inglés
+    elif "," in s:
         s = s.replace(".", "").replace(",", ".")
     try:
         return float(s)

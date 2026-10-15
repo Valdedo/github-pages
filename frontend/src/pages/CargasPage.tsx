@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
   AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2, Lock, LockOpen, PackageCheck,
+  RefreshCw,
 } from 'lucide-react';
 import {
   listarCargas, verCarga, borrarCarga, fotoCargaUrl, releerAlbaranCarga, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
@@ -21,7 +22,7 @@ import { HojaVisor } from '../components/HojaVisor';
 import { SelloHecho, Vacio } from '../components/Pegatinas';
 import { ElegirAlbaranes, LeyendoAlbaran } from '../components/AlCamion';
 import { sinRed } from '../lib/offline';
-import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reducirFoto, listaSinRed, estaLista } from '../lib/offlineCargas';
+import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reintentarFirmaCarga, reducirFoto, listaSinRed, estaLista } from '../lib/offlineCargas';
 
 const cant = (n: number | null | undefined) => (n == null ? '' : String(+n.toFixed(2)).replace('.', ','));
 const fechaHora = (iso?: string | null) => {
@@ -166,7 +167,7 @@ export function CargasPage() {
             return (
               <button key={o.id} className="card carga-card" onClick={() => navigate(`/cargas/${o.id}`)}>
                 <span className="carga-card-txt">
-                  <b>{o.entregas.map(e => e.cliente || 'Sin nombre').join(' · ') || 'Sin pedidos'}</b>
+                  <b>{o.entregas.map(e => e.cliente || 'Sin nombre').join(' · ') || 'Sin entregas'}</b>
                   <small>
                     {[...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].join(', ')}
                     {o.entregas.some(e => e.lugar) ? ' · ' : ''}{materiales(ls.length)} · {fechaHora(o.created_at)}
@@ -316,8 +317,11 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
   const pad = useRef<{ clear: () => void; toBlob: () => Promise<Blob | null>; isEmpty: () => boolean } | null>(null);
   const camara = useRef<HTMLInputElement>(null);
   const [tinta, setTinta] = useState(false);
-  const [nombre, setNombre] = useState(e.cliente);
+  // Vacío: antes se ponía el nombre de la empresa y la hoja decía que había firmado «CONSTRUCCIONES …».
+  // Debajo salen, para tocarlos, los que firmaron otras veces por este cliente.
+  const [nombre, setNombre] = useState('');
   const [dni, setDni] = useState('');
+  const [verLista, setVerLista] = useState(false);
   const [foto, setFoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -361,14 +365,39 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
         <b>Entrega a {e.cliente}</b>
       </div>
       <div className="carga-firma-cuerpo">
-        <div className="card seccion">
-          <div className="seccion-titulo">Se entrega</div>
+        {/* Lo que se entrega, plegado si es largo: así el recuadro y «Firmar» se ven sin bajar */}
+        <div className="card seccion carga-firma-se-entrega">
+          <button type="button" className="carga-firma-resumen" aria-expanded={verLista || llevados.length <= 3}
+            onClick={() => setVerLista(v => !v)} disabled={llevados.length <= 3}>
+            <span className="seccion-titulo">Se entrega · {llevados.length} {llevados.length === 1 ? 'material' : 'materiales'}</span>
+            {llevados.length > 3 && <span className="carga-firma-ver">{verLista ? 'Ocultar' : 'Ver todo'} <ChevronDown size={16} /></span>}
+          </button>
           <ul className="carga-firma-lista">
-            {llevados.map(l => (
+            {(verLista || llevados.length <= 3 ? llevados : llevados.slice(0, 2)).map(l => (
               <li key={l.id}><b>{cantUd(l.cargado_ok ? l.cantidad : l.cargado, l.unidad)}</b> {l.descripcion}</li>
             ))}
+            {!verLista && llevados.length > 3 && <li className="carga-firma-mas">y {llevados.length - 2} más…</li>}
           </ul>
           {faltan.length > 0 && <small style={{ color: 'var(--warning)' }}>Sin cargar o a medias: {faltan.map(l => l.descripcion).join(', ')}. Saldrá como pendiente en la hoja.</small>}
+        </div>
+
+        <div className="campos-2" style={{ marginTop: 12 }}>
+          <div><label className="form-label" htmlFor={`firma-nombre-${e.id}`}>Nombre de quien firma</label>
+            <input id={`firma-nombre-${e.id}`} className="form-input" value={nombre} onChange={ev => setNombre(ev.target.value)}
+              autoComplete="off" autoCapitalize="words" placeholder="Quien recibe el material" />
+            {(e.firmantes || []).length > 0 && (
+              <div className="firmantes" aria-label="Firmaron otras veces">
+                {(e.firmantes || []).map(f => (
+                  <button key={f} type="button" className={`firmante${nombre === f ? ' on' : ''}`} onClick={() => setNombre(f)}>{f}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div><label className="form-label" htmlFor={`firma-dni-${e.id}`}>DNI (opcional)</label>
+            <input id={`firma-dni-${e.id}`} className="form-input" value={dni} onChange={ev => setDni(ev.target.value)} autoComplete="off" /></div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <SignaturePad padRef={pad} onChange={setTinta} />
         </div>
 
         <div className="carga-foto-entrega">
@@ -379,18 +408,10 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
             </>
           ) : (
             <button className="btn btn-ghost" onClick={() => camara.current?.click()}>
-              <Camera size={18} /> Foto del material descargado (si quieres)
+              <Camera size={18} /> Foto del material descargado (opcional)
             </button>
           )}
           <input ref={camara} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
-        </div>
-
-        <div className="campos-2" style={{ marginTop: 12 }}>
-          <div><label className="form-label">Nombre de quien firma</label><input className="form-input" value={nombre} onChange={ev => setNombre(ev.target.value)} /></div>
-          <div><label className="form-label">DNI (si quiere)</label><input className="form-input" value={dni} onChange={ev => setDni(ev.target.value)} /></div>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <SignaturePad padRef={pad} onChange={setTinta} />
         </div>
         {error && <div className="doc-aviso error" style={{ marginTop: 10 }}>{error}</div>}
         <div className="carga-firma-botones">
@@ -417,8 +438,10 @@ function ResumenViaje({ o }: { o: OrdenCarga }) {
     grupos.set(clave(l), g);
   }
   const lista = [...grupos.values()].sort((a, b) => a.desc.localeCompare(b.desc, 'es'));
+  // Con todo cargado y confirmado, el resumen va plegado: lo primero que se ve son las entregas y «Firma del cliente»
+  const todoListo = o.entregas.every(e => e.estado === 'entregada' || estaLista(e));
   return (
-    <details className="card carga-resumen" open>
+    <details className="card carga-resumen" open={!todoListo}>
       <summary><Truck size={17} /> Resumen del viaje <small>{materiales(lista.length)} · {plural(o.entregas.length, 'cliente')}</small></summary>
       <div>
         {lista.map(g => (
@@ -576,7 +599,7 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
   };
 
   const quitarEntrega = async (e: EntregaCarga) => {
-    if (!await confirm({ title: 'Quitar pedido', message: `¿Quitar el pedido de ${e.cliente || 'este cliente'} de la orden?`, confirmLabel: 'Quitar', danger: true })) return;
+    if (!await confirm({ title: 'Quitar entrega', message: `¿Quitar la entrega de ${e.cliente || 'este cliente'} de la orden?`, confirmLabel: 'Quitar', danger: true })) return;
     try { await borrarEntregaCarga(e.id); load(); }
     catch (err) { show(`No se pudo quitar: ${describeApiError(err)}`, { error: true }); }
   };
@@ -645,7 +668,7 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
             {[...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].length > 0 && (
               <span><MapPin size={15} /> {[...new Set(o.entregas.map(e => e.lugar).filter(Boolean))].join(', ')}</span>
             )}
-            <span><Truck size={15} /> Orden de carga · {plural(o.entregas.length, 'pedido')}</span>
+            <span><Truck size={15} /> Orden de carga · {plural(o.entregas.length, 'entrega')}</span>
             <span>Cargado {hechas} de {ls.length}</span>
             {!reparto && <span>{fechaHora(o.created_at)}</span>}
           </div>
@@ -668,7 +691,7 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
               const nombres = [...new Set(o.parecidas.map(x => x.cliente))];
               return (
                 <span>
-                  <b>¿Pedido repetido?</b> {nombres.slice(0, 2).join(' y ')}{nombres.length > 2 ? ` y ${nombres.length - 2} más` : ''} {nombres.length > 1 ? 'tienen' : 'tiene'} {otras.length > 1 ? `otras ${otras.length} órdenes` : 'otra orden'} sin entregar.{' '}
+                  <b>¿Entrega repetida?</b> {nombres.slice(0, 2).join(' y ')}{nombres.length > 2 ? ` y ${nombres.length - 2} más` : ''} {nombres.length > 1 ? 'tienen' : 'tiene'} {otras.length > 1 ? `otras ${otras.length} órdenes` : 'otra orden'} sin entregar.{' '}
                   {otras.slice(0, 2).map((p, i) => (
                     <span key={p.orden_id}>{i > 0 && ' · '}
                       <button className="turnos-link" onClick={() => navigate(`/cargas/${p.orden_id}`)}>Ver la del {fechaHora(p.creada)}</button>
@@ -732,7 +755,8 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                 </div>
               </div>
               <div className="carga-entrega-acc">
-                {e.lugar && e.servir && <a className="btn btn-ghost btn-sm" href={mapa(e.lugar)} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> Cómo llegar</a>}
+                {e.lugar && e.servir && <a className={`btn btn-ghost${reparto ? '' : ' btn-sm'}`} href={mapa(e.lugar)} target="_blank" rel="noopener noreferrer"><MapPin size={reparto ? 18 : 14} /> Cómo llegar</a>}
+                {e.telefono && <a className={`btn btn-ghost${reparto ? '' : ' btn-sm'}`} href={`tel:${e.telefono.replace(/\s/g, '')}`}><Phone size={reparto ? 18 : 14} /> Llamar</a>}
                 {!bloqueada && !reparto && <button className="btn btn-ghost btn-sm" onClick={() => (online ? setDatos(e) : sinCobertura())}><Pencil size={14} /> Datos</button>}
               </div>
             </div>
@@ -783,10 +807,15 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                     <div>
                       <b>La firma guardada sin cobertura no se pudo enviar</b>
                       <span>{guardada.error}</span>
-                      <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }}
-                        onClick={async () => { if (await confirm({ title: 'Quitar la firma guardada', message: 'Se borra del móvil para volver a firmar.', confirmLabel: 'Quitar', danger: true })) descartarFirma(e.id); }}>
-                        Quitar y volver a firmar
-                      </button>
+                      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => { reintentarFirmaCarga(e.id); }}>
+                          <RefreshCw size={15} /> Reintentar
+                        </button>
+                        <button className="btn btn-ghost btn-sm"
+                          onClick={async () => { if (await confirm({ title: 'Quitar la firma guardada', message: 'Se borra del móvil para volver a firmar.', confirmLabel: 'Quitar', danger: true })) descartarFirma(e.id); }}>
+                          Quitar y volver a firmar
+                        </button>
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -819,7 +848,7 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                     <PackageCheck size={18} /> Listo para llevar
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setHoja(e.id)} disabled={!online}><FileText size={15} /> Ver la hoja</button>
-                  {o.entregas.length > 1 && !reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => quitarEntrega(e)}><Trash2 size={14} /> Quitar pedido</button>}
+                  {o.entregas.length > 1 && !reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => quitarEntrega(e)}><Trash2 size={14} /> Quitar entrega</button>}
                 </>
               )}
             </div>

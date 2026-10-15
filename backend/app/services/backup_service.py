@@ -151,6 +151,11 @@ def arrancar_repaso(intervalo_s: int = 1800):
             except Exception as e:
                 logger.warning("Error en el repaso de copias: %s", e)
             try:
+                from app.services import drive_proveedor
+                drive_proveedor.repasar()  # albaranes de compra que no llegaron a Drive
+            except Exception as e:
+                logger.warning("Error reintentando albaranes de compra en Drive: %s", e)
+            try:
                 backup_base_de_datos()
             except Exception as e:
                 logger.warning("Error en la copia diaria de la base de datos: %s", e)

@@ -51,7 +51,7 @@ export function mensajeError(err: unknown, porDefecto = 'No se pudo guardar'): s
   const det = detalleServidor(e?.response?.data?.detail);
   if (st === 403) return det ? `Sin permiso: ${det}` : 'No tienes permiso para hacer esto.';
   if (det) return det;
-  if (st && st >= 500) return `${porDefecto}: error en el servidor (${st}).`;
+  if (st && st >= 500) return `${porDefecto}: ha fallado el servidor. Vuelve a probar en un momento.`;
   return porDefecto;
 }
 
@@ -65,8 +65,8 @@ async function errorDeRespuesta(r: Response): Promise<Error> {
   if (r.status === 403) return new Error(det ? `Sin permiso: ${det}` : 'No tienes permiso para descargar esto.');
   if (det) return new Error(det);
   if (r.status === 404) return new Error('No se encontró el archivo. Puede que el albarán ya no exista o no tenga artículos.');
-  if (r.status >= 500) return new Error(`El servidor no pudo preparar el archivo (error ${r.status}). Prueba otra vez en un momento.`);
-  return new Error(`No se pudo descargar (error ${r.status}).`);
+  if (r.status >= 500) return new Error('El servidor no pudo preparar el archivo. Vuelve a probar en un momento.');
+  return new Error('No se pudo descargar. Vuelve a probar.');
 }
 
 function nombreDe(r: Response, porDefecto: string) {

@@ -59,12 +59,17 @@ function NewOrderModal({ proveedores, suppliers, onClose, onSaved }: {
   const errorRef = useRef<HTMLDivElement>(null);
   const setError = (m: string) => { setErrorRaw(m); if (m) requestAnimationFrame(() => errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })); };
 
-  // Escape cierra; en el ordenador, tocar fuera también
+  // Escape cierra; en el ordenador, tocar fuera también. Si ya hay algo escrito, pregunta antes (se perdía sin avisar)
+  const escrito = !!(form.client_name.trim() || form.client_phone.trim() || form.supplier_name.trim() || form.reference.trim()
+    || form.notes.trim() || form.lines.some(l => l.descripcion.trim()));
+  const cerrar = () => { if (!escrito || window.confirm('¿Cerrar sin guardar el pedido? Se perderá lo que has escrito.')) onClose(); };
+  const cerrarRef = useRef(cerrar);
+  cerrarRef.current = cerrar;
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrarRef.current(); };
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
-  }, [onClose]);
+  }, []);
 
   const setField = (k: keyof NewOrderForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -74,6 +79,14 @@ function NewOrderModal({ proveedores, suppliers, onClose, onSaved }: {
   };
 
   const addLine = () => setForm(f => ({ ...f, lines: [...f.lines, { descripcion: '', cantidad: '1', precio_unitario: '' }] }));
+  // Intro en una línea: pasa a la siguiente (y la crea si es la última) en vez de mandar el pedido a medias
+  const lineasRef = useRef<HTMLDivElement>(null);
+  const introLinea = (i: number) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (i === form.lines.length - 1) addLine();
+    requestAnimationFrame(() => lineasRef.current?.querySelectorAll<HTMLInputElement>('input[data-linea]')[i + 1]?.focus());
+  };
   const removeLine = (i: number) => setForm(f => ({ ...f, lines: f.lines.filter((_, j) => j !== i) }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,11 +134,11 @@ function NewOrderModal({ proveedores, suppliers, onClose, onSaved }: {
   };
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && window.innerWidth > 768) onClose(); }}>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && window.innerWidth > 768) cerrar(); }}>
       <div className="modal rep-modal" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-header">
           <span style={{ fontWeight: 700, fontSize: 16 }}>Nuevo pedido especial</span>
-          <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={18} /></button>
+          <button className="modal-close" onClick={cerrar} aria-label="Cerrar"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
@@ -197,27 +210,27 @@ function NewOrderModal({ proveedores, suppliers, onClose, onSaved }: {
                 <label className="form-label" style={{ margin: 0 }}>Artículos pedidos *</label>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={addLine}><Plus size={13} /> Añadir línea</button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} ref={lineasRef}>
                 {form.lines.map((line, i) => (
                   <div key={i} style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 10px 8px', border: '1px solid var(--border)' }}>
                     {/* Row 1: description + delete */}
                     <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                      <input className="form-input" placeholder={`Artículo ${i + 1}`} value={line.descripcion}
-                        onChange={setLine(i, 'descripcion')} style={{ margin: 0, flex: 1 }} />
+                      <input className="form-input" placeholder={`Artículo ${i + 1}`} value={line.descripcion} data-linea
+                        onChange={setLine(i, 'descripcion')} onKeyDown={introLinea(i)} enterKeyHint="next" style={{ margin: 0, flex: 1 }} />
                       <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}
                         onClick={() => removeLine(i)} disabled={form.lines.length === 1} aria-label="Quitar esta línea"><X size={16} /></button>
                     </div>
                     {/* Row 2: cantidad / precio */}
                     <div className="rep-modal-2" style={{ gap: 6 }}>
                       <div>
-                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>CANTIDAD</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>CANTIDAD</div>
                         <input className="form-input" type="text" inputMode="decimal" value={line.cantidad}
-                          onChange={setLine(i, 'cantidad')} style={{ margin: 0, textAlign: 'right' }} />
+                          onChange={setLine(i, 'cantidad')} onKeyDown={introLinea(i)} style={{ margin: 0, textAlign: 'right' }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>PRECIO UNIDAD (€, OPCIONAL)</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, marginBottom: 3 }}>PRECIO UNIDAD (€, OPCIONAL)</div>
                         <input className="form-input" type="text" inputMode="decimal" placeholder="0,00" value={line.precio_unitario}
-                          onChange={setLine(i, 'precio_unitario')} style={{ margin: 0, textAlign: 'right' }} />
+                          onChange={setLine(i, 'precio_unitario')} onKeyDown={introLinea(i)} style={{ margin: 0, textAlign: 'right' }} />
                       </div>
                     </div>
                   </div>
@@ -231,7 +244,7 @@ function NewOrderModal({ proveedores, suppliers, onClose, onSaved }: {
             </div>
           </div>
           <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="button" className="btn btn-ghost" onClick={cerrar}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Creando…' : 'Crear pedido'}
             </button>

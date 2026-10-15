@@ -10,14 +10,14 @@ import { DriveEstado } from '../components/DriveEstado';
 import { TotalsPanel } from '../components/TotalsPanel';
 import { useToast } from '../components/Toast';
 import type { Document, Article, Supplier, PriceAlert } from '../types/index';
-import { fechaES, ORDEN_ALBARANES } from '../lib/texto';
+import { fechaES, ORDEN_ALBARANES, numES } from '../lib/texto';
 import { useAnchoVentana } from '../hooks/useIsMobile';
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
   uploaded:   { label: 'Subido',       dot: 'var(--text-3)' },
-  processing: { label: 'Procesando',   dot: 'var(--warning)' },
-  completed:  { label: 'Completado',   dot: 'var(--brand)' },
-  error:      { label: 'Error',        dot: 'var(--danger)' },
+  processing: { label: 'Leyendo…',     dot: 'var(--warning)' },
+  completed:  { label: 'Leído',        dot: 'var(--brand)' },
+  error:      { label: 'No se pudo leer', dot: 'var(--danger)' },
 };
 
 export function DocumentPage() {
@@ -168,13 +168,13 @@ export function DocumentPage() {
         } else {
           setPolling(false);
           if (status === 'completed') {
-            showToast('Extracción completada', 'success');
+            showToast('Albarán leído', 'success');
             // Load price alerts for this document
             getPriceAlerts(docId).then(({ data }) => {
               if (data.length > 0) setPriceAlerts(data);
             }).catch(() => {});
           } else if (status === 'error') {
-            showToast('Error en la extracción — ver detalle abajo', 'error');
+            showToast('No se pudo leer el albarán: mira el motivo abajo', 'error');
           }
         }
       };
@@ -200,14 +200,18 @@ export function DocumentPage() {
         {loadFailed ? (
           <>
             
-            <div className="empty-state-text">Documento no encontrado.</div>
+            <div className="empty-state-text">Este albarán ya no existe (puede que lo hayan borrado).</div>
             <button className="btn btn-primary" style={{ marginTop: '16px' }} onClick={() => navigate('/albaranes')}>← Volver a albaranes de compra</button>
           </>
         ) : (
           <>
+            {/* La primera carga falló (sin cobertura o el servidor no contesta): se vuelve a probar cada 3 s */}
             <span className="spinner spinner-lg" style={{ marginBottom: '16px' }} />
-            <div className="empty-state-text">Analizando documento…</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '8px' }}>Esto puede tardar hasta 30 segundos</div>
+            <div className="empty-state-text">No se ha podido abrir el albarán</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '8px' }}>
+              {navigator.onLine ? 'El servidor no contesta.' : 'Sin cobertura.'} Se vuelve a probar solo.
+            </div>
+            <button className="btn btn-ghost" style={{ marginTop: '16px' }} onClick={() => navigate('/albaranes')}>← Volver a albaranes de compra</button>
           </>
         )}
       </div>
@@ -281,7 +285,7 @@ export function DocumentPage() {
             {polling && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-3)' }}>
                 <span className="spinner spinner-sm" />
-                Extrayendo artículos…
+                Leyendo artículos…
               </span>
             )}
             {validBadge && (
@@ -376,7 +380,7 @@ export function DocumentPage() {
               {priceAlerts.map(a => (
                 <li key={a.article_id}>
                   <span>{a.descripcion}</span>
-                  <span className="doc-subida"><s>{a.coste_anterior.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</s> → <b>{a.coste_actual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</b> (+{a.pct_cambio.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} %)</span>
+                  <span className="doc-subida"><s>{numES(a.coste_anterior)} €</s> → <b>{numES(a.coste_actual)} €</b> (+{a.pct_cambio.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} %)</span>
                 </li>
               ))}
             </ul>
@@ -402,12 +406,12 @@ export function DocumentPage() {
             {/* Numbers row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
               {[
-                { label: 'Base calculada', value: validacion.base_calculada != null ? `${validacion.base_calculada.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
-                { label: 'Base documento', value: validacion.base_imponible_doc != null ? `${validacion.base_imponible_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
-                { label: 'IVA documento', value: document.total_iva_doc != null ? `${document.total_iva_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
-                { label: 'Recargo equiv.', value: document.total_recargo_doc != null ? `${document.total_recargo_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
-                { label: 'Total documento', value: document.total_doc != null ? `${document.total_doc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—' },
-                { label: 'Diferencia base', value: validacion.diferencia != null ? `${validacion.diferencia > 0 ? '+' : ''}${validacion.diferencia.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—', highlight: validacion.diferencia != null && Math.abs(validacion.diferencia) > 0.5 },
+                { label: 'Base calculada', value: validacion.base_calculada != null ? `${numES(validacion.base_calculada)} €` : '—' },
+                { label: 'Base documento', value: validacion.base_imponible_doc != null ? `${numES(validacion.base_imponible_doc)} €` : '—' },
+                { label: 'IVA documento', value: document.total_iva_doc != null ? `${numES(document.total_iva_doc)} €` : '—' },
+                { label: 'Recargo equiv.', value: document.total_recargo_doc != null ? `${numES(document.total_recargo_doc)} €` : '—' },
+                { label: 'Total documento', value: document.total_doc != null ? `${numES(document.total_doc)} €` : '—' },
+                { label: 'Diferencia base', value: validacion.diferencia != null ? `${validacion.diferencia > 0 ? '+' : ''}${numES(validacion.diferencia)} €` : '—', highlight: validacion.diferencia != null && Math.abs(validacion.diferencia) > 0.5 },
               ].map(({ label, value, highlight }) => (
                 <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '10px 14px', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{label}</div>

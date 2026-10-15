@@ -45,6 +45,8 @@ class DocumentResponse(DocumentBase):
     drive_at: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    # Al subir: ese mismo archivo ya estaba subido y se devuelve el que había (no se vuelve a leer)
+    repetido: Optional[bool] = None
 
     class Config:
         from_attributes = True

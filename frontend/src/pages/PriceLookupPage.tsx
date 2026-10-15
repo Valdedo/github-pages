@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Camera, Image as ImageIcon, X, Plus, Minus, ShoppingBasket, Trash2, FileText, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import { decodeBarcodeImage, describeApiError } from '../api/client';
 import { buscarCatalogo, cargarCatalogo } from '../lib/catalogo';
-import { fechaES } from '../lib/texto';
+import { fechaES, euros } from '../lib/texto';
 import { getRol } from '../auth';
 import { useCfToast } from '../components/CfToast';
 import { nombreProveedor } from '../lib/proveedor';
@@ -17,7 +17,7 @@ import type { CatalogArticle } from '../types';
  */
 interface Linea { id: number; descripcion: string; pvp_con_iva: number; iva_pct: number; codigo: string; qty: number }
 
-const eur = (v: number) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+const eur = (v: number) => euros(v);
 
 function leerCuenta(): Linea[] {
   try { return JSON.parse(localStorage.getItem('sale_cart') ?? '[]'); } catch { return []; }

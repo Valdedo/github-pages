@@ -8,8 +8,9 @@ function cuentas(o: OrdenCarga) {
   let total = 0, hechas = 0, firmadas = 0, listas = 0;
   for (const e of o.entregas) {
     const f = firmaEnCola(e.id);
-    if (e.estado === 'entregada' || f) firmadas++;
-    if (e.estado === 'entregada' || f || estaLista(e)) listas++;
+    const fOk = f && !f.error;  // una firma que el servidor no aceptó no cuenta como entregada
+    if (e.estado === 'entregada' || fOk) firmadas++;
+    if (e.estado === 'entregada' || fOk || estaLista(e)) listas++;
     for (const l of e.lineas) {
       total++;
       const ok = f?.cargadas[String(l.id)]?.ok ?? marcaEnCola(l.id)?.ok ?? l.cargado_ok;

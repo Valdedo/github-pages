@@ -1,8 +1,10 @@
 """
 Document upload and management endpoints.
 """
+import hashlib
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -23,6 +25,8 @@ from app.schemas.document import (
     DocumentResponse, DocumentWithArticles, DocumentListItem,
     DocumentUpdate, ReprocessRequest
 )
+
+from app.services.extraction_service import mensaje_para_persona  # noqa: E402
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -95,9 +99,27 @@ def _build_article(art_data: dict, doc_id: int, tiers: list, rounding_mode: str,
         codigo_proveedor=art_data.get("codigo_proveedor"),
         codigo_fabricante=art_data.get("codigo_fabricante"),
         ean=art_data.get("ean"),
-        codigo_principal=art_data.get("codigo_principal"),
+        codigo_principal=codigo_unico(art_data.get("codigo_principal"), doc_id),
         otros_codigos=otros if otros else None,
     )
+
+
+def codigo_unico(codigo: Optional[str], doc_id: int) -> Optional[str]:
+    """Las líneas sin código salen de la lectura como ART-0001, ART-0002… y se repetían en cada albarán
+    (al escanear la etiqueta salía otro artículo, y a TreyFACT le llegaba el mismo código para cosas
+    distintas). Se les pone el albarán delante: ART-<albarán>-<línea>."""
+    m = re.fullmatch(r"ART-(\d{4})", codigo or "")
+    return f"ART-{doc_id}-{int(m.group(1))}" if m else codigo
+
+
+def _ya_subido(db: Session, huella: str) -> Optional[Document]:
+    """El albarán de compra que ya se subió con este mismo archivo (si no falló al leerse)."""
+    doc = (db.query(Document)
+           .filter(Document.huella == huella, Document.status.in_(("uploaded", "processing", "completed")))
+           .order_by(Document.id.desc()).first())
+    if doc:
+        doc.repetido = True
+    return doc
 
 
 def _rutas(doc: Document) -> List[str]:
@@ -116,7 +138,7 @@ def marcar_interrumpidos() -> None:
     db = SessionLocal()
     try:
         n = (db.query(Document).filter(Document.status.in_(("processing", "uploaded")))
-             .update({Document.status: "error", Document.error_message: "Se interrumpió, vuelve a procesar"},
+             .update({Document.status: "error", Document.error_message: "Se cortó mientras se leía (se reinició el servidor). Vuelve a leerlo desde «Más» → «Volver a leer»."},
                      synchronize_session=False))
         db.commit()
         if n:
@@ -136,14 +158,18 @@ async def upload_document(
     # Validate extension
     suffix = Path(file.filename).suffix.lower().lstrip(".")
     if suffix not in settings.allowed_ext_list:
-        raise HTTPException(
-            400, f"File type '{suffix}' not allowed. Allowed: {settings.allowed_ext_list}"
-        )
+        raise HTTPException(400, f"Ese archivo no vale ({suffix or 'sin tipo'}). Sube el PDF o una foto (JPG o PNG).")
 
     # Validate size (sin leer más de la cuenta)
     content = await file.read(settings.max_upload_size_bytes + 1)
     if len(content) > settings.max_upload_size_bytes:
-        raise HTTPException(413, f"File too large. Max: {settings.max_upload_size_mb}MB")
+        raise HTTPException(413, f"El archivo es demasiado grande (como mucho {settings.max_upload_size_mb} MB).")
+
+    # El mismo archivo otra vez (p. ej. se volvió a pulsar «Subir»): se devuelve el que ya hay, sin leerlo de nuevo
+    huella = hashlib.sha256(content).hexdigest()
+    ya = _ya_subido(db, huella)
+    if ya:
+        return ya
 
     # Save file
     stored_name = f"{uuid.uuid4().hex}.{suffix}"
@@ -161,6 +187,7 @@ async def upload_document(
         doc_type=doc_type,
         status="uploaded",
         supplier_id=supplier_id,
+        huella=huella,
     )
     db.add(doc)
     db.commit()
@@ -188,14 +215,16 @@ async def upload_multi_images(
 
     saved_paths = []
     first_filename = files[0].filename
+    resumen = hashlib.sha256()
     try:
         for file in files:
             suffix = Path(file.filename).suffix.lower().lstrip(".")
             if suffix not in IMAGE_EXTS:
-                raise HTTPException(400, f"Solo imágenes (JPG/PNG) en subida múltiple. Archivo: {file.filename}")
+                raise HTTPException(400, f"Con varias páginas, todas tienen que ser fotos (JPG o PNG). Esta no: {file.filename}")
             content = await file.read(settings.max_upload_size_bytes + 1)
             if len(content) > settings.max_upload_size_bytes:
-                raise HTTPException(413, f"Archivo demasiado grande: {file.filename}")
+                raise HTTPException(413, f"Esta foto es demasiado grande: {file.filename}")
+            resumen.update(hashlib.sha256(content).digest())
             stored_name = f"{uuid.uuid4().hex}.{suffix}"
             file_path = Path(settings.upload_dir) / stored_name
             with open(file_path, "wb") as f:
@@ -207,6 +236,13 @@ async def upload_multi_images(
             Path(p).unlink(missing_ok=True)
         raise
 
+    huella = resumen.hexdigest()
+    ya = _ya_subido(db, huella)
+    if ya:
+        for p in saved_paths:
+            Path(p).unlink(missing_ok=True)
+        return ya
+
     display_name = f"{len(files)} páginas - {first_filename}"
     doc = Document(
         filename=Path(saved_paths[0]).name,
@@ -216,6 +252,7 @@ async def upload_multi_images(
         doc_type="image",
         status="uploaded",
         supplier_id=supplier_id,
+        huella=huella,
     )
     db.add(doc)
     db.commit()
@@ -498,7 +535,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             doc2 = db2.query(Document).filter(Document.id == doc_id).first()
             if doc2:
                 doc2.status = "error"
-                doc2.error_message = str(e)[:500]
+                doc2.error_message = mensaje_para_persona(e)
                 db2.commit()
         finally:
             db2.close()
@@ -558,7 +595,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             doc = db.query(Document).filter(Document.id == doc_id).first()
             if doc:
                 doc.status = "error"
-                doc.error_message = str(e)[:500]
+                doc.error_message = mensaje_para_persona(e)
                 db.commit()
         except Exception:
             pass
@@ -638,7 +675,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
             doc2 = db2.query(Document).filter(Document.id == doc_id).first()
             if doc2:
                 doc2.status = "error"
-                doc2.error_message = str(e)[:500]
+                doc2.error_message = mensaje_para_persona(e)
                 db2.commit()
         finally:
             db2.close()
@@ -704,7 +741,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
             doc = db.query(Document).filter(Document.id == doc_id).first()
             if doc:
                 doc.status = "error"
-                doc.error_message = str(e)[:500]
+                doc.error_message = mensaje_para_persona(e)
                 db.commit()
         except Exception:
             pass

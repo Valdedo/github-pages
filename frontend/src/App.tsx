@@ -18,6 +18,7 @@ import { Novedades, hayNovedades } from './components/Novedades';
 import { Tutorial } from './components/Tutorial';
 import { MenuCuenta } from './components/MenuCuenta';
 import { NuevaVersion } from './components/NuevaVersion';
+import { ErrorPantalla } from './components/ErrorPantalla';
 import { useCfToast } from './components/CfToast';
 import { arrancarCola } from './lib/offline';
 import { arrancarColaCargas } from './lib/offlineCargas';
@@ -184,32 +185,48 @@ function Sidebar({ badges, collapsed, onToggle }: { badges: NavBadge; collapsed:
   );
 }
 
-// ── Scroll restoration: saves/restores .app-main scroll on back navigation ──
+// ── Al volver atrás, cada pantalla vuelve a donde estabas ──
+// Se guarda por entrada del historial (location.key) mientras se baja; al volver (atrás/adelante) se
+// recupera, esperando un poco a que la lista termine de cargar. Antes se guardaba al salir con la ruta de
+// la pantalla anterior (a partir de la segunda vez iba a otra pantalla) y se ponía antes de que llegaran
+// los datos, así que casi nunca volvía a su sitio.
 function ScrollRestoration() {
-  const { pathname } = useLocation();
+  const location = useLocation();
   const navType = useNavigationType();
-  const KEY = (p: string) => `scroll:${p}`;
+  const clave = `scroll:${location.key}`;
+  const rutaAntes = useRef(location.pathname);
 
-  // Restore on POP (back/forward), scroll to top on PUSH/REPLACE
   useEffect(() => {
     const el = document.getElementById('app-main');
     if (!el) return;
-    if (navType === 'POP') {
-      const saved = sessionStorage.getItem(KEY(pathname));
-      if (saved) { requestAnimationFrame(() => { el.scrollTop = parseInt(saved); }); return; }
-    }
-    el.scrollTop = 0;
-  }, [pathname, navType]);
+    let t = 0;
+    const guardar = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => { try { sessionStorage.setItem(clave, String(el.scrollTop)); } catch { /* nada */ } }, 120);
+    };
+    el.addEventListener('scroll', guardar, { passive: true });
+    return () => { el.removeEventListener('scroll', guardar); window.clearTimeout(t); };
+  }, [clave]);
 
-  // Save position before leaving
-  const savedPath = useRef(pathname);
   useEffect(() => {
     const el = document.getElementById('app-main');
-    return () => {
-      if (el) sessionStorage.setItem(KEY(savedPath.current), String(el.scrollTop));
-      savedPath.current = pathname;
-    };
-  }, [pathname]);
+    if (!el) return;
+    const otraPantalla = rutaAntes.current !== location.pathname;
+    rutaAntes.current = location.pathname;
+    if (navType !== 'POP') {
+      if (otraPantalla) el.scrollTop = 0;  // al cambiar solo un filtro de la misma pantalla no se sube arriba
+      return;
+    }
+    let y = 0;
+    try { y = parseInt(sessionStorage.getItem(clave) || '0', 10) || 0; } catch { /* nada */ }
+    if (!y) { el.scrollTop = 0; return; }
+    let n = 0;
+    const id = window.setInterval(() => {
+      n++;
+      if (el.scrollHeight - el.clientHeight >= y || n > 40) { el.scrollTop = y; window.clearInterval(id); }
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [clave, navType, location.pathname]);
 
   return null;
 }
@@ -218,27 +235,35 @@ function ScrollRestoration() {
 const PADRE: Record<string, string> = { documento: '/albaranes', pedidos: '/pedidos', reparaciones: '/reparaciones', firmas: '/firmas', cargas: '/cargas' };
 /** ¿Hay pantallas anteriores dentro de la app? (React Router guarda la posición en history.state.idx) */
 const hayAtras = () => { try { return ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0; } catch { return false; } };
+/** A dónde lleva «Volver» si no hay pantalla anterior (se entró directo): la de arriba de esta. */
+function padreDe(path: string): string {
+  const partes = path.split('/').filter(Boolean);
+  if (partes[0] === 'tarifas' && partes.length > 1) return '/' + partes.slice(0, -1).join('/');
+  if (partes.length > 1 && partes[0] in PADRE) return PADRE[partes[0]];
+  return '/';
+}
 
 function MobileHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const seccion = location.pathname.split('/')[1] || '';
-  const isDoc = location.pathname.split('/').length > 2 && seccion in PADRE;
 
   // En Inicio, la cabecera es el logo pegatina (dentro de la página) en lugar de la barra de arriba
   if (location.pathname === '/') return null;
+  // Las pantallas de la barra de abajo llevan el logo; todas las demás (las del «Más», las que se abren
+  // desde Inicio y las fichas), «Volver» bien visible arriba a la izquierda
+  const raiz = BOTTOM.includes(location.pathname);
 
   // Sin título: cada página ya lo pone en grande
   return (
     <header className="mobile-header">
-      {isDoc ? (
-        <button className="mobile-back-btn" onClick={() => hayAtras() ? navigate(-1) : navigate(PADRE[seccion], { replace: true })}>
-          <ChevronLeft size={20} /> Volver
-        </button>
-      ) : (
+      {raiz ? (
         <Link to="/" style={{ textDecoration: 'none' }} aria-label="Inicio">
           <Logo size={30} compact />
         </Link>
+      ) : (
+        <button className="mobile-back-btn" onClick={() => hayAtras() ? navigate(-1) : navigate(padreDe(location.pathname), { replace: true })}>
+          <ChevronLeft size={22} /> Volver
+        </button>
       )}
       <MenuCuenta className="cuenta-cabecera" />
     </header>
@@ -352,6 +377,7 @@ function RepartoShell() {
       </header>
       <main id="app-main" className="reparto-main">
         <ScrollRestoration />
+        <ErrorPantalla ruta={location.pathname} inicio="/reparto">
         <Suspense fallback={<Cargando />}>
           <Routes>
             <Route path="/reparto" element={<RepartoPage />} />
@@ -361,6 +387,7 @@ function RepartoShell() {
             <Route path="*" element={<Navigate to="/reparto" replace />} />
           </Routes>
         </Suspense>
+        </ErrorPantalla>
       </main>
     </div>
   );
@@ -385,6 +412,7 @@ function ConsultaShell() {
       </header>
       <main id="app-main" className="reparto-main">
         <ScrollRestoration />
+        <ErrorPantalla ruta={location.pathname}>
         <Suspense fallback={<Cargando />}>
           <Routes>
             <Route path="/" element={<ConsultaInicio />} />
@@ -396,6 +424,7 @@ function ConsultaShell() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        </ErrorPantalla>
       </main>
     </div>
   );
@@ -423,13 +452,14 @@ function AppShell() {
   if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /><NuevaVersion /></>;
   // Mostrador (tableta junto al ordenador de ventas): a pantalla completa, sin el menú. En pruebas: solo el encargado.
   if (location.pathname === '/mostrador' && getRol() === 'admin') {
-    return <><Suspense fallback={<Cargando />}><MostradorPage /></Suspense><AvisosGlobales /><NuevaVersion /></>;
+    return <><ErrorPantalla><Suspense fallback={<Cargando />}><MostradorPage /></Suspense></ErrorPantalla><AvisosGlobales /><NuevaVersion /></>;
   }
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();
   return <>{reparto ? <RepartoShell /> : <FullShell />}<AvisosGlobales /><NuevaVersion /></>;
 }
 
 function FullShell() {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1200);
   const [badges, setBadges] = useState<NavBadge>({ repairs: 0, orders: 0, firmas: 0, correo: 0 });
   // Móvil: animación del camión al abrir la app en Inicio
@@ -461,6 +491,11 @@ function FullShell() {
     return () => clearInterval(interval);
   }, []);
 
+  // En la pestaña del navegador (ordenadores de la tienda) se ve lo que hay por firmar sin abrir la app
+  useEffect(() => {
+    document.title = badges.firmas > 0 ? `(${badges.firmas}) Casa Fonso` : 'Casa Fonso';
+  }, [badges.firmas]);
+
   return (
     <div className="app-layout">
       {arranque && <ArranquePegatina onFin={() => setArranque(false)} />}
@@ -471,6 +506,7 @@ function FullShell() {
         <MobileHeader />
         <main id="app-main" className="app-main">
           <ScrollRestoration />
+          <ErrorPantalla ruta={location.pathname}>
           <Suspense fallback={<Cargando />}>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
@@ -497,8 +533,10 @@ function FullShell() {
               <Route path="/tarifas/:prov" element={<TarifaProveedorPage />} />
               <Route path="/tarifas/:prov/:fam" element={<TarifaFamiliaPage />} />
               <Route path="/tarifas/:prov/:fam/ficha" element={<TarifaFichaPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          </ErrorPantalla>
         </main>
         <BottomNav badges={badges} />
       </div>

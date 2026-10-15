@@ -209,6 +209,42 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `venc_ajustes`, se cambian desde el engranaje de la tarjeta; push una sola vez por factura, `venc_avisos`) y
   pendiente por proveedor con su forma de pago y a cuántos días suele vencer.
 
+## Repaso general (15/10/2026)
+Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`). Andrés pidió dejar como estaban el botón
+único de «Subir albaranes» (compra/venta separados) y qué precio manda entre tarifas y «Consultar precio» (casi no se usa).
+- **Precios**: el PVP sin IVA se saca ahora del PVP con IVA ya redondeado (`margin_service.calculate_pricing`), así la etiqueta
+  y TreyFACT dan lo mismo (antes podía salir 4,25 € en la etiqueta y 4,30 € en TreyFACT). Redondeo «hacia arriba» sin el fallo
+  de coma flotante (0,15 → 0,20). Arreglo puntual `precio_v2` en `database.py` para los artículos ya guardados.
+- **Códigos ART**: los inventados por la IA (ART-0001…) chocaban entre albaranes; ahora `ART-<albarán>-<n>` (`codigo_unico`)
+  y arreglo puntual `codigo_v2`.
+- **Albaranes de compra**: el mismo archivo subido dos veces devuelve el que había (`huella` sha256, `repetido` en la
+  respuesta; la app avisa «ya estaba subido»). Errores de la IA en español (`LecturaError`, `mensaje_para_persona`),
+  4 reintentos, salida de 16 000 tokens y texto del PDF hasta 60 000 caracteres. Drive: `drive_proveedor.repasar` reintenta
+  cada 30 min los leídos sin copia.
+- **Firma de entrega y albarán cambiado**: si se sube otra versión de un albarán que va en una carga sin entregar, la entrega
+  queda `albaran_cambiado`; al firmar, la firma no pasa sola al albarán nuevo y en el albarán sale «Pasarle la firma de la
+  entrega» (`POST /api/firmas/{id}/firma-de-entrega`). **Anular la firma** (`POST /api/firmas/{id}/anular-firma`): no si está
+  facturado ni si va en una carga ya entregada; está en «Más opciones» del albarán.
+- **Quién firma**: botones con los nombres que ya firmaron para ese cliente (`firmantes`) en el albarán y en la firma del camión.
+  El nombre ya no viene relleno con la empresa. Materiales plegados en la firma del camión y botones siempre a la vista.
+- **Sin cobertura**: la cola de cargas ya no pierde nada (401/403/5xx esperan; 404/409 avisan con «Reintentar» o «Quitar y
+  volver a firmar»); el service worker baja todos los trozos de la app nueva antes de borrar los viejos (pantalla en blanco
+  sin cobertura tras publicar). Pantalla de error propia (`components/ErrorPantalla.tsx`) en vez de la página en blanco.
+- **Volver y filtros**: botón «Volver» en la cabecera del móvil en todas las pantallas que no son de la barra de abajo
+  (`MobileHeader`, `padreDe`). Albaranes de venta guardan vista, cliente, obra, mes y búsqueda en la dirección: al volver de un
+  albarán sigue todo igual, y también la posición de la lista (`ScrollRestoration` por entrada del historial). En el móvil los
+  filtros se pliegan tras «Filtrar». La búsqueda no distingue tildes ni ñ y busca cada palabra por separado.
+- **Números**: `numES`/`euros` en `lib/texto.ts` (siempre con punto de miles) en toda la app. Tableta: 1,5 ya no se convierte en 15.
+  Tarifas: la unidad sale en el título del grupo y ▲/▼ en la evolución; «20» busca la medida entera.
+- **Pequeños**: título de la pestaña con lo que hay por firmar, días de vencimientos plegados en el móvil (salvo hoy), «Llamar»
+  en cada entrega, aviso al cerrar un pedido o reparación a medio escribir, Intro pasa a la siguiente línea del pedido,
+  botones de estado sin doble toque, códigos nuevos de 6 caracteres como mínimo (los de antes siguen valiendo), vencimientos que no rechazan el lote entero por
+  un importe raro, aviso de las 9 una vez al día, sin modo oscuro a medias (`color-scheme: light`), textos sin jerga
+  («Leído», «Leyendo…», «No se leyó», errores sin números de servidor). Manolo: si los vencimientos no se actualizan, «Avisa a Andrés».
+- **Versión nueva**: `NuevaVersion` recarga sola si está en Inicio (`/`, `/reparto`, `/mostrador`), sin tocar nada 2 min,
+  sin ventanas abiertas, sin escribir, sin pantalla completa y sin nada en las colas; si no, sale la barra como antes.
+- Rutas desconocidas llevan a Inicio.
+
 ## Publicar
 - Railway despliega desde la rama **`claude/invoice-ocr-processing-app-1LgBH`**.
   Publicar = `git push origin HEAD:claude/invoice-ocr-processing-app-1LgBH`.
@@ -224,7 +260,6 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Probar con Playwright en 390 px, 320 px, 1280×800, 1366×650 (portátil) y 1920×1080; mirar las capturas, no solo que no haya errores.
 
 ## Pendiente (octubre 2026)
-- Anular la firma de un albarán de venta (no existe endpoint).
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).
 - Análisis: ordenar por importe gastado (falta `SUM` en `top-products`).
 - Festivo nacional de agosto 2027 marcado «por confirmar» en `turnos_service.py` (revisar con el BOE).

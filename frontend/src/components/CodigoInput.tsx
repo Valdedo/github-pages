@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 /** Campo para el código con el botón del ojo para verlo mientras se escribe.
- *  `numerico`: teclado de números (solo para el código propio, que es de 4 a 8 números;
+ *  `numerico`: teclado de números (solo para el código propio, que es de 6 a 8 números;
  *  los que pone Andrés pueden llevar letras). */
 export function CodigoInput({ value, onChange, autoFocus, nuevo, numerico, label = 'Código' }: {
   value: string; onChange: (v: string) => void; autoFocus?: boolean; nuevo?: boolean; numerico?: boolean; label?: string;

@@ -129,10 +129,10 @@ export function AccessGate({ children }: { children: ReactNode }) {
         {fase === 'propio' && (
           <form onSubmit={onPropio} className="acceso-form">
             <h1>Pon tu propio código</h1>
-            <p className="acceso-txt">Si quieres, cambia el código que te dieron por uno tuyo de 4 a 8 números, fácil de recordar. Solo lo sabrás tú.</p>
+            <p className="acceso-txt">Si quieres, cambia el código que te dieron por uno tuyo de 6 a 8 números, fácil de recordar. Solo lo sabrás tú.</p>
             <CodigoInput value={codigo} onChange={v => setCodigo(v.replace(/\D/g, '').slice(0, 8))} autoFocus nuevo numerico label="Tu código nuevo" />
             {error && <p className="acceso-error" role="alert">{error}</p>}
-            <button className="btn btn-primary btn-lg" disabled={enviando || codigo.length < 4}>
+            <button className="btn btn-primary btn-lg" disabled={enviando || codigo.length < 6}>
               {enviando ? 'Guardando…' : 'Guardar mi código'}
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => { setError(null); setCodigo(''); setFase('dentro'); }}>Ahora no, seguir con el que tengo</button>
@@ -151,9 +151,9 @@ export function AccessGate({ children }: { children: ReactNode }) {
               <input className="form-input acceso-codigo" type="text" autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false}
                 value={reparto} onChange={e => setRepartoCod(e.target.value)} />
             </label>
-            <p className="acceso-txt" style={{ fontSize: 14 }}>Mínimo 4 números o letras. Apúntalos en un sitio seguro.</p>
+            <p className="acceso-txt" style={{ fontSize: 14 }}>Mínimo 6 números o letras. Apúntalos en un sitio seguro.</p>
             {error && <p className="acceso-error" role="alert">{error}</p>}
-            <button className="btn btn-primary btn-lg" disabled={enviando || tienda.trim().length < 4}>
+            <button className="btn btn-primary btn-lg" disabled={enviando || tienda.trim().length < 6}>
               {enviando ? 'Guardando…' : 'Guardar códigos y entrar'}
             </button>
           </form>

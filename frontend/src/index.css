@@ -78,19 +78,8 @@
   --color-done-bg:        #f0fdf4;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-success-bg:     #052e16;
-    --color-success-border: #166534;
-    --color-error-bg:       #2d0a0a;
-    --color-error-border:   #991b1b;
-    --color-warning-bg:     #2d1a00;
-    --color-warning-border: #92400e;
-    --color-info-bg:        #0c1a2d;
-    --color-info-border:    #1e3a5f;
-    --color-done-bg:        #052e16;
-  }
-}
+/* (Repaso 15/10/2026) Quitado el «modo oscuro» de estos colores: la app es siempre clara y, en móviles con
+   modo oscuro, los avisos salían con letra oscura sobre fondo oscuro y no se leían. */
 
 html, body, #root { height: 100%; }
 

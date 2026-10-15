@@ -91,7 +91,9 @@ def numero(v) -> Optional[float]:
     s = re.sub(r"[^\d,.\-]", "", s.replace("−", "-"))
     if not re.search(r"\d", s):
         return None
-    if "," in s:
+    if "," in s and "." in s and s.rfind(".") > s.rfind(","):
+        s = s.replace(",", "")  # «1,090.00»: hoja con formato inglés (el último separador es el decimal)
+    elif "," in s:
         s = s.replace(".", "").replace(",", ".")
     elif s.count(".") > 1 or re.search(r"\.\d{3}$", s):
         s = s.replace(".", "")
@@ -590,6 +592,9 @@ def actualizar(db: Session, prov: str) -> TarifaCopia:
     hojas = r.get("hojas") or {}
     datos = LECTORES[prov](hojas)
     if not datos["articulos"]:
+        # Se apunta el fallo para no volver a pedir la hoja a Drive en cada visita (se reintenta en 10 min)
+        copia.error, copia.error_at = "La tarifa de Drive ha llegado vacía o con otro formato.", datetime.utcnow()
+        db.merge(copia); db.commit()
         raise RuntimeError("La tarifa de Drive ha llegado vacía o con otro formato.")
     copia.hojas = json.dumps(hojas, ensure_ascii=False)
     if cfg.get("carpeta_facturas"):

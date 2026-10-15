@@ -288,6 +288,10 @@ export const uploadFirmas = async (files: File[]): Promise<SubidaFirmas> => {
 export const updateFirma = (id: number, data: Partial<ClientDeliveryNote>) =>
   api.put<ClientDeliveryNote>(`/api/firmas/${id}`, data);
 export const deleteFirma = (id: number) => api.delete(`/api/firmas/${id}`);
+/** Firma hecha por error: el albarán vuelve a «Por firmar» (no si está facturado ni si viene de una hoja de entrega). */
+export const anularFirmaAlbaran = (id: number) => api.post<ClientDeliveryNote>(`/api/firmas/${id}/anular-firma`);
+/** El albarán cambió después de cargarlo: se le pasa la firma de la hoja de entrega (comprobado que coincide). */
+export const firmaDeEntrega = (id: number) => api.post<ClientDeliveryNote>(`/api/firmas/${id}/firma-de-entrega`);
 /** Meter o sacar albaranes del camión de Melchor. */
 export const repartoFirmas = (ids: number[], enCamion: boolean) =>
   api.post<ClientDeliveryNote[]>('/api/firmas/reparto', { ids, en_camion: enCamion });
@@ -396,6 +400,8 @@ export interface EntregaCarga {
   firmado_por: string | null; firmado_at: string | null; treyfact_at: string | null; lineas: LineaCarga[];
   lista_at?: string | null;  // «Listo para llevar»: carga confirmada y bloqueada
   foto_entrega: string | null; drive_at: string | null;
+  albaran_cambiado?: boolean;  // se subió otra versión del albarán después de leerlo: la firma no le pasa sola
+  firmantes?: string[];        // quién firmó otras veces por este cliente (sugerencias al firmar)
 }
 export interface OrdenCarga {
   id: number; estado: 'preparando' | 'cargado' | 'entregado'; fotos: string[]; texto: string | null;

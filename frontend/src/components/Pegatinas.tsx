@@ -206,13 +206,14 @@ export function Vacio({ dibujo, camion, titulo, texto, children }: {
 export function AccesoPegatina({ to, dibujo, escala = 1, lineas, giro = 0, color = '#123A26' }: {
   to: string; dibujo: Dibujo; escala?: number; lineas: [string, string]; giro?: number; color?: string;
 }) {
-  const ancho = Math.max(lineas[0].length, lineas[1].length) * 9.6 + 26;
+  // Rótulo más grande y más claro (repaso 15/10/2026): en el móvil la letra salía de unos 9 px y no se leía
+  const ancho = Math.max(lineas[0].length, lineas[1].length) * 10.8 + 28;
   const html = `<g filter="url(#cfs-pega)" transform="rotate(${giro} 80 70)">
-    <g transform="translate(80 50) scale(${escala})">${DIBUJOS[dibujo]}</g>
+    <g transform="translate(80 48) scale(${escala})">${DIBUJOS[dibujo]}</g>
     <g transform="translate(80 104) rotate(${-giro * 1.6 - 3})">
-      <rect x="${-ancho / 2}" y="-21" width="${ancho}" height="42" rx="9" fill="${color}"/>
-      <text y="-3" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="600" font-size="17" fill="#fff">${lineas[0]}</text>
-      <text y="15" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="500" font-size="15" fill="#BFE8CF">${lineas[1]}</text>
+      <rect x="${-ancho / 2}" y="-24" width="${ancho}" height="48" rx="10" fill="${color}"/>
+      <text y="-3" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="600" font-size="19.5" fill="#fff">${lineas[0]}</text>
+      <text y="17" text-anchor="middle" font-family="Oswald, sans-serif" font-weight="600" font-size="17" fill="#DDF3E5">${lineas[1]}</text>
     </g></g>`;
   return (
     <Link to={to} className="acceso-peg" aria-label={`${lineas[0]} ${lineas[1]}`}>

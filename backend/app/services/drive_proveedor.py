@@ -224,6 +224,33 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
             db.close()
 
 
+def repasar(max_n: int = 5) -> None:
+    """Los albaranes de compra que no llegaron a Drive (fallo de red, servidor reiniciado al publicar…)
+    se reintentan solos cada media hora, unos pocos cada vez (antes había que abrirlos y pulsar Reintentar)."""
+    import json
+    from datetime import timedelta
+    from app.database import SessionLocal
+    from app.models.document import Document
+    if not mail_service.configured():
+        return
+    db = SessionLocal()
+    try:
+        desde = _desde(db)
+        hace = datetime.utcnow() - timedelta(minutes=10)  # los recién leídos se están subiendo ahora
+        pendientes = [(d.id, d.file_paths) for d in db.query(Document)
+                      .filter(Document.id > desde, Document.status == "completed",
+                              Document.drive_file_id.is_(None), Document.created_at < hace)
+                      .order_by(Document.id.desc()).limit(max_n).all()]
+    finally:
+        db.close()
+    for doc_id, rutas in pendientes:
+        try:
+            paginas = [p for p in json.loads(rutas or "[]") if p] or None
+        except ValueError:
+            paginas = None
+        guardar(doc_id, paginas)
+
+
 def guardar_en_segundo_plano(doc_id: int, paginas: Optional[list] = None) -> None:
     threading.Thread(target=guardar, args=(doc_id, paginas), daemon=True).start()
 

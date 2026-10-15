@@ -76,12 +76,14 @@ def apply_rounding(
         # Round to nearest integer - 0.01 (e.g. 4.99, 9.99, 14.99)
         floored = math.floor(value)
         return floored + 0.99 if floored >= 1 else max(0.01, round(value, 2))
+    # round(…, 6) antes de redondear hacia arriba: sin él, 0,15 (que en el ordenador es 0,15000000000000002)
+    # subía a 0,20 en vez de quedarse en 0,15
     if rounding_mode == "ceil_10cents":
         # Round UP to the nearest 0.10 (e.g. 1.52 → 1.60, 1.61 → 1.70)
-        return math.ceil(value * 10) / 10
+        return math.ceil(round(value * 10, 6)) / 10
     if rounding_mode == "ceil_5cents":
         # Round UP to the nearest 0.05 (e.g. 1.52 → 1.55, 1.56 → 1.60)
-        return math.ceil(value * 20) / 20
+        return math.ceil(round(value * 20, 6)) / 20
     return round(value, decimals)
 
 
@@ -107,11 +109,10 @@ def calculate_pricing(
 
     pvp_con_iva = apply_rounding(pvp_con_iva_raw, rounding_mode, decimals)
 
-    if rounding_mode == "psychological":
-        # Back-calculate pvp_sin_iva from the rounded pvp_con_iva
-        pvp_sin_iva = round(pvp_con_iva / (1 + iva_pct / 100), decimals)
-    else:
-        pvp_sin_iva = apply_rounding(pvp_sin_iva_raw, rounding_mode, decimals)
+    # El precio con IVA es el de la etiqueta. El sin IVA (el que va a TreyFACT, que le suma el IVA) se saca
+    # de él con 4 decimales, para que TreyFACT cobre lo mismo que pone la etiqueta. Antes se redondeaban
+    # por separado y no cuadraban (etiqueta 4,25 €, TreyFACT 4,30 €).
+    pvp_sin_iva = round(pvp_con_iva / (1 + (iva_pct or 0) / 100), 4)
 
     return {"pvp_sin_iva": pvp_sin_iva, "pvp_con_iva": pvp_con_iva}
 

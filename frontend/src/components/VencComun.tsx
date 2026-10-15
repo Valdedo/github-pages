@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { putVencAjustes, describeApiError, type VencAjustes, type VencFila, type VencResumen, type VencSemana } from '../api/client';
+import { euros as eurosES } from '../lib/texto';
+import { esConsulta } from '../auth';
 
-const fmtEur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', useGrouping: 'always' } as unknown as Intl.NumberFormatOptions);
-export const euros = (v?: number | null) => fmtEur.format(v ?? 0);
-export const euroCorto = (v: number) => v >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} mil €` : euros(v).replace(/,00\s/, ' ');
+export const euros = (v?: number | null) => eurosES(v ?? 0);
+export const euroCorto = (v: number) => v >= 1000 ? `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} mil €` : euros(v).replace(/,00(?=\s)/, '');
 const mesCorto = (d: Date) => d.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
 export const fechaCorta = (iso?: string | null) => {
   if (!iso) return '';
@@ -57,8 +58,13 @@ export function AvisoAtrasado({ dias }: { dias: number }) {
     <div className="venc-atrasado" role="alert">
       <span className="venc-grandes-ico" aria-hidden>!</span>
       <span className="venc-fac-txt">
-        <b>El script de facturas no manda datos desde hace {dias} días</b>
-        <small>Lo de aquí puede estar viejo. Abre el script en script.google.com y mira «Ejecuciones» por si da error.</small>
+        {esConsulta() ? <>
+          <b>Los vencimientos no se actualizan desde hace {dias} días</b>
+          <small>Puede que no esté al día. Avisa a Andrés.</small>
+        </> : <>
+          <b>El script de facturas no manda datos desde hace {dias} días</b>
+          <small>Lo de aquí puede estar viejo. Abre el script en script.google.com y mira «Ejecuciones» por si da error.</small>
+        </>}
       </span>
     </div>
   );

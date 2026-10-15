@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { updateSettings } from '../api/client';
 import { mensajeError } from '../lib/descargas';
 import type { AppSettings, MarginTier } from '../types/index';
+import { numES } from '../lib/texto';
 
 interface Props {
   settings: AppSettings;
@@ -19,7 +20,7 @@ const num = (s: string): number | null => {
   if (!t) return null;
   return /^-?\d*\.?\d+$/.test(t) ? parseFloat(t) : NaN;
 };
-const eur = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const eur = (n: number) => `${numES(n)} €`;
 
 /** Comprueba los tramos. Devuelve los tramos listos para guardar o la lista de problemas. */
 function revisar(tramos: TramoTxt[]): { ok: MarginTier[] } | { errores: string[] } {

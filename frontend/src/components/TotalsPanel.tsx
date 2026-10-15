@@ -1,4 +1,5 @@
 import type { Article } from '../types/index';
+import { numES } from '../lib/texto';
 
 interface Props {
   articles: Article[];
@@ -25,11 +26,11 @@ export function TotalsPanel({ articles }: Props) {
       <div className="card-body" style={{ padding: '12px 16px' }}>
         <div className="totals-grid">
           <Stat label="Artículos"      value={String(articles.length)}     unit=""  />
-          <Stat label="Unidades"       value={totalUnits.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}        unit=""  />
-          <Stat label="Coste total"    value={totalCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}         unit="€" muted />
-          <Stat label="Beneficio est." value={totalBenefit.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}      unit="€" highlight={totalBenefit >= 0 ? 'positive' : 'negative'} />
-          <Stat label="PVP total c/IVA" value={totalPvpConIva.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  unit="€" highlight="brand" />
-          <Stat label="Margen medio"   value={avgMargen.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}         unit="%" highlight="accent" />
+          <Stat label="Unidades"       value={numES(totalUnits, 0, 0)}        unit=""  />
+          <Stat label="Coste total"    value={numES(totalCost, 2, 2)}         unit="€" muted />
+          <Stat label="Beneficio est." value={numES(totalBenefit, 2, 2)}      unit="€" highlight={totalBenefit >= 0 ? 'positive' : 'negative'} />
+          <Stat label="PVP total c/IVA" value={numES(totalPvpConIva, 2, 2)}  unit="€" highlight="brand" />
+          <Stat label="Margen medio"   value={numES(avgMargen, 1, 1)}         unit="%" highlight="accent" />
         </div>
       </div>
     </div>

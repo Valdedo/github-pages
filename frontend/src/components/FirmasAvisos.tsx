@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PenLine, Receipt } from 'lucide-react';
 import { getFirmasAvisos, type FirmasAvisos as Avisos } from '../api/client';
+import { euros } from '../lib/texto';
 
-const euros = (v: number) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
 /** Avisos de albaranes que se están quedando atrás (en Inicio y en Firmas). */
 export function FirmasAvisos() {

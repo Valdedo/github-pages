@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -30,6 +30,10 @@ class ClientDeliveryNoteResponse(BaseModel):
     # Orden de carga en la que va (si va en alguna) y cómo está esa entrega
     carga_id: Optional[int] = None
     carga_estado: Optional[str] = None
+    # La hoja de entrega ya está firmada pero el albarán cambió después de cargar: la firma no se le pasó sola
+    firma_entrega: Optional[str] = None
+    # Quién firmó otras veces por este cliente (sugerencias al firmar; solo en la ficha)
+    firmantes: List[str] = []
     created_at: datetime
 
     model_config = {"from_attributes": True}

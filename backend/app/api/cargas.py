@@ -106,6 +106,9 @@ class EntregaOut(BaseModel):
     treyfact_at: Optional[datetime] = None
     foto_entrega: Optional[str] = None
     drive_at: Optional[datetime] = None
+    albaran_cambiado: bool = False
+    # Quién firmó otras veces por este cliente (sugerencias al firmar)
+    firmantes: List[str] = []
     lineas: List[LineaOut] = []
 
     class Config:
@@ -150,12 +153,18 @@ def _ent(e: EntregaCarga) -> EntregaOut:
     return out
 
 
-def _out(o: OrdenCarga, db: Optional[Session] = None) -> OrdenOut:
+def _out(o: OrdenCarga, db: Optional[Session] = None, parecidas: bool = True) -> OrdenOut:
+    entregas = [_ent(e) for e in o.entregas]
+    if db is not None:
+        from app.api.firmas import firmantes
+        for out, e in zip(entregas, o.entregas):
+            if e.estado != "entregada" and e.albaran_id and e.albaran:
+                out.firmantes = firmantes(db, e.albaran)
     return OrdenOut(
         id=o.id, estado=o.estado, fotos=json.loads(o.fotos or "[]"), texto=o.texto, notas=o.notas,
         creado_por=o.creado_por, enviada_at=o.enviada_at, created_at=o.created_at,
-        entregas=[_ent(e) for e in o.entregas],
-        parecidas=_parecidas(db, o) if db is not None else [],
+        entregas=entregas,
+        parecidas=_parecidas(db, o) if db is not None and parecidas else [],
     )
 
 
@@ -365,7 +374,8 @@ def foto(nombre: str):
 def ver(oid: int, request: Request, db: Session = Depends(get_db)):
     o = _orden(db, oid)
     _suya(request, o)
-    return _out(o, None if _es_reparto(request) else db)
+    # Melchor no ve las de otras órdenes, pero sí quién suele firmar por cada cliente
+    return _out(o, db, parecidas=not _es_reparto(request))
 
 
 class Orden(BaseModel):
@@ -507,6 +517,7 @@ async def releer(eid: int, db: Session = Depends(get_db)):
     e.cliente = datos["cliente"][:200]
     e.lugar = datos["lugar"] or e.lugar
     e.dudas = None
+    e.albaran_cambiado = False  # ya lleva los materiales de la versión nueva
     db.flush(); db.refresh(e.orden); _estado(e.orden)
     db.commit()
     return _out(_orden(db, e.orden_id), db)
@@ -632,7 +643,15 @@ async def firmar(
         db.flush(); db.refresh(e.orden); _estado(e.orden)
         db.commit()
     db.refresh(e)
-    if e.albaran_id:
+    if e.albaran_id and e.albaran_cambiado:
+        # Se subió otra versión del albarán después de cargar: la firma no se le pasa sola (podría llevar
+        # cosas que no iban en el camión). En la tienda se comprueba y se le pasa con un toque.
+        n = e.albaran
+        if n is not None and n.status == "pendiente":
+            n.nota = (f"Ojo: la hoja de entrega {e.numero} se firmó con la versión anterior de este albarán. "
+                      "Si lo entregado coincide, pulsa «Pasarle la firma de la entrega».")
+            db.commit()
+    elif e.albaran_id:
         # La misma firma va al albarán de TreyFACT, que queda firmado y archivado por cliente
         from app.api.firmas import firmar_desde_entrega
         firmar_desde_entrega(db, e.albaran_id, png, e.firmado_por, e.firmado_dni or "", e.firmado_at)
@@ -641,8 +660,13 @@ async def firmar(
     backup_en_segundo_plano()
     if _es_reparto(request):
         from app.services import push_service
-        detalle = (f"Firmado por {e.firmado_por}. El albarán {e.albaran.numero} queda firmado." if e.albaran_id and e.albaran
-                   else f"Firmado por {e.firmado_por}. Falta pasarlo a TreyFACT.")
+        if e.albaran_id and e.albaran and e.albaran_cambiado:
+            detalle = (f"Firmado por {e.firmado_por}. Ojo: el albarán {e.albaran.numero} cambió después de cargar; "
+                       "revísalo y pásale la firma.")
+        elif e.albaran_id and e.albaran:
+            detalle = f"Firmado por {e.firmado_por}. El albarán {e.albaran.numero} queda firmado."
+        else:
+            detalle = f"Firmado por {e.firmado_por}. Falta pasarlo a TreyFACT."
         push_service.avisar(push_service.a_tienda, f"Entregado: {e.cliente}", detalle, f"/cargas/{e.orden_id}",
                             f"entrega-{e.id}")
     return _ent(e)

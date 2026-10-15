@@ -1,5 +1,5 @@
 /** Catálogo de tarifas (en pruebas): pegatinas y fotos por familia, y formato de precios. */
-import { normaliza } from './texto';
+import { normaliza, numES } from './texto';
 
 export interface TarifaResumen {
   id: string; nombre: string; sub: string;
@@ -210,7 +210,7 @@ function fotoZabaleta(fam: string, d: string): string {
   return r && r[1] ? FOTOS_ZAB[r[1]] ?? '' : '';
 }
 
-const fmt = (v: number, dec = 2) => v.toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmt = (v: number, dec = 2) => numES(v, dec, dec);
 /** «7,50 €» */
 export const eur = (v: number | null | undefined) => v == null ? '—' : `${fmt(v)} €`;
 /** «+5,6 %» */

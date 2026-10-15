@@ -7,7 +7,7 @@ import { CodigoInput } from './CodigoInput';
 
 const soloNumeros = (v: string) => v.replace(/\D/g, '').slice(0, 8);
 
-/** Cada persona cambia su propio código (4 a 8 números). Pide el actual y repetir el nuevo. */
+/** Cada persona cambia su propio código (6 a 8 números). Pide el actual y repetir el nuevo. */
 export function MiCodigoModal({ onClose }: { onClose: () => void }) {
   const [actual, setActual] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -49,14 +49,14 @@ export function MiCodigoModal({ onClose }: { onClose: () => void }) {
             <label className="form-label codigos-campo">Tu código de ahora
               <CodigoInput value={actual} onChange={setActual} autoFocus label="Tu código de ahora" />
             </label>
-            <label className="form-label codigos-campo">Código nuevo <small>(de 4 a 8 números)</small>
+            <label className="form-label codigos-campo">Código nuevo <small>(de 6 a 8 números)</small>
               <CodigoInput value={codigo} onChange={v => setCodigo(soloNumeros(v))} nuevo numerico label="Código nuevo" />
             </label>
             <label className="form-label codigos-campo">Repite el código nuevo
               <CodigoInput value={repite} onChange={v => setRepite(soloNumeros(v))} nuevo numerico label="Repite el código nuevo" />
             </label>
             {distintos && <p className="acceso-error">No coincide con el código nuevo.</p>}
-            <button className="btn btn-primary" disabled={guardando || !actual.trim() || codigo.length < 4 || codigo !== repite}>
+            <button className="btn btn-primary" disabled={guardando || !actual.trim() || codigo.length < 6 || codigo !== repite}>
               {guardando ? 'Guardando…' : 'Guardar'}
             </button>
             <p className="turnos-ayuda" style={{ margin: 0 }}>Si no recuerdas el de ahora, pídeselo a Andrés.</p>

@@ -117,7 +117,7 @@ def build_extraction_prompt(raw_data: dict, supplier_template: Optional[dict] = 
 
     if raw_data.get("full_text"):
         parts.append("\n=== TEXTO COMPLETO ===")
-        parts.append(raw_data["full_text"][:16000])  # limit to avoid token overflow
+        parts.append(raw_data["full_text"][:60000])  # antes 16 000: se perdían las últimas páginas y los totales
 
     return "\n".join(parts)
 
@@ -181,6 +181,53 @@ def normalize_extracted_articles(raw_articles: list) -> list:
     return normalized
 
 
+# Tope de la respuesta de la IA: unas 100 líneas de albarán. Con 8192 los albaranes largos se cortaban
+# y fallaban siempre igual al reintentar.
+MAX_SALIDA = 16000
+
+
+class LecturaError(ValueError):
+    """Error para la persona: en español y diciendo qué hacer."""
+
+
+def mensaje_para_persona(e: Exception) -> str:
+    """Lo que se guarda en el albarán cuando no se pudo leer (se enseña en «No se pudo leer este albarán»)."""
+    if isinstance(e, LecturaError):
+        return str(e)[:500]
+    return ("No se pudo leer el albarán. Vuelve a leerlo desde «Más» → «Volver a leer»; si sigue fallando, "
+            f"avisa a Andrés. (Detalle: {e})")[:500]
+
+
+async def _pedir(client, contenido) -> str:
+    """Una petición a la IA. Los fallos de la IA salen en español y diciendo qué hacer."""
+    import anthropic
+    try:
+        message = await client.messages.create(
+            model=settings.claude_model,
+            max_tokens=MAX_SALIDA,
+            system=EXTRACTION_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": contenido}],
+        )
+    except anthropic.RateLimitError:
+        raise LecturaError("La IA está saturada ahora mismo. Espera un par de minutos y vuelve a leerlo («Más» → «Volver a leer»).")
+    except anthropic.APIStatusError as e:
+        if e.status_code >= 500:
+            raise LecturaError("La IA está saturada o no responde. Vuelve a leerlo en unos minutos («Más» → «Volver a leer»).")
+        raise LecturaError(f"La IA no pudo leer el albarán. Vuelve a probar; si sigue, avisa a Andrés. (Detalle: {e.message})")
+    except anthropic.APIConnectionError:
+        raise LecturaError("No se pudo conectar con la IA. Vuelve a leerlo en unos minutos («Más» → «Volver a leer»).")
+    if message.stop_reason == "max_tokens":
+        raise LecturaError("El albarán es demasiado largo para leerlo de una vez. Súbelo en dos partes "
+                           "(por ejemplo, una foto por cada página).")
+    return message.content[0].text.strip()
+
+
+def _cliente_ia():
+    import anthropic
+    # Reintenta solo si la IA está saturada un momento (antes, 2 veces)
+    return anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key, max_retries=4)
+
+
 async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] = None) -> dict:
     """Use Claude API to intelligently extract structured data from raw text/tables.
 
@@ -190,11 +237,9 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
         Exception if the API call fails (so callers can set error status).
     """
     if not settings.anthropic_api_key:
-        raise ValueError("ANTHROPIC_API_KEY no está configurada. Ve a los ajustes del servidor.")
+        raise LecturaError("Falta la clave de la IA en el servidor. Avisa a Andrés.")
 
-    import anthropic
-    # Use AsyncAnthropic so we don't block the event loop during the API call
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = _cliente_ia()
 
     prompt = build_extraction_prompt(raw_data, supplier_template)
 
@@ -205,14 +250,7 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
                 "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
                 "sin bloques de código markdown, sin comillas extra."
             )
-        message = await client.messages.create(
-            model=settings.claude_model,
-            max_tokens=8192,
-            system=EXTRACTION_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        response_text = message.content[0].text.strip()
+        response_text = await _pedir(client, prompt)
 
         # Strip markdown code blocks if present
         if response_text.startswith("```"):
@@ -225,7 +263,8 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
             if attempt == 0:
                 logger.warning(f"Claude returned invalid JSON on attempt 1, retrying: {e}")
                 continue
-            raise ValueError(f"Claude devolvió JSON inválido tras reintento: {e}\nRespuesta: {response_text[:300]}")
+            logger.warning("La IA no devolvió JSON válido tras reintentar: %s · %s", e, response_text[:300])
+            raise LecturaError("La IA no devolvió bien los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
 
 
 def _image_to_base64_block(source) -> dict:
@@ -289,11 +328,9 @@ async def extract_with_claude_vision(
         Exception if API call fails.
     """
     if not settings.anthropic_api_key:
-        raise ValueError("ANTHROPIC_API_KEY no está configurada. Ve a los ajustes del servidor.")
+        raise LecturaError("Falta la clave de la IA en el servidor. Avisa a Andrés.")
 
-    import anthropic
-
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    client = _cliente_ia()
 
     # Build image content blocks (Claude allows up to 20 images per request)
     def _bloques() -> list:  # abrir y redimensionar fotos con PIL bloquea: se hace aparte
@@ -319,14 +356,7 @@ async def extract_with_claude_vision(
     retry_content = None
     for attempt in range(2):
         msg_content = retry_content if retry_content else content
-        message = await client.messages.create(
-            model=settings.claude_model,
-            max_tokens=8192,
-            system=EXTRACTION_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": msg_content}],
-        )
-
-        response_text = message.content[0].text.strip()
+        response_text = await _pedir(client, msg_content)
         if response_text.startswith("```"):
             response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
 
@@ -346,7 +376,8 @@ async def extract_with_claude_vision(
                     )}
                 ] + [b for b in content if b["type"] == "image"]
                 continue
-            raise ValueError(f"Claude Vision devolvió JSON inválido tras reintento: {e}\nRespuesta: {response_text[:300]}")
+            logger.warning("La IA (fotos) no devolvió JSON válido tras reintentar: %s · %s", e, response_text[:300])
+            raise LecturaError("La IA no devolvió bien los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
 
 
 async def extract_multi_images(

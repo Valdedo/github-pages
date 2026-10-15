@@ -4,7 +4,11 @@
  * se guardan en el móvil y se envían solos al volver la cobertura.
  */
 import { editarLineaCarga, firmarEntregaCarga, listaEntregaCarga, type EntregaCarga } from '../api/client';
+import { getToken } from '../auth';
 import { sinRed } from './offline';
+
+/** Aviso abajo (lo enseña AvisosGlobales en App.tsx). */
+const avisar = (txt: string) => window.dispatchEvent(new CustomEvent('cf-cola-aviso', { detail: txt }));
 
 const KEY = 'cfColaCargas';
 export interface MarcaEnCola { tipo: 'marca'; lineaId: number; ok: boolean; at: string }
@@ -34,7 +38,13 @@ export const listaEnCola = (entregaId: number) =>
 /** ¿Carga confirmada como «Listo para llevar»? (también si se tocó sin cobertura) */
 export const estaLista = (e: EntregaCarga) => { const c = listaEnCola(e.id); return c ? c.lista : !!e.lista_at; };
 export function listaSinRed(entregaId: number, lista: boolean) {
-  guardar([...colaCargas().filter(x => !(x.tipo === 'lista' && x.entregaId === entregaId)), { tipo: 'lista', entregaId, lista, at: new Date().toISOString() }]);
+  // Se guarda en orden: «Desbloquear» → cambios → «Listo» tiene que llegar así al servidor (si se borraba el
+  // «Desbloquear», los cambios llegaban con la carga aún bloqueada y se perdían). Solo se sustituye el último
+  // si no hay nada en medio.
+  const c = colaCargas();
+  const ult = c[c.length - 1];
+  const base = ult && ult.tipo === 'lista' && ult.entregaId === entregaId ? c.slice(0, -1) : c;
+  guardar([...base, { tipo: 'lista', entregaId, lista, at: new Date().toISOString() }]);
 }
 
 export const aDataUrl = (b: Blob) => new Promise<string>((ok, ko) => {
@@ -67,7 +77,8 @@ export async function firmaSinRed(f: Omit<FirmaCargaEnCola, 'tipo' | 'png' | 'fo
 
 let enviando = false;
 export async function enviarColaCargas(): Promise<number> {
-  if (enviando || !colaCargas().length) return 0;
+  // Sin sesión (p. ej. le cambiaron el código) no se manda nada: todo espera a que vuelva a entrar
+  if (enviando || !colaCargas().length || !getToken()) return 0;
   enviando = true;
   let ok = 0;
   try {
@@ -86,12 +97,23 @@ export async function enviarColaCargas(): Promise<number> {
         guardar(colaCargas().filter(x => x !== it && JSON.stringify(x) !== JSON.stringify(it))); ok++;
       } catch (err) {
         if (sinRed(err)) break; // sigue sin cobertura
-        const st = (err as { response?: { status?: number } }).response?.status;
+        const st = (err as { response?: { status?: number } }).response?.status ?? 0;
+        // Sin sesión o el servidor reiniciándose (pasa al publicar): se queda todo guardado y se reintenta luego
+        if (st === 401 || st === 403 || st >= 500) break;
         const igual = (x: Item) => JSON.stringify(x) === JSON.stringify(it);
-        if (it.tipo !== 'firma' || st === 409 || st === 404) guardar(colaCargas().filter(x => !igual(x)));  // ya hecho o borrado
-        else {
+        if (it.tipo === 'firma') {
+          if (st === 409) { guardar(colaCargas().filter(x => !igual(x))); continue; }  // ya estaba firmada
+          // Nunca se tira una firma: se queda en el móvil, se avisa y se puede reintentar
           const det = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
-          guardar(colaCargas().map(x => igual(x) ? { ...it, error: typeof det === 'string' ? det : 'El servidor no la aceptó' } : x));
+          const error = st === 404
+            ? 'Esta orden ya no está en tu móvil (la han retirado o borrado en la tienda). La firma sigue guardada: avisa en la tienda.'
+            : typeof det === 'string' ? det : 'El servidor no la aceptó';
+          guardar(colaCargas().map(x => igual(x) ? { ...it, error } : x));
+          avisar(`La firma de ${it.cliente} no se pudo enviar. Ábrela para verla.`);
+        } else {
+          // Un «cargado» o «listo» que ya no vale (carga firmada o bloqueada, material quitado): se quita y se avisa
+          guardar(colaCargas().filter(x => !igual(x)));
+          if (st === 409) avisar('Un cambio hecho sin cobertura no se guardó: esa carga ya estaba confirmada o firmada.');
         }
       }
     }
@@ -107,6 +129,12 @@ export function arrancarColaCargas() {
   window.addEventListener('online', () => { enviarColaCargas(); });
   setInterval(() => { if (navigator.onLine) enviarColaCargas(); }, 30000);
   enviarColaCargas();
+}
+
+/** Volver a mandar una firma que el servidor no aceptó (p. ej. después de arreglarlo en la tienda). */
+export function reintentarFirmaCarga(entregaId: number) {
+  guardar(colaCargas().map(x => x.tipo === 'firma' && x.entregaId === entregaId ? { ...x, error: undefined } : x));
+  return enviarColaCargas();
 }
 
 /** Quitar del móvil una firma que el servidor no aceptó (después de verla). */

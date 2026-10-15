@@ -5,7 +5,7 @@ import {
   Check, Trash2, LogOut, Clock,
 } from 'lucide-react';
 import { getTarifas, describeApiError } from '../api/client';
-import { normaliza } from '../lib/texto';
+import { normaliza, numES } from '../lib/texto';
 import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import { useAnchoVentana } from '../hooks/useIsMobile';
@@ -37,7 +37,7 @@ const RECIENTES = 'cfMostradorRecientes';
 const COSTE = 'cfMostradorCoste';
 const leer = <T,>(k: string, def: T): T => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) as T : def; } catch { return def; } };
 const guardar = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* nada */ } };
-const num = (v: number) => v.toLocaleString('es-ES', { maximumFractionDigits: 2 });
+const num = (v: number) => numES(v, 0, 2);
 const margen = (m: TarifaMedida) => m.pvp != null && m.coste ? (m.pvp / m.coste - 1) * 100 : null;
 
 function buscarArticulo(ts: Tarifa[], prov: string, ref: string): Elegido | null {
@@ -396,7 +396,10 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
   e: Elegido | null; verCoste: boolean; horizontal: boolean; onApuntar: (e: Elegido, cant: number) => void; onCerrar: () => void;
 }) {
   const [cant, setCant] = useState(1);
-  useEffect(() => setCant(1), [e?.m.ref]);
+  // Lo que se está escribiendo, tal cual: si se repintaba desde el número, «1,» perdía la coma y 1,5 acababa en 15
+  const [cantTxt, setCantTxt] = useState('1');
+  const ponCant = (v: number) => { setCant(v); setCantTxt(String(Math.round(v * 1000) / 1000).replace('.', ',')); };
+  useEffect(() => ponCant(1), [e?.m.ref]);
   if (!e) {
     return (
       <div className="mo-panel mo-panel-vacio">
@@ -444,11 +447,16 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
       {m.pvp != null && (
         <div className="mo-apuntar">
           <div className="mo-cant" role="group" aria-label="Cantidad">
-            <button type="button" onClick={() => setCant(c => Math.max(paso, c - paso))} aria-label="Uno menos" disabled={cant <= paso}><Minus size={28} /></button>
-            <input inputMode="decimal" value={String(cant).replace('.', ',')} aria-label="Cantidad"
-              onChange={ev => { const v = parseFloat(ev.target.value.replace(',', '.')); if (!isNaN(v) && v > 0) setCant(v); else if (ev.target.value === '') setCant(0); }}
-              onBlur={() => { if (!cant) setCant(1); }} />
-            <button type="button" onClick={() => setCant(c => c + paso)} aria-label="Uno más"><Plus size={28} /></button>
+            <button type="button" onClick={() => ponCant(Math.max(paso, cant - paso))} aria-label="Uno menos" disabled={cant <= paso}><Minus size={28} /></button>
+            <input inputMode="decimal" value={cantTxt} aria-label="Cantidad"
+              onChange={ev => {
+                const t = ev.target.value.replace(/[^\d.,]/g, '').replace('.', ',');
+                setCantTxt(t);
+                const v = parseFloat(t.replace(',', '.'));
+                setCant(!isNaN(v) && v > 0 ? v : 0);
+              }}
+              onBlur={() => ponCant(cant > 0 ? cant : 1)} />
+            <button type="button" onClick={() => ponCant(cant + paso)} aria-label="Uno más"><Plus size={28} /></button>
           </div>
           <button type="button" className="mo-apuntar-btn" onClick={() => cant > 0 && onApuntar(e, cant)} disabled={!cant}>
             <ClipboardList size={24} /> Apuntar{cant > 0 && m.pvp != null ? <small>{eur(cant * m.pvp)}</small> : null}

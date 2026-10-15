@@ -21,6 +21,7 @@ export interface Document {
   validacion_notas?: string; // JSON string with {notas, discrepancias[], diferencia}
   terminado_at?: string | null;
   drive_file_id?: string | null;
+  repetido?: boolean; // al subir: ya estaba subido y se devuelve el que había
   drive_url?: string | null;
   drive_carpeta?: string | null;
   drive_pendiente?: boolean | null;
@@ -291,5 +292,9 @@ export interface ClientDeliveryNote {
   reparto_orden?: number | null;
   carga_id?: number | null;      // orden de carga en la que va
   carga_estado?: 'pendiente' | 'entregada' | null;
+  /** La hoja de entrega está firmada pero el albarán cambió después de cargar: la firma no se le pasó sola. */
+  firma_entrega?: string | null;
+  /** Quién firmó otras veces por este cliente (solo en la ficha del albarán). */
+  firmantes?: string[];
   created_at: string;
 }

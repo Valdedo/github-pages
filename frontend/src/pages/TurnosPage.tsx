@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, MessageCircle, Copy, Lock, Plus, Trash2, AlertTriangle, Pencil, X } from 'lucide-react';
 import {
   getCuadrante, getTurnosAjustes, putTurnoCambio, postVacaciones, deleteVacaciones, postFestivo, deleteFestivo,
@@ -138,9 +138,9 @@ function CrearEncargado({ onHecho }: { onHecho: () => void }) {
         <b>Andrés: crea tu código de encargado</b>
         <small>Solo con ese código se pueden cambiar turnos, vacaciones y festivos. El resto solo los ve. Este dispositivo quedará con tu sesión.</small>
       </div>
-      <input className="form-input" type="password" autoComplete="new-password" autoCapitalize="off" placeholder="Tu código (mín. 4)"
+      <input className="form-input" type="password" autoComplete="new-password" autoCapitalize="off" placeholder="Tu código (mín. 6)"
         value={codigo} onChange={e => setCodigo(e.target.value)} aria-label="Tu código de encargado" />
-      <button className="btn btn-primary" disabled={enviando || codigo.trim().length < 4}>{enviando ? 'Guardando…' : 'Crear código'}</button>
+      <button className="btn btn-primary" disabled={enviando || codigo.trim().length < 6}>{enviando ? 'Guardando…' : 'Crear código'}</button>
       {error && <p className="acceso-error" role="alert" style={{ flexBasis: '100%' }}>{error}</p>}
     </form>
   );
@@ -379,6 +379,13 @@ export function TurnosPage() {
   const [diaSel, setDiaSel] = useState<string | null>(null);
   // De una persona: en el móvil, primero la semana (se lee mejor); en el ordenador, el mes
   const [vistaP, setVistaP] = useState<'semana' | 'mes'>(() => (window.innerWidth <= 768 ? 'semana' : 'mes'));
+  // La persona elegida, siempre a la vista en la fila de botones (en el móvil se salía por la derecha)
+  const chipsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const fila = chipsRef.current;
+    const on = fila?.querySelector<HTMLElement>('.turno-chip.on');
+    if (fila && on && fila.scrollWidth > fila.clientWidth) fila.scrollLeft = on.offsetLeft - (fila.clientWidth - on.offsetWidth) / 2;
+  }, [quien, aj?.empleados?.length]);
   const [tocar, setTocar] = useState<number | null>(null);
   const [verPasados, setVerPasados] = useState(false);
   const [hayEncargado, setHayEncargado] = useState(true);
@@ -490,7 +497,7 @@ export function TurnosPage() {
 
       {!hayEncargado && getRol() !== 'reparto' && <CrearEncargado onHecho={() => { setHayEncargado(true); setAdmin(true); show('Código de encargado creado. Ya puedes cambiar los turnos.'); }} />}
 
-      <div className="turnos-chips" role="tablist" aria-label="De quién">
+      <div className="turnos-chips" role="tablist" aria-label="De quién" ref={chipsRef}>
         <button role="tab" aria-selected={quien === 'todos'} className={`turno-chip${quien === 'todos' ? ' on' : ''}`} onClick={() => elegir('todos')}>Todos · semana</button>
         {(aj?.empleados ?? []).map(e => (
           <button key={e.id} role="tab" aria-selected={quien === e.id} className={`turno-chip${quien === e.id ? ' on' : ''}`}
@@ -598,6 +605,11 @@ export function TurnosPage() {
         <section className="turnos-semana" aria-label={`Semana de ${persona.nombre}`} style={{ ['--emp' as string]: persona.color }}
           onTouchStart={e => setTocar(e.touches[0].clientX)}
           onTouchEnd={e => { if (tocar == null) return; const dx = e.changedTouches[0].clientX - tocar; setTocar(null); if (Math.abs(dx) > 70) moverSemana(dx < 0 ? 1 : -1); }}>
+          {/* De quién es la semana (en el móvil el botón de la persona puede quedar fuera de la pantalla) */}
+          <div className="tsem-quien">
+            <span className="turnohoy-avatar" style={{ background: persona.color }}>{persona.nombre.charAt(0)}</span>
+            <b>{quien === yo ? `Tus turnos · ${persona.nombre}` : `Turnos de ${persona.nombre}`}</b>
+          </div>
           {persona.dias.map(d => {
             const fest = c?.festivos[d.fecha];
             const domingo = deIso(d.fecha).getDay() === 0;

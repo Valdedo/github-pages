@@ -47,6 +47,8 @@ export function HomePage() {
 
   const handleUploaded = (doc: Document) => {
     setShowUpload(false);
+    // El aviso va por el global: esta pantalla se cierra al abrir el albarán
+    if (doc.repetido) window.dispatchEvent(new CustomEvent('cf-cola-aviso', { detail: 'Ese albarán ya estaba subido: te abro el que hay' }));
     navigate(`/documento/${doc.id}`);
   };
   // Varios PDF a la vez: se quedan en la lista leyéndose
@@ -54,7 +56,11 @@ export function HomePage() {
     if (!fallidos.length) setShowUpload(false);
     setVista('pendientes');
     loadDocuments();
-    show(`${docs.length === 1 ? 'Se ha subido 1 albarán' : `Se han subido ${docs.length} albaranes`}; se están leyendo`);
+    const repes = docs.filter(d => d.repetido).length, nuevos = docs.length - repes;
+    const partes: string[] = [];
+    if (nuevos) partes.push(nuevos === 1 ? 'Se ha subido 1 albarán; se está leyendo' : `Se han subido ${nuevos} albaranes; se están leyendo`);
+    if (repes) partes.push(repes === 1 ? '1 ya estaba subido' : `${repes} ya estaban subidos`);
+    if (partes.length) show(partes.join(' · '));
   };
 
   const completed  = documents.filter(d => d.status === 'completed').length;
@@ -92,7 +98,7 @@ export function HomePage() {
               : loadError ? '—'
               : documents.length === 0 ? 'Sin albaranes todavía'
               : processing > 0
-                ? `${completed} completados · ${processing} procesando`
+                ? `${completed} leídos · ${processing} leyendo`
                 : `${documents.length} albaranes · ${completed} leídos`
             }. Sube el albarán del proveedor y la app saca los artículos y precios.
           </p>
@@ -152,7 +158,7 @@ export function HomePage() {
             <span style={{ fontSize: '12px', color: 'var(--text-3)', whiteSpace: 'nowrap', fontWeight: 500 }}>
               {search
                 ? `${filtered.length} de ${base.length}`
-                : `${base.length} albarán${base.length === 1 ? '' : 'es'}`
+                : `${base.length} ${base.length === 1 ? 'albarán' : 'albaranes'}`
               }
             </span>
           </div>
@@ -207,7 +213,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
   uploaded:   { label: 'Subido',      cls: 'badge badge-grey'    },
   processing: { label: 'Leyendo…',    cls: 'badge badge-warning' },
   completed:  { label: 'Leído',       cls: 'badge badge-success' },
-  error:      { label: 'Error',       cls: 'badge badge-danger'  },
+  error:      { label: 'No se leyó',  cls: 'badge badge-danger'  },
 };
 
 const DOT_COLOR: Record<string, string> = {

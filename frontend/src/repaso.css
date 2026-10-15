@@ -1,0 +1,97 @@
+/* ── Repaso general (15/10/2026) ───────────────────────────────────────────
+   Ajustes de usabilidad del repaso: «Volver» en el móvil, pantalla de error, filtros de Ventas plegables,
+   firma en el camión, accesos de Inicio con rótulo, unidades y flechas en tarifas… */
+
+/* «Volver» arriba a la izquierda en todas las pantallas que no son de la barra de abajo: que se vea como botón */
+@media (max-width: 768px) {
+  .mobile-header .mobile-back-btn {
+    min-height: 44px; padding: 0 16px 0 8px; margin-left: -4px; border-radius: 999px;
+    background: var(--brand-pale, #E8F5EE); color: var(--cf-bosque, #1F5A3A); font-size: 16px; font-weight: 700;
+  }
+  .mobile-header .mobile-back-btn:active { background: #d4ecdf; }
+}
+
+/* Pantalla que no se pudo abrir (sin cobertura o error): en vez de quedarse en blanco */
+.error-pantalla { max-width: 460px; margin: 40px auto; padding: 28px 22px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.error-pantalla h2 { font-family: var(--font-display); font-size: 26px; margin: 4px 0 0; }
+.error-pantalla p { margin: 0; color: var(--text-2); font-size: 16px; line-height: 1.5; }
+.error-pantalla-botones { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 8px; }
+.error-pantalla-botones .btn { width: 100%; justify-content: center; text-decoration: none; }
+
+/* Albaranes de venta: buscador con ✕ y, en el móvil, los desplegables dentro de «Filtrar» */
+.firmas-busca { display: flex; gap: 8px; margin: 12px 0 16px; flex-wrap: wrap; align-items: center; }
+.firmas-busca-campo { position: relative; flex: 1 1 200px; min-width: 0; }
+.firmas-busca-x { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border: 0; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; cursor: pointer; }
+.firmas-filtros { display: contents; }
+.firmas-filtrar-btn { display: none; }
+@media (max-width: 768px) {
+  .firmas-busca-campo { flex: 1 1 0; min-width: 150px; }
+  /* En el móvil «Quitar filtros» va debajo; con solo la búsqueda ya está la ✕ de la caja */
+  .firmas-quitar { order: 10; margin-left: auto; }
+  .firmas-quitar.solo-busca { display: none; }
+  .firmas-filtrar-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 16px; border-radius: 999px;
+    border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-1); font-weight: 600; white-space: nowrap; }
+  .firmas-filtrar-btn[aria-expanded="true"] { border-color: var(--cf-bosque); background: var(--brand-light); color: var(--cf-bosque); }
+  .firmas-filtrar-btn.activo { background: var(--cf-bosque); border-color: var(--cf-bosque); color: #fff; }
+  .firmas-filtros { display: none; flex-basis: 100%; flex-direction: column; gap: 8px; }
+  .firmas-filtros.abiertos { display: flex; }
+  .firmas-filtros select.form-input { max-width: none !important; width: 100%; flex: none !important; min-height: 48px; }
+}
+
+/* Inicio: accesos con el rótulo más grande; en el móvil ocupan toda su columna */
+@media (max-width: 768px) {
+  .inicio-rapidos.tres .acceso-peg { max-width: none; width: 100%; padding: 2px; }
+}
+
+/* Vencimientos en Inicio: el día es un botón que se pliega en el móvil (hoy, abierto) */
+button.venc-dia-cab { border: 0; background: none; padding: 0; margin: 0; width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.venc-dia-cab:disabled { cursor: default; opacity: 1; }
+.venc-dia-n { display: none; }
+@media (min-width: 769px) { button.venc-dia-cab { cursor: default; pointer-events: none; } }
+@media (max-width: 768px) {
+  .venc-dia-n { display: inline-flex; align-items: center; gap: 2px; font-weight: 600; color: var(--text-2); }
+  .venc-dia-n svg { transition: transform .2s var(--ease-out); }
+  .venc-dia:not(.plegado) .venc-dia-n svg { transform: rotate(180deg); }
+  .venc-dia.plegado .venc-lista { display: none; }
+  .venc-dia.plegado { gap: 0; }
+}
+
+/* Firma en el camión: lo que se entrega plegado, sugerencias de nombre y «Firmar» siempre a la vista */
+.carga-firma-resumen { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 0; background: none;
+  padding: 0; margin: 0 0 6px; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.carga-firma-resumen:disabled { cursor: default; }
+.carga-firma-resumen .seccion-titulo { margin: 0; }
+.carga-firma-ver { display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 700; color: var(--cf-bosque); white-space: nowrap; }
+.carga-firma-resumen[aria-expanded="true"] .carga-firma-ver svg { transform: rotate(180deg); }
+.carga-firma-mas { color: var(--text-3); list-style: none; }
+.firmantes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.firmante { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface);
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--text-1); cursor: pointer; }
+.firmante.on { background: var(--cf-bosque); border-color: var(--cf-bosque); color: #fff; }
+.carga-firma .carga-foto-entrega { margin-top: 10px; }
+.carga-firma-botones { position: sticky; bottom: 0; z-index: 2; background: var(--bg); margin: 14px -16px 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 16px -10px rgb(18 58 38 / .25); }
+
+/* Ficha del albarán de venta: firma de la hoja de entrega pendiente de pasar y «Más opciones» (borrar, anular) */
+.firma-de-entrega { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 14px; background: #FFF6E5; border: 1px solid #F4D49B; }
+.firma-de-entrega > svg { color: #8A5A00; flex-shrink: 0; margin-top: 2px; }
+.firma-de-entrega > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.firma-de-entrega small { color: var(--text-2); font-size: 13.5px; line-height: 1.4; }
+.firma-de-entrega .btn { align-self: flex-start; margin-top: 4px; }
+.firma-mas-opciones { margin-top: 18px; padding-top: 10px; border-top: 1px dashed var(--border-strong); }
+.firma-mas-opciones summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text-3); min-height: 40px; display: flex; align-items: center; }
+.firma-mas-opciones[open] summary { margin-bottom: 4px; }
+.firma-mas-opciones .firma-borrar { display: flex; margin-top: 6px; }
+
+/* Tarifas: unidad del grupo en el título y «subió/bajó» con flecha en vez de bolita de color */
+.tf-grupo-ud { font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--text-3); text-transform: none; letter-spacing: 0; }
+.tf-chip strong small { font-size: 11px; font-weight: 600; color: var(--text-3); margin-left: 1px; }
+.tf-chip i.sube, .tf-chip i.baja, .tf-leyenda i.sube, .tf-leyenda i.baja, i.tf-punto.sube, i.tf-punto.baja {
+  width: auto; height: auto; border-radius: 0; background: none !important; font-style: normal; font-size: 10px; line-height: 1; }
+.tf-chip i.sube::before, .tf-leyenda i.sube::before, i.tf-punto.sube::before { content: '▲'; color: #C2410C; }
+.tf-chip i.baja::before, .tf-leyenda i.baja::before, i.tf-punto.baja::before { content: '▼'; color: #1F8A4C; }
+
+/* Turnos: de quién es la semana */
+.tsem-quien { display: flex; align-items: center; gap: 10px; margin: 0 2px 8px; font-size: 16px; }
+.tsem-quien .turnohoy-avatar { width: 30px; height: 30px; font-size: 15px; }

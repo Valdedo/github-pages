@@ -71,7 +71,8 @@ export function RepartoPage() {
   const entregadoHoy = firmadosHoy.length + esperando.length;
   const otros = pendientes.length - (verTodos ? 0 : camion.length);
   const porCargar = cargasPendientes(cargas);
-  const verPendientes = (n: number) => n === 1 ? 'Ver el pendiente de la tienda' : `Ver los ${n} pendientes de la tienda`;
+  // Albaranes de venta sin firmar de la tienda (para firmar uno que no va en ninguna carga, p. ej. si recogen en el almacén)
+  const verPendientes = (n: number) => n === 1 ? 'Firmar otro albarán de la tienda (1)' : `Firmar otro albarán de la tienda (${n})`;
 
   // Deja los del camión guardados en el móvil para abrirlos sin cobertura
   const idsCamion = camion.map(n => n.id).join(',');
@@ -85,7 +86,7 @@ export function RepartoPage() {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div>
             <span>Hola, {nombre}</span>
-            <h1>{camion.length ? `${camion.length} en el camión` : porCargar ? (porCargar === 1 ? '1 carga por preparar' : `${porCargar} cargas por preparar`) : entregadoHoy > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
+            <h1>{camion.length ? `${camion.length} en el camión` : porCargar ? (porCargar === 1 ? '1 carga pendiente' : `${porCargar} cargas pendientes`) : entregadoHoy > 0 ? 'Todo entregado' : 'Camión vacío'}</h1>
           </div>
           <button className="btn btn-sm" style={{ marginLeft: 'auto', background: 'rgb(255 255 255 / .14)', color: '#fff' }} onClick={() => load()} aria-label="Actualizar">
             <RefreshCw size={16} /> Actualizar
@@ -126,7 +127,7 @@ export function RepartoPage() {
 
       {verTodos && (
         <div className="reparto-todos">
-          Todos los pendientes de la tienda ({pendientes.length})
+          Albaranes de la tienda sin firmar ({pendientes.length})
           <button className="btn btn-ghost btn-sm" onClick={() => setVerTodos(false)}>Ver solo el camión</button>
         </div>
       )}
@@ -170,7 +171,7 @@ export function RepartoPage() {
           ))}
           {!verTodos && otros > 0 && (
             <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'center', color: 'var(--text-3)' }} onClick={() => setVerTodos(true)}>
-              {otros === 1 ? 'Ver también el otro pendiente de la tienda' : `Ver también los otros ${otros} pendientes de la tienda`}
+              {otros === 1 ? 'Ver también el otro albarán sin firmar de la tienda' : `Ver también los otros ${otros} albaranes sin firmar de la tienda`}
             </button>
           )}
         </div>
