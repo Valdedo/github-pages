@@ -47,19 +47,24 @@ export interface FichaTarifa {
   codigo?: string | null; subcategoria?: string | null; redondeo?: string | null;
   compras?: number | null; minimo?: number | null; nota?: string | null; apunte?: string | null;
   original?: string | null; tipo?: string | null; foto?: string | null;
-  // Isoltubex: PVP de la tarifa del fabricante y de dónde sale el coste (no trae facturas)
+  // Isoltubex y Dinak: PVP de la tarifa del fabricante y de dónde sale el coste (no traen facturas)
   pvp_fab?: number | null; origen?: string | null;
+  /** De quién es ese PVP («Isoltubex», «Dinak 2026») y qué se dice en el panel en vez del nº de factura */
+  pvp_fab_de?: string | null; origen_corto?: string | null;
   // Vista nueva: códigos antiguos, otros códigos con los que se factura, comodín y metros del rollo o barra
   antes?: string[] | null; tambien?: { codigo: string; precio: number | null; fecha: string | null }[] | null;
   comodin?: boolean; metros?: number | null;
 }
 
-/** Proveedores que llegarán más adelante (se ven apagados). */
+/** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están, en pruebas (oct. 2026): a quien
+ *  aún no los ve le siguen saliendo aquí. */
 export const PROXIMAMENTE = [
   { id: 'pladur', nombre: 'Pladur', sub: 'Construdeco · placas, perfilería y pastas', pegatina: 'prov-pladur' },
   { id: 'dinak', nombre: 'Dinak', sub: 'Construdeco · chimeneas', pegatina: 'prov-dinak' },
 ];
-export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla' };
+export const PEGATINA_PROVEEDOR: Record<string, string> = {
+  hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla', pladur: 'prov-pladur', dinak: 'prov-dinak',
+};
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
 export const pegatina = (nombre: string) =>
@@ -117,12 +122,26 @@ const ISO_FAMILIA: Record<string, string> = {
   'iso-acc-expansion': 'i2041', 'iso-acc-compresion': 'i1294', 'iso-colector': 'i1162', 'iso-acc-laton': 'i2410',
   'iso-herramienta': 'i1231',
 };
+// Familias de Pladur y Dinak (Construdeco, oct. 2026): van antes porque «Chimenea…» caería en la de Zabaleta
+const CONSTRUDECO: [RegExp, string][] = [
+  [/^placas$/, 'pla-placas'], [/^perfileria$/, 'pla-perfileria'], [/^accesorios$/, 'pla-accesorios'], [/^pastas y yesos/, 'pla-pastas'],
+  [/^chimenea doble pared/, 'dk-doble'], [/^chimenea simple pared/, 'dk-simple'], [/^pellets deko/, 'dk-pellets'],
+  [/^reducciones y accesorios/, 'dk-simple'],
+];
+/** Foto de la familia cuando no hay artículo elegido */
+const CONSTRUDECO_FAMILIA: Record<string, string> = {
+  'pla-placas': '/catalogo/pladur/placa-n.webp', 'pla-perfileria': '/catalogo/pladur/montante.webp',
+  'pla-accesorios': '/catalogo/pladur/tornillo.webp', 'pla-pastas': '/catalogo/pladur/pasta-uso.webp',
+  'dk-doble': ADEO('5357911'), 'dk-simple': ADEO('5355509'), 'dk-pellets': ADEO('4413872'),
+};
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
   // Mallas ganaderas de Silva Moreira: foto real por familia (frontend/public/catalogo/silva)
   if (/^malla nudo fijo/.test(n)) return 'silva-nudo-fijo';
   if (/^malla anudada/.test(n)) return /fuerte/.test(n) ? 'silva-fuerte' : 'silva-ligera';
+  const cd = CONSTRUDECO.find(([rx]) => rx.test(n));
+  if (cd) return cd[1];
   const iso = ISOLTUBEX.find(([rx]) => rx.test(n));
   if (iso) return iso[1];
   const z = ZABALETA.find(([rx]) => rx.test(n));
@@ -132,8 +151,10 @@ export function claveFamilia(nombre: string): string {
 /** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…).
  *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
 export function fotoArticulo(familia: string, descripcion?: string, foto?: string | null): string {
-  if (foto && foto.startsWith('/catalogo/')) return foto;  // Isoltubex: foto del catálogo oficial, ya elegida
+  if (foto && foto.startsWith('/catalogo/')) return foto;  // Isoltubex, Pladur…: foto del fabricante, ya elegida
   const clave = claveFamilia(familia);
+  // Pladur y Dinak: la foto viene elegida por tipo de pieza (de Pladur o de referencia de Obramat); si no hay, la pegatina
+  if (clave.startsWith('pla-') || clave.startsWith('dk-')) return foto?.startsWith('https://media.adeo.com/') ? foto : descripcion ? '' : CONSTRUDECO_FAMILIA[clave] ?? '';
   if (clave.startsWith('iso-')) return descripcion ? '' : ISO_FAMILIA[clave] ? `/catalogo/iso/${ISO_FAMILIA[clave]}.webp` : '';
   if (foto && FOTOS_ZAB[foto]) return FOTOS_ZAB[foto];  // la foto ya viene elegida en la clasificación
   const d = normaliza(descripcion || '');

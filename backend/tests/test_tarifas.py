@@ -100,3 +100,72 @@ def test_silva_lee_rollos_y_precios_por_cantidad():
     grupos = ts._grupos_sub(d["articulos"], d["orden_grupos"]["Malla anudada ligera"])
     assert [m["valor"] for m in grupos[0]["medidas"]] == ["100/8/15", "120/9/15"]
     assert grupos[0]["medidas"][0]["escalas"][1]["pvp"] == 11.5 and "escalas" not in grupos[0]["medidas"][1]
+
+
+# ── Construdeco: Pladur y Dinak (datos inventados) ────────────────────────
+from app.services import construdeco as cd
+
+
+def _pladur(*filas):
+    cab = ["CATEGORÍA", "CÓDIGO", "DESCRIPCIÓN", "UNIDAD", "P. COMPRA (€)", "P. VENTA S/IVA (€)", "MARGEN", "ÚLTIMO ALBARÁN", "NOTAS"]
+    return {"TARIFA": [["TARIFA DE PRECIOS"] + [""] * 8, cab, *filas]}
+
+
+def test_pladur_secciones_medidas_y_notas():
+    h = _pladur(
+        ["▌ PLACAS"] + [""] * 8,
+        ["", "111", "PD-PLADUR N 13X1200X2500 BA", "UD", "10,0000 €", "11,50 €", "15%", "02/03/2026", "Anterior: 9,00€ (ene 2026) → +11%"],
+        ["", "112", "PD-PLADUR N 13X1200X2000 BA", "UD", "8,0000 €", "9,20 €", "15%", "02/03/2026", "Anterior: 20,00€ (jun 2024) → -6%"],
+        ["▌ PERFILERÍA"] + [""] * 8,
+        ["", "—", "PD-MONTANTE 70/35 Z1  L=3000", "UD", "3,0000 €", "3,60 €", "20%", "01/02/2026", ""],
+        ["▌ ACCESORIOS"] + [""] * 8,
+        ["", "113", "PD-CAJA TORN PM 3,9X25 CAJA 1000UDS", "UD", "7,0000 €", "9,10 €", "30%", "01/02/2026", ""],
+        ["LEYENDA: fondo amarillo"] + [""] * 8,
+    )
+    d = cd.leer_pladur(h)
+    a = {x["descripcion"]: x for x in d["articulos"]}
+    assert len(a) == 4
+    placa = a["PD-PLADUR N 13X1200X2500 BA"]
+    assert (placa["categoria"], placa["subcategoria"], placa["tipo"], placa["medida_c"]) == ("Placas", "Estándar", "Pladur N 13 mm", "1200×2500")
+    assert placa["precio_ant"] == 9.0 and placa["fecha_ant"] == "ene-26" and placa["evol"] == 11.1 and placa["pvp_iva"] == 13.92
+    # Una nota que no cuadra con el precio (copiada de otra fila) no se usa
+    assert a["PD-PLADUR N 13X1200X2000 BA"]["precio_ant"] is None and d["notas_mal"] == 1
+    m = a["PD-MONTANTE 70/35 Z1  L=3000"]
+    assert m["codigo"] is None and m["ref"].startswith("PD~") and m["medida_c"] == "70/35" and m["categoria"] == "Perfilería"
+    t = a["PD-CAJA TORN PM 3,9X25 CAJA 1000UDS"]
+    assert t["subcategoria"] == "Tornillos" and t["medida_c"] == "25 mm · caja 1000"
+
+
+def _dinak(*filas, meses=("May-24", "Feb-26")):
+    cab = ["Referencia\nCONSTRUDECO", "Descripción del Producto", "Diám.\n(mm)", "Código\nDINAK", *meses,
+           "Último P.\nCompra (€)", "Var. %", "Tarifa\nOficial (€)", "P.Venta\n(€)"]
+    return {"TARIFA DINAK": [["TARIFA DINAK"], ["IDENTIFICACIÓN", "", "", "", "HISTORIAL"], cab, *filas]}
+
+
+def test_dinak_historial_por_meses_y_codigos_repetidos():
+    h = _dinak(
+        ["  CHIMENEA DOBLE PARED (DP) — DIÁMETRO 150 mm  |  Sistema inox", "", "", "", "", "", "", "", "", ""],
+        ["X1", "Módulo Recto 150×1000 mm DP", "150", "X1", "10,00 €", "12,00 €", "12,00 €", "+20,0%", "30,00 €", "16,00 €"],
+        ["X2a", "Tubo 150×1000 mm DP", "150", "X2", "9,00 €", "", "9,00 €", "", "", "12,00 €"],
+        ["X2b", "Codo 45° D150 DP", "150", "X2", "", "11,00 €", "11,00 €", "", "", "14,67 €"],
+        ["X3", "", "", "", "", "", "", "", "", ""],
+        ["  CHIMENEA SIMPLE PARED (SW) — DIÁMETRO 120 mm", "", "", "", "", "", "", "", "", ""],
+        ["X4", "Módulo Recto 120×1000 mm SW", "120", "X4", "", "5,00 €", "5,00 €", "", "", "6,67 €"],
+    )
+    d = cd.leer_dinak(h)
+    a = {x["ref"]: x for x in d["articulos"]}
+    assert d["incompletas"] == ["X3"]
+    t = a["X1"]
+    assert (t["categoria"], t["subcategoria"], t["tipo"], t["medida_c"]) == ("Chimenea doble pared", "Tubos", "Tubo recto 1 m", "Ø150")
+    assert [x["fecha"] for x in t["hist"]] == ["may-24", "feb-26"] and t["evol"] == 20.0 and t["pvp_fab"] == 30.0
+    assert t["margen"] == 33.3 and t["pvp_iva"] == 19.36
+    # El mismo código Dinak en dos filas: se queda la del precio más reciente y la otra referencia busca la misma
+    assert "X2a" not in a and "X2a" in a["X2b"]["alias"]
+    assert a["X4"]["categoria"] == "Chimenea simple pared" and a["X4"]["nombre"] == "Tubo recto 1 m Ø120 simple pared"
+
+
+def test_dinak_columna_de_mes_nueva():
+    h = _dinak(["Y1", "Abrazadera de Unión D200 DP", "200", "Y1", "4,00 €", "4,40 €", "4,60 €", "4,60 €", "+15,0%", "", "6,13 €"],
+               meses=("May-24", "Feb-26", "Oct-26"))
+    a = cd.leer_dinak(h)["articulos"][0]
+    assert a["fecha"] == "oct-26" and a["precio"] == 4.6 and a["precio_ant"] == 4.4 and a["tipo"] == "Abrazadera de unión"

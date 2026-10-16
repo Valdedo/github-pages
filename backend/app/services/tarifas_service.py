@@ -20,7 +20,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import isoltubex, mail_service
+from app.services import construdeco, isoltubex, mail_service
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ TARIFAS = {
         "hoja": "1JGwpDqDF0yHzQfytvrpH00B3p3ohjO-M7AsdZoodPuM",  # TARIFA_ISOLTUBEX_2026 (la buena; hay dos copias viejas de abril)
         "pestanas": isoltubex.PESTANAS,
         "redondeo": "terminación comercial (…,50 / …,95)",
+        "fabricante": "Isoltubex",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     "silva": {
@@ -64,6 +65,29 @@ TARIFAS = {
         "desde": datetime(2026, 10, 14, 14, 45),
         "pestanas": ["INICIO", "TARIFA"],
         "redondeo": "redondeado a 0,10 € (con IVA, a 0,05 €)",
+        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
+    },
+    # Construdeco (oct. 2026): las actualizan las tareas de los miércoles (Pladur) y los jueves (Dinak) con sus pedidos.
+    # Sin «pestanas»: se leen todas y el lector busca la que tiene la fila de títulos (por si cambia de nombre).
+    "pladur": {
+        "nombre": "Pladur",
+        "sub": "Construdeco · placas, perfilería y pastas",
+        "proveedor": "Construdeco Norte (Pladur, Placo e Isover)",
+        "hoja": "1IK8JyUSK_e2-_g4tm0iPLAQ2mCNMECfPhGA8H9krh4Q",  # tarifa_pladur_construdeco (Mi unidad de Andrés)
+        "pestanas": None,
+        "redondeo": "redondeado a 0,10 € hacia arriba",
+        "origen_corto": "albarán de Construdeco",
+        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
+    },
+    "dinak": {
+        "nombre": "Dinak",
+        "sub": "Construdeco · chimeneas de acero inoxidable",
+        "proveedor": "Construdeco Norte (Dinak)",
+        "hoja": "1-Se5r7RHeVrrkbpQDyDbtJA16cX9oFy889GKcNUpAEY",  # TARIFA_DINAK_2024_2026 (Mi unidad de Andrés)
+        "pestanas": None,
+        "redondeo": "25 % del precio de venta (coste ÷ 0,75), sin redondear",
+        "origen_corto": "pedido de Construdeco",
+        "fabricante": "Dinak 2026",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
 }
@@ -551,7 +575,8 @@ def leer_silva(hojas: dict) -> dict:
             "orden_familias": familias, "orden_grupos": grupos}
 
 
-LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva}
+LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
+            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -1002,7 +1027,7 @@ def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
 
 def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Optional[str]) -> dict:
     """Ficha de una tarifa que trae cada línea de factura (Zabaleta): la evolución y la factura son exactas."""
-    lineas = sorted(datos["lineas"].get(a["ref"], []), key=lambda l: (l["fecha"], l["factura"]))
+    lineas = sorted(datos["lineas"].get(a["ref"], []), key=lambda l: (clave_mes(l["fecha"]), l["factura"] or ""))
     # Evolución: el primer precio y cada vez que cambia (comprar diez veces al mismo precio no es evolución)
     historial = []
     for l in lineas:
@@ -1011,12 +1036,14 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
             historial.append({"fecha": l["fecha"], "precio": l["precio"], **({"codigo": l["codigo"]} if l.get("codigo") else {})})
         else:
             historial[-1]["fecha_hasta"] = l["fecha"]
+    if not historial and a.get("hist"):  # Pladur y Dinak: el histórico sale de la propia hoja (sin facturas)
+        historial = [dict(h) for h in a["hist"] if h.get("fecha")]
     if not historial and a["precio"] is not None and a["fecha"]:
         historial = [{"fecha": a["fecha"], "precio": a["precio"]}]
     archivos = _archivos(c)
     ult = next((l for l in reversed(lineas) if l["fecha"] == a["fecha"]), lineas[-1] if lineas else None)
     factura = None
-    if ult:
+    if ult and ult.get("factura"):
         factura = {"numero": ult["factura"], "fecha": ult["fecha"], "seguro": True,
                    "enlace": enlace_factura(ult["factura"], archivos),
                    "cantidad": ult["cantidad"], "bruto": ult["bruto"], "dto1": ult["dto1"], "dto2": ult["dto2"]}
@@ -1037,6 +1064,8 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         "apunte": a.get("apunte"),
         "medida": medida_txt,
         "pvp_fab": a.get("pvp_fab"), "origen": a.get("origen") or datos.get("origen"),
+        # De quién es el PVP de tarifa (Isoltubex, Dinak 2026) y qué se dice en el panel en vez del nº de factura
+        "pvp_fab_de": TARIFAS[prov].get("fabricante"), "origen_corto": TARIFAS[prov].get("origen_corto"),
         # Vista nueva (oct. 2026): otros códigos del mismo artículo, código comodín y metros del rollo o barra
         "antes": a.get("antes"), "tambien": a.get("tambien"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"),
         "escalas": a.get("escalas"),

@@ -122,6 +122,8 @@ function Buscador({ q, setQ, placeholder, onEnter, autoFocus }: {
 
 export const enlaceFicha = (prov: string, fam: string, ref: string) => `/tarifas/${prov}/${fam}/ficha?ref=${encodeURIComponent(ref)}`;
 export const etiquetaMedida = (m: TarifaMedida) => [m.valor, m.ud_medida].filter(Boolean).join(' ');
+/** Botones anchos si la medida es larga o el precio pasa de 100 € (en el móvil «120,88 €» no cabe y el € bajaba solo) */
+const chipsLargos = (ms: TarifaMedida[]) => ms.some(m => etiquetaMedida(m).length > 7 || (conIva(m) ?? 0) >= 100);
 /** «50X50X4» → «50×50×4» para leerlo mejor */
 export const conPor = (s: string) => s.replace(/(\d)\s*X\s*(?=\d)/g, '$1×');
 const udLarga = (u: string) => u === 'm' ? 'metro' : u === 'ud' ? 'unidad' : u;
@@ -271,7 +273,7 @@ export function TarifasPage() {
               </Link>
             ))}
             {!lista && !error && <div className="tf-prov tf-esqueleto skeleton" />}
-            {PROXIMAMENTE.map(p => (
+            {lista && PROXIMAMENTE.filter(p => !lista.some(x => x.id === p.id)).map(p => (
               <div key={p.id} className="tf-prov tf-prov-off" aria-disabled="true">
                 <img src={pegatina(p.pegatina)} alt="" className="tf-prov-peg" />
                 <span className="tf-prov-txt"><strong>{p.nombre}</strong><small>{p.sub}</small></span>
@@ -286,6 +288,10 @@ export function TarifasPage() {
 }
 
 // ── 2 · Familias de un proveedor ──────────────────────────────────────────
+const BUSCA_EJEMPLO: Record<string, string> = {
+  zabaleta: 'Buscar: codo 110, SN8 315, referencia…', silva: 'Buscar: 120/9/15, nudo fijo, 50 m…',
+  pladur: 'Buscar: N 13, montante 70, pasta, código…', dinak: 'Buscar: 150 doble pared, codo, sombrerete…',
+};
 export function TarifaProveedorPage() {
   const { prov = '' } = useParams();
   const navigate = useNavigate();
@@ -324,7 +330,7 @@ export function TarifaProveedorPage() {
       {error && <ConnectionError message={error} onRetry={cargar} />}
       {t?.aviso && <div className="doc-aviso subidas">{t.aviso}</div>}
       <div className="tf-fila-busca">
-        <Buscador q={q} setQ={setQ} placeholder={prov === 'zabaleta' ? 'Buscar: codo 110, SN8 315, referencia…' : prov === 'silva' ? 'Buscar: 120/9/15, nudo fijo, 50 m…' : 'Buscar: 50x50x4, IPN 120, pletina…'} onEnter={abrirPrimero} />
+        <Buscador q={q} setQ={setQ} placeholder={BUSCA_EJEMPLO[prov] ?? 'Buscar: 50x50x4, IPN 120, pletina…'} onEnter={abrirPrimero} />
         {t && uf && !q.trim() && (
           <a className="tf-ultima" href={uf.enlace} target="_blank" rel="noopener noreferrer"
             title="Abrir la última factura que se apuntó en la tarifa">
@@ -419,7 +425,7 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
             <dt>Última factura</dt>
             <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
               ? <a href={d.factura.enlace} target="_blank" rel="noopener noreferrer" className="tf-panel-fac"><FileText size={14} /> {d.factura.numero}</a>
-              : nueva && d.origen ? 'lista de netos' : 'sin enlazar'}</dd>
+              : nueva && d.origen ? (d.origen_corto ?? 'lista de netos') : 'sin enlazar'}</dd>
           </dl>
           <Link className="btn tf-panel-btn" to={enlaceFicha(prov, fam, sel.ref)}>Ver ficha completa <ChevronRight size={17} /></Link>
           <p className="tf-nota">Doble clic en {nueva ? 'un artículo' : 'una medida'} abre su ficha. Esc quita la selección.</p>
@@ -456,7 +462,7 @@ function FamiliaActual() {
   const chips = (g: TarifaGrupo, i: number) => (
     <section key={i} className="tf-grupo">
       <h3>{conPor(g.titulo!)}{udGrupo(g.medidas)}</h3>
-      <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
+      <div className={`tf-chips${chipsLargos(g.medidas) ? ' tf-chips-largos' : ''}`}>
         {g.medidas.map(m => (
           <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
             onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={conPor(m.descripcion)}>
@@ -681,7 +687,7 @@ function FamiliaNueva() {
   );
 
   const botones = (items: TarifaMedida[]) => (
-    <div className={`tf-chips${items.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
+    <div className={`tf-chips${chipsLargos(items) ? ' tf-chips-largos' : ''}`}>
       {items.map(m => (
         <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
           onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={`${conPor(m.descripcion)}${m.codigo ? ` · ${codigoVisible(m)}` : ''}`}>
@@ -848,7 +854,7 @@ function OtrasMedidas({ prov, fam, refActual }: { prov: string; fam: string; ref
   return (
     <section className="tf-caja">
       <h2>Otras medidas · {conPor(g.titulo!)}{udGrupo(g.medidas)}</h2>
-      <div className={`tf-chips${g.medidas.some(m => etiquetaMedida(m).length > 7) ? ' tf-chips-largos' : ''}`}>
+      <div className={`tf-chips${chipsLargos(g.medidas) ? ' tf-chips-largos' : ''}`}>
         {g.medidas.map(m => m.ref === refActual ? (
           <span key={m.ref} className="tf-chip" aria-current="true" data-actual="1">
             <span>{etiquetaMedida(m)}</span><strong>{precio(m)}</strong>
@@ -883,7 +889,8 @@ export function TarifaFichaPage() {
     <div className="tf-ficha-foto">
       <Foto src={fotoArticulo(d.familia.nombre, d.descripcion, d.foto)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
       {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">
-        {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex' : 'Foto de referencia'}</span>}
+        {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex'
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' : 'Foto de referencia'}</span>}
     </div>
   );
   const precios = d && (
@@ -985,7 +992,7 @@ export function TarifaFichaPage() {
         {d.medida && <><dt>Medida</dt><dd>{conPor(d.medida)}</dd></>}
         <dt>Familia</dt><dd>{d.familia.nombre}{d.subcategoria ? ` · ${d.subcategoria}` : ''}</dd>
         {d.original && <><dt>En la factura</dt><dd className="tf-cod">{d.original}</dd></>}
-        {d.pvp_fab != null && <><dt>PVP de tarifa Isoltubex</dt><dd>{eurUd(d.pvp_fab, d.ud_compra)}</dd></>}
+        {d.pvp_fab != null && <><dt>PVP de tarifa {d.pvp_fab_de ?? 'del fabricante'}</dt><dd>{eurUd(d.pvp_fab, d.ud_compra)}</dd></>}
         <dt>Se compra por</dt><dd>{d.ud_compra}</dd>
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}

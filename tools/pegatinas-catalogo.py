@@ -394,6 +394,75 @@ def art(name):
              circle((100, 70), 40, '#9AA3AD'), circle((100, 70), 18, '#F2F4F0'), rect(90, 98, 20, 22, '#6F7883', 3),
              f'<rect x="64" y="38" width="22" height="10" rx="4" fill="#C9D1D9"/>', circle((100, 109), 5, '#D5DCE3', 2)]
         return o
+    # familias de Pladur y Dinak (Construdeco, oct. 2026)
+    if name == 'pla-placas':  # tres placas apiladas: estándar (blanca), hidrófuga (verde) y cortafuego (rosa)
+        o = []
+        for top, (cara, canto, fondo) in zip([150, 128, 106], [('#F4F1EA', '#D9D3C6', '#C4BCAC'), ('#BFE3C9', '#8FC7A0', '#73AE86'), ('#F2C4CB', '#DE9AA5', '#C77F8B')]):
+            o += extrude([(14, top), (116, top + 28), (116, top + 40), (14, top + 12)], (68, -50), cara, canto, fondo)
+        o.append(f'<line x1="40" y1="{106 + 9}" x2="150" y2="{106 - 18}" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.6"/>')
+        return o
+    if name == 'pla-perfileria':  # montante en C de chapa galvanizada, con su canal detrás
+        def ce(x, y, w, h, t, lab):
+            return [(x, y), (x + w, y), (x + w, y + lab), (x + w - t, y + lab), (x + w - t, y + t), (x + t, y + t),
+                    (x + t, y + h - t), (x + w - t, y + h - t), (x + w - t, y + h - lab), (x + w, y + h - lab), (x + w, y + h), (x, y + h)]
+        o = extrude(ce(74, 66, 32, 66, 5, 11), (66, -44), *GALV)
+        o += extrude(ce(30, 106, 38, 78, 6, 13), (74, -50), *GALV)
+        return o
+    if name == 'pla-accesorios':  # rollo de cinta de juntas y un tornillo negro de cabeza de trompeta
+        o = [f'<ellipse cx="78" cy="122" rx="56" ry="56" fill="#F4F6F8" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="78" cy="122" rx="44" ry="44" fill="#E9EDF0" stroke="#D5DCE3" stroke-width="2"/>',
+             f'<path d="M30 140 A50 50 0 0 0 126 140" fill="none" stroke="#2FAE66" stroke-width="7" stroke-linecap="round"/>',
+             f'<ellipse cx="78" cy="122" rx="22" ry="22" fill="#F2F4F0" stroke="{INK}" stroke-width="{SW}"/>']
+        # tornillo: punta abajo, cabeza de trompeta arriba (se ve de lado, un poco girado)
+        o += [poly([(148, 78), (162, 82), (128, 178)], '#4B525A'),
+              poly([(140, 66), (176, 76), (162, 84), (148, 80)], '#3E4246'),
+              f'<ellipse cx="158" cy="71" rx="19" ry="6" transform="rotate(16 158 71)" fill="#5D6166" stroke="{INK}" stroke-width="{SW}"/>',
+              f'<line x1="150" y1="68" x2="166" y2="73" stroke="#2B2F2C" stroke-width="2.4"/>']
+        for k in range(6):
+            t = 0.18 + k * 0.13
+            x, y = 155 - 27 * t, 80 + 98 * t
+            o.append(f'<line x1="{x - 8 * (1 - t):.1f}" y1="{y + 3:.1f}" x2="{x + 8 * (1 - t):.1f}" y2="{y - 2:.1f}" stroke="#2B2F2C" stroke-width="2.6"/>')
+        return o
+    if name == 'pla-pastas':  # cubo de pasta de juntas con tapa verde
+        o = [f'<path d="M48 70 L152 70 L142 178 Q100 188 58 178 Z" fill="#FFFFFF" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>',
+             f'<path d="M52 112 L148 112 L145 146 Q100 154 55 146 Z" fill="#E6C35A" stroke="{INK}" stroke-width="2" stroke-linejoin="round"/>',
+             f'<rect x="76" y="118" width="48" height="20" rx="4" fill="#2FAE66"/>',
+             f'<ellipse cx="100" cy="70" rx="54" ry="15" fill="#2FAE66" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="100" cy="66" rx="40" ry="9" fill="#5CC488" stroke="#1F5A3A" stroke-width="2"/>',
+             f'<path d="M50 78 Q100 30 150 78" fill="none" stroke="#8893A0" stroke-width="4"/>']
+        return o
+    if name == 'dk-doble':  # tubo de doble pared: inox por fuera, aislante entre las dos paredes
+        o = [f'<rect x="62" y="44" width="76" height="128" fill="#D5DCE3" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="72" y="44" width="14" height="128" fill="#F4F6F8"/>',
+             f'<rect x="122" y="44" width="16" height="128" fill="#AEB8C2"/>',
+             f'<rect x="58" y="150" width="84" height="12" rx="3" fill="#8893A0" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<path d="M62 172 Q100 186 138 172" fill="none" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="100" cy="44" rx="38" ry="12" fill="#C9D1D9" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="100" cy="44" rx="30" ry="9" fill="#E6C35A" stroke="{INK}" stroke-width="2"/>',
+             f'<ellipse cx="100" cy="44" rx="22" ry="6.5" fill="#D5DCE3" stroke="{INK}" stroke-width="2"/>',
+             f'<ellipse cx="100" cy="44" rx="17" ry="4.6" fill="#3E454C"/>']
+        return o
+    if name == 'dk-simple':  # tubo de pared simple con un codo arriba
+        o = [f'<rect x="56" y="78" width="46" height="102" fill="#D5DCE3" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="63" y="78" width="9" height="102" fill="#F4F6F8"/>',
+             f'<rect x="90" y="78" width="12" height="102" fill="#AEB8C2"/>',
+             f'<path d="M56 80 L56 66 Q60 36 96 34 L150 34 L150 80 L102 80 Z" fill="#C9D1D9" stroke="{INK}" stroke-width="{SW}" stroke-linejoin="round"/>',
+             f'<path d="M66 72 Q70 46 98 44 L150 44" fill="none" stroke="#F4F6F8" stroke-width="6"/>',
+             f'<ellipse cx="150" cy="57" rx="9" ry="23" fill="#AEB8C2" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="150" cy="57" rx="5" ry="16" fill="#3E454C"/>',
+             f'<path d="M56 180 Q79 190 102 180" fill="none" stroke="{INK}" stroke-width="{SW}"/>']
+        return o
+    if name == 'dk-pellets':  # tubo negro de estufa de pellets con su te y el tapón
+        o = [f'<rect x="72" y="40" width="40" height="140" fill="#3E4246" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="78" y="40" width="8" height="140" fill="#5D6166"/>',
+             f'<rect x="112" y="96" width="50" height="34" fill="#3E4246" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<rect x="112" y="102" width="50" height="7" fill="#5D6166"/>',
+             f'<ellipse cx="162" cy="113" rx="8" ry="17" fill="#2B2F2C" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="162" cy="113" rx="4.5" ry="11" fill="#E8783E"/>',
+             f'<ellipse cx="92" cy="40" rx="20" ry="7" fill="#5D6166" stroke="{INK}" stroke-width="{SW}"/>',
+             f'<ellipse cx="92" cy="40" rx="13" ry="4.4" fill="#1F2124"/>',
+             f'<rect x="68" y="170" width="48" height="14" rx="4" fill="#2B2F2C" stroke="{INK}" stroke-width="{SW}"/>']
+        return o
     raise KeyError(name)
 
 NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-cuadrado', 'tubo-rectangular', 'tubo-galv',
@@ -403,7 +472,8 @@ NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-c
          'zab-canalon', 'zab-bombeo', 'zab-sanitario', 'zab-quimicos', 'zab-ferreteria',
          'zab-laton', 'zab-multicapa', 'zab-llaves', 'zab-termo',
          'iso-tubo-multicapa', 'iso-tubo-pex', 'iso-acc-multicapa', 'iso-acc-pex', 'iso-acc-expansion',
-         'iso-acc-compresion', 'iso-colector', 'iso-acc-laton', 'iso-herramienta']
+         'iso-acc-compresion', 'iso-colector', 'iso-acc-laton', 'iso-herramienta',
+         'pla-placas', 'pla-perfileria', 'pla-accesorios', 'pla-pastas', 'dk-doble', 'dk-simple', 'dk-pellets']
 
 S = 512
 for nm in NAMES:
