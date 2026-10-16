@@ -385,3 +385,12 @@
 .tf-escalas th + th, .tf-escalas td + td { padding-left: 10px; }
 .tf-escalas td strong { color: var(--brand-700, #1F5A3A); }
 @media (max-width: 360px) { .tf-escalas th:last-child, .tf-escalas td:last-child { display: none; } }
+
+/* Familias con foto real en vez de pegatina (mallas de Silva Moreira): recortada con borde blanco, como las pegatinas */
+img[src^="/catalogo/silva/"].tf-cab-peg, .tf-familia img[src^="/catalogo/silva/"], img[src^="/catalogo/silva/"].tf-fila-peg,
+.tf-tabla-art img[src^="/catalogo/silva/"] {
+  object-fit: cover; border-radius: 14px; border: 3px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / .18); box-sizing: border-box;
+}
+img[src^="/catalogo/silva/"].tf-cab-peg { width: 60px; height: 60px; margin: 0 4px 0 0; }
+.tf-familia img[src^="/catalogo/silva/"] { margin: 2px 0 6px; }
+img[src^="/catalogo/silva/"].tf-fila-peg { width: 44px; height: 44px; border-radius: 10px; border-width: 2px; }

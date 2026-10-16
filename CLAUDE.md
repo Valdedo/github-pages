@@ -132,7 +132,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   Lector `leer_silva` en `tarifas_service.py`: familia → gama → «Rollo de N m» con las medidas en botones. Precios por cantidad
   en `escalas` (nombre, pvp, pvp_iva, margen; columnas P–S y T–U de la hoja): filas en el panel del ordenador, línea en la barra
   del móvil y caja «Precio por cantidad» en la ficha (`tf-escalas`). La fecha del pedido sale de INICIO («del dd/mm/aaaa»). Fotos oficiales de jsilvamoreira.pt (Ovimor L → ligera, Ovimor M → fuerte, Nodimor →
-  nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`).
+  nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`). También
+  sustituyen a la pegatina de la familia (tarjetas, cabecera, buscador): `claveFamilia` devuelve `silva-*` y `pegatina()` da la foto;
+  estilo con borde blanco en `tarifas.css` (`img[src^="/catalogo/silva/"]`).
 - **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
   búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.
   Botones «Con IVA | Sin IVA | Coste» (`MODOS`, «Con IVA» el primero); lo elegido se recuerda en la pestaña y la ficha y la

@@ -61,7 +61,9 @@ export const PROXIMAMENTE = [
 ];
 export const PEGATINA_PROVEEDOR: Record<string, string> = { hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla' };
 
-export const pegatina = (nombre: string) => `/catalogo/st-${nombre}.png`;
+/** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
+export const pegatina = (nombre: string) =>
+  nombre.startsWith('silva-') ? `/catalogo/silva/${nombre.slice(6)}.webp` : `/catalogo/st-${nombre}.png`;
 
 // Familia de la tarifa → dibujo (pegatina, para navegar) y foto (en la ficha y las medidas).
 // Las fotos son de referencia, de tiendas (Obramat / Leroy Merlin): se enlazan, no se copian.
@@ -118,6 +120,9 @@ const ISO_FAMILIA: Record<string, string> = {
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
+  // Mallas ganaderas de Silva Moreira: foto real por familia (frontend/public/catalogo/silva)
+  if (/^malla nudo fijo/.test(n)) return 'silva-nudo-fijo';
+  if (/^malla anudada/.test(n)) return /fuerte/.test(n) ? 'silva-fuerte' : 'silva-ligera';
   const iso = ISOLTUBEX.find(([rx]) => rx.test(n));
   if (iso) return iso[1];
   const z = ZABALETA.find(([rx]) => rx.test(n));
