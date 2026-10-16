@@ -203,3 +203,43 @@ def test_ladrillos_lee_por_nombre_de_columna():
     grupos = ts._grupos_sub([x for x in d["articulos"] if x["categoria"] == "Ladrillo hueco"], d["orden_grupos"]["Ladrillo hueco"], False)
     assert [m["ref"] for m in grupos[0]["medidas"]] == ["B2", "A1"]
     assert grupos[0]["medidas"][0]["ud_pale"] == 100 and grupos[0]["medidas"][1]["uso"] == "Ahorro mortero"
+
+
+# ── Bombonas de gas (oct. 2026): solo PVP con IVA, en el orden de la hoja (precios inventados) ──
+from app.services import gas
+
+
+def _hoja_gas():
+    return {"TARIFA": [
+        ["Bombonas de gas · precio de venta al público con IVA", "", "", "", ""],
+        ["", "", "", "", ""],
+        ["Familia", "Grupo", "Artículo", "PVP con IVA", "Sin IVA (para TreyFACT)"],
+        ["Butano y propano", "Marca A", "Butano A", "12,10 €", "10,0000 €"],
+        ["Butano y propano", "Marca A", "Propano A", "24,20 €", "20,0000 €"],
+        ["Butano y propano", "Marca A", "Ligera A", "36,30 €", "30,0000 €"],
+        ["Butano y propano", "Casco vacío", "Casco vacío bombona", "1.210,00 €", ""],
+        ["", "", "", "", ""],
+        ["Bombonas camping", "Cargas", "Carga grande azul", "8 €", ""],
+    ]}
+
+
+def test_gas_lee_precios_con_iva_y_orden():
+    d = gas.leer(_hoja_gas())
+    arts = d["articulos"]
+    assert [a["descripcion"] for a in arts] == ["Butano A", "Propano A", "Ligera A", "Casco vacío bombona", "Carga grande azul"]
+    assert d["orden_familias"] == ["Butano y propano", "Bombonas camping"]
+    assert d["orden_grupos"]["Butano y propano"] == ["Marca A", "Casco vacío"]
+    a = arts[0]
+    assert a["pvp_iva"] == 12.10 and a["pvp"] == 10.0 and a["coste"] is None and a["solo_pvp"]
+    assert arts[3]["pvp_iva"] == 1210.0 and arts[4]["pvp_iva"] == 8.0
+    # Sin la fila de títulos no sale nada (la app avisa de que la hoja vino con otro formato)
+    assert gas.leer({"Hoja 1": [["a", "b"]]})["articulos"] == []
+
+
+def test_gas_grupos_en_el_orden_de_la_hoja():
+    d = gas.leer(_hoja_gas())
+    arts = [a for a in d["articulos"] if a["categoria"] == "Butano y propano"]
+    gs = ts._grupos_sub(arts, d["orden_grupos"]["Butano y propano"], not d.get("orden_hoja"))
+    assert [g["seccion"] for g in gs] == ["Marca A", "Casco vacío"]
+    assert [m["descripcion"] for m in gs[0]["medidas"]] == ["Butano A", "Propano A", "Ligera A"]  # no por orden alfabético
+    assert gs[0]["medidas"][0]["solo_pvp"] is True

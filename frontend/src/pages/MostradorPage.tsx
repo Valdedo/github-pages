@@ -516,7 +516,7 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, cuenta, cuentaPale, o
       {datos.length > 0 && (
         <dl className="mo-datos">{datos.map(x => <div key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></div>)}</dl>
       )}
-      {verCoste && (
+      {verCoste && !m.solo_pvp && (
         <div className="mo-coste">
           <span>Coste <b>{eur(m.coste)}/{m.ud_venta}</b></span>
           {mg != null && <span>Margen <b>+{num(Math.round(mg))} %</b></span>}
@@ -544,7 +544,7 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, cuenta, cuentaPale, o
       ) : (
         <button type="button" className="mo-otra" onClick={() => setOtra(true)}><Keyboard size={20} /> Escribir otra cantidad (muchas piezas o decimales)</button>
       ))}
-      <Link className="mo-ficha" to={enlaceFicha(t.id, f.id, m.ref)}>Ver ficha completa (factura, evolución) <ChevronRight size={18} /></Link>
+      <Link className="mo-ficha" to={enlaceFicha(t.id, f.id, m.ref)}>{m.solo_pvp ? 'Ver ficha completa' : 'Ver ficha completa (factura, evolución)'} <ChevronRight size={18} /></Link>
     </div>
   );
 }

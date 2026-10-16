@@ -9,7 +9,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import {
   PROXIMAMENTE, PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, precioModo, mesLargo, esReciente,
-  conIva, modoGuardado, guardarModo, totalEscala, datosPieza,
+  conIva, modoGuardado, guardarModo, totalEscala, datosPieza, soloPvp,
   type Tarifa, type Escala, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
 import './tarifas.css';
@@ -299,6 +299,7 @@ const BUSCA_EJEMPLO: Record<string, string> = {
   zabaleta: 'Buscar: codo 110, SN8 315, referencia…', silva: 'Buscar: 120/9/15, nudo fijo, 50 m…',
   pladur: 'Buscar: N 13, montante 70, pasta, código…', dinak: 'Buscar: 150 doble pared, codo, sombrerete…',
   ladrillos: 'Buscar: hueco 4, tabicón, bloque, refractario…',
+  gas: 'Buscar: butano, propano, camping…',
 };
 export function TarifaProveedorPage() {
   const { prov = '' } = useParams();
@@ -410,8 +411,9 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
       {!sel ? (
         <div className="tf-panel-vacio">
           <strong>{total} {total === 1 ? 'artículo' : 'artículos'}</strong>
-          <p>Elige {nueva ? 'un artículo' : 'una medida'} de la lista para ver aquí su precio, el coste{nueva ? ', el código' : ''} y la última factura.</p>
-          <Leyenda />
+          <p>{soloPvp(f) ? 'Elige un artículo de la lista para ver aquí su precio con y sin IVA.'
+            : <>Elige {nueva ? 'un artículo' : 'una medida'} de la lista para ver aquí su precio, el coste{nueva ? ', el código' : ''} y la última factura.</>}</p>
+          {!soloPvp(f) && <Leyenda />}
         </div>
       ) : (
         <div className="tf-panel-datos">
@@ -425,18 +427,20 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
           </div>
           <dl className="tf-panel-lista">
             <dt>{iva ? 'Sin IVA' : 'Con IVA'}</dt><dd>{eurUd(iva ? sel.pvp : conIva(sel), sel.ud_venta)}</dd>
-            <dt>Coste</dt><dd>{eurUd(sel.coste, sel.ud_venta)}</dd>
+            {!sel.solo_pvp && <><dt>Coste</dt><dd>{eurUd(sel.coste, sel.ud_venta)}</dd></>}
             {pm != null && <><dt>Sale el metro a</dt><dd>{eur(pm)}/m{modo === 'coste' ? ' de coste' : iva ? ' con IVA' : ' sin IVA'}</dd></>}
             {sel.escalas?.map(e => <Fragment key={e.nombre}><dt>{e.nombre}</dt>
               <dd className="tf-escala-dd">{totalEscala(e, iva) != null
                 ? <>{eur(totalEscala(e, iva))} el palé<small>{eurUd(iva ? conIva(e) : e.pvp, sel.ud_venta)} · {iva ? 'con IVA' : 'sin IVA'}</small></>
                 : <>{eurUd(iva ? conIva(e) : e.pvp, sel.ud_venta)}<small>{iva ? 'con IVA' : 'sin IVA'}</small></>}</dd></Fragment>)}
             {datosPieza(sel, iva).map(x => <Fragment key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></Fragment>)}
-            <dt>Precio de</dt><dd>{mesLargo(sel.fecha) || '—'}{sel.evol ? <span className={`tf-mini-evol ${sel.evol > 0 ? 'sube' : 'baja'}`}>{pct(sel.evol)}</span> : null}</dd>
-            <dt>Última factura</dt>
-            <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
-              ? <a href={d.factura.enlace} target="_blank" rel="noopener noreferrer" className="tf-panel-fac"><FileText size={14} /> {d.factura.numero}</a>
-              : nueva && d.origen ? (d.origen_corto ?? 'lista de netos') : 'sin enlazar'}</dd>
+            {sel.solo_pvp ? <><dt>Precio</dt><dd>el de la hoja de la tienda</dd></> : <>
+              <dt>Precio de</dt><dd>{mesLargo(sel.fecha) || '—'}{sel.evol ? <span className={`tf-mini-evol ${sel.evol > 0 ? 'sube' : 'baja'}`}>{pct(sel.evol)}</span> : null}</dd>
+              <dt>Última factura</dt>
+              <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
+                ? <a href={d.factura.enlace} target="_blank" rel="noopener noreferrer" className="tf-panel-fac"><FileText size={14} /> {d.factura.numero}</a>
+                : nueva && d.origen ? (d.origen_corto ?? 'lista de netos') : 'sin enlazar'}</dd>
+            </>}
           </dl>
           <Link className="btn tf-panel-btn" to={enlaceFicha(prov, fam, sel.ref)}>Ver ficha completa <ChevronRight size={17} /></Link>
           <p className="tf-nota">Doble clic en {nueva ? 'un artículo' : 'una medida'} abre su ficha. Esc quita la selección.</p>
@@ -456,8 +460,7 @@ function FamiliaActual() {
   const navigate = useNavigate();
   const { t, error, cargando, cargar } = useTarifa(prov);
   const ancho = !useIsMobile(1099); // con panel a la derecha
-  const [modo, setModo] = useModoPrecio();
-  const iva = modo !== 'venta';
+  const [modoElegido, setModo] = useModoPrecio();
   const [sel, setSel] = useState<TarifaMedida | null>(null);
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
@@ -465,6 +468,9 @@ function FamiliaActual() {
     return () => window.removeEventListener('keydown', h);
   }, []);
   const f = t?.familias.find(x => x.id === fam);
+  const sinCoste = soloPvp(f); // bombonas de gas: solo precio de venta
+  const modo: ModoPrecio = sinCoste && modoElegido === 'coste' ? 'iva' : modoElegido;
+  const iva = modo !== 'venta';
   const total = f?.grupos.reduce((s, g) => s + g.medidas.length, 0) ?? 0;
   const elegir = (m: TarifaMedida) => setSel(s => s?.ref === m.ref && !ancho ? null : m);
   const abrir = (m: TarifaMedida) => navigate(enlaceFicha(prov, fam, m.ref));
@@ -536,7 +542,7 @@ function FamiliaActual() {
         pegatinaSrc={f ? pegatina(claveFamilia(f.nombre)) : undefined}
         acciones={
           <div className="tf-modos" role="group" aria-label="Qué precio enseñar">
-            {MODOS.map(m => <button key={m.v} type="button" aria-pressed={modo === m.v} onClick={() => setModo(m.v)} title={m.largo}>{m.t}</button>)}
+            {(sinCoste ? MODOS.filter(m => m.v !== 'coste') : MODOS).map(m => <button key={m.v} type="button" aria-pressed={modo === m.v} onClick={() => setModo(m.v)} title={m.largo}>{m.t}</button>)}
           </div>
         } />
       {error && <ConnectionError message={error} onRetry={cargar} />}
@@ -558,7 +564,7 @@ function FamiliaActual() {
             <div>
               <strong>{total} {total === 1 ? 'artículo' : 'artículos'}</strong>
               <span>Toca una medida para ver su precio. Precios de {modoActual.frase}.</span>
-              <Leyenda />
+              {!soloPvp(f) && <Leyenda />}
             </div>
           </div>
           {lista}
@@ -570,7 +576,7 @@ function FamiliaActual() {
               </div>
               <div className="tf-barra-precio">
                 <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
-                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA · coste {eur(sel.coste)}</small>
+                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA{!sel.solo_pvp && <> · coste {eur(sel.coste)}</>}</small>
                 {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => escalaCorta(e, iva)).join(' · ')}</small> : null}
               </div>
               <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
@@ -672,8 +678,7 @@ function FamiliaNueva() {
   const [sp, setSp] = useSearchParams();
   const { t, error, cargando, cargar } = useTarifa(prov);
   const ancho = !useIsMobile(1099); // con panel a la derecha
-  const [modo, setModo] = useModoPrecio();
-  const iva = modo !== 'venta';
+  const [modoElegido, setModo] = useModoPrecio();
   const [sel, setSel] = useState<TarifaMedida | null>(null);
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
@@ -681,6 +686,9 @@ function FamiliaNueva() {
     return () => window.removeEventListener('keydown', h);
   }, []);
   const f = t?.familias.find(x => x.id === fam);
+  const sinCoste = soloPvp(f); // bombonas de gas: solo precio de venta
+  const modo: ModoPrecio = sinCoste && modoElegido === 'coste' ? 'iva' : modoElegido;
+  const iva = modo !== 'venta';
   const total = f?.grupos.reduce((s, g) => s + g.medidas.length, 0) ?? 0;
   const secciones = useMemo(() => f ? seccionesDe(f) : [], [f]);
   const medidas = useMemo(() => medidasDe(secciones), [secciones]);
@@ -774,7 +782,7 @@ function FamiliaNueva() {
         pegatinaSrc={f ? pegatina(claveFamilia(f.nombre)) : undefined}
         acciones={
           <div className="tf-modos" role="group" aria-label="Qué precio enseñar">
-            {MODOS.map(m => <button key={m.v} type="button" aria-pressed={modo === m.v} onClick={() => setModo(m.v)} title={m.largo}>{m.t}</button>)}
+            {(sinCoste ? MODOS.filter(m => m.v !== 'coste') : MODOS).map(m => <button key={m.v} type="button" aria-pressed={modo === m.v} onClick={() => setModo(m.v)} title={m.largo}>{m.t}</button>)}
           </div>
         } />
       {error && <ConnectionError message={error} onRetry={cargar} />}
@@ -796,7 +804,7 @@ function FamiliaNueva() {
             <div>
               <strong>{total} {total === 1 ? 'artículo' : 'artículos'}</strong>
               <span>Toca un artículo para ver su precio. Precios de {modoActual.frase}.</span>
-              <Leyenda />
+              {!soloPvp(f) && <Leyenda />}
             </div>
           </div>
           {lista}
@@ -808,7 +816,7 @@ function FamiliaNueva() {
               </div>
               <div className="tf-barra-precio">
                 <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
-                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA · coste {eur(sel.coste)}</small>
+                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA{!sel.solo_pvp && <> · coste {eur(sel.coste)}</>}</small>
                 {porMetro(sel, iva ? 'iva' : 'venta') != null && <small className="tfn-barra-m">sale a {eur(porMetro(sel, iva ? 'iva' : 'venta'))}/m</small>}
                 {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => escalaCorta(e, iva)).join(' · ')}</small> : null}
               </div>
@@ -882,6 +890,28 @@ function OtrasMedidas({ prov, fam, refActual }: { prov: string; fam: string; ref
   );
 }
 
+/** Bombonas de gas: lo demás del mismo grupo (las otras de Repsol, las otras cargas…), con su precio. */
+function MismoGrupo({ prov, fam, refActual, grupo }: { prov: string; fam: string; refActual: string; grupo?: string | null }) {
+  const { t } = useTarifa(prov);
+  if (!grupo) return null;
+  const items = t?.familias.find(f => f.id === fam)?.grupos.filter(g => g.seccion === grupo).flatMap(g => g.medidas) ?? [];
+  if (items.length < 2) return null;
+  const iva = modoGuardado() !== 'venta';
+  return (
+    <section className="tf-caja">
+      <h2>{grupo}</h2>
+      {items.map(m => m.ref === refActual ? (
+        <div key={m.ref} className="tf-factura" aria-current="true"><span><strong>{conPor(m.descripcion)}</strong></span><span><strong>{eur(iva ? conIva(m) : m.pvp)}</strong></span></div>
+      ) : (
+        <Link key={m.ref} className="tf-factura tf-factura-link" to={enlaceFicha(prov, fam, m.ref)} replace>
+          <span>{conPor(m.descripcion)}</span><span>{eur(iva ? conIva(m) : m.pvp)}</span>
+        </Link>
+      ))}
+      <p className="tf-nota">Precios {iva ? 'con' : 'sin'} IVA, por unidad.</p>
+    </section>
+  );
+}
+
 export function TarifaFichaPage() {
   const { prov = '', fam = '' } = useParams();
   const [sp] = useSearchParams();
@@ -921,10 +951,10 @@ export function TarifaFichaPage() {
           {/revisar/i.test(d.nota) ? 'Revisar precio' : d.nota.charAt(0) + d.nota.slice(1).toLowerCase()}</span>}
         {d.pvp == null && /neto/i.test(d.nota ?? '') && <span className="tf-nota" style={{ color: 'inherit', opacity: 0.9 }}>Pide el precio neto a Isoltubex antes de venderlo.</span>}
       </div>
-      <div className="tf-caja tf-dato"><small>Coste actual</small><strong>{eurUd(d.coste, d.ud_venta)}</strong>
+      {!d.solo_pvp && <><div className="tf-caja tf-dato"><small>Coste actual</small><strong>{eurUd(d.coste, d.ud_venta)}</strong>
         <span>{eur(d.precio)} / {d.ud_compra}</span></div>
       <div className="tf-caja tf-dato"><small>Margen</small><strong>{d.margen != null ? `+${String(d.margen).replace('.', ',')} %` : '—'}</strong>
-        <span>{d.redondeo ?? 'redondeado a 0,10 €'}</span></div>
+        <span>{d.redondeo ?? 'redondeado a 0,10 €'}</span></div></>}
     </div>
   );
   const escalas = d?.escalas?.length ? (
@@ -949,7 +979,7 @@ export function TarifaFichaPage() {
         : `Precio por ${d.ud_venta}. Desde 5 rollos vale mezclando medidas.`}</p>
     </section>
   ) : null;
-  const evolucion = d && (
+  const evolucion = d && !d.solo_pvp && (
     <section className="tf-caja">
       <div className="tf-caja-cab">
         <h2>Evolución del coste</h2>
@@ -959,7 +989,7 @@ export function TarifaFichaPage() {
       <Evolucion puntos={d.historial} ud={d.ud_compra} />
     </section>
   );
-  const compra = d && (
+  const compra = d && !d.solo_pvp && (
     <section className="tf-caja">
       <h2>{d.origen && !d.factura ? 'De dónde sale el coste' : 'Última compra'}</h2>
       {d.origen && !d.factura ? (
@@ -999,6 +1029,7 @@ export function TarifaFichaPage() {
     <section className="tf-caja">
       <h2>Características</h2>
       {d.apunte && <p className="tf-nota tf-apunte">{d.apunte}</p>}
+      {d.solo_pvp && <p className="tf-nota">{d.origen ?? 'Precio de venta al público, con IVA.'} Si cambia, se cambia en la hoja de Drive.</p>}
       {nueva && d.comodin && <p className="tf-nota tfn-aviso">Zabaleta lo factura sin código propio: «{d.codigo}» lo usa para muchas cosas distintas.</p>}
       {nueva && d.tambien?.some(x => x.precio != null && d.precio != null && x.precio > d.precio) && (
         <p className="tf-nota tfn-aviso">A veces lo facturan como {d.tambien.filter(x => x.precio != null && x.precio > (d.precio ?? 0)).map(x => `${x.codigo} (a ${eur(x.precio)})`).join(', ')}, más caro: pídelo como {d.codigo}.</p>
@@ -1014,17 +1045,19 @@ export function TarifaFichaPage() {
         <dt>Familia</dt><dd>{d.familia.nombre}{d.subcategoria ? ` · ${d.subcategoria}` : ''}</dd>
         {d.original && <><dt>En la factura</dt><dd className="tf-cod">{d.original}</dd></>}
         {d.pvp_fab != null && <><dt>PVP de tarifa {d.pvp_fab_de ?? 'del fabricante'}</dt><dd>{eurUd(d.pvp_fab, d.ud_compra)}</dd></>}
-        <dt>Se compra por</dt><dd>{d.ud_compra}</dd>
+        {!d.solo_pvp && <><dt>Se compra por</dt><dd>{d.ud_compra}</dd></>}
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}
         {datosPieza(d, iva).map(x => <Fragment key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></Fragment>)}
         {d.compras != null && <><dt>Veces comprado</dt><dd>{d.compras}</dd></>}
         {d.minimo != null && d.precio != null && d.minimo < d.precio - 0.0005 && <><dt>Más barato (12 meses)</dt><dd>{eur(d.minimo)}/{d.ud_compra}</dd></>}
-        <dt>Proveedor</dt><dd>{d.proveedor_nombre}</dd>
+        {!d.solo_pvp && <><dt>Proveedor</dt><dd>{d.proveedor_nombre}</dd></>}
       </dl>
     </section>
   );
-  const otras = <OtrasMedidas prov={prov} fam={fam} refActual={ref} />;
+  const otras = d?.solo_pvp
+    ? <MismoGrupo prov={prov} fam={fam} refActual={ref} grupo={d.subcategoria} />
+    : <OtrasMedidas prov={prov} fam={fam} refActual={ref} />;
 
   return (
     <div className="page-wide tf">

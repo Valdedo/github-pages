@@ -163,6 +163,15 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   fotos de Cerámica Campo en `frontend/public/catalogo/lad/` y de referencia (Obramat) para rasillón, refractario y tabiquero
   (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
 - `eur()` enseña el tercer decimal por debajo de 1 € si lo tiene (0,242 € con IVA); los importes (cantidad × precio) con `eurC`.
+- **Bombonas de gas (16/10/2026, en pruebas: solo admin)**: hoja «TARIFA_GAS_BOMBONAS» `17sRs…` en Mi unidad de Andrés
+  (compartida con casafonsomc), pestaña TARIFA: Familia | Grupo | Artículo | PVP con IVA | Sin IVA (fórmula, solo para mirar).
+  No es tarifa de compra: solo el PVP con IVA de las hojas plastificadas de la tienda, que Andrés cambia a mano (decisión suya:
+  los precios tal cual los tenía). Lector `services/gas.py` (`gas.leer`): «Butano y propano» (Repsol, Cepsa, Casco vacío) y
+  «Bombonas camping» (Cargas, Envases, Envase + carga), en el orden de la hoja
+  (`orden_hoja` y `orden` de cada fila, como ladrillos). Sin IVA = con IVA ÷ 1,21 con 4 decimales. `solo_pvp` en artículos y ficha: sin botón «Coste», ni
+  coste, margen, evolución, compras, proveedor ni leyenda ▲/▼; en la ficha, `MismoGrupo` con el resto del grupo. Pegatinas
+  `st-prov-gas`, `st-gas-butano`, `st-gas-camping` (`tools/pegatinas-gas.py`; bombonas genéricas, sin marcas ni logos). Fotos:
+  cuando la tienda saque las suyas, a `frontend/public/catalogo/gas/` y en `foto` del lector.
 - **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
   búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.
   Botones «Con IVA | Sin IVA | Coste» (`MODOS`, «Con IVA» el primero); lo elegido se recuerda en la pestaña y la ficha y la

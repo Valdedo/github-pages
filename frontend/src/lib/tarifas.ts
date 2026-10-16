@@ -20,6 +20,8 @@ export interface TarifaMedida {
   ms?: string[];
   /** Precios por cantidad (Silva Moreira: desde 5 rollos y palé completo; ladrillos: palé completo) */
   escalas?: Escala[] | null;
+  /** Solo hay precio de venta, sin coste ni compras (bombonas de gas) */
+  solo_pvp?: boolean;
   /** Ladrillos: piezas por m², kg por pieza, piezas por palé y para qué se usa */
   ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
 }
@@ -65,6 +67,8 @@ export interface FichaTarifa {
   comodin?: boolean; metros?: number | null;
   // Ladrillos
   ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
+  /** Solo hay precio de venta, sin coste ni compras (bombonas de gas) */
+  solo_pvp?: boolean;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están, en pruebas (oct. 2026): a quien
@@ -76,6 +80,7 @@ export const PROXIMAMENTE = [
 export const PEGATINA_PROVEEDOR: Record<string, string> = {
   hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla', pladur: 'prov-pladur', dinak: 'prov-dinak',
   ladrillos: 'prov-ladrillos',
+  gas: 'prov-gas',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
@@ -159,6 +164,9 @@ const LAD_FAMILIA: Record<string, string> = {
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
+  // Bombonas de gas (oct. 2026): la de casa (butano y propano) y las de camping
+  if (/^butano y propano/.test(n)) return 'gas-butano';
+  if (/^bombonas camping/.test(n)) return 'gas-camping';
   // Mallas ganaderas de Silva Moreira: foto real por familia (frontend/public/catalogo/silva)
   if (/^malla nudo fijo/.test(n)) return 'silva-nudo-fijo';
   if (/^malla anudada/.test(n)) return /fuerte/.test(n) ? 'silva-fuerte' : 'silva-ligera';
@@ -177,6 +185,7 @@ export function claveFamilia(nombre: string): string {
 export function fotoArticulo(familia: string, descripcion?: string, foto?: string | null): string {
   if (foto && foto.startsWith('/catalogo/')) return foto;  // Isoltubex, Pladur, ladrillos…: foto del fabricante, ya elegida
   const clave = claveFamilia(familia);
+  if (clave.startsWith('gas-')) return '';  // bombonas de gas: la pegatina hasta que haya fotos nuestras
   // Pladur y Dinak: la foto viene elegida por tipo de pieza (de Pladur o de referencia de Obramat); si no hay, la pegatina
   if (clave.startsWith('pla-') || clave.startsWith('dk-')) return foto?.startsWith('https://media.adeo.com/') ? foto : descripcion ? '' : CONSTRUDECO_FAMILIA[clave] ?? '';
   if (foto && foto.startsWith('https://media.adeo.com/')) return foto;  // foto de referencia ya elegida (ladrillos)
@@ -282,6 +291,8 @@ export const conIva = (m: { pvp?: number | null; pvp_iva?: number | null }) =>
   m.pvp_iva ?? (m.pvp != null ? Math.round(m.pvp * 121) / 100 : null);
 export const precioModo = (m: TarifaMedida, modo: ModoPrecio) =>
   modo === 'venta' ? m.pvp : modo === 'iva' ? conIva(m) : m.coste;
+/** Familia sin coste (bombonas de gas): no se ofrece «Coste» y, si estaba elegido, se enseña con IVA. */
+export const soloPvp = (f?: TarifaFamilia | null) => !!f && f.grupos.length > 0 && f.grupos.every(g => g.medidas.every(m => m.solo_pvp));
 /** En todas las tarifas sale primero el precio con IVA (Andrés, 15/10/2026). Lo que se elija se recuerda en la pestaña
  *  (clave nueva: las pestañas que ya tenían guardado «sin IVA» empiezan también con IVA). */
 const CLAVE_MODO = 'cfTarifaModoIva';

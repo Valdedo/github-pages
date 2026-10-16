@@ -20,7 +20,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import construdeco, isoltubex, mail_service
+from app.services import construdeco, gas, isoltubex, mail_service
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,15 @@ TARIFAS = {
         "hoja": "13c9n7tc835qQ1CYgqfMMUTAk55YkRiBZ4jkVPQWPlLY",
         "pestanas": ["TARIFA"],
         "redondeo": "por unidad, al alza a 0,05 €; el palé, al euro",
+        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
+    },
+    # Bombonas de gas (16/10/2026): solo PVP con IVA, el de las hojas de la tienda; Andrés lo cambia a mano en la hoja.
+    "gas": {
+        "nombre": "Bombonas de gas",
+        "sub": "Repsol, Cepsa y camping",
+        "proveedor": "Bombonas de gas",
+        "hoja": "17sRs04q7rHbj4NN7lg8mvqjowjOPicRaE1kP_5KUrqc",  # TARIFA_GAS_BOMBONAS (Mi unidad de Andrés)
+        "pestanas": None,
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
 }
@@ -673,7 +682,7 @@ def leer_ladrillos(hojas: dict) -> dict:
 
 
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
-            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos}
+            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos, "gas": gas.leer}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -872,6 +881,7 @@ def _item(a: dict, valor: str = "", ud: str = "") -> dict:
             **({"escalas": a["escalas"]} if a.get("escalas") else {}),
             # Ladrillos: piezas por m², peso, piezas por palé y para qué se usa
             **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
+            **({"solo_pvp": True} if a.get("solo_pvp") else {}),
             **({"ms": ms} if len(ms) > 1 else {})}
 
 
@@ -1170,4 +1180,6 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         "antes": a.get("antes"), "tambien": a.get("tambien"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"),
         "escalas": a.get("escalas"),
         **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
+        # Bombonas de gas: solo precio de venta (sin coste, margen ni compras)
+        "solo_pvp": bool(a.get("solo_pvp")),
     }
