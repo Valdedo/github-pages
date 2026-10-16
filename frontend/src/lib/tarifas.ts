@@ -33,7 +33,8 @@ export interface Escala {
 }
 /** «repes»: piezas que repiten medida en el grupo y vienen en la lista de sueltos (la vista nueva las junta) */
 export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[]; repes?: string[] }
-export interface TarifaFamilia { id: string; nombre: string; clave: string; n: number; grupos: TarifaGrupo[] }
+/** «mezclar»: la tarifa va por nombre, así que lo que tiene medidas y lo suelto se enseñan juntos por orden alfabético */
+export interface TarifaFamilia { id: string; nombre: string; clave: string; n: number; grupos: TarifaGrupo[]; mezclar?: boolean }
 export interface TarifaFactura {
   numero: string; fecha: string; enlace: string; seguro?: boolean;
   /** «Pedido» cuando el coste sale de un pedido y no de una factura (ladrillos) */

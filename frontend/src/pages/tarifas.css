@@ -396,3 +396,27 @@ img[src^="/catalogo/silva/"].tf-cab-peg { width: 60px; height: 60px; margin: 0 4
 img[src^="/catalogo/silva/"].tf-fila-peg { width: 44px; height: 44px; border-radius: 10px; border-width: 2px; }
 /* Ladrillos (oct. 2026): el palé entero lleva debajo lo que sale cada pieza */
 .tf-escalas td .tf-escala-ud { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-3); }
+
+/* ── Familia en lista (16/10/2026): todo en líneas, como los sueltos; lo que tiene medidas se abre (flecha a la derecha) ── */
+.tfl .tfn-fila { padding-right: 40px; position: relative; }
+.tfl-cab .tfl-flecha { position: absolute; right: 12px; top: 50%; margin-top: -9px; color: var(--text-3); transition: transform .15s; }
+.tfl-cab[aria-expanded="true"] .tfl-flecha { transform: rotate(180deg); }
+.tfl-cab .tfl-meds { color: var(--text-3); font-weight: 600; }
+.tfl-desde { font-size: 11.5px; font-weight: 600; color: var(--text-3); margin: 0 !important; }
+.tfl-con-sel { background: var(--brand-pale); border-left-color: var(--cf-bosque) !important; }
+.tfl-grupo { border-top: 1px solid var(--border); }
+.tfl-grupo:first-child { border-top: 0; }
+.tfl-grupo > .tfl-cab { border-top: 0; }
+.tfl-abierto > .tfl-cab { background: var(--surface); }
+.tfl-medidas { background: var(--surface-2); border-top: 1px solid var(--border); }
+.tfl-medidas .tfn-fila { padding-left: 30px; min-height: 46px; }
+.tfl-medidas .tfn-fila-nom { font-weight: 700; }
+.tfl-medidas .tfn-fila:first-child { border-top: 0; }
+@media (min-width: 769px) {
+  .tfl-cab .tfn-fila-txt { display: contents; }
+  .tfl-cab .tfl-meds { grid-column: 2; }
+  .tfl-medidas .tfn-fila { padding-left: 34px; }
+}
+.tfl-todas { display: flex; justify-content: flex-end; margin: -2px 0 -6px; }
+.tfl-todas .tfn-quitar svg { transition: transform .15s; }
+.tfl-todas .tfn-quitar .tfl-girada { transform: rotate(180deg); }

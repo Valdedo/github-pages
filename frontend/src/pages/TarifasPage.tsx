@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type KeyboardEvent, Fragment } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
 import { fechaES, normaliza } from '../lib/texto';
 import { esConsulta, esEncargado } from '../auth';
@@ -664,6 +664,16 @@ export function medidasDe(secciones: Seccion[]): { mp: string; op: number | null
   return lista.length >= 4 && lista.some(x => x.grupos.size >= 2) ? lista.map(({ mp, op }) => ({ mp, op })) : [];
 }
 
+/** Una pieza de la familia: un tipo con varias medidas o un artículo solo. Se enseñan igual y, si la tarifa va por
+ *  nombre, mezcladas por orden alfabético (la llave de bola suelta, al lado de las llaves de bola por medidas). */
+export type Pieza = { g: TarifaGrupo; items: TarifaMedida[]; filas: boolean } | { m: TarifaMedida };
+export function piezasDe(sc: Seccion, porNombre: boolean): Pieza[] {
+  const ps = sc.bloques.flatMap<Pieza>(b => ('sueltos' in b ? b.sueltos.map(m => ({ m })) : [b]));
+  if (!porNombre) return ps;
+  const nom = (p: Pieza) => normaliza('m' in p ? p.m.descripcion : p.g.titulo ?? '');
+  return [...ps].sort((a, b) => nom(a).localeCompare(nom(b), 'es', { numeric: true }));
+}
+
 /** Una pieza en una fila: nombre (o formato), código, precio y, si es rollo o barra, lo que sale el metro. */
 function FilaPieza({ m, etiqueta, modo, sel, onSel, onOpen }: {
   m: TarifaMedida; etiqueta: string; modo: ModoPrecio; sel: boolean; onSel: () => void; onOpen: () => void;
@@ -720,34 +730,73 @@ function FamiliaNueva() {
   const elegir = (m: TarifaMedida) => setSel(s => s?.ref === m.ref && !ancho ? null : m);
   const abrir = (m: TarifaMedida) => navigate(enlaceFicha(prov, fam, m.ref));
   const modoActual = MODOS.find(m => m.v === modo)!;
+  // Lo que tiene medidas va en una línea que se abre. En el móvil empiezan cerradas; en el ordenador, abiertas si la
+  // familia no es muy larga. «Abrir todas / Cerrar todas» lo cambia todo (`todas`) y «a» guarda las que se tocaron
+  // a mano: las dos van en la dirección, para que al volver de la ficha siga todo igual.
+  const nGrupos = secciones.reduce((n, sc) => n + sc.bloques.filter(b => !('sueltos' in b) && b.items.length > 1).length, 0);
+  const todas = sp.get('todas');
+  const base = todas ? todas === '1' : ancho && total <= 40;
+  const tocados = useMemo(() => new Set((sp.get('a') ?? '').split('~').filter(Boolean)), [sp]);
+  const cambia = (k: string) => {
+    const t = new Set(tocados);
+    if (t.has(k)) t.delete(k); else t.add(k);
+    const n = new URLSearchParams(sp);
+    if (t.size) n.set('a', [...t].join('~')); else n.delete('a');
+    setSp(n, { replace: true });
+  };
+  const cambiaTodas = () => {
+    const n = new URLSearchParams(sp);
+    n.set('todas', base ? '0' : '1');
+    n.delete('a');
+    setSp(n, { replace: true });
+  };
+  // Hierros: «TUBO CUADRADO 50×50» con espesor «3» → la línea dice «50×50×3», que se entiende sola
+  const etiquetaFila = (g: TarifaGrupo, m: TarifaMedida) => {
+    const e = etiquetaMedida(m);
+    const fin = prov === 'hierros' ? conPor(g.titulo ?? '').match(/(\d[\d,.×]*)$/) : null;
+    return fin && /^\d+([.,]\d+)?$/.test(e) ? `${fin[1]}×${e}` : e;
+  };
   const fila = (m: TarifaMedida, etiqueta: string) => (
     <FilaPieza key={m.ref} m={m} etiqueta={etiqueta} modo={modo} sel={sel?.ref === m.ref} onSel={() => elegir(m)} onOpen={() => abrir(m)} />
   );
 
-  const botones = (items: TarifaMedida[]) => (
-    <div className={`tf-chips${chipsLargos(items) ? ' tf-chips-largos' : ''}`}>
-      {items.map(m => (
-        <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
-          onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={`${conPor(m.descripcion)}${m.codigo ? ` · ${codigoVisible(m)}` : ''}`}>
-          <span>{etiquetaMedida(m)}</span>
-          <strong>{eur(precioModo(m, modo))}{udMezcla(items) && <small>/{m.ud_venta}</small>}</strong>
-          {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
-        </button>
-      ))}
-    </div>
-  );
-  const bloque = (b: Bloque, i: number) => {
-    if ('sueltos' in b) {
-      return <div key={i} className="tfn-filas">{b.sueltos.map(m => fila(m, m.descripcion))}</div>;
-    }
-    const repetidas = new Set(b.items.filter((m, j) => b.items.findIndex(x => x.valor === m.valor) !== j).map(m => m.valor));
+  const desde = (items: TarifaMedida[]) => {
+    const ps = items.map(m => precioModo(m, modo)).filter((x): x is number => x != null);
+    return ps.length ? Math.min(...ps) : null;
+  };
+  /** Cada pieza en una línea, como los artículos sueltos; la que tiene medidas lleva «desde» y, al abrirla,
+   *  una línea por medida con su código y su precio. */
+  const pieza = (p: Pieza) => {
+    if ('m' in p) return fila(p.m, p.m.descripcion);
+    const { g, items } = p;
+    if (items.length === 1) return fila(items[0], items[0].descripcion);  // una sola medida: como un suelto
+    const k = `${g.seccion ?? ''}|${g.titulo}`;
+    const abierto = base !== tocados.has(k);
+    const d = desde(items);
+    const conSel = items.some(m => m.ref === sel?.ref);
+    const repetidas = new Set(items.filter((m, j) => items.findIndex(x => x.valor === m.valor) !== j).map(m => m.valor));
+    const nombre = (m: TarifaMedida) => (!m.valor || repetidas.has(m.valor) ? m.descripcion : etiquetaFila(g, m));
+    const cambio = items.find(m => esReciente(m.fecha) && m.evol);
+    const uds = [...new Set(items.map(m => m.ud_venta))];
+    const ud1 = uds.length === 1 ? uds[0] : null;
+    const meds = items.map(m => etiquetaMedida(m)).filter(Boolean);
+    const resumen = abierto || meds.length !== items.length ? `${items.length} ${p.filas ? 'formatos' : 'medidas'}`
+      : items.length <= 4 ? meds.join(' · ') : `${items.length} medidas · de ${meds[0]} a ${meds[meds.length - 1]}`;
     return (
-      <section key={i} className={`tf-grupo${b.filas ? ' tfn-grupo-filas' : ''}`}>
-        <h3>{conPor(b.g.titulo!)}{!b.filas && udGrupo(b.items)}</h3>
-        {b.filas
-          ? <div className="tfn-filas tfn-filas-grupo">{b.items.map(m => fila(m, !m.valor || repetidas.has(m.valor) ? m.descripcion : etiquetaMedida(m)))}</div>
-          : botones(b.items)}
-      </section>
+      <div key={k} className={`tfl-grupo${abierto ? ' tfl-abierto' : ''}`}>
+        <button type="button" className={`tfn-fila tfl-cab${conSel && !abierto ? ' tfl-con-sel' : ''}`} aria-expanded={abierto} onClick={() => cambia(k)}>
+          <span className="tfn-fila-txt">
+            <span className="tfn-fila-nom">{conPor(g.titulo!)}</span>
+            <span className="tfn-cod tfl-meds">{conPor(resumen)}</span>
+          </span>
+          <span className="tfn-fila-precio">
+            {d != null ? <strong>{cambio && !abierto ? <i className={`tf-punto ${cambio.evol! > 0 ? 'sube' : 'baja'}`} aria-label="Alguna medida cambió hace poco" /> : null}
+              <small className="tfl-desde">desde</small>{eur(d)}{ud1 && <small>/{ud1}</small>}</strong> : <em>Sin precio</em>}
+          </span>
+          <ChevronDown size={18} className="tfl-flecha" aria-hidden="true" />
+        </button>
+        {abierto && <div className="tfl-medidas">{items.map(m => fila(m, nombre(m)))}</div>}
+      </div>
     );
   };
   // Con una medida elegida: todo lo de esa medida, en filas con el nombre entero, por subcategoría
@@ -768,6 +817,13 @@ function FamiliaNueva() {
           ))}
         </div>
       )}
+      {!medida && nGrupos >= 2 && (
+        <div className="tfl-todas">
+          <button type="button" className="tfn-quitar" onClick={cambiaTodas} aria-expanded={base}>
+            <ChevronDown size={15} className={base ? 'tfl-girada' : undefined} /> {base ? 'Cerrar todas las medidas' : 'Abrir todas las medidas'}
+          </button>
+        </div>
+      )}
       {medida ? (
         <div className="tf-grupos tf-con-subs">
           <p className="tfn-filtro"><span>Todo lo de <strong>{conPor(medida)}</strong> en {f.nombre.toLowerCase()} · {nFiltradas} {nFiltradas === 1 ? 'artículo' : 'artículos'}</span>
@@ -784,7 +840,7 @@ function FamiliaNueva() {
           {secciones.map((sc, i) => (
             <section key={sc.t ?? i} className="tf-sub">
               {sc.t && <h2 className="tf-sub-tit">{sc.t} <small>{sc.bloques.reduce((n, b) => n + ('sueltos' in b ? b.sueltos.length : b.items.length), 0)}</small></h2>}
-              {sc.bloques.map(bloque)}
+              <div className="tfn-filas tfl">{piezasDe(sc, !!f.mezclar).map(pieza)}</div>
             </section>
           ))}
         </div>

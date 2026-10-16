@@ -1051,7 +1051,10 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
         "aviso": aviso, "ultima_factura": ultima,
         "familias": [{"id": slug(cat), "nombre": bonito(cat), "clave": cat, "n": len(arts),
                       "grupos": _grupos_sub(arts, (datos.get("orden_grupos") or {}).get(cat), not datos.get("orden_hoja"))
-                      if "lineas" in datos else _grupos(arts)}
+                      if "lineas" in datos else _grupos(arts),
+                      # Van por nombre (no en el orden de la hoja): la app junta por orden alfabético lo que tiene
+                      # medidas y lo suelto (la llave de bola suelta, al lado de las llaves de bola por medidas)
+                      **({"mezclar": True} if "lineas" in datos and not datos.get("orden_hoja") else {})}
                      for cat, arts in familias.items()],
     }
 

@@ -213,6 +213,15 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
     distintos; `?medida=` en la dirección). Grupos con varias piezas de la misma medida (tubos con `metros`, `repes`, etiquetas
     repetidas) van en filas con código, precio y €/m; los demás, en botones. Código a la vista en filas, panel, barra del móvil,
     tabla de búsqueda y ficha (código antiguo, «también sale como», aviso de comodín, €/m). Clases `tfn-*` en `tarifas.css`.
+  - **Familia en lista (16/10/2026, opción B elegida por Andrés entre tres)**: en la vista nueva ya no hay botones de medida.
+    Cada subcategoría es una lista y todo va en líneas (nombre, código, precio), igual tenga medidas o no: lo que tiene varias
+    medidas es una línea con «desde X €» y flecha que se abre en una línea por medida (código y precio). Con `mezclar` (lo pone
+    el servidor en las tarifas que van por nombre, no en el orden de la hoja ni en Hierros) se mezclan por orden alfabético lo
+    de medidas y lo suelto (`piezasDe`). Un grupo de una sola medida sale como suelto. En el móvil empiezan cerradas; en el
+    ordenador, abiertas si la familia tiene ≤40 artículos. «Abrir/Cerrar todas las medidas» (`todas`) y las que se tocan a mano
+    (`a`) van en la dirección: al volver de la ficha sigue igual. Cerrada, la línea dice las medidas («3/4" · 1 1/4"» o «8 medidas
+    · de X a Y») y ▲/▼ si alguna cambió. Hierros: la línea de la medida dice «50×50×3» en vez de «3». Clases `tfl-*`.
+    La tienda y Manolo siguen con la de siempre (`FamiliaActual`) hasta que Andrés diga.
     Cuando Andrés la apruebe: dejar solo `FamiliaNueva` y quitar los `esEncargado()` de Resultados, panel y ficha.
   - Pruebas: `backend/tests/test_tarifas.py` (datos inventados: el repo es público, no van precios reales).
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
