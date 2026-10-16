@@ -12,6 +12,7 @@ import {
   conIva, modoGuardado, guardarModo, totalEscala, datosPieza, soloPvp,
   type Tarifa, type Escala, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
+import { CuadriculaTarifa } from '../components/CuadriculaTarifa';
 import './tarifas.css';
 
 // Lo leído se guarda mientras la app está abierta, para ir y volver entre pantallas sin esperar
@@ -323,6 +324,16 @@ export function TarifaProveedorPage() {
     finally { setRefrescando(false); }
   };
   const uf = t?.ultima_factura;
+  // Bombonas de gas: todo de golpe en una cuadrícula con foto y precio (sin pasar por familias)
+  const cuadricula = t?.vista === 'cuadricula';
+  const [modoElegido, setModo] = useModoPrecio();
+  const iva = modoElegido !== 'venta';
+  const refrescarBtn = (
+    <button className="btn btn-ghost tf-refrescar" onClick={refrescar} disabled={refrescando || cargando}
+      title="La app la vuelve a leer sola cada 3 horas">
+      {refrescando ? <span className="spinner spinner-sm" /> : <RefreshCw size={16} />} Volver a leer de Drive
+    </button>
+  );
 
   return (
     <div className="page-wide tf">
@@ -330,12 +341,16 @@ export function TarifaProveedorPage() {
       <Cabecera migas={[{ to: '/tarifas', t: 'Tarifas' }]} titulo={t?.nombre ?? 'Tarifa'}
         sub={t ? `${t.sub}${t.actualizada ? ` · actualizada el ${fechaES(t.actualizada)}` : ''}` : undefined}
         pegatinaSrc={pegatina(PEGATINA_PROVEEDOR[prov] ?? 'prov-hierros')}
-        acciones={
-          <button className="btn btn-ghost tf-refrescar" onClick={refrescar} disabled={refrescando || cargando}
-            title="La app la vuelve a leer sola cada 3 horas">
-            {refrescando ? <span className="spinner spinner-sm" /> : <RefreshCw size={16} />} Volver a leer de Drive
-          </button>
-        } />
+        acciones={cuadricula ? (
+          <div className="tf-acciones-gc">
+            <div className="tf-modos" role="group" aria-label="Qué precio enseñar">
+              {MODOS.filter(m => m.v !== 'coste').map(m => (
+                <button key={m.v} type="button" aria-pressed={(m.v === 'venta') !== iva} onClick={() => setModo(m.v)} title={m.largo}>{m.t}</button>
+              ))}
+            </div>
+            {refrescarBtn}
+          </div>
+        ) : refrescarBtn} />
       {error && <ConnectionError message={error} onRetry={cargar} />}
       {t?.aviso && <div className="doc-aviso subidas">{t.aviso}</div>}
       <div className="tf-fila-busca">
@@ -356,7 +371,9 @@ export function TarifaProveedorPage() {
           <p className="tf-nota">Leyendo la tarifa de Drive… la primera vez tarda unos segundos.</p>
         </>
       )}
-      {t && (q.trim() ? <Resultados res={res} q={q} donde={t.nombre} /> : (
+      {t && (q.trim() ? <Resultados res={res} q={q} donde={t.nombre} /> : cuadricula ? (
+        <CuadriculaTarifa t={t} iva={iva} enlace={c => enlaceFicha(prov, c.f.id, c.m.ref)} />
+      ) : (
         <div className="tf-familias">
           {t.familias.map(f => (
             <Link key={f.id} to={`/tarifas/${prov}/${f.id}`} className="tf-familia">

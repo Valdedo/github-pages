@@ -180,8 +180,17 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   «Bombonas camping» (Cargas, Envases, Envase + carga), en el orden de la hoja
   (`orden_hoja` y `orden` de cada fila, como ladrillos). Sin IVA = con IVA ÷ 1,21 con 4 decimales. `solo_pvp` en artículos y ficha: sin botón «Coste», ni
   coste, margen, evolución, compras, proveedor ni leyenda ▲/▼; en la ficha, `MismoGrupo` con el resto del grupo. Pegatinas
-  `st-prov-gas`, `st-gas-butano`, `st-gas-camping` (`tools/pegatinas-gas.py`; bombonas genéricas, sin marcas ni logos). Fotos:
-  cuando la tienda saque las suyas, a `frontend/public/catalogo/gas/` y en `foto` del lector.
+  `st-prov-gas`, `st-gas-butano`, `st-gas-camping` (`tools/pegatinas-gas.py`; bombonas genéricas, sin marcas ni logos).
+  **Cuadrícula (16/10/2026, Andrés)**: `"vista": "cuadricula"` en `TARIFAS` (sale en `tarifa()`): al entrar en la tarifa salen todas
+  de golpe con foto, nombre corto y precio (`components/CuadriculaTarifa.tsx` + `cuadricula.css`), sin pasar por familias. Rejilla
+  de 6 columnas: cada grupo ocupa tantas como artículos tiene y el de uno solo (casco vacío) es una tarjeta ancha de dos, así
+  las filas quedan completas (Repsol 3 + Cepsa 3 · Casco 2 + Cargas 4 · Envases 2 + Envase+carga 4; Andrés la quería simétrica).
+  Estrecho (<1100 px: móvil y tableta en vertical): cada grupo en su fila. Ordenador y móvil: la tarjeta abre la ficha; Con IVA |
+  Sin IVA en la cabecera. Tableta (`MostradorPage`, `rejilla`): a todo lo ancho sin el panel de la derecha, más grande; cada toque
+  suma uno a lo apuntado (número encima y «−»), barra abajo con lo apuntado, el total y «Ver lista». Fotos en
+  `frontend/public/catalogo/gas/` (`tools/gas-fotos.py`: Repsol de su tienda online, Cepsa de su cartel, Campingaz de tiendas de
+  camping) y `gas.foto()` elige la de cada fila; las rojas de camping y sus envases (2,8 y 0,5 kg) van dibujadas porque no se sabe la marca.
+  Si la tienda saca fotos suyas, sustituir esos .webp con el mismo nombre.
 - **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
   búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.
   Botones «Con IVA | Sin IVA | Coste» (`MODOS`, «Con IVA» el primero); lo elegido se recuerda en la pestaña y la ficha y la

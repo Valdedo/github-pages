@@ -300,3 +300,13 @@ def test_dinak_con_pedidos_codigo_mal_puesto_y_precio_viejo():
     # Z2: la referencia de Construdeco manda; el código Dinak de la hoja es el de otra pieza (Z2B)
     assert [l["factura"] for l in d["lineas"]["Z2"]] == ["C"] and a["Z2"]["fecha"] == "2026-01-29"
     assert "Z2" in a["Z2"]["apunte"] and "Z2B" in a["Z2"]["apunte"] and a["Z2"]["nota"] is None
+
+
+def test_gas_foto_de_cada_bombona():
+    assert gas.foto("Repsol", "Butano Repsol") == "/catalogo/gas/repsol-butano.webp"
+    assert gas.foto("Cepsa", "Ligera Cepsa") == "/catalogo/gas/cepsa-ligera.webp"
+    assert gas.foto("Casco vacío", "Casco vacío bombona de butano") == "/catalogo/gas/repsol-butano.webp"
+    assert gas.foto("Cargas", "Carga pequeña azul") == "/catalogo/gas/campingaz-pequena.webp"
+    assert gas.foto("Envase + carga", "Envase + carga grande roja") == "/catalogo/gas/roja-grande.webp"
+    assert gas.foto("Envases", "Envase 0,5 kg") == "/catalogo/gas/roja-pequena.webp"
+    assert gas.foto("Otros", "Regulador") is None

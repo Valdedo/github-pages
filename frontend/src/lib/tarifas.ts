@@ -46,6 +46,8 @@ export interface Tarifa {
   id: string; nombre: string; sub: string; margen: number | null; actualizada: string | null; leida: string | null;
   aviso: string | null; ultima_factura: (TarifaFactura & { cambios: number | null; nuevos: number | null }) | null;
   familias: TarifaFamilia[];
+  /** «cuadricula»: pocos artículos, todos de golpe con foto y precio (bombonas de gas) */
+  vista?: string | null;
 }
 export interface FichaTarifa {
   escalas?: Escala[] | null;

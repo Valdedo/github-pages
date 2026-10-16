@@ -37,6 +37,24 @@ def _num(v) -> Optional[float]:
         return None
 
 
+def foto(grupo: str, articulo: str) -> Optional[str]:
+    """Foto de la cuadrícula (frontend/public/catalogo/gas, de tools/gas-fotos.py) por lo que dice la fila."""
+    t = _n(f"{grupo} {articulo}")
+    if "casco" in t:
+        return "/catalogo/gas/repsol-butano.webp"  # el casco que se vende es la bombona naranja de siempre
+    for marca in ("repsol", "cepsa"):
+        if marca in t:
+            tipo = "ligera" if "ligera" in t else "propano" if "propano" in t else "butano"
+            return f"/catalogo/gas/{marca}-{tipo}.webp"
+    grande = "grande" in t or "2,8" in t or "2.8" in t
+    pequena = "pequena" in t or "0,5" in t or "0.5" in t
+    if "azul" in t and (grande or pequena):
+        return f"/catalogo/gas/campingaz-{'grande' if grande else 'pequena'}.webp"
+    if grande or pequena:  # las rojas y sus envases (2,8 y 0,5 kg): dibujadas, no se sabe la marca
+        return f"/catalogo/gas/roja-{'grande' if grande else 'pequena'}.webp"
+    return None
+
+
 def leer(hojas: dict) -> dict:
     vacio = {"articulos": [], "log": [], "margen": None, "lineas": {}}
     filas, ini = None, None
@@ -71,7 +89,7 @@ def leer(hojas: dict) -> dict:
             grupos[fam].append(gru)
         arts.append({
             "ref": ref, "codigo": None, "categoria": fam, "subcategoria": gru or None, "descripcion": art,
-            "nombre": None, "tipo": None, "medida_c": None, "foto": None,
+            "nombre": None, "tipo": None, "medida_c": None, "foto": foto(gru, art),
             "unidad": "ud", "ud_venta": "ud", "ud_compra": "ud",
             "precio": None, "fecha": None, "precio_ant": None, "fecha_ant": None, "evol": None,
             "coste": None, "pvp": round(pvp_iva / IVA, 4) if pvp_iva else None, "pvp_iva": pvp_iva, "margen": None,

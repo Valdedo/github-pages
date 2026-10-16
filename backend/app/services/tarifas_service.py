@@ -112,6 +112,8 @@ TARIFAS = {
         "proveedor": "Bombonas de gas",
         "hoja": "17sRs04q7rHbj4NN7lg8mvqjowjOPicRaE1kP_5KUrqc",  # TARIFA_GAS_BOMBONAS (Mi unidad de Andrés)
         "pestanas": None,
+        # Pocos artículos: todos de golpe en una cuadrícula con foto y precio, sin pasar por familias (Andrés, 16/10/2026)
+        "vista": "cuadricula",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
 }
@@ -1044,7 +1046,7 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
         ultima = {"numero": u["numero"], "fecha": u["fecha"], "cambios": u["cambios"],
                   "nuevos": u["nuevos"], "enlace": enlace_factura(u["numero"], _archivos(c))}
     return {
-        "id": prov, "nombre": cfg["nombre"], "sub": cfg["sub"], "margen": datos["margen"],
+        "id": prov, "nombre": cfg["nombre"], "sub": cfg["sub"], "margen": datos["margen"], "vista": cfg.get("vista"),
         "actualizada": _actualizada(c), "leida": c.leido_at.isoformat() + "Z" if c.leido_at else None,
         "aviso": aviso, "ultima_factura": ultima,
         "familias": [{"id": slug(cat), "nombre": bonito(cat), "clave": cat, "n": len(arts),

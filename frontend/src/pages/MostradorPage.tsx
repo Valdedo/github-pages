@@ -17,6 +17,7 @@ import {
   cache, leerTarifa, Foto, buscar, conPor, codigoVisible, etiquetaMedida, porMetro, seccionesDe, medidasDe,
   enlaceFicha, type Bloque,
 } from './TarifasPage';
+import { CuadriculaTarifa } from '../components/CuadriculaTarifa';
 import './mostrador.css';
 
 // ════════════════════════════════════════════════════════════════════════
@@ -147,6 +148,8 @@ export function MostradorPage() {
   };
   const t = tarifas.find(x => x.id === prov) ?? null;
   const f = t?.familias.find(x => x.id === fam) ?? null;
+  // Bombonas de gas: todo de golpe en una cuadrícula grande, a lo ancho de la pantalla; cada toque suma uno
+  const rejilla = !!t && t.vista === 'cuadricula' && !f && !q.trim();
   const [selProv, selRef] = sel.split('|');
   const elegido = sel ? buscarArticulo(tarifas, selProv, selRef ?? '') : null;
 
@@ -217,6 +220,10 @@ export function MostradorPage() {
     ? <div className="mo-vacio"><span className="spinner" /> Leyendo las tarifas…</div>
     : <Resultados res={resultados} q={q} sel={sel} onElegir={elegir} />;
   else if (prov && f && t) cuerpo = <Familia t={t} f={f} medida={medida} sel={sel} onMedida={m => ir({ m }, true)} onElegir={elegir} />;
+  else if (prov && t && rejilla) cuerpo = (
+    <CuadriculaTarifa t={t} grande onTocar={c => tocar(lineaDe({ t, f: c.f, m: c.m }))}
+      cuentaDe={c => cuentaDe(t.id, c.m.ref)} onQuitar={c => quitarUno(t.id, c.m.ref)} />
+  );
   else if (prov && t) cuerpo = <Familias t={t} onFamilia={id => ir({ f: id, m: null })} />;
   else if (prov && !t) cuerpo = fallidas[prov]
     ? <ConnectionError message={fallidas[prov]} onRetry={cargar} />
@@ -228,6 +235,8 @@ export function MostradorPage() {
 
   const titulo = q.trim() ? `Buscando «${q.trim()}»` : f ? f.nombre : t ? t.nombre : 'Tarifas';
   const pendientes = apuntes.filter(a => !a.hecho).length;
+  const abiertos = apuntes.filter(a => !a.hecho);
+  const totalAbierto = abiertos.reduce((s, a) => s + (conIva(a) ?? 0) * a.cant, 0);
 
   const panel = verLista
     ? <ListaApuntes apuntes={apuntes} setApuntes={setApuntes} onBorrar={borrarLista} onCerrar={() => setVerLista(false)} horizontal={horizontal}
@@ -284,8 +293,20 @@ export function MostradorPage() {
           {/* Aviso de las que no se pudieron leer: en la portada y al buscar (dentro de otra tarifa, no molesta) */}
           {error && tarifas.length > 0 && (!prov || q.trim()) && <ConnectionError message={error} onRetry={cargar} />}
           {cuerpo}
+          {rejilla && !verLista && (
+            <div className="mo-gc-pie" role="status">
+              {pendientes ? (
+                <>
+                  <span className="mo-gc-pie-txt">{abiertos.map(a => `${num(a.cant)} × ${conPor(a.descripcion)}`).join(' · ')}</span>
+                  <b>{eurC(totalAbierto)}</b>
+                  <button type="button" className="mo-gc-pie-btn" onClick={() => setVerLista(true)}>Ver lista</button>
+                </>
+              ) : <span className="mo-gc-pie-txt">Toca una bombona para apuntarla · cada toque suma una</span>}
+            </div>
+          )}
         </main>
-        {horizontal ? <aside className="mo-der">{panel}</aside> : (elegido || verLista) && <div className="mo-hoja">{panel}</div>}
+        {horizontal ? (!rejilla || verLista) && <aside className="mo-der">{panel}</aside>
+          : (elegido || verLista) && <div className="mo-hoja">{panel}</div>}
       </div>
     </div>
   );
