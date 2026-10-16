@@ -169,3 +169,37 @@ def test_dinak_columna_de_mes_nueva():
                meses=("May-24", "Feb-26", "Oct-26"))
     a = cd.leer_dinak(h)["articulos"][0]
     assert a["fecha"] == "oct-26" and a["precio"] == 4.6 and a["precio_ant"] == 4.4 and a["tipo"] == "Abrazadera de unión"
+
+
+def test_ladrillos_lee_por_nombre_de_columna():
+    """Tarifa de ladrillos (datos inventados: el repo es público). Las columnas se buscan por su nombre,
+    se vende por unidad y el palé completo va como precio por cantidad."""
+    from app.services import tarifas_service as ts
+    cab = ["Código", "Familia", "Grupo", "Producto", "Medidas (cm)", "Uso", "Ud/m²", "Kg/ud", "Ud/palé",
+           "Se compra por", "Coste (€)", "Fecha", "Pedido", "Coste anterior (€)", "Fecha anterior", "PVP/ud",
+           "PVP/ud con IVA", "Margen ud", "PVP palé", "PVP palé con IVA", "Coste palé", "Margen palé", "PVP/m² con IVA", "Notas"]
+    hojas = {"TARIFA": [
+        ["TARIFA"], ["sub"], [], cab,
+        ["B2", "Ladrillo hueco", "Formato 24 cm", "Ladrillo B", "24×11,5×8", "", "32,00", "2,000", "100", "centena",
+         "10,00 €", "02/02/2026", "", "8,00 €", "01/01/2025", "0,15 €", "0,182 €", "50,0%", "11,00 €", "", "", "", "", ""],
+        ["A1", "Ladrillo hueco", "Formato 24 cm", "Ladrillo A", "24×11,5×4", "Ahorro mortero", "32,00", "1,000", "200", "centena",
+         "5,00 €", "02/02/2026", "P-1", "", "", "0,10 €", "", "", "12,00 €", "", "", "", "",
+         "Precio a confirmar: coste antiguo."],
+        ["PAL", "Palé de madera", "", "Palé", "", "", "", "", "", "ud", "4,00 €", "02/02/2026", "P-1", "", "", "4,00 €"],
+        [], ["Leyenda: notas al pie"],
+    ]}
+    d = ts.leer_ladrillos(hojas)
+    b, a, p = d["articulos"]
+    assert b["descripcion"] == "Ladrillo B · 24×11,5×8 cm" and b["coste"] == 0.1 and b["ud_compra"] == "centena"
+    assert b["pvp"] == 0.15 and b["pvp_iva"] == 0.1815 and b["margen"] == 50.0 and b["evol"] == 25.0
+    assert b["escalas"] == [{"nombre": "Palé completo (100 ud)", "cantidad": 100, "pvp": 0.11, "pvp_iva": 0.1331,
+                             "total": 11.0, "total_iva": 13.31, "margen": 10.0}]
+    assert b["ud_m2"] == 32 and b["kg_ud"] == 2 and b["ud_pale"] == 100
+    assert a["nota"] == "Precio a confirmar" and a["uso"] == "Ahorro mortero" and a["escalas"][0]["margen"] == 20.0
+    assert p["ud_compra"] == "ud" and p["coste"] == 4 and p["escalas"] is None and p["margen"] == 0
+    assert [l["precio"] for l in d["lineas"]["B2"]] == [8.0, 10.0] and d["lineas"]["B2"][1]["factura"] == ""
+    assert d["orden_familias"] == ["Ladrillo hueco", "Palé de madera"]
+    # En la familia se queda el orden de la hoja (B antes que A), no el alfabético
+    grupos = ts._grupos_sub([x for x in d["articulos"] if x["categoria"] == "Ladrillo hueco"], d["orden_grupos"]["Ladrillo hueco"], False)
+    assert [m["ref"] for m in grupos[0]["medidas"]] == ["B2", "A1"]
+    assert grupos[0]["medidas"][0]["ud_pale"] == 100 and grupos[0]["medidas"][1]["uso"] == "Ahorro mortero"

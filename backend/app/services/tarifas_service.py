@@ -88,6 +88,16 @@ TARIFAS = {
         "fabricante": "Dinak 2026",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
+    "ladrillos": {
+        "nombre": "Ladrillos",
+        "sub": "Construdeco · Cerámica Campo y Alar",
+        "proveedor": "Construdeco Norte (Cerámica Campo, Alar)",
+        # TARIFA_LADRILLOS_2026 (Mi unidad de Andrés): la hoja de mostrador vigente desde el 09/09/2026
+        "hoja": "13c9n7tc835qQ1CYgqfMMUTAk55YkRiBZ4jkVPQWPlLY",
+        "pestanas": ["TARIFA"],
+        "redondeo": "por unidad, al alza a 0,05 €; el palé, al euro",
+        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
+    },
 }
 
 REFRESCO = timedelta(hours=3)          # se vuelve a leer si la copia tiene más de esto
@@ -573,8 +583,97 @@ def leer_silva(hojas: dict) -> dict:
             "orden_familias": familias, "orden_grupos": grupos}
 
 
+# ── Lector de la tarifa de ladrillos (Construdeco: Cerámica Campo y Alar) ─────
+# Fotos: las de Cerámica Campo van en frontend/public/catalogo/lad (las mismas que la hoja de mostrador);
+# las demás son de referencia (Obramat) y se enlazan, como en el resto del catálogo.
+_ADEO = "https://media.adeo.com/media/{}/media.jpg?width=640"
+FOTOS_LAD = {
+    "910524": "/catalogo/lad/hueco-4.webp", "910520": "/catalogo/lad/hueco-6.webp",
+    "910521": "/catalogo/lad/bloque.webp", "910519": "/catalogo/lad/bloque-doble.webp",
+    "980207": "/catalogo/lad/tabicon-7.webp", "900905": "/catalogo/lad/tabicon-8.webp",
+    "915547": "/catalogo/lad/semimacizo.webp", "991620": "/catalogo/lad/termoarcilla.webp",
+    "1009530": "/catalogo/lad/caravista.webp", "917057": _ADEO.format("4400186"),
+    "919265": _ADEO.format("4410053"), "1009721": _ADEO.format("4415710"),
+}
+
+
+def _clave_col(s: str) -> str:
+    """«Ud/m²» → «udm2», «Coste anterior (€)» → «costeanterior»: las columnas se buscan por su nombre."""
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
+def leer_ladrillos(hojas: dict) -> dict:
+    """Pestaña «TARIFA»: una fila por ladrillo (código, familia, grupo, producto, medidas, uso, ud/m², kg/ud, ud/palé,
+    coste por centena con su fecha y pedido, coste anterior, PVP por unidad, PVP del palé y notas). Las columnas se
+    buscan por su nombre. Se vende por unidad; el palé completo va como precio por cantidad («escalas»)."""
+    filas = hojas.get("TARIFA") or next(iter(hojas.values()), [])
+    ini = next((i for i, f in enumerate(filas) if f and _clave_col(f[0]) == "codigo"), None)
+    if ini is None:
+        return {"articulos": [], "log": [], "margen": None, "lineas": {}}
+    col = {_clave_col(t): j for j, t in enumerate(filas[ini]) if str(t).strip()}
+
+    def v(f: list, nombre: str) -> str:
+        j = col.get(nombre)
+        return str(f[j]).strip() if j is not None and j < len(f) else ""
+
+    arts, lineas, familias, grupos = [], {}, [], {}
+    for orden, f in enumerate(filas[ini + 1:]):
+        cod, fam, prod = v(f, "codigo"), v(f, "familia"), v(f, "producto")
+        if not cod or not fam or not prod:
+            continue  # notas al pie
+        medidas, grupo = v(f, "medidascm"), v(f, "grupo")
+        div = 100 if normaliza(v(f, "secomprapor")).startswith("centena") else 1
+        precio, precio_ant = numero(v(f, "coste")), numero(v(f, "costeanterior"))
+        fecha, fecha_ant, pedido = dia(v(f, "fecha")), dia(v(f, "fechaanterior")), v(f, "pedido")
+        coste = precio / div if precio else None
+        pvp = numero(v(f, "pvpud"))
+        ud_m2, kg_ud = numero(v(f, "udm2")), numero(v(f, "kgud"))
+        ud_pale = int(numero(v(f, "udpale")) or 0) or None
+        pvp_pale = numero(v(f, "pvppale"))
+        notas = v(f, "notas")
+        margen = round((pvp / coste - 1) * 100, 1) if pvp and coste else None
+        escalas = None
+        if pvp_pale and ud_pale:
+            coste_pale = coste * ud_pale if coste else None
+            escalas = [{"nombre": f"Palé completo ({ud_pale} ud)", "cantidad": ud_pale,
+                        "pvp": round(pvp_pale / ud_pale, 6), "pvp_iva": round(pvp_pale * 1.21 / ud_pale, 6),
+                        "total": pvp_pale, "total_iva": round(pvp_pale * 1.21, 2),
+                        "margen": round((pvp_pale / coste_pale - 1) * 100, 1) if coste_pale else None}]
+        if fam not in familias:
+            familias.append(fam)
+        if grupo and grupo not in grupos.setdefault(fam, []):
+            grupos[fam].append(grupo)
+        n = normaliza(notas)
+        arts.append({
+            "ref": cod, "codigo": cod, "categoria": fam, "subcategoria": grupo or None,
+            "descripcion": f"{prod} · {medidas} cm" if medidas else prod, "nombre": None,
+            "tipo": None, "medida_c": f"{medidas} cm" if medidas else None, "orden": orden,
+            "mp": medidas or None, "op": orden, "foto": FOTOS_LAD.get(cod),
+            "unidad": "ud", "ud_venta": "ud", "ud_compra": "centena" if div == 100 else "ud",
+            "precio": precio, "fecha": fecha, "precio_ant": precio_ant, "fecha_ant": fecha_ant,
+            "evol": round((precio - precio_ant) / precio_ant * 100, 1) if precio and precio_ant else None,
+            "coste": coste, "pvp": pvp, "pvp_iva": round(pvp * 1.21, 4) if pvp is not None else None,
+            "margen": margen, "metros": None, "kg_m": None, "minimo": None, "compras": None,
+            "nota": "Precio a confirmar" if "confirmar" in n else None, "apunte": notas or None,
+            "escalas": escalas, "ud_m2": ud_m2, "kg_ud": kg_ud, "ud_pale": ud_pale, "uso": v(f, "uso") or None,
+            "origen": (f"Coste de la compra a Construdeco del {v(f, 'fecha')}, por {'centena' if div == 100 else 'unidad'}, sin IVA."
+                       if fecha else "Coste de la última compra a Construdeco, sin IVA."),
+        })
+        ls = []
+        if precio_ant and fecha_ant:
+            ls.append({"fecha": fecha_ant, "factura": "", "precio": precio_ant, "cantidad": None, "bruto": None, "dto1": None, "dto2": None})
+        if precio and fecha:
+            ls.append({"fecha": fecha, "factura": pedido, "tipo": "Pedido", "precio": precio, "cantidad": None,
+                       "bruto": None, "dto1": None, "dto2": None})
+        lineas[cod] = ls
+    # «sin_compras»: las líneas son solo el coste actual y el anterior, no cada compra (no se cuentan las veces)
+    return {"articulos": arts, "log": [], "margen": None, "lineas": lineas, "orden_hoja": True, "sin_compras": True,
+            "orden_familias": familias, "orden_grupos": grupos}
+
+
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
-            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak}
+            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -771,6 +870,8 @@ def _item(a: dict, valor: str = "", ud: str = "") -> dict:
             # o barra (para el €/m) y la medida por la que se filtra la familia
             "alias": a.get("alias"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"), "mp": mp, "op": op,
             **({"escalas": a["escalas"]} if a.get("escalas") else {}),
+            # Ladrillos: piezas por m², peso, piezas por palé y para qué se usa
+            **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
             **({"ms": ms} if len(ms) > 1 else {})}
 
 
@@ -839,9 +940,9 @@ def _medida_final(desc: str) -> Optional[tuple]:
     return base, m.group(), ud
 
 
-def _grupos_sub(arts: list, orden: Optional[list] = None) -> list:
+def _grupos_sub(arts: list, orden: Optional[list] = None, por_nombre: bool = True) -> list:
     """Familias con grupos (Zabaleta): cada grupo es una sección; dentro, cada tipo de pieza con varias medidas
-    va en botones (Codo 87º M-H: 40, 75, 110…) y el resto en lista, por nombre."""
+    va en botones (Codo 87º M-H: 40, 75, 110…) y el resto en lista, por nombre (o en el orden de la hoja, ladrillos)."""
     subs: dict[str, list] = {}
     for a in arts:
         subs.setdefault(a.get("subcategoria") or "", []).append(a)
@@ -877,7 +978,7 @@ def _grupos_sub(arts: list, orden: Optional[list] = None) -> list:
                     chips.append(_item(a, a["medida_c"]))
             # «repes»: las que se fueron a la lista por repetir medida (la vista nueva las enseña en su grupo)
             out.append({"titulo": t, "seccion": sub, "medidas": chips, **({"repes": repes} if repes else {})})
-        sueltos.sort(key=lambda a: normaliza(a.get("nombre") or a["descripcion"]))
+        sueltos.sort(key=(lambda a: normaliza(a.get("nombre") or a["descripcion"])) if por_nombre else (lambda a: a.get("orden") or 0))
         if sueltos:
             out.append({"titulo": None, "seccion": sub, "medidas": [_item(a) for a in sueltos]})
     return out
@@ -923,7 +1024,8 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
         "actualizada": _actualizada(c), "leida": c.leido_at.isoformat() + "Z" if c.leido_at else None,
         "aviso": aviso, "ultima_factura": ultima,
         "familias": [{"id": slug(cat), "nombre": bonito(cat), "clave": cat, "n": len(arts),
-                      "grupos": _grupos_sub(arts, (datos.get("orden_grupos") or {}).get(cat)) if "lineas" in datos else _grupos(arts)}
+                      "grupos": _grupos_sub(arts, (datos.get("orden_grupos") or {}).get(cat), not datos.get("orden_hoja"))
+                      if "lineas" in datos else _grupos(arts)}
                      for cat, arts in familias.items()],
     }
 
@@ -1042,7 +1144,7 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
     ult = next((l for l in reversed(lineas) if l["fecha"] == a["fecha"]), lineas[-1] if lineas else None)
     factura = None
     if ult and ult.get("factura"):
-        factura = {"numero": ult["factura"], "fecha": ult["fecha"], "seguro": True,
+        factura = {"numero": ult["factura"], "fecha": ult["fecha"], "seguro": True, "tipo": ult.get("tipo"),
                    "enlace": enlace_factura(ult["factura"], archivos),
                    "cantidad": ult["cantidad"], "bruto": ult["bruto"], "dto1": ult["dto1"], "dto2": ult["dto2"]}
     p = _medida_final(a["descripcion"])
@@ -1058,7 +1160,7 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         "evol": a["evol"], "kg_m": None, "coste": a["coste"], "pvp": a["pvp"], "pvp_iva": a["pvp_iva"],
         "margen": a.get("margen"), "redondeo": TARIFAS[prov].get("redondeo"),
         "historial": historial, "factura": factura, "posibles": [],
-        "compras": len(lineas) or a.get("compras"), "minimo": a.get("minimo"), "nota": a.get("nota"),
+        "compras": None if datos.get("sin_compras") else (len(lineas) or a.get("compras")), "minimo": a.get("minimo"), "nota": a.get("nota"),
         "apunte": a.get("apunte"),
         "medida": medida_txt,
         "pvp_fab": a.get("pvp_fab"), "origen": a.get("origen") or datos.get("origen"),
@@ -1067,4 +1169,5 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         # Vista nueva (oct. 2026): otros códigos del mismo artículo, código comodín y metros del rollo o barra
         "antes": a.get("antes"), "tambien": a.get("tambien"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"),
         "escalas": a.get("escalas"),
+        **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
     }

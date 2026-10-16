@@ -463,6 +463,76 @@ def art(name):
              f'<ellipse cx="92" cy="40" rx="13" ry="4.4" fill="#1F2124"/>',
              f'<rect x="68" y="170" width="48" height="14" rx="4" fill="#2B2F2C" stroke="{INK}" stroke-width="{SW}"/>']
         return o
+    # ladrillos (Construdeco: Cerámica Campo y Alar), oct. 2026
+    LAD = ('#D9693B', '#E8865A', '#A84A26')  # frente, cara de arriba, lado
+
+    def bloque(x, y, w, h, d, cols=LAD):  # caja maciza: solo las caras que se ven (arriba y derecha)
+        fr, top, lado = cols
+        return [poly([(x, y), (x + w, y), (x + w + d[0], y + d[1]), (x + d[0], y + d[1])], top),
+                poly([(x + w, y), (x + w, y + h), (x + w + d[0], y + h + d[1]), (x + w + d[0], y + d[1])], lado),
+                poly(sq(x, y, w, h), fr)]
+
+    def huecos(x, y, w, h, cols, filas, d, m=7, g=6):
+        o = []
+        hw, hh = (w - 2 * m - (cols - 1) * g) / cols, (h - 2 * m - (filas - 1) * g) / filas
+        for i in range(cols):
+            for j in range(filas):
+                o += hole(sq(x + m + i * (hw + g), y + m + j * (hh + g), hw, hh), d, '#9C4523', '#4E1F0E')
+        return o
+    if name == 'prov-ladrillos':  # tres ladrillos huecos apilados
+        dd = (40, -26); o = []
+        for (x, y) in [(58, 62), (18, 116), (92, 116)]:
+            o += bloque(x, y, 56, 48, dd) + huecos(x, y, 56, 48, 2, 2, dd)
+        return o
+    if name == 'lad-hueco':  # ladrillo hueco de 24, con las estrías de la cara
+        d = (78, -50)
+        o = bloque(30, 86, 60, 92, d)
+        for t in (0.25, 0.5, 0.75):
+            x0 = 30 + 60 * t
+            o.insert(1, f'<line x1="{x0:.1f}" y1="86" x2="{x0 + d[0]:.1f}" y2="{86 + d[1]}" stroke="#C96A40" stroke-width="2.4"/>')
+        return o + huecos(30, 86, 60, 92, 2, 3, d)
+    if name == 'lad-semimacizo':  # semimacizo perforado (cara con los agujeros redondos)
+        o = bloque(22, 92, 128, 64, (30, -20))
+        for i in range(5):
+            for j in range(2):
+                o.append(circle((40 + i * 23, 112 + j * 24), 7.5, '#5A2410', 2.2))
+        return o
+    if name == 'lad-rasillon':  # rasillón: tablero largo y fino con sus huecos en la testa
+        d = (94, -62)
+        o = bloque(16, 142, 72, 20, d, ('#E08A57', '#EBA176', '#B5642F'))
+        for i in range(3):
+            o += hole(sq(23 + i * 21, 147, 16, 10), d, '#9C5530', '#4E1F0E')
+        return o
+    if name == 'lad-refractario':  # refractario prensado, claro, con su cazoleta
+        o = bloque(22, 96, 120, 58, (34, -24), ('#EBDDBF', '#F5EBD5', '#C9B78F'))
+        o.append(f'<rect x="38" y="108" width="88" height="34" rx="16" fill="#DDCCA6" stroke="{INK}" stroke-width="2"/>')
+        o.append(f'<rect x="44" y="112" width="76" height="8" rx="4" fill="#F4EAD3"/>')
+        return o
+    if name == 'lad-alar':  # paño de caravista con sus juntas
+        o = bloque(24, 70, 140, 96, (24, -16), ('#C9C1B5', '#DAD3C8', '#A99F91'))
+        tonos = ['#B4472E', '#C2553A', '#A63F28', '#BD4E33']
+        for fila in range(4):
+            y = 74 + fila * 23
+            x = 24 + (0 if fila % 2 == 0 else -22)
+            k = 0
+            while x < 164:
+                x0, x1 = max(x + 2, 27), min(x + 42, 161)
+                if x1 - x0 > 8:
+                    o.append(f'<rect x="{x0}" y="{y}" width="{x1 - x0}" height="19" fill="{tonos[(fila + k) % 4]}" stroke="{INK}" stroke-width="1.6"/>')
+                x += 44; k += 1
+        return o
+    if name == 'lad-pale':  # palé de madera: tablas de arriba, tacos y tabla de abajo
+        W = ('#D6A86A', '#E6BE85', '#A97B42')
+        d = (36, -24)
+        o = bloque(16, 146, 144, 12, d, W)
+        for x in (16, 74, 132):
+            o += bloque(x, 124, 28, 22, d, W)
+        o += bloque(16, 110, 144, 14, d, W)
+        for t in (0.2, 0.4, 0.6, 0.8):  # juntas entre las tablas de arriba
+            x0 = 16 + 144 * t
+            o.append(f'<line x1="{x0:.1f}" y1="110" x2="{x0 + d[0]:.1f}" y2="{110 + d[1]}" stroke="{INK}" stroke-width="2"/>')
+            o.append(f'<line x1="{x0:.1f}" y1="110" x2="{x0:.1f}" y2="124" stroke="{INK}" stroke-width="2"/>')
+        return o
     raise KeyError(name)
 
 NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-cuadrado', 'tubo-rectangular', 'tubo-galv',
@@ -473,7 +543,11 @@ NAMES = ['viga-ipn', 'viga-ipe', 'viga-heb', 'upn', 'angulo', 'pletina', 'tubo-c
          'zab-laton', 'zab-multicapa', 'zab-llaves', 'zab-termo',
          'iso-tubo-multicapa', 'iso-tubo-pex', 'iso-acc-multicapa', 'iso-acc-pex', 'iso-acc-expansion',
          'iso-acc-compresion', 'iso-colector', 'iso-acc-laton', 'iso-herramienta',
-         'pla-placas', 'pla-perfileria', 'pla-accesorios', 'pla-pastas', 'dk-doble', 'dk-simple', 'dk-pellets']
+         'pla-placas', 'pla-perfileria', 'pla-accesorios', 'pla-pastas', 'dk-doble', 'dk-simple', 'dk-pellets',
+         'prov-ladrillos', 'lad-hueco', 'lad-semimacizo', 'lad-rasillon', 'lad-refractario', 'lad-alar', 'lad-pale']
+# «python3 tools/pegatinas-catalogo.py <carpeta> lad-hueco lad-pale»: solo esas (las demás no se tocan)
+if len(sys.argv) > 2:
+    NAMES = [n for n in NAMES if n in sys.argv[2:]]
 
 S = 512
 for nm in NAMES:

@@ -150,6 +150,19 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (`incompletas`). Fotos: Pladur e Isover del fabricante en `frontend/public/catalogo/pladur/` (`tools/pladur-fotos.py`);
   Placo y Dinak, de referencia de Obramat (`FOTOS_ADEO`, se enlazan); lo que no tiene una parecida, la pegatina. Pegatinas
   `st-pla-*` y `st-dk-*`. A quien no las ve, Pladur y Dinak le siguen saliendo en «Próximamente».
+- **Ladrillos (16/10/2026, en pruebas: solo admin)**: hoja «TARIFA_LADRILLOS_2026» `13c9n…` en Mi unidad de Andrés (tiene que
+  estar compartida con casafonsomc como lector). Hecha desde la hoja de mostrador **vigente desde el 09/09/2026**
+  (`Hoja_Mostrador_Ladrillos_ago2026.pdf`, compra del 08/08/2026; las hojas «Tarifa_Ladrillos_*» e «Importacion_TreyFact_Ladrillos»
+  de mayo en Drive son **antiguas**). Pestañas INICIO y TARIFA: una fila por ladrillo; el lector `leer_ladrillos` busca las columnas
+  **por su nombre** (Código, Familia, Grupo, Producto, Medidas (cm), Uso, Ud/m², Kg/ud, Ud/palé, Se compra por, Coste (€) por
+  centena, Fecha, Pedido, Coste anterior (€), Fecha anterior, PVP/ud, PVP palé, Notas; el resto son fórmulas para Andrés).
+  Se vende por unidad; el palé completo va en `escalas` con `cantidad`, `total` y `total_iva` (lo que vale el palé entero; `pvp`
+  por pieza). «Precio a confirmar» en Notas = coste de compra antiguo (aviso en la ficha; hueco de 4 y de 6: Andrés aún no
+  los ha comprado a precio nuevo, 16/10/2026). Familias en el orden de la hoja
+  (`orden_hoja`), pegatinas `st-lad-*` y `st-prov-ladrillos` (`tools/pegatinas-catalogo.py <carpeta> <nombres>` genera solo esas),
+  fotos de Cerámica Campo en `frontend/public/catalogo/lad/` y de referencia (Obramat) para rasillón, refractario y tabiquero
+  (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
+- `eur()` enseña el tercer decimal por debajo de 1 € si lo tiene (0,242 € con IVA); los importes (cantidad × precio) con `eurC`.
 - **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
   búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.
   Botones «Con IVA | Sin IVA | Coste» (`MODOS`, «Con IVA» el primero); lo elegido se recuerda en la pestaña y la ficha y la
@@ -189,6 +202,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Coste y margen tapados por defecto (el cliente ve la tableta): botón del ojo (`cfMostradorCoste`, sessionStorage).
 - «Apuntado»: lista del cliente de delante con cantidades, casilla para tachar lo ya pasado a TreyFACT y total (con IVA, y debajo sin IVA); se queda en la
   tableta (`cfMostradorLista`), «Borrar lista» con deshacer. «Lo último que miraste» en la portada (`cfMostradorRecientes`).
+- **Cantidad tocando la foto (16/10/2026, Andrés)**: cada toque en la foto del artículo suma 1 a lo apuntado (dos toques, dos), con el
+  número grande encima y «Quitar uno»; sin aviso por toque. El palé completo (ladrillos) se apunta igual en su botón (línea `ref#pale`,
+  precio del palé). Para muchas piezas o decimales, «Escribir otra cantidad» abre el campo de antes. La foto sale también en vertical.
 - Pantalla siempre encendida (Wake Lock) y botón de pantalla completa donde el navegador lo permite.
 
 ## Órdenes de carga desde el albarán de TreyFACT (desde el 13/10/2026, para todos: admin y tienda)

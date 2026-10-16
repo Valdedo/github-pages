@@ -9,8 +9,8 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import {
   PROXIMAMENTE, PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, precioModo, mesLargo, esReciente,
-  conIva, modoGuardado, guardarModo,
-  type Tarifa, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
+  conIva, modoGuardado, guardarModo, totalEscala, datosPieza,
+  type Tarifa, type Escala, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
 import './tarifas.css';
 
@@ -143,6 +143,13 @@ export const codigoVisible = (m: { codigo?: string | null; comodin?: boolean }) 
 export const porMetro = (m: TarifaMedida, modo: ModoPrecio) => {
   const p = precioModo(m, modo);
   return m.metros && m.metros > 1 && p != null ? p / m.metros : null;
+};
+
+/** Una escala en pocas palabras: «palé 106,48 €» (palé entero) o «5+ rollos 15,15 €» (precio por unidad). */
+export const escalaCorta = (e: Escala, iva: boolean) => {
+  const n = e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé');
+  const tot = totalEscala(e, iva);
+  return `${n} ${tot != null ? eur(tot) : eur(iva ? conIva(e) : e.pvp)}`;
 };
 
 export type Resultado = { t: Tarifa; f: TarifaFamilia; m: TarifaMedida };
@@ -291,6 +298,7 @@ export function TarifasPage() {
 const BUSCA_EJEMPLO: Record<string, string> = {
   zabaleta: 'Buscar: codo 110, SN8 315, referencia…', silva: 'Buscar: 120/9/15, nudo fijo, 50 m…',
   pladur: 'Buscar: N 13, montante 70, pasta, código…', dinak: 'Buscar: 150 doble pared, codo, sombrerete…',
+  ladrillos: 'Buscar: hueco 4, tabicón, bloque, refractario…',
 };
 export function TarifaProveedorPage() {
   const { prov = '' } = useParams();
@@ -420,7 +428,10 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
             <dt>Coste</dt><dd>{eurUd(sel.coste, sel.ud_venta)}</dd>
             {pm != null && <><dt>Sale el metro a</dt><dd>{eur(pm)}/m{modo === 'coste' ? ' de coste' : iva ? ' con IVA' : ' sin IVA'}</dd></>}
             {sel.escalas?.map(e => <Fragment key={e.nombre}><dt>{e.nombre}</dt>
-              <dd className="tf-escala-dd">{eurUd(iva ? conIva(e) : e.pvp, sel.ud_venta)}<small>{iva ? 'con IVA' : 'sin IVA'}</small></dd></Fragment>)}
+              <dd className="tf-escala-dd">{totalEscala(e, iva) != null
+                ? <>{eur(totalEscala(e, iva))} el palé<small>{eurUd(iva ? conIva(e) : e.pvp, sel.ud_venta)} · {iva ? 'con IVA' : 'sin IVA'}</small></>
+                : <>{eurUd(iva ? conIva(e) : e.pvp, sel.ud_venta)}<small>{iva ? 'con IVA' : 'sin IVA'}</small></>}</dd></Fragment>)}
+            {datosPieza(sel, iva).map(x => <Fragment key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></Fragment>)}
             <dt>Precio de</dt><dd>{mesLargo(sel.fecha) || '—'}{sel.evol ? <span className={`tf-mini-evol ${sel.evol > 0 ? 'sube' : 'baja'}`}>{pct(sel.evol)}</span> : null}</dd>
             <dt>Última factura</dt>
             <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
@@ -649,6 +660,7 @@ function FilaPieza({ m, etiqueta, modo, sel, onSel, onOpen }: {
             {eur(p)}<small>/{m.ud_venta}</small></strong>
           : <em>Sin precio</em>}
         {pm != null && <small>{eur(pm)}/m</small>}
+        {m.escalas?.some(e => e.total != null) && <small>{m.escalas.filter(e => e.total != null).map(e => escalaCorta(e, modo !== 'venta')).join(' · ')}</small>}
       </span>
     </button>
   );
@@ -798,7 +810,7 @@ function FamiliaNueva() {
                 <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
                 <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA · coste {eur(sel.coste)}</small>
                 {porMetro(sel, iva ? 'iva' : 'venta') != null && <small className="tfn-barra-m">sale a {eur(porMetro(sel, iva ? 'iva' : 'venta'))}/m</small>}
-                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => `${e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé')} ${eur(iva ? conIva(e) : e.pvp)}`).join(' · ')}</small> : null}
+                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => escalaCorta(e, iva)).join(' · ')}</small> : null}
               </div>
               <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
                 Ver ficha <ChevronRight size={18} />
@@ -891,7 +903,8 @@ export function TarifaFichaPage() {
       <Foto src={fotoArticulo(d.familia.nombre, d.descripcion, d.foto)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
       {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">
         {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex'
-          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' : 'Foto de referencia'}</span>}
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' 
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/lad') ? 'Foto de Cerámica Campo' : 'Foto de referencia'}</span>}
     </div>
   );
   const precios = d && (
@@ -901,9 +914,10 @@ export function TarifaFichaPage() {
         {grande != null ? <strong>{eur(grande)}<span>/{d.ud_venta}</span></strong> : <strong>Sin precio</strong>}
         {otro != null && <em>{eurUd(otro, d.ud_venta)} {iva ? 'sin' : 'con'} IVA</em>}
         {nueva && grande != null && (d.metros ?? 0) > 1 && <em>sale a {eur(grande / d.metros!)}/m ({d.metros} m)</em>}
-        {d.nota && <span className={`tf-etiqueta${/revisar|neto/i.test(d.nota) ? ' aviso' : ''}`}
+        {d.nota && <span className={`tf-etiqueta${/revisar|neto|confirmar/i.test(d.nota) ? ' aviso' : ''}`}
           title={/neto/i.test(d.nota) ? 'Sale en la tarifa de Isoltubex pero no tenemos su precio neto: hay que pedirlo'
-            : /revisar/i.test(d.nota) ? 'El precio ha cambiado mucho: conviene mirarlo' : 'Primera vez que se compra'}>
+            : /revisar/i.test(d.nota) ? 'El precio ha cambiado mucho: conviene mirarlo'
+            : /confirmar/i.test(d.nota) ? (d.apunte ?? 'Lleva un coste de compra antiguo: confírmalo antes de cerrar el precio') : 'Primera vez que se compra'}>
           {/revisar/i.test(d.nota) ? 'Revisar precio' : d.nota.charAt(0) + d.nota.slice(1).toLowerCase()}</span>}
         {d.pvp == null && /neto/i.test(d.nota ?? '') && <span className="tf-nota" style={{ color: 'inherit', opacity: 0.9 }}>Pide el precio neto a Isoltubex antes de venderlo.</span>}
       </div>
@@ -921,12 +935,18 @@ export function TarifaFichaPage() {
         <tbody>
           <tr><td>Suelto</td><td>{eur(conIva(d))}</td><td>{eur(d.pvp)}</td><td>{d.margen != null ? `${String(d.margen).replace('.', ',')} %` : '—'}</td></tr>
           {d.escalas.map(e => (
-            <tr key={e.nombre}><td>{e.nombre}</td><td><strong>{eur(conIva(e))}</strong></td><td>{eur(e.pvp)}</td>
+            <tr key={e.nombre}><td>{e.nombre}</td>
+              {e.total != null
+                ? <><td><strong>{eur(totalEscala(e, true))}</strong><small className="tf-escala-ud">{eur(conIva(e))}/{d.ud_venta}</small></td>
+                  <td>{eur(e.total)}<small className="tf-escala-ud">{eur(e.pvp)}/{d.ud_venta}</small></td></>
+                : <><td><strong>{eur(conIva(e))}</strong></td><td>{eur(e.pvp)}</td></>}
               <td>{e.margen != null ? `${String(e.margen).replace('.', ',')} %` : '—'}</td></tr>
           ))}
         </tbody>
       </table>
-      <p className="tf-nota">Precio por {d.ud_venta}. Desde 5 rollos vale mezclando medidas.</p>
+      <p className="tf-nota">{d.escalas.some(e => e.total != null)
+        ? `Suelto, precio por ${udLarga(d.ud_venta)}; el palé completo, lo que vale el palé (debajo, lo que sale cada ${udLarga(d.ud_venta)}).`
+        : `Precio por ${d.ud_venta}. Desde 5 rollos vale mezclando medidas.`}</p>
     </section>
   ) : null;
   const evolucion = d && (
@@ -947,7 +967,7 @@ export function TarifaFichaPage() {
       ) : d.factura ? (
         <>
           <div className="tf-factura">
-            <span>Factura <strong>{d.factura.numero}</strong>{d.factura.seguro === false ? ' (la del mismo mes)' : ''}</span>
+            <span>{d.factura.tipo ?? 'Factura'} <strong>{d.factura.numero}</strong>{d.factura.seguro === false ? ' (la del mismo mes)' : ''}</span>
             <span>{fechaES(d.factura.fecha)}</span>
           </div>
           {d.factura.cantidad != null && (
@@ -958,7 +978,7 @@ export function TarifaFichaPage() {
             </p>
           )}
           <a className="btn btn-ghost tf-ver-factura" href={d.factura.enlace} target="_blank" rel="noopener noreferrer">
-            <FileText size={18} /> {d.factura.enlace.includes('/file/d/') ? 'Abrir factura (PDF)' : 'Buscar factura en Drive'}
+            <FileText size={18} /> {d.factura.enlace.includes('/file/d/') ? `Abrir ${(d.factura.tipo ?? 'factura').toLowerCase()} (PDF)` : `Buscar ${(d.factura.tipo ?? 'factura').toLowerCase()} en Drive`}
           </a>
         </>
       ) : d.posibles.length ? (
@@ -997,6 +1017,7 @@ export function TarifaFichaPage() {
         <dt>Se compra por</dt><dd>{d.ud_compra}</dd>
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}
+        {datosPieza(d, iva).map(x => <Fragment key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></Fragment>)}
         {d.compras != null && <><dt>Veces comprado</dt><dd>{d.compras}</dd></>}
         {d.minimo != null && d.precio != null && d.minimo < d.precio - 0.0005 && <><dt>Más barato (12 meses)</dt><dd>{eur(d.minimo)}/{d.ud_compra}</dd></>}
         <dt>Proveedor</dt><dd>{d.proveedor_nombre}</dd>

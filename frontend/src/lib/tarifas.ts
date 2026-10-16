@@ -18,15 +18,24 @@ export interface TarifaMedida {
   mp?: string | null; op?: number | null;
   /** Todas sus medidas cuando tiene varias (una reducción 3/4"×1/2" sale también en 1/2") */
   ms?: string[];
-  /** Precios por cantidad (Silva Moreira: desde 5 rollos y palé completo) */
+  /** Precios por cantidad (Silva Moreira: desde 5 rollos y palé completo; ladrillos: palé completo) */
   escalas?: Escala[] | null;
+  /** Ladrillos: piezas por m², kg por pieza, piezas por palé y para qué se usa */
+  ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
 }
-export interface Escala { nombre: string; pvp: number | null; pvp_iva: number | null; margen: number | null }
+/** Precio por cantidad. «pvp» va por unidad de venta; si es un palé que se vende entero (ladrillos), «total» es lo que
+ *  vale el palé y «cantidad» las piezas que lleva. */
+export interface Escala {
+  nombre: string; pvp: number | null; pvp_iva: number | null; margen: number | null;
+  cantidad?: number | null; total?: number | null; total_iva?: number | null;
+}
 /** «repes»: piezas que repiten medida en el grupo y vienen en la lista de sueltos (la vista nueva las junta) */
 export interface TarifaGrupo { titulo: string | null; seccion?: string; medidas: TarifaMedida[]; repes?: string[] }
 export interface TarifaFamilia { id: string; nombre: string; clave: string; n: number; grupos: TarifaGrupo[] }
 export interface TarifaFactura {
   numero: string; fecha: string; enlace: string; seguro?: boolean;
+  /** «Pedido» cuando el coste sale de un pedido y no de una factura (ladrillos) */
+  tipo?: string | null;
   cantidad?: number | null; bruto?: number | null; dto1?: number | null; dto2?: number | null;
 }
 export interface Tarifa {
@@ -54,6 +63,8 @@ export interface FichaTarifa {
   // Vista nueva: códigos antiguos, otros códigos con los que se factura, comodín y metros del rollo o barra
   antes?: string[] | null; tambien?: { codigo: string; precio: number | null; fecha: string | null }[] | null;
   comodin?: boolean; metros?: number | null;
+  // Ladrillos
+  ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están, en pruebas (oct. 2026): a quien
@@ -64,6 +75,7 @@ export const PROXIMAMENTE = [
 ];
 export const PEGATINA_PROVEEDOR: Record<string, string> = {
   hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla', pladur: 'prov-pladur', dinak: 'prov-dinak',
+  ladrillos: 'prov-ladrillos',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
@@ -134,6 +146,16 @@ const CONSTRUDECO_FAMILIA: Record<string, string> = {
   'pla-accesorios': '/catalogo/pladur/tornillo.webp', 'pla-pastas': '/catalogo/pladur/pasta-uso.webp',
   'dk-doble': ADEO('5357911'), 'dk-simple': ADEO('5355509'), 'dk-pellets': ADEO('4413872'),
 };
+// Familias de ladrillos (Construdeco, oct. 2026)
+const LADRILLOS: [RegExp, string][] = [
+  [/^ladrillo hueco/, 'lad-hueco'], [/^semimacizo/, 'lad-semimacizo'], [/^rasillon/, 'lad-rasillon'],
+  [/^refractario/, 'lad-refractario'], [/^alar\b/, 'lad-alar'], [/^pale de madera/, 'lad-pale'],
+];
+// Foto de cada familia de ladrillos sin artículo elegido (Cerámica Campo en /catalogo/lad; las demás, de referencia)
+const LAD_FAMILIA: Record<string, string> = {
+  'lad-hueco': '/catalogo/lad/bloque.webp', 'lad-semimacizo': '/catalogo/lad/semimacizo.webp',
+  'lad-rasillon': ADEO('4400186'), 'lad-refractario': ADEO('4410053'), 'lad-alar': ADEO('4415710'),
+};
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
@@ -144,6 +166,8 @@ export function claveFamilia(nombre: string): string {
   if (cd) return cd[1];
   const iso = ISOLTUBEX.find(([rx]) => rx.test(n));
   if (iso) return iso[1];
+  const lad = LADRILLOS.find(([rx]) => rx.test(n));
+  if (lad) return lad[1];
   const z = ZABALETA.find(([rx]) => rx.test(n));
   if (z) return z[1];
   return FAMILIAS.find(([rx]) => rx.test(n))?.[1] ?? 'malla';
@@ -151,10 +175,12 @@ export function claveFamilia(nombre: string): string {
 /** Foto de un artículo: la de su familia, salvo casos claros (paneles, chapas sueltas…).
  *  En «Varios» solo hay foto si se sabe qué es; si no, vacío (se enseña la pegatina). */
 export function fotoArticulo(familia: string, descripcion?: string, foto?: string | null): string {
-  if (foto && foto.startsWith('/catalogo/')) return foto;  // Isoltubex, Pladur…: foto del fabricante, ya elegida
+  if (foto && foto.startsWith('/catalogo/')) return foto;  // Isoltubex, Pladur, ladrillos…: foto del fabricante, ya elegida
   const clave = claveFamilia(familia);
   // Pladur y Dinak: la foto viene elegida por tipo de pieza (de Pladur o de referencia de Obramat); si no hay, la pegatina
   if (clave.startsWith('pla-') || clave.startsWith('dk-')) return foto?.startsWith('https://media.adeo.com/') ? foto : descripcion ? '' : CONSTRUDECO_FAMILIA[clave] ?? '';
+  if (foto && foto.startsWith('https://media.adeo.com/')) return foto;  // foto de referencia ya elegida (ladrillos)
+  if (clave.startsWith('lad-')) return descripcion ? '' : LAD_FAMILIA[clave] ?? '';
   if (clave.startsWith('iso-')) return descripcion ? '' : ISO_FAMILIA[clave] ? `/catalogo/iso/${ISO_FAMILIA[clave]}.webp` : '';
   if (foto && FOTOS_ZAB[foto]) return FOTOS_ZAB[foto];  // la foto ya viene elegida en la clasificación
   const d = normaliza(descripcion || '');
@@ -237,8 +263,15 @@ function fotoZabaleta(fam: string, d: string): string {
 }
 
 const fmt = (v: number, dec = 2) => numES(v, dec, dec);
-/** «7,50 €» */
-export const eur = (v: number | null | undefined) => v == null ? '—' : `${fmt(v)} €`;
+/** «7,50 €». Por debajo de 1 € sale el tercer decimal si lo tiene (un ladrillo a 0,242 € con IVA). */
+export const eur = (v: number | null | undefined) => {
+  if (v == null) return '—';
+  const a = Math.abs(v);
+  const t = Math.round((a + 1e-9) * 1000) / 1000;  // 0,3025 → 0,303 (sin el fallo de coma flotante)
+  return `${a > 0 && t < 1 && Math.round(t * 1000) % 10 !== 0 ? fmt(Math.sign(v) * t, 3) : fmt(v)} €`;
+};
+/** Un importe (lo que suma una cantidad): siempre a céntimos, «0,91 €». */
+export const eurC = (v: number | null | undefined) => v == null ? '—' : `${fmt(Math.sign(v) * Math.round((Math.abs(v) + 1e-9) * 100) / 100)} €`;
 /** «+5,6 %» */
 export const pct = (v: number | null | undefined) =>
   v == null ? '' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v), 1)} %`;
@@ -275,4 +308,19 @@ export function esReciente(m?: string | null, hoy = new Date()): boolean {
   if (i < 0) return false;
   const f = iso ? new Date(Number(iso[1]), i, Number(iso[3])) : new Date(2000 + Number(m.slice(4)), i, 15);
   return (hoy.getTime() - f.getTime()) / 86400000 < 45;
+}
+
+/** Palé que se vende entero (ladrillos): su precio con o sin IVA. */
+export const totalEscala = (e: Escala, iva: boolean) => e.total == null ? null : iva ? (e.total_iva ?? Math.round(e.total * 121) / 100) : e.total;
+
+/** Datos de un ladrillo para enseñar: piezas por m² (y lo que sale el m²), peso y piezas del palé. */
+export function datosPieza(m: { ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
+  pvp?: number | null; pvp_iva?: number | null }, iva = true): { t: string; v: string }[] {
+  const out: { t: string; v: string }[] = [];
+  const p = iva ? conIva(m) : m.pvp;
+  if (m.ud_m2) out.push({ t: 'Por m²', v: `${numES(m.ud_m2, 0, 2)} ud${p != null ? ` · ${eurC(p * m.ud_m2)} el m²` : ''}` });
+  if (m.ud_pale) out.push({ t: 'Palé', v: `${numES(m.ud_pale, 0, 0)} ud${m.kg_ud ? ` · ${numES(m.ud_pale * m.kg_ud, 0, 0)} kg` : ''}` });
+  if (m.kg_ud) out.push({ t: 'Peso', v: `${numES(m.kg_ud, 0, 3)} kg/ud` });
+  if (m.uso) out.push({ t: 'Uso', v: m.uso });
+  return out;
 }

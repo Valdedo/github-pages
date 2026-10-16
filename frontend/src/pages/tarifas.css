@@ -394,3 +394,5 @@ img[src^="/catalogo/silva/"].tf-cab-peg, .tf-familia img[src^="/catalogo/silva/"
 img[src^="/catalogo/silva/"].tf-cab-peg { width: 60px; height: 60px; margin: 0 4px 0 0; }
 .tf-familia img[src^="/catalogo/silva/"] { margin: 2px 0 6px; }
 img[src^="/catalogo/silva/"].tf-fila-peg { width: 44px; height: 44px; border-radius: 10px; border-width: 2px; }
+/* Ladrillos (oct. 2026): el palé entero lleva debajo lo que sale cada pieza */
+.tf-escalas td .tf-escala-ud { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-3); }

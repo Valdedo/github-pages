@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Search, X, Home, Eye, EyeOff, Maximize, Minimize, Plus, Minus, ClipboardList,
-  Check, Trash2, LogOut, Clock,
+  Check, Trash2, LogOut, Clock, Hand, Keyboard,
 } from 'lucide-react';
 import { getTarifas, describeApiError } from '../api/client';
 import { normaliza, numES } from '../lib/texto';
@@ -10,8 +10,8 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import { useAnchoVentana } from '../hooks/useIsMobile';
 import {
-  PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, pct, mesLargo, esReciente, conIva,
-  type Tarifa, type TarifaResumen, type TarifaMedida, type TarifaFamilia,
+  PEGATINA_PROVEEDOR, pegatina, claveFamilia, fotoArticulo, eur, eurC, pct, mesLargo, esReciente, conIva, totalEscala, datosPieza,
+  type Tarifa, type TarifaResumen, type TarifaMedida, type TarifaFamilia, type Escala,
 } from '../lib/tarifas';
 import {
   cache, leerTarifa, Foto, buscar, conPor, codigoVisible, etiquetaMedida, porMetro, seccionesDe, medidasDe,
@@ -30,6 +30,15 @@ import './mostrador.css';
 
 type Elegido = { t: Tarifa; f: TarifaFamilia; m: TarifaMedida };
 type Apunte = { prov: string; fam: string; ref: string; codigo: string; descripcion: string; ud: string; pvp: number | null; pvp_iva: number | null; cant: number; hecho: boolean };
+type Linea = Omit<Apunte, 'cant' | 'hecho'>;
+/** Lo que se apunta de un artículo, o de su palé completo (ref «…#pale», precio del palé entero). */
+const lineaDe = (e: Elegido): Linea => ({ prov: e.t.id, fam: e.f.id, ref: e.m.ref, codigo: e.m.codigo ?? '', descripcion: e.m.descripcion, ud: e.m.ud_venta, pvp: e.m.pvp, pvp_iva: e.m.pvp_iva });
+const lineaEscala = (e: Elegido, es: Escala): Linea => ({
+  ...lineaDe(e), ref: `${e.m.ref}#pale`, descripcion: `${e.m.descripcion} — ${es.nombre.toLowerCase()}`, ud: 'palé',
+  pvp: es.total ?? null, pvp_iva: totalEscala(es, true),
+});
+/** Un toquecito en la tableta al sumar (donde el navegador lo permite). */
+const vibrar = () => { try { navigator.vibrate?.(12); } catch { /* nada */ } };
 type Reciente = { prov: string; fam: string; ref: string };
 
 const LISTA = 'cfMostradorLista';
@@ -147,14 +156,25 @@ export function MostradorPage() {
     });
   };
   const [verLista, setVerLista] = useState(false);
+  /** Suma a la línea abierta (sin tachar) de ese artículo o la crea. */
+  const sumar = (l: Linea, cant: number) => setApuntes(as => {
+    const i = as.findIndex(a => a.prov === l.prov && a.ref === l.ref && !a.hecho);
+    if (i >= 0) return as.map((a, j) => j === i ? { ...a, cant: Math.round((a.cant + cant) * 1000) / 1000 } : a);
+    return [...as, { ...l, cant, hecho: false }];
+  });
   const apuntar = (e: Elegido, cant: number) => {
-    setApuntes(as => {
-      const i = as.findIndex(a => a.prov === e.t.id && a.ref === e.m.ref && !a.hecho);
-      if (i >= 0) return as.map((a, j) => j === i ? { ...a, cant: a.cant + cant } : a);
-      return [...as, { prov: e.t.id, fam: e.f.id, ref: e.m.ref, codigo: e.m.codigo ?? '', descripcion: e.m.descripcion, ud: e.m.ud_venta, pvp: e.m.pvp, pvp_iva: e.m.pvp_iva, cant, hecho: false }];
-    });
+    sumar(lineaDe(e), cant);
     show(`Apuntado: ${num(cant)} ${e.m.ud_venta} · ${conPor(e.m.descripcion)}`);
   };
+  // Tocar la foto (o el palé) suma uno cada vez: dos toques, dos; tres, tres. Sin aviso: el número grande ya lo dice.
+  const tocar = (l: Linea) => { sumar(l, 1); vibrar(); };
+  const quitarUno = (prov: string, ref: string) => setApuntes(as => {
+    let i = -1;
+    as.forEach((a, j) => { if (a.prov === prov && a.ref === ref && !a.hecho) i = j; });
+    if (i < 0) return as;
+    return as[i].cant > 1 ? as.map((a, j) => j === i ? { ...a, cant: Math.round((a.cant - 1) * 1000) / 1000 } : a) : as.filter((_, j) => j !== i);
+  });
+  const cuentaDe = (prov: string, ref: string) => apuntes.reduce((n, a) => n + (a.prov === prov && a.ref === ref && !a.hecho ? a.cant : 0), 0);
   const borrarLista = () => {
     const antes = apuntes;
     setApuntes([]);
@@ -197,8 +217,11 @@ export function MostradorPage() {
 
   const panel = verLista
     ? <ListaApuntes apuntes={apuntes} setApuntes={setApuntes} onBorrar={borrarLista} onCerrar={() => setVerLista(false)} horizontal={horizontal}
-      onAbrir={a => { const e = buscarArticulo(tarifas, a.prov, a.ref); if (e) elegir(e); }} />
+      onAbrir={a => { const e = buscarArticulo(tarifas, a.prov, a.ref.split('#')[0]); if (e) elegir(e); }} />
     : <PanelPrecio e={elegido} verCoste={verCoste} horizontal={horizontal} onApuntar={apuntar}
+      cuenta={elegido ? cuentaDe(elegido.t.id, elegido.m.ref) : 0}
+      cuentaPale={elegido ? cuentaDe(elegido.t.id, `${elegido.m.ref}#pale`) : 0}
+      onTocar={e => tocar(lineaDe(e))} onTocarEscala={(e, es) => tocar(lineaEscala(e, es))} onQuitar={quitarUno}
       onCerrar={() => ir({ r: null }, true)} />;
 
   return (
@@ -368,6 +391,7 @@ function FilaArticulo({ e, nombre, sel, onElegir, conFamilia }: {
         <strong>{conPor(nombre)}</strong>
         <small>
           {m.codigo && <span className="mo-cod">{codigoVisible(m)}</span>}
+          {m.escalas?.filter(es => es.total != null).map(es => <span key={es.nombre} className="mo-fila-pale">palé {eur(totalEscala(es, true))}</span>)}
           {conFamilia && <span>{t.nombre} · {f.nombre}</span>}
         </small>
       </span>
@@ -392,20 +416,26 @@ function Resultados({ res, q, sel, onElegir }: { res: Elegido[]; q: string; sel:
 }
 
 // ── Panel del precio (derecha en horizontal, hoja de abajo en vertical) ──
-function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
-  e: Elegido | null; verCoste: boolean; horizontal: boolean; onApuntar: (e: Elegido, cant: number) => void; onCerrar: () => void;
+// La cantidad se pone tocando la foto: cada toque suma uno a lo apuntado (dos toques, dos; tres, tres) y el número
+// sale grande encima. «Quitar uno» corrige un toque de más. Para muchas piezas o decimales (300 ladrillos, 2,5 m),
+// «Escribir otra cantidad».
+function PanelPrecio({ e, verCoste, horizontal, onApuntar, cuenta, cuentaPale, onTocar, onTocarEscala, onQuitar, onCerrar }: {
+  e: Elegido | null; verCoste: boolean; horizontal: boolean; onApuntar: (e: Elegido, cant: number) => void;
+  cuenta: number; cuentaPale: number; onTocar: (e: Elegido) => void; onTocarEscala: (e: Elegido, es: Escala) => void;
+  onQuitar: (prov: string, ref: string) => void; onCerrar: () => void;
 }) {
   const [cant, setCant] = useState(1);
   // Lo que se está escribiendo, tal cual: si se repintaba desde el número, «1,» perdía la coma y 1,5 acababa en 15
   const [cantTxt, setCantTxt] = useState('1');
+  const [otra, setOtra] = useState(false);
   const ponCant = (v: number) => { setCant(v); setCantTxt(String(Math.round(v * 1000) / 1000).replace('.', ',')); };
-  useEffect(() => ponCant(1), [e?.m.ref]);
+  useEffect(() => { ponCant(1); setOtra(false); }, [e?.m.ref]);
   if (!e) {
     return (
       <div className="mo-panel mo-panel-vacio">
         <span className="mo-panel-vacio-ico"><Search size={44} /></span>
         <strong>Toca un artículo</strong>
-        <p>Aquí sale su precio en grande para pasarlo al albarán, y puedes apuntarlo para el cliente.</p>
+        <p>Aquí sale su precio en grande para pasarlo al albarán. Para apuntarlo, toca su foto una vez por cada pieza.</p>
       </div>
     );
   }
@@ -415,18 +445,33 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
   const mg = margen(m);
   const paso = 1;
   const foto = fotoArticulo(f.nombre, m.descripcion, m.foto);
+  const pales = (m.escalas ?? []).filter(es => es.total != null);
+  const otrasEscalas = (m.escalas ?? []).filter(es => es.total == null);
+  const datos = datosPieza(m, true);
   return (
     <div className="mo-panel">
       {!horizontal && <button type="button" className="mo-hoja-x" onClick={onCerrar} aria-label="Cerrar"><X size={28} /></button>}
-      {horizontal && (
-        <div className="mo-panel-foto">
-          <Foto src={foto} alt={conPor(m.descripcion)} respaldo={pegatina(claveFamilia(f.nombre))} />
-        </div>
-      )}
       <div className="mo-panel-cab">
         <h2>{conPor(m.descripcion)}</h2>
         <p>{t.nombre} · {f.nombre}</p>
       </div>
+      {iva != null ? (
+        <button type="button" className={`mo-panel-foto mo-toca${cuenta > 0 ? ' con-cuenta' : ''}`} onClick={() => onTocar(e)}
+          aria-label={`Apuntar 1 ${m.ud_venta}${cuenta > 0 ? `. Llevas ${num(cuenta)}` : ''}`}>
+          <Foto src={foto} alt="" respaldo={pegatina(claveFamilia(f.nombre))} />
+          {cuenta > 0 && <span key={cuenta} className="mo-cuenta" aria-hidden="true">{num(cuenta)}</span>}
+          <span className="mo-toca-ayuda" aria-hidden="true"><Hand size={18} />
+            {cuenta > 0 ? 'Toca otra vez para sumar uno' : `Toca la foto para apuntar · 1 toque = 1 ${m.ud_venta}`}</span>
+        </button>
+      ) : (
+        <div className="mo-panel-foto"><Foto src={foto} alt={conPor(m.descripcion)} respaldo={pegatina(claveFamilia(f.nombre))} /></div>
+      )}
+      {cuenta > 0 && iva != null && (
+        <div className="mo-llevas" aria-live="polite">
+          <span><b>{num(cuenta)} {m.ud_venta}</b> apuntado{cuenta === 1 ? '' : 's'} · {eurC(cuenta * iva)}</span>
+          <button type="button" onClick={() => onQuitar(t.id, m.ref)}><Minus size={22} /> Quitar uno</button>
+        </div>
+      )}
       {m.codigo && (
         <div className="mo-panel-cod"><small>Código</small><span className="mo-cod mo-cod-g">{codigoVisible(m)}</span></div>
       )}
@@ -436,8 +481,26 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
         <div className="mo-precio-otros">
           {m.pvp != null && <span>Sin IVA <b>{eur(m.pvp)}/{m.ud_venta}</b></span>}
           {pm != null && <span>Sale el metro a <b>{eur(pm)}</b> ({m.metros} m)</span>}
+          {otrasEscalas.map(es => <span key={es.nombre}>{es.nombre} <b>{eur(conIva(es))}/{m.ud_venta}</b></span>)}
         </div>
       </div>
+      {pales.map(es => (
+        <div key={es.nombre} className="mo-escala">
+          <button type="button" className="mo-escala-btn" onClick={() => onTocarEscala(e, es)} aria-label={`Apuntar 1 ${es.nombre.toLowerCase()}`}>
+            <span className="mo-escala-txt">
+              <strong>{es.nombre}</strong>
+              <small>Sin IVA {eur(es.total)} · sale a {eur(conIva(es))}/{m.ud_venta}</small>
+            </span>
+            <span className="mo-escala-precio">{eur(totalEscala(es, true))}</span>
+            {cuentaPale > 0 ? <span key={cuentaPale} className="mo-cuenta mo-cuenta-p" aria-hidden="true">{num(cuentaPale)}</span>
+              : <span className="mo-escala-mas" aria-hidden="true"><Plus size={26} /></span>}
+          </button>
+          {cuentaPale > 0 && <button type="button" className="mo-escala-menos" onClick={() => onQuitar(t.id, `${m.ref}#pale`)} aria-label="Quitar un palé"><Minus size={24} /></button>}
+        </div>
+      ))}
+      {datos.length > 0 && (
+        <dl className="mo-datos">{datos.map(x => <div key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></div>)}</dl>
+      )}
       {verCoste && (
         <div className="mo-coste">
           <span>Coste <b>{eur(m.coste)}/{m.ud_venta}</b></span>
@@ -445,11 +508,11 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
           <span>{m.fecha ? `Precio de ${mesLargo(m.fecha)}` : ''}{m.evol ? <em className={m.evol > 0 ? 'sube' : 'baja'}> {pct(m.evol)}</em> : null}</span>
         </div>
       )}
-      {iva != null && (
+      {iva != null && (otra ? (
         <div className="mo-apuntar">
           <div className="mo-cant" role="group" aria-label="Cantidad">
             <button type="button" onClick={() => ponCant(Math.max(paso, cant - paso))} aria-label="Uno menos" disabled={cant <= paso}><Minus size={28} /></button>
-            <input inputMode="decimal" value={cantTxt} aria-label="Cantidad"
+            <input inputMode="decimal" value={cantTxt} aria-label="Cantidad" autoFocus
               onChange={ev => {
                 const t = ev.target.value.replace(/[^\d.,]/g, '').replace('.', ',');
                 setCantTxt(t);
@@ -459,11 +522,13 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, onCerrar }: {
               onBlur={() => ponCant(cant > 0 ? cant : 1)} />
             <button type="button" onClick={() => ponCant(cant + paso)} aria-label="Uno más"><Plus size={28} /></button>
           </div>
-          <button type="button" className="mo-apuntar-btn" onClick={() => cant > 0 && onApuntar(e, cant)} disabled={!cant}>
-            <ClipboardList size={24} /> Apuntar{cant > 0 && iva != null ? <small>{eur(cant * iva)}</small> : null}
+          <button type="button" className="mo-apuntar-btn" onClick={() => { if (cant > 0) { onApuntar(e, cant); setOtra(false); ponCant(1); } }} disabled={!cant}>
+            <ClipboardList size={24} /> Apuntar {num(cant)} {m.ud_venta}{cant > 0 && iva != null ? <small>{eurC(cant * iva)}</small> : null}
           </button>
         </div>
-      )}
+      ) : (
+        <button type="button" className="mo-otra" onClick={() => setOtra(true)}><Keyboard size={20} /> Escribir otra cantidad (muchas piezas o decimales)</button>
+      ))}
       <Link className="mo-ficha" to={enlaceFicha(t.id, f.id, m.ref)}>Ver ficha completa (factura, evolución) <ChevronRight size={18} /></Link>
     </div>
   );
@@ -496,14 +561,14 @@ function ListaApuntes({ apuntes, setApuntes, onBorrar, onCerrar, onAbrir, horizo
                   <strong>{num(a.cant)} {a.ud} · {conPor(a.descripcion)}</strong>
                   <small>{a.codigo && <span className="mo-cod">{a.codigo}</span>} {eur(conIva(a))}/{a.ud} con IVA</small>
                 </button>
-                <span className="mo-apunte-imp">{eur((conIva(a) ?? 0) * a.cant)}</span>
+                <span className="mo-apunte-imp">{eurC((conIva(a) ?? 0) * a.cant)}</span>
                 <button type="button" className="mo-apunte-x" onClick={() => setApuntes(as => as.filter((_, j) => j !== i))} aria-label="Quitar"><X size={22} /></button>
               </li>
             ))}
           </ul>
           <div className="mo-total">
-            <span>Total con IVA <b>{eur(totalIva)}</b></span>
-            <span>Sin IVA <b>{eur(total)}</b></span>
+            <span>Total con IVA <b>{eurC(totalIva)}</b></span>
+            <span>Sin IVA <b>{eurC(total)}</b></span>
           </div>
           <button type="button" className="mo-borrar" onClick={onBorrar}><Trash2 size={22} /> Borrar lista (siguiente cliente)</button>
         </>
