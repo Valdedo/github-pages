@@ -243,3 +243,60 @@ def test_gas_grupos_en_el_orden_de_la_hoja():
     assert [g["seccion"] for g in gs] == ["Marca A", "Casco vacío"]
     assert [m["descripcion"] for m in gs[0]["medidas"]] == ["Butano A", "Propano A", "Ligera A"]  # no por orden alfabético
     assert gs[0]["medidas"][0]["solo_pvp"] is True
+
+
+def _pedidos(*lineas):
+    cab = ["Fecha", "Documento", "Tipo", "Tarifa", "Código", "Descripción", "Ud", "Cantidad", "Precio neto (€)",
+           "Importe (€)", "ID PDF", "Observaciones"]
+    return {cd.PEDIDOS + "Hoja 1": [cab, *[list(l) for l in lineas]]}
+
+
+def test_pladur_con_pedidos_evolucion_pdf_y_presupuesto():
+    h = _pladur(
+        ["▌ PLACAS"] + [""] * 8,
+        ["", "111", "PD-PLADUR N 13X1200X2500 BA", "UD", "10,0000 €", "11,50 €", "15%", "02/03/2026", ""],
+        ["▌ PERFILERÍA"] + [""] * 8,
+        ["", "—", "PD-PERFIL PRIMARIO UNIVERSAL 24×38×3600", "UD", "3,0000 €", "3,60 €", "20%", "16/03/2024",
+         "Precio del presupuesto R1 (16/03/2024): no se ha comprado"],
+    )
+    h.update(_pedidos(
+        ["10/01/2025", "P-1", "Compra", "Pladur", "111", "PD-PLADUR N 13X1200X2500 BA", "UD", "10", "9,00", "90", "PDF1", ""],
+        ["05/05/2025", "P-2", "Compra", "Pladur", "111", "PD-PLADUR N 13X1200X2500 BA", "UD", "5", "9,0010", "45", "PDF2", ""],
+        ["02/03/2026", "P-3", "Compra", "Pladur", "111", "PD-PLADUR N 13X1200X2500 BA", "UD", "8", "10,00", "80", "PDF3", ""],
+        ["03/03/2026", "D-1", "Devolución", "Pladur", "111", "PD-PLADUR N 13X1200X2500 BA", "UD", "-1", "10,00", "-10", "PDF4", ""],
+        ["16/03/2024", "R1", "Presupuesto", "Pladur", "", "PD-PERFIL PRIMARIO UNIVERSAL 24X38X3600", "UD", "24", "3,00", "72", "PDF5", ""],
+        ["01/01/2026", "N-1", "Compra", "Dinak", "111", "NAK-OTRA COSA", "UD", "1", "50,00", "50", "PDF6", ""],
+    ))
+    d = cd.leer_pladur(h)
+    a = {x["descripcion"][:20]: x for x in d["articulos"]}
+    placa = a["PD-PLADUR N 13X1200X"]
+    ls = d["lineas"][placa["ref"]]
+    # Solo las compras de Pladur (ni la devolución ni la línea de Dinak con el mismo código)
+    assert [l["factura"] for l in ls] == ["P-1", "P-2", "P-3"] and ls[-1]["pdf"] == "PDF3" and ls[-1]["tipo"] == "Pedido"
+    # El precio anterior es el último distinto (9,0010 de mayo; 9,00 y 9,001 son el mismo precio)
+    assert placa["precio_ant"] == 9.001 and placa["fecha_ant"] == "2025-05-05" and placa["evol"] == 11.1
+    perfil = a["PD-PERFIL PRIMARIO U"]  # sin código: por la descripción, y es un presupuesto
+    lp = d["lineas"][perfil["ref"]]
+    assert [l["tipo"] for l in lp] == ["Presupuesto"] and perfil["apunte"].startswith("Precio del presupuesto")
+
+
+def test_dinak_con_pedidos_codigo_mal_puesto_y_precio_viejo():
+    h = _dinak(
+        ["  CHIMENEA DOBLE PARED (DP) — DIÁMETRO 200 mm  |  Sistema inox", "", "", "", "", "", "", "", "", ""],
+        ["Z1", "Sombrerete Antilluvia D200 AISI-304/316", "200", "Z1", "60,00 €", "", "60,00 €", "", "", "80,00 €"],
+        ["Z2", "Sombrerete Antiviento Inox D150 DP AISI-316", "150", "Z2B", "", "50,00 €", "50,00 €", "", "", "66,67 €"],
+    )
+    h.update(_pedidos(
+        ["14/05/2024", "A", "Compra", "Dinak", "Z1B", "NAK-SOMBRERETE ANTILLUVIA D200 AISI-304/316", "UD", "1", "60,00", "60", "PA", ""],
+        ["18/06/2025", "B", "Compra", "Dinak", "Z1B", "NAK-SOMBRERETE ANTILLUVIA D200 AISI-304/316", "UD", "1", "68,00", "68", "PB", ""],
+        ["29/01/2026", "C", "Compra", "Dinak", "Z2", "NAK-SOMBRERETE ANTIVIENTO INOX D150 DP AISI-316", "UD", "1", "50,00", "50", "PC", ""],
+        ["01/08/2025", "D", "Compra", "Dinak", "Z2B", "NAK-SOMBRERETE ANTILLUVIA DP30 316L/304 150", "UD", "1", "48,00", "48", "PD", ""],
+    ))
+    d = cd.leer_dinak(h)
+    a = {x["ref"]: x for x in d["articulos"]}
+    # Z1: en la hoja con un código que no sale en los pedidos → se encuentra por la descripción y se avisa
+    assert [l["factura"] for l in d["lineas"]["Z1"]] == ["A", "B"] and d["lineas"]["Z1"][-1]["codigo"] == "Z1B"
+    assert a["Z1"]["nota"] == "Revisar precio" and "Z1B" in a["Z1"]["apunte"] and "68,00 €" in a["Z1"]["apunte"]
+    # Z2: la referencia de Construdeco manda; el código Dinak de la hoja es el de otra pieza (Z2B)
+    assert [l["factura"] for l in d["lineas"]["Z2"]] == ["C"] and a["Z2"]["fecha"] == "2026-01-29"
+    assert "Z2" in a["Z2"]["apunte"] and "Z2B" in a["Z2"]["apunte"] and a["Z2"]["nota"] is None

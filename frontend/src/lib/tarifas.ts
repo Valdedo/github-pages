@@ -39,6 +39,8 @@ export interface TarifaFactura {
   /** «Pedido» cuando el coste sale de un pedido y no de una factura (ladrillos) */
   tipo?: string | null;
   cantidad?: number | null; bruto?: number | null; dto1?: number | null; dto2?: number | null;
+  /** Precio neto de esa línea (Pladur y Dinak: el del pedido, que puede no ser el de la hoja) */
+  precio?: number | null;
 }
 export interface Tarifa {
   id: string; nombre: string; sub: string; margen: number | null; actualizada: string | null; leida: string | null;

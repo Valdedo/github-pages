@@ -12,6 +12,10 @@ familia, grupo y tipo de pieza.
 - «TARIFA_DINAK_2024_2026»: una fila por pieza (ref. Construdeco, descripción, diámetro, código Dinak, una columna
   por mes con el precio de compra, último precio, tarifa oficial de Dinak y precio de venta = compra / 0,75), con
   filas de sección por sistema y diámetro. El histórico de compra sale de las columnas de meses.
+- «PEDIDOS_CONSTRUDECO» (16/10/2026): una fila por línea de pedido de Construdeco desde 2024 (fecha, documento, tipo
+  Compra/Presupuesto/Devolución, tarifa Pladur/Dinak, código, descripción, ud, cantidad, precio neto, importe, ID del
+  PDF en Drive). Si está, la evolución del coste y el «último pedido» (con su PDF) salen de aquí, exactos; si no, de
+  las propias hojas. Se lee junto con cada tarifa (tarifas_service: «pedidos»).
 """
 import re
 import unicodedata
@@ -134,6 +138,107 @@ def url_foto(clave: Optional[str]) -> Optional[str]:
     return None
 
 
+# ── Pedidos de Construdeco (hoja PEDIDOS_CONSTRUDECO) ─────────────────────
+PEDIDOS = "PEDIDOS · "  # prefijo de sus pestañas dentro de la copia de cada tarifa
+
+
+def leer_pedidos(hojas: dict, tarifa: str) -> list:
+    """Líneas de la hoja de pedidos de una tarifa («Pladur» o «Dinak»), en orden de fecha."""
+    out = []
+    for nombre, filas in hojas.items():
+        if not nombre.startswith(PEDIDOS):
+            continue
+        ini, cols = _columnas(filas, "fecha")
+        if ini is None:
+            continue
+        c = {k: _col(cols, *v) for k, v in {
+            "fecha": ("fecha",), "doc": ("documento", "pedido"), "tipo": ("tipo",), "tarifa": ("tarifa", "marca"),
+            "cod": ("codigo",), "desc": ("descripcion",), "ud": ("ud",), "cant": ("cantidad",),
+            "precio": ("precio",), "pdf": ("id pdf", "pdf")}.items()}
+        for f in filas[ini + 1:]:
+            def v(k):
+                j = c[k]
+                return str(f[j]).strip() if j is not None and j < len(f) else ""
+            fecha, precio = _dia(v("fecha")), _num(v("precio"))
+            if _n(v("tarifa")) != _n(tarifa) or not fecha or precio is None:
+                continue
+            out.append({"fecha": fecha, "factura": v("doc").lstrip("'"), "tipo": v("tipo") or "Compra",
+                        "codigo": v("cod").lstrip("'").upper(), "desc": v("desc"), "ud": v("ud"),
+                        "cantidad": _num(v("cant")), "precio": precio, "pdf": v("pdf").lstrip("'") or None})
+    out.sort(key=lambda l: (l["fecha"], l["factura"]))
+    return out
+
+
+def _firma(desc: str) -> tuple:
+    """Números y palabras largas de una descripción: «PD-PERFIL ANG 24X24X3000 BL» ≈ «PD-PERFIL ANGULAR 24×24×3000 BL»."""
+    d = _n(desc)
+    return tuple(sorted(re.findall(r"\d+(?:,\d+)?", d))), set(re.findall(r"[a-z]{5,}", d))
+
+
+def _con_pedidos(arts: list, pedidos: list, codigos_de) -> dict:
+    """Junta a cada artículo sus líneas de pedido y devuelve {ref: líneas} para la ficha (como Zabaleta).
+
+    Primero por código (los de `codigos_de(artículo)`, en orden: el primero que tenga pedidos); si no, por la
+    descripción (mismos números y alguna palabra en común) entre las líneas cuyo código no es de otro artículo de la
+    hoja: así un artículo con el código mal puesto en la hoja sigue encontrando sus pedidos y se avisa del código bueno.
+    Con las compras se rehace la fecha y el precio anterior; si hay un pedido más nuevo con otro precio, se avisa."""
+    por_cod: dict = {}
+    for l in pedidos:
+        por_cod.setdefault(l["codigo"], []).append(l)
+    de_la_hoja = {c.upper() for a in arts for c in codigos_de(a) if c}
+    lineas = {}
+    for a in arts:
+        ls, cod_ped, por_desc = [], None, False
+        for c in codigos_de(a):
+            if c and por_cod.get(c.upper()):
+                ls = por_cod[c.upper()]
+                # Encontrado por la referencia de Construdeco pero con otro código Dinak en la hoja: se avisa
+                cod_ped = c.upper() if a.get("codigo") and c.upper() != a["codigo"].upper() and c == a.get("ref") else None
+                break
+        if not ls:
+            nums, pal = _firma(a["descripcion"])
+            cand = [l for l in pedidos if l["codigo"] not in de_la_hoja and _firma(l["desc"])[0] == nums
+                    and _firma(l["desc"])[1] & pal]
+            if cand and nums:
+                ls, por_desc = cand, True
+                cods = {l["codigo"] for l in cand if l["codigo"]}
+                cod_ped = cods.pop() if len(cods) == 1 else None
+        if not ls:
+            continue
+        compras = [l for l in ls if _n(l["tipo"]) == "compra" and (l["cantidad"] or 1) > 0]
+        presup = [l for l in ls if _n(l["tipo"]).startswith("presupuesto")]
+        usar = compras or presup
+        if not usar:
+            continue
+        doc = "Pedido" if compras else "Presupuesto"
+        lineas[a["ref"]] = [{"fecha": l["fecha"], "factura": l["factura"], "tipo": doc, "precio": l["precio"],
+                             "cantidad": l["cantidad"], "bruto": None, "dto1": None, "dto2": None, "pdf": l["pdf"],
+                             **({"codigo": l["codigo"]} if por_desc and cod_ped else {})} for l in usar]
+        if cod_ped and cod_ped != (a.get("codigo") or "").upper():
+            a["apunte"] = (f"En los pedidos de Construdeco este artículo viene con el código {cod_ped}"
+                           f"{' (en la hoja pone ' + a['codigo'] + ')' if a.get('codigo') else ''}.")
+        if not compras:
+            continue
+        # Precio actual = el del último pedido: fecha exacta y precio anterior (el último distinto) de los pedidos
+        ult = compras[-1]
+        coste = a["coste"]
+        if coste is not None and abs(ult["precio"] - coste) <= max(0.006, coste * 0.001):
+            ants = [l for l in compras if abs(l["precio"] - coste) > max(0.006, coste * 0.001)]
+            if re.fullmatch(r"[a-z]{3}-\d{2}", a.get("fecha") or "") or not a.get("fecha"):
+                a["fecha"] = ult["fecha"]
+            if ants:
+                a["precio_ant"], a["fecha_ant"] = ants[-1]["precio"], ants[-1]["fecha"]
+                a["evol"] = _evol(coste, ants[-1]["precio"])
+        elif coste is not None and (not a.get("fecha") or _orden_mes(ult["fecha"]) > _orden_mes(a["fecha"])):
+            # La hoja se ha quedado atrás: el último pedido trae otro precio
+            a["nota"] = "Revisar precio"
+            eur = lambda x: f"{x:.2f}".replace(".", ",")
+            dia = f"{ult['fecha'][8:]}/{ult['fecha'][5:7]}/{ult['fecha'][:4]}"
+            aviso = f"El último pedido ({dia}) salió a {eur(ult['precio'])} € y la hoja tiene {eur(coste)} €: falta actualizarla."
+            a["apunte"] = f"{a['apunte']} {aviso}" if a.get("apunte") else aviso
+    return lineas
+
+
 # ── Pladur ────────────────────────────────────────────────────────────────
 PLADUR_FAMILIAS = ["Placas", "Perfilería", "Accesorios", "Pastas y yesos"]
 PLADUR_GRUPOS = {
@@ -173,8 +278,10 @@ def clasifica_pladur(desc: str, seccion: str) -> dict:
                 g, letra, foto = "Hidrófuga (WA)", "PPM" if "ppm" in d else "H1", "placa-h1"
             elif "ppf" in d or "(foc)" in d or re.search(r"\bf\b", d):
                 g, letra, foto = "Cortafuego (FOC)", "PPF" if "ppf" in d else "F", "placa-f"
-            elif re.search(r"\bn\b", d) or "ppn" in d or "ba" in d.split():
-                g, letra, foto = "Estándar", "N", "placa-n"
+            elif re.search(r"\bn\b", d) or "ppn" in d or "ba" in d.split() or "std" in d.split() or "ultra" in d:
+                # «ULTRA L-TEC»: la estándar ligera de Pladur; «STD»: la estándar de Placo
+                g, foto = "Estándar", "placa-n"
+                letra = "Ultra" if "ultra" in d else "STD" if "std" in d.split() else "N"
             else:
                 g, letra, foto = "Otras placas", "", "placa-n"
             if marca == "Placo":  # la foto de la Pladur llevaría otra marca impresa
@@ -192,10 +299,18 @@ def clasifica_pladur(desc: str, seccion: str) -> dict:
             out.update(g="Tabiques y trasdosados", t=f"{pieza.capitalize()}{lg}", m=f"{a}/{b}", mp=a, op=int(a), o=int(a),
                        foto=pieza, n=f"{pieza.capitalize()} {a}/{b}{lg}")
             return out
-        out["g"] = "Techos" if re.search(r"t-?45|techo|primario|secundario|angular|cuelgue|horquilla", d) else "Otros perfiles"
+        out["g"] = "Techos" if re.search(r"t-?45|ph-?45|techo|primario|secundario|angular|cuelgue|horquilla|clip", d) else "Otros perfiles"
         largo = max([x for x in dims if x >= 500] or [0])
         lg = f" · {_metros(largo)}" if largo else ""
-        if "secundario" in d:
+        seccion_p = "×".join(f"{x:g}".replace(".", ",") for x in dims if x < 500)
+        if "empalme" in d:
+            out.update(n="Pieza de empalme T-45" if "45" in d else _bonito(_limpia_pladur(desc)))
+        elif "ph-45" in d or "ph45" in d:
+            out.update(n=f"Perfil PH-45{' continuo' if 'continuo' in d else ''}{lg}", m=_metros(largo) if largo else None)
+        elif "maestra" in d or "clip" in d:
+            pieza = "Maestra" if "maestra" in d else "Canal clip"
+            out.update(t=pieza, m=seccion_p or None, n=f"{pieza} {seccion_p}{lg}".replace("  ", " "), o=largo)
+        elif "secundario" in d:
             out.update(t="Perfil secundario gancho 24×38", m=_metros(largo) if largo else None, foto="perfil-secundario", o=largo,
                        n=f"Perfil secundario gancho 24×38{lg}")
         elif "primario" in d:
@@ -224,6 +339,12 @@ def clasifica_pladur(desc: str, seccion: str) -> dict:
                        o=_num(largo) * 10000 + (_num(n_uds) or 0),
                        n=f"Tornillo {'PM' if pm else 'MM'} {m.group(2)}×{largo}{f' · {envase} de {n_uds} ud' if n_uds else ''}")
             return out
+        if "rockflam" in d:  # panel de lana de roca para chimeneas (no es la lana Drywall)
+            nums = re.findall(r"\d+", d)
+            e, med = (nums[0], f"{nums[1]}×{nums[2]}") if len(nums) >= 3 else (None, None)
+            out.update(g="Cinta y aislamiento", t="Panel Isover Rockflam", m=med,
+                       n=f"Panel Isover Rockflam para chimeneas{f' {e} mm' if e else ''}{f' · {med}' if med else ''}")
+            return out
         if "isover" in d or "lana" in d or "drywall" in d:
             nums = re.findall(r"\d+", d)
             e, med = (nums[0], f"{nums[1]}×{nums[2]}") if len(nums) >= 3 else (None, None)
@@ -233,9 +354,12 @@ def clasifica_pladur(desc: str, seccion: str) -> dict:
             return out
         if "cinta" in d:
             largo = re.search(r"(\d+)\s*m\b", d)
-            out.update(g="Cinta y aislamiento", foto="cinta",
-                       n=f"Cinta de refuerzo autoadhesiva{f' · rollo de {largo.group(1)} m' if largo else ''}"
-                       if "autoadh" in d else _bonito(_limpia_pladur(desc)))
+            rollo = f" · rollo de {largo.group(1)} m" if largo else ""
+            # La foto es la de la cinta de malla autoadhesiva: la de papel y la guardavivos son otra cosa
+            base = ("Cinta de refuerzo autoadhesiva" if "autoadh" in d else "Cinta guardavivos" if "guardavivos" in d
+                    else "Cinta de juntas" if "junta" in d else None)
+            out.update(g="Cinta y aislamiento", foto="cinta" if "autoadh" in d else None,
+                       n=f"{base}{rollo}" if base else _bonito(_limpia_pladur(desc)))
         return out
     # Pastas y yesos
     kg = re.search(r"(\d+(?:,\d+)?)\s*k(?:g|\b)", d)
@@ -247,11 +371,14 @@ def clasifica_pladur(desc: str, seccion: str) -> dict:
                        n=f"Pasta de juntas lista al uso{f' · cubo de {sk}' if sk else ''}")
         elif "fraguado" in d:
             h = re.search(r"(\d)\s*h", d)
-            st = re.search(r"\b(st\d)\b", d)
-            out.update(foto="pasta-st2" if "st2" in d or "2h" in d.replace(" ", "") else "pasta-st1", n=f"Pasta de juntas de fraguado{f' {h.group(1)} h' if h else ''}"
-                       f"{f' ({st.group(1).upper()})' if st else ''}{f' · saco de {sk}' if sk else ''}")
+            st = re.search(r"\b(st\d|pr\d)\b", d)
+            placo = desc.strip().upper().startswith("IY-")  # la PR2 es de Placo: la foto de la Pladur no le vale
+            foto = None if placo else "pasta-st2" if "st2" in d or "2h" in d.replace(" ", "") else "pasta-st1"
+            out.update(foto=foto, n=f"Pasta de juntas de fraguado{' rápido' if 'rapido' in d else ''}"
+                       f"{f' {h.group(1)} h' if h else ''}{f' ({st.group(1).upper()})' if st else ''}{f' · saco de {sk}' if sk else ''}")
     elif "proyal" in d or "mecafino" in d or "yeso" in d or "enlucido" in d:
-        nombre = "Yeso proyectable Proyal XXI VA" if "proyal" in d else "Enlucido fino Mecafino Plus" if "mecafino" in d else _bonito(_limpia_pladur(desc))
+        nombre = ("Yeso proyectable Proyal XXI VA" if "proyal" in d else "Enlucido fino Mecafino Plus" if "mecafino" in d
+                  else "Yeso tosco rápido Iberplast" if "iberplast" in d else _bonito(_limpia_pladur(desc)))
         out.update(g="Yesos", foto="placo-proyal" if "proyal" in d else "placo-mecafino" if "mecafino" in d else None,
                    n=f"{nombre}{f' · saco de {sk}' if sk else ''}")
     return out
@@ -291,7 +418,7 @@ def leer_pladur(hojas: dict) -> dict:
         pvp = _num(f[c_venta]) if c_venta is not None else None
         fecha = _dia(f[c_fecha]) if c_fecha is not None else None
         # «Anterior: 8,635€ (nov 2025) → +9%»: solo si el % cuadra con el precio (había notas copiadas de otra fila)
-        ant = fecha_ant = None
+        ant = fecha_ant = apunte = None
         m = _NOTA.search(_n(f[c_nota])) if c_nota is not None else None
         if m:
             p_ant, dicho = _num(m.group(1)), _num(m.group(4).replace(" ", ""))
@@ -300,6 +427,8 @@ def leer_pladur(hojas: dict) -> dict:
                 ant, fecha_ant = p_ant, f"{m.group(2)}-{m.group(3)[-2:]}"
             else:
                 mal += 1
+        elif c_nota is not None and f[c_nota]:
+            apunte = f[c_nota]  # otra nota («Precio del presupuesto…»): se enseña tal cual
         hist = ([{"fecha": fecha_ant, "precio": ant}] if ant else []) + ([{"fecha": fecha, "precio": coste}] if fecha else [])
         arts.append({
             "ref": ref, "codigo": cod or None, "categoria": c["f"], "subcategoria": c["g"], "descripcion": desc,
@@ -308,11 +437,12 @@ def leer_pladur(hojas: dict) -> dict:
             "unidad": ud, "ud_venta": ud, "ud_compra": ud,
             "precio": coste, "fecha": fecha, "precio_ant": ant, "fecha_ant": fecha_ant, "evol": _evol(coste, ant),
             "coste": coste, "pvp": pvp, "pvp_iva": _iva(pvp), "margen": _num(f[c_marg]) if c_marg is not None else None,
-            "nota": None, "apunte": None, "minimo": None, "compras": None, "kg_m": None, "metros": None,
+            "nota": None, "apunte": apunte, "minimo": None, "compras": None, "kg_m": None, "metros": None,
             "hist": hist,
             "origen": f"Coste del último albarán de Construdeco{f' ({fecha[8:]}/{fecha[5:7]}/{fecha[:4]})' if fecha else ''}, sin IVA.",
         })
-    return {"articulos": arts, "log": [], "margen": None, "lineas": {}, "notas_mal": mal,
+    lineas = _con_pedidos(arts, leer_pedidos(hojas, "Pladur"), lambda a: [a["codigo"]])
+    return {"articulos": arts, "log": [], "margen": None, "lineas": lineas, "notas_mal": mal,
             "orden_familias": PLADUR_FAMILIAS, "orden_grupos": PLADUR_GRUPOS}
 
 
@@ -453,7 +583,9 @@ def leer_dinak(hojas: dict) -> dict:
             quitar.add(id(otra))
             buena["alias"] = list(dict.fromkeys((buena.get("alias") or []) + [otra["ref"]] + (otra.get("alias") or [])))
     arts = [a for a in arts if id(a) not in quitar]
-    return {"articulos": arts, "log": [], "margen": None, "lineas": {}, "incompletas": incompletas,
+    # Pedidos: primero la referencia de Construdeco (columna A), luego el código Dinak y las otras filas juntadas
+    lineas = _con_pedidos(arts, leer_pedidos(hojas, "Dinak"), lambda a: [a["ref"], a["codigo"], *(a.get("alias") or [])])
+    return {"articulos": arts, "log": [], "margen": None, "lineas": lineas, "incompletas": incompletas,
             "orden_familias": DINAK_FAMILIAS, "orden_grupos": {f: DINAK_GRUPOS for f in DINAK_FAMILIAS}}
 
 

@@ -150,6 +150,16 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (`incompletas`). Fotos: Pladur e Isover del fabricante en `frontend/public/catalogo/pladur/` (`tools/pladur-fotos.py`);
   Placo y Dinak, de referencia de Obramat (`FOTOS_ADEO`, se enlazan); lo que no tiene una parecida, la pegatina. Pegatinas
   `st-pla-*` y `st-dk-*`. A quien no las ve, Pladur y Dinak le siguen saliendo en «Próximamente».
+  **Pedidos (16/10/2026)**: hoja «PEDIDOS_CONSTRUDECO» `1mmxp…` (Mi unidad de Andrés, lector casafonsomc; `PEDIDOS_CONSTRUDECO`
+  y `"pedidos"` en `TARIFAS`): una fila por línea de pedido de Pladur y Dinak desde 2024 (Fecha dd/mm/aaaa · Documento ·
+  Tipo Compra/Presupuesto/Devolución · Tarifa Pladur/Dinak · Código · Descripción · Ud · Cantidad · Precio neto · Importe ·
+  ID PDF · Observaciones; códigos y documentos como texto). Sacada de los 100+ PDF de la carpeta de pedidos (OCR; las líneas
+  sin código llevan el puesto por la descripción, y se corrigieron códigos mal leídos). `actualizar` la lee junto con la
+  tarifa (pestañas `construdeco.PEDIDOS + nombre`); `_con_pedidos` da a cada artículo sus líneas (por código; Dinak primero
+  la ref. de Construdeco; si no, por la descripción: mismos números y una palabra en común) → evolución exacta, fecha del
+  último pedido, precio anterior y «Abrir pedido (PDF)» (`pdf` → drive.google.com/file/d/…). Si el último pedido trae otro
+  precio que la hoja, «Revisar precio» y un apunte; si el código de la hoja no es el de los pedidos, también se apunta.
+  Presupuestos (Pladur, R24-003271): «De dónde sale el coste · Presupuesto», no cuentan como compras.
 - **Ladrillos (16/10/2026, en pruebas: solo admin)**: hoja «TARIFA_LADRILLOS_2026» `13c9n…` en Mi unidad de Andrés (tiene que
   estar compartida con casafonsomc como lector). Hecha desde la hoja de mostrador **vigente desde el 09/09/2026**
   (`Hoja_Mostrador_Ladrillos_ago2026.pdf`, compra del 08/08/2026; las hojas «Tarifa_Ladrillos_*» e «Importacion_TreyFact_Ladrillos»

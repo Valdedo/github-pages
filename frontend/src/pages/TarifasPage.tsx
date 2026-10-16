@@ -436,7 +436,7 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
             {datosPieza(sel, iva).map(x => <Fragment key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></Fragment>)}
             {sel.solo_pvp ? <><dt>Precio</dt><dd>el de la hoja de la tienda</dd></> : <>
               <dt>Precio de</dt><dd>{mesLargo(sel.fecha) || '—'}{sel.evol ? <span className={`tf-mini-evol ${sel.evol > 0 ? 'sube' : 'baja'}`}>{pct(sel.evol)}</span> : null}</dd>
-              <dt>Última factura</dt>
+              <dt>{d?.factura?.tipo ? `Último ${d.factura.tipo.toLowerCase()}` : 'Última factura'}</dt>
               <dd>{error ? '—' : !d ? <span className="skeleton tf-panel-cargando" /> : d.factura
                 ? <a href={d.factura.enlace} target="_blank" rel="noopener noreferrer" className="tf-panel-fac"><FileText size={14} /> {d.factura.numero}</a>
                 : nueva && d.origen ? (d.origen_corto ?? 'lista de netos') : 'sin enlazar'}</dd>
@@ -991,7 +991,7 @@ export function TarifaFichaPage() {
   );
   const compra = d && !d.solo_pvp && (
     <section className="tf-caja">
-      <h2>{d.origen && !d.factura ? 'De dónde sale el coste' : 'Última compra'}</h2>
+      <h2>{(d.origen && !d.factura) || d.factura?.tipo === 'Presupuesto' ? 'De dónde sale el coste' : 'Última compra'}</h2>
       {d.origen && !d.factura ? (
         <p className="tf-nota">{d.precio != null ? d.origen : 'Isoltubex aún no nos ha pasado su precio neto.'}</p>
       ) : d.factura ? (
@@ -1000,7 +1000,12 @@ export function TarifaFichaPage() {
             <span>{d.factura.tipo ?? 'Factura'} <strong>{d.factura.numero}</strong>{d.factura.seguro === false ? ' (la del mismo mes)' : ''}</span>
             <span>{fechaES(d.factura.fecha)}</span>
           </div>
-          {d.factura.cantidad != null && (
+          {d.factura.cantidad != null && d.factura.bruto == null && (
+            <p className="tf-nota tf-linea-fac">
+              {d.factura.cantidad.toLocaleString('es-ES', { maximumFractionDigits: 2 })} {d.ud_compra} a <strong>{eur(d.factura.precio ?? d.precio)}/{d.ud_compra}</strong> neto
+            </p>
+          )}
+          {d.factura.cantidad != null && d.factura.bruto != null && (
             <p className="tf-nota tf-linea-fac">
               {d.factura.cantidad.toLocaleString('es-ES', { maximumFractionDigits: 2 })} {d.ud_compra} a {eur(d.factura.bruto)}
               {d.factura.dto1 ? ` − ${String(d.factura.dto1).replace('.', ',')} %` : ''}

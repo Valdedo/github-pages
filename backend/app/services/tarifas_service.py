@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Hojas de Google Sheets compartidas (como lector) con casafonsomc@gmail.com.
 # El ID de una hoja no da acceso a nadie: sin permiso en Drive no se puede abrir.
+# PEDIDOS_CONSTRUDECO (Mi unidad de Andrés, 16/10/2026): cada línea de pedido de Construdeco de Pladur y Dinak desde
+# 2024, con el ID de su PDF (carpeta de pedidos de casafonsomc). La amplían las tareas de los miércoles y los jueves.
+PEDIDOS_CONSTRUDECO = "1mmxpltdomIfhkk5VgURHNhrlR3Y8jyk-BERrYn8pEmE"
 TARIFAS = {
     "hierros": {
         "nombre": "Hierros y Aceros",
@@ -73,6 +76,8 @@ TARIFAS = {
         "proveedor": "Construdeco Norte (Pladur, Placo e Isover)",
         "hoja": "1IK8JyUSK_e2-_g4tm0iPLAQ2mCNMECfPhGA8H9krh4Q",  # tarifa_pladur_construdeco (Mi unidad de Andrés)
         "pestanas": None,
+        "pedidos": PEDIDOS_CONSTRUDECO,
+        "desde": datetime(2026, 10, 16, 17, 29),  # copias de antes: sin los pedidos ni las correcciones de la hoja
         "redondeo": "redondeado a 0,10 € hacia arriba",
         "origen_corto": "albarán de Construdeco",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
@@ -83,6 +88,8 @@ TARIFAS = {
         "proveedor": "Construdeco Norte (Dinak)",
         "hoja": "1-Se5r7RHeVrrkbpQDyDbtJA16cX9oFy889GKcNUpAEY",  # TARIFA_DINAK_2024_2026 (Mi unidad de Andrés)
         "pestanas": None,
+        "pedidos": PEDIDOS_CONSTRUDECO,
+        "desde": datetime(2026, 10, 16, 17, 29),
         "redondeo": "25 % del precio de venta (coste ÷ 0,75), sin redondear",
         "origen_corto": "pedido de Construdeco",
         "fabricante": "Dinak 2026",
@@ -722,6 +729,12 @@ def actualizar(db: Session, prov: str) -> TarifaCopia:
             raise RuntimeError("casafonsomc no tiene permiso para abrir la tarifa (o falta autorizar el Apps Script).")
         raise RuntimeError("No se pudo leer la tarifa de Drive. Vuelve a probar en un rato.")
     hojas = r.get("hojas") or {}
+    if cfg.get("pedidos"):  # Pladur y Dinak: cada línea de pedido de Construdeco (evolución exacta y PDF del pedido)
+        try:
+            for nombre, filas in (mail_service.drive_hoja(cfg["pedidos"], None).get("hojas") or {}).items():
+                hojas[construdeco.PEDIDOS + nombre] = filas
+        except Exception as e:  # sin la hoja de pedidos la tarifa sale igual, con el histórico de su propia hoja
+            logger.warning("No se pudieron leer los pedidos de %s: %s", prov, e)
     datos = LECTORES[prov](hojas)
     if not datos["articulos"]:
         # Se apunta el fallo para no volver a pedir la hoja a Drive en cada visita (se reintenta en 10 min)
@@ -1156,8 +1169,11 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
     factura = None
     if ult and ult.get("factura"):
         factura = {"numero": ult["factura"], "fecha": ult["fecha"], "seguro": True, "tipo": ult.get("tipo"),
-                   "enlace": enlace_factura(ult["factura"], archivos),
-                   "cantidad": ult["cantidad"], "bruto": ult["bruto"], "dto1": ult["dto1"], "dto2": ult["dto2"]}
+                   # Pladur y Dinak: la hoja de pedidos trae el ID del PDF en Drive
+                   "enlace": f"https://drive.google.com/file/d/{ult['pdf']}/view" if ult.get("pdf")
+                   else enlace_factura(ult["factura"], archivos),
+                   "cantidad": ult["cantidad"], "bruto": ult["bruto"], "dto1": ult["dto1"], "dto2": ult["dto2"],
+                   "precio": ult.get("precio")}
     p = _medida_final(a["descripcion"])
     medida_txt = a.get("medida_c") or (f"{bonita_medida(p[1])} {p[2]}".strip() if p else None)
     return {
@@ -1171,7 +1187,8 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         "evol": a["evol"], "kg_m": None, "coste": a["coste"], "pvp": a["pvp"], "pvp_iva": a["pvp_iva"],
         "margen": a.get("margen"), "redondeo": TARIFAS[prov].get("redondeo"),
         "historial": historial, "factura": factura, "posibles": [],
-        "compras": None if datos.get("sin_compras") else (len(lineas) or a.get("compras")), "minimo": a.get("minimo"), "nota": a.get("nota"),
+        "compras": None if datos.get("sin_compras") else (len([l for l in lineas if l.get("tipo") != "Presupuesto"]) or a.get("compras")),
+        "minimo": a.get("minimo"), "nota": a.get("nota"),
         "apunte": a.get("apunte"),
         "medida": medida_txt,
         "pvp_fab": a.get("pvp_fab"), "origen": a.get("origen") or datos.get("origen"),
