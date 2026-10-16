@@ -8,10 +8,12 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-10-15';
+const VERSION = '2026-10-16';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
+  { icono: BookMarked, titulo: 'Tarifas nuevas: Isoltubex y mallas',
+    texto: 'En «Tarifas de proveedor» ya están Isoltubex (multicapa, PEX y latón) y las mallas ganaderas, con foto y precio por rollo. Desde 5 rollos sale más barato.', ir: '/tarifas' },
   { icono: BookMarked, titulo: 'Tarifas con IVA',
     texto: 'Ahora sale primero el precio con IVA. El sin IVA sigue al lado, y arriba puedes cambiar a «Sin IVA».', ir: '/tarifas' },
   { icono: ArrowLeft, titulo: '«Volver» en el móvil',

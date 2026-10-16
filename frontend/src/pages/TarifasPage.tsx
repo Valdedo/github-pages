@@ -560,6 +560,7 @@ function FamiliaActual() {
               <div className="tf-barra-precio">
                 <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
                 <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA · coste {eur(sel.coste)}</small>
+                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => `${e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé')} ${eur(iva ? conIva(e) : e.pvp)}`).join(' · ')}</small> : null}
               </div>
               <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
                 Ver ficha <ChevronRight size={18} />

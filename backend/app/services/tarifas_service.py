@@ -54,7 +54,6 @@ TARIFAS = {
         "pestanas": isoltubex.PESTANAS,
         "redondeo": "terminación comercial (…,50 / …,95)",
         "fabricante": "Isoltubex",
-        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     "silva": {
         "nombre": "Mallas Silva Moreira",
@@ -65,7 +64,6 @@ TARIFAS = {
         "desde": datetime(2026, 10, 14, 14, 45),
         "pestanas": ["INICIO", "TARIFA"],
         "redondeo": "redondeado a 0,10 € (con IVA, a 0,05 €)",
-        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     # Construdeco (oct. 2026): las actualizan las tareas de los miércoles (Pladur) y los jueves (Dinak) con sus pedidos.
     # Sin «pestanas»: se leen todas y el lector busca la que tiene la fila de títulos (por si cambia de nombre).
