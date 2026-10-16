@@ -593,16 +593,17 @@ def leer_silva(hojas: dict) -> dict:
 
 
 # ── Lector de la tarifa de ladrillos (Construdeco: Cerámica Campo y Alar) ─────
-# Fotos: las de Cerámica Campo van en frontend/public/catalogo/lad (las mismas que la hoja de mostrador);
-# las demás son de referencia (Obramat) y se enlazan, como en el resto del catálogo.
+# Fotos: las de Cerámica Campo (su web; el rasillón, de su ficha técnica) van en frontend/public/catalogo/lad;
+# las de Alar son de referencia (Obramat) y se enlazan, como en el resto del catálogo.
 _ADEO = "https://media.adeo.com/media/{}/media.jpg?width=640"
 FOTOS_LAD = {
     "910524": "/catalogo/lad/hueco-4.webp", "910520": "/catalogo/lad/hueco-6.webp",
     "910521": "/catalogo/lad/bloque.webp", "910519": "/catalogo/lad/bloque-doble.webp",
     "980207": "/catalogo/lad/tabicon-7.webp", "900905": "/catalogo/lad/tabicon-8.webp",
     "915547": "/catalogo/lad/semimacizo.webp", "991620": "/catalogo/lad/termoarcilla.webp",
-    "1009530": "/catalogo/lad/caravista.webp", "917057": _ADEO.format("4400186"),
-    "919265": _ADEO.format("4410053"), "1009721": _ADEO.format("4415710"),
+    "917057": "/catalogo/lad/rasillon.webp", "919265": "/catalogo/lad/refractario.webp",
+    # Alar no es de Cerámica Campo: fotos de referencia (Obramat) de un tabiquero y un caravista rojo
+    "1009721": _ADEO.format("4415710"), "1009530": _ADEO.format("4417054"),
 }
 
 

@@ -156,10 +156,10 @@ const LADRILLOS: [RegExp, string][] = [
   [/^ladrillo hueco/, 'lad-hueco'], [/^semimacizo/, 'lad-semimacizo'], [/^rasillon/, 'lad-rasillon'],
   [/^refractario/, 'lad-refractario'], [/^alar\b/, 'lad-alar'], [/^pale de madera/, 'lad-pale'],
 ];
-// Foto de cada familia de ladrillos sin artículo elegido (Cerámica Campo en /catalogo/lad; las demás, de referencia)
+// Foto de cada familia de ladrillos sin artículo elegido (Cerámica Campo en /catalogo/lad; Alar, de referencia)
 const LAD_FAMILIA: Record<string, string> = {
   'lad-hueco': '/catalogo/lad/bloque.webp', 'lad-semimacizo': '/catalogo/lad/semimacizo.webp',
-  'lad-rasillon': ADEO('4400186'), 'lad-refractario': ADEO('4410053'), 'lad-alar': ADEO('4415710'),
+  'lad-rasillon': '/catalogo/lad/rasillon.webp', 'lad-refractario': '/catalogo/lad/refractario.webp', 'lad-alar': ADEO('4415710'),
 };
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {

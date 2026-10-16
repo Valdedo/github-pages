@@ -160,8 +160,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   por pieza). «Precio a confirmar» en Notas = coste de compra antiguo (aviso en la ficha; hueco de 4 y de 6: Andrés aún no
   los ha comprado a precio nuevo, 16/10/2026). Familias en el orden de la hoja
   (`orden_hoja`), pegatinas `st-lad-*` y `st-prov-ladrillos` (`tools/pegatinas-catalogo.py <carpeta> <nombres>` genera solo esas),
-  fotos de Cerámica Campo en `frontend/public/catalogo/lad/` y de referencia (Obramat) para rasillón, refractario y tabiquero
-  (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
+  fotos de Cerámica Campo en `frontend/public/catalogo/lad/` (de su web; el rasillón machihembrado, del dibujo de su ficha técnica,
+  porque en la web no tiene foto) y de referencia (Obramat, se enlazan) para lo de Alar, que no es de Campo (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
 - `eur()` enseña el tercer decimal por debajo de 1 € si lo tiene (0,242 € con IVA); los importes (cantidad × precio) con `eurC`.
 - **Bombonas de gas (16/10/2026, en pruebas: solo admin)**: hoja «TARIFA_GAS_BOMBONAS» `17sRs…` en Mi unidad de Andrés
   (compartida con casafonsomc), pestaña TARIFA: Familia | Grupo | Artículo | PVP con IVA | Sin IVA (fórmula, solo para mirar).

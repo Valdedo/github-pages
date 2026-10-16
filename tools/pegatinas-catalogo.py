@@ -503,10 +503,10 @@ def art(name):
         for i in range(3):
             o += hole(sq(23 + i * 21, 147, 16, 10), d, '#9C5530', '#4E1F0E')
         return o
-    if name == 'lad-refractario':  # refractario prensado, claro, con su cazoleta
-        o = bloque(22, 96, 120, 58, (34, -24), ('#EBDDBF', '#F5EBD5', '#C9B78F'))
-        o.append(f'<rect x="38" y="108" width="88" height="34" rx="16" fill="#DDCCA6" stroke="{INK}" stroke-width="2"/>')
-        o.append(f'<rect x="44" y="112" width="76" height="8" rx="4" fill="#F4EAD3"/>')
+    if name == 'lad-refractario':  # refractario prensado de Cerámica Campo: macizo, color tostado y granulado
+        o = bloque(22, 96, 120, 58, (34, -24), ('#C9773F', '#DB9461', '#9C5429'))
+        for (x, y, r) in [(40, 112, 2.4), (62, 134, 2), (88, 108, 2.2), (110, 140, 2.4), (126, 118, 2), (52, 146, 1.8), (98, 126, 1.8)]:
+            o.append(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#F0C9A2" opacity="0.8"/>')
         return o
     if name == 'lad-alar':  # paño de caravista con sus juntas
         o = bloque(24, 70, 140, 96, (24, -16), ('#C9C1B5', '#DAD3C8', '#A99F91'))
