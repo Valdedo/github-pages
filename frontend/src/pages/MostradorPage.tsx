@@ -112,12 +112,24 @@ export function MostradorPage() {
   const [lista, setLista] = useState<TarifaResumen[] | null>(null);
   const [tarifas, setTarifas] = useState<Tarifa[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Tarifas que no se pudieron leer (p. ej. una hoja sin compartir): las demás se siguen viendo
+  const [fallidas, setFallidas] = useState<Record<string, string>>({});
   const cargar = useCallback(() => {
     setError(null);
     getTarifas().then(async r => {
       setLista(r.data);
-      const ts = await Promise.all(r.data.map(p => cache[p.id] ? Promise.resolve(cache[p.id]) : leerTarifa(p.id)));
-      setTarifas(ts);
+      const rs = await Promise.allSettled(r.data.map(p => cache[p.id] ? Promise.resolve(cache[p.id]) : leerTarifa(p.id)));
+      const mal: Record<string, string> = {};
+      rs.forEach((x, i) => { if (x.status === 'rejected') mal[r.data[i].id] = describeApiError(x.reason); });
+      setTarifas(rs.flatMap(x => x.status === 'fulfilled' ? [x.value] : []));
+      setFallidas(mal);
+      const nombres = r.data.filter(p => mal[p.id]).map(p => p.nombre);
+      if (nombres.length === r.data.length && nombres.length) setError(Object.values(mal)[0]);
+      else if (nombres.length) {
+        const cuales = nombres.length === 1 ? nombres[0] : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+        setError(nombres.length === 1 ? `No se pudo leer la tarifa de ${cuales}; las demás funcionan.`
+          : `No se pudieron leer las tarifas de ${cuales}; las demás funcionan.`);
+      }
     }).catch(e => setError(describeApiError(e)));
   }, []);
   useEffect(cargar, [cargar]);
@@ -206,7 +218,9 @@ export function MostradorPage() {
     : <Resultados res={resultados} q={q} sel={sel} onElegir={elegir} />;
   else if (prov && f && t) cuerpo = <Familia t={t} f={f} medida={medida} sel={sel} onMedida={m => ir({ m }, true)} onElegir={elegir} />;
   else if (prov && t) cuerpo = <Familias t={t} onFamilia={id => ir({ f: id, m: null })} />;
-  else if (prov && !t) cuerpo = <div className="mo-vacio"><span className="spinner" /> Leyendo la tarifa…</div>;
+  else if (prov && !t) cuerpo = fallidas[prov]
+    ? <ConnectionError message={fallidas[prov]} onRetry={cargar} />
+    : <div className="mo-vacio"><span className="spinner" /> Leyendo la tarifa…</div>;
   else cuerpo = (
     <Portada lista={lista} tarifas={tarifas} recientes={recientes} sel={sel}
       onProveedor={id => ir({ p: id, f: null, m: null })} onElegir={elegir} />
@@ -267,7 +281,8 @@ export function MostradorPage() {
             </div>
             <span className="mo-pruebas">En pruebas</span>
           </div>
-          {error && tarifas.length > 0 && <ConnectionError message={error} onRetry={cargar} />}
+          {/* Aviso de las que no se pudieron leer: en la portada y al buscar (dentro de otra tarifa, no molesta) */}
+          {error && tarifas.length > 0 && (!prov || q.trim()) && <ConnectionError message={error} onRetry={cargar} />}
           {cuerpo}
         </main>
         {horizontal ? <aside className="mo-der">{panel}</aside> : (elegido || verLista) && <div className="mo-hoja">{panel}</div>}

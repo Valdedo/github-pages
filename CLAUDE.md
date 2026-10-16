@@ -195,6 +195,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `/mostrador` (`pages/MostradorPage.tsx` + `mostrador.css`), a pantalla completa y sin el menú (`AppShell` en `App.tsx`;
   a la tienda le manda a `/tarifas`). En el menú: En pruebas → «Tarifas en la tableta».
 - Lee todas las tarifas al entrar (búsqueda al instante; lo más parecido arriba: código exacto, luego lo que empieza igual).
+  Si una no se puede leer (hoja sin compartir, Drive caído), las demás siguen: aviso en la portada «No se pudo leer la tarifa
+  de…» con «Reintentar», y al entrar en esa sale su error (`fallidas`, `Promise.allSettled`). Antes se quedaba toda la tableta en error.
   Reutiliza lo exportado de `TarifasPage.tsx` (`buscar`, `seccionesDe`, `medidasDe`, `Foto`, `cache`…), vista nueva de familias.
 - Horizontal (≥900 px): navegación a la izquierda y panel fijo a la derecha (precio con IVA enorme y el sin IVA debajo para
   TreyFACT, €/m, código; hasta el 15/10/2026 el enorme era el sin IVA);
