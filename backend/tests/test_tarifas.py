@@ -373,3 +373,15 @@ def test_morteros_iva_21_y_coste_si_la_hoja_lo_trae():
 
 def test_hoja_tienda_numeros():
     assert hoja_tienda.num("1.234,56 €") == 1234.56 and hoja_tienda.num("10 %") == 10 and hoja_tienda.num("") is None
+
+
+def test_morteros_iva_aparte():
+    hojas = {"TARIFA": [
+        ["Familia", "Grupo", "Artículo", "Formato", "PVP", "IVA aparte", "Sin IVA", "Coste sin IVA"],
+        ["Cementos y morteros", "Morteros", "Enlucido gris", "Saco 25 kg", "5,50 €", "Sí", "", "4,40 €"],
+        ["Cementos y morteros", "Morteros", "Revoque", "Saco 25 kg", "6,05 €", "", "", ""],
+    ]}
+    enl, rev = morteros.leer(hojas)["articulos"]
+    assert enl["pvp"] == 5.5 and enl["pvp_iva"] == 6.66 and enl["iva"] == 21 and enl["iva_aparte"] is True
+    assert enl["margen"] == 25.0 and "+ IVA" in enl["origen"]
+    assert rev["pvp"] == 5.0 and rev["pvp_iva"] == 6.05 and "iva_aparte" not in rev

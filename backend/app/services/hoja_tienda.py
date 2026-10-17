@@ -9,12 +9,15 @@ Fila de títulos (se buscan por su nombre, da igual el orden; solo las cuatro pr
 - «Sin IVA» es una fórmula solo para mirar: la app lo saca del con IVA (÷ 1,21, o el IVA de la fila), con 4 decimales,
   así TreyFACT da lo mismo.
 - «IVA»: 21, 10 o 4 (piensos al 10 %, la patata al 4 %). Vacío = el de la tarifa.
+- «IVA aparte» = Sí: el precio de la fila va SIN IVA (los ** de la hoja de la tienda de morteros: Prefasec, piedra país,
+  árido). Entonces el sin IVA es ese precio tal cual (lo que va a TreyFACT) y el con IVA, ese × 1,21 a céntimos.
 - «Coste» (sin IVA), «Fecha coste», «Factura» y «PDF» (el ID del PDF en Drive): si hay coste, la ficha enseña coste,
   margen y la factura; si no, solo el precio de venta (`solo_pvp`, como las bombonas).
 """
 import re
 import unicodedata
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Callable, Optional
 
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
@@ -94,7 +97,10 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
     c_pvp = col("pvp") if col("pvp") is not None else col("precio")
     if None in (c_fam, c_art, c_pvp):
         return vacio
-    c_for, c_iva, c_cod, c_cos = col("formato"), col("iva"), col("codigo"), col("coste")
+    c_for, c_cod, c_cos = col("formato"), col("codigo"), col("coste")
+    # «IVA» exacto (no «IVA aparte» ni «Sin IVA»)
+    c_iva = next((k for k, c in enumerate(cab) if c in ("iva", "iva %", "% iva", "tipo iva", "tipo de iva")), None)
+    c_apa = col("iva aparte", "mas iva", "+ iva", "+iva")
     c_fec, c_fac, c_pdf, c_nota, c_prov = col("fecha"), col("factura", "albaran"), col("pdf", "id pdf"), col("nota"), col("proveedor")
     ancho = len(cab) + 2
     arts, familias, grupos, vistos, lineas = [], [], {}, set(), {}
@@ -119,7 +125,12 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
             tipo_iva *= 100
         tipo_iva = tipo_iva if tipo_iva in (0, 4, 5, 10, 21) else iva
         coste = num(v(c_cos))
-        pvp = round(pvp_iva / (1 + tipo_iva / 100), 4) if pvp_iva else None
+        aparte = n(v(c_apa)) in ("si", "x", "1", "true", "*", "**")
+        if aparte and pvp_iva:  # el precio de la fila es sin IVA
+            pvp = round(pvp_iva, 4)
+            pvp_iva = float((Decimal(str(pvp)) * (1 + Decimal(str(tipo_iva)) / 100)).quantize(Decimal("0.01"), ROUND_HALF_UP))
+        else:
+            pvp = round(pvp_iva / (1 + tipo_iva / 100), 4) if pvp_iva else None
         primera = n(formato).split(" ")[0] if formato else ""
         ud = UDS.get(primera, "ud")
         cod = v(c_cod).lstrip("'") or None
@@ -130,6 +141,8 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         tipo = {"pedido": "Pedido", "albaran": "Albarán"}.get(f0)
         numero = factura.split(" ", 1)[1] if tipo and " " in factura else factura
         texto = origen if tipo_iva == iva == 21 else origen.replace("con IVA.", f"con IVA del {tipo_iva:g} %.")
+        if aparte:
+            texto = f"En la hoja de la tienda: {str(f'{pvp:.2f}').replace('.', ',')} € + IVA (IVA aparte)."
         if coste:
             de = ("la última compra" if not factura else f"l {factura[0].lower()}{factura[1:]}" if f0 in ("pedido", "albaran")
                   else f" la {factura[0].lower()}{factura[1:]}" if f0 == "tarifa" else f" la factura {factura}")
@@ -147,6 +160,7 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
             "margen": round((pvp / coste - 1) * 100, 1) if pvp and coste else None,
             "metros": None, "kg_m": None, "minimo": None, "compras": None, "nota": None, "apunte": v(c_nota) or None,
             "escalas": None, "solo_pvp": not coste, "orden": len(arts) + 1, "origen": texto,
+            **({"iva_aparte": True} if aparte else {}),
         }
         if c_prov is not None and v(c_prov):
             a["proveedor"] = v(c_prov)

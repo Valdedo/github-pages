@@ -192,15 +192,17 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   camping) y `gas.foto()` elige la de cada fila; las rojas de camping y sus envases (2,8 y 0,5 kg) van dibujadas porque no se sabe la marca.
   Si la tienda saca fotos suyas, sustituir esos .webp con el mismo nombre.
 - **Morteros y cementos · Piensos (17/10/2026, en pruebas: solo admin)**: igual que las bombonas, de las hojas plastificadas
-  de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1BvDP…` y «TARIFA_PIENSOS» `1aY4m…` en Mi
+  de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1EJWG…` (la primera, `1BvDP…`, está en la papelera) y «TARIFA_PIENSOS» `1aY4m…` en Mi
   unidad de Andrés (compartidas con casafonsomc), pestaña TARIFA. Costes sacados de Drive el 17/10/2026: morteros de Grupo Puma
   (facturas FNV-…), Tudela Veguín (cemento, CEM V/A 32,5 N de 35 kg: el saco morado) y Construdeco (Prefasec y piedra país, pedidos);
   piensos de **Almacenes Blanco** (Navia; los códigos .00xxxx de la hoja son los suyos; sus facturas llegan en papel y en Drive solo
   hay hasta dic-2025) y Xardinagro/Camponovo (Friskies, ray grass, diatomeas). IVA de los piensos según sus facturas: grano, harina
   de cereal y patata al 4 %, lo demás al 10 %. En la hoja de la tienda ponía «Iberplus»: es el Iberplast de Placo. Bovitac pasó a
-  saco de 25 kg (10,65 €, 17/10/2026). Los morteros con ** en la hoja de la tienda (Prefasec, piedra país, árido) salen casi a coste
-  o por debajo con los precios de Construdeco: margen negativo en rojo en la ficha (`tf-margen-neg`). Lector común de las hojas de la tienda en `services/hoja_tienda.py` (también lo
-  usa `gas.py`): columnas por su título, obligatorias Familia | Grupo | Artículo | PVP con IVA; opcionales Formato («Saco 25 kg»,
+  saco de 25 kg (10,65 €, 17/10/2026). Los ** de la hoja de la tienda de morteros quieren decir **IVA aparte** (Andrés): Prefasec,
+  piedra país y árido llevan «Sí» en la columna «IVA aparte» y su precio es sin IVA (el con IVA = × 1,21 a céntimos). Si un margen
+  sale negativo, la ficha lo pone en rojo (`tf-margen-neg`). Lector común de las hojas de la tienda en `services/hoja_tienda.py` (también lo
+  usa `gas.py`): columnas por su título, obligatorias Familia | Grupo | Artículo | PVP; opcionales IVA aparte (Sí = el PVP va sin
+  IVA), Formato («Saco 25 kg»,
   sale debajo del nombre y da la unidad saco/bolsa), IVA (piensos al 10 % por defecto, patata 4 %; el sin IVA = con IVA ÷ (1 + IVA)),
   Código, Nota, y Coste / Fecha coste / Factura / PDF (si hay coste, la ficha enseña coste, margen y la factura; si no, `solo_pvp`).
   `morteros.foto` / `piensos.foto` eligen la imagen por el nombre (y si no, por el grupo). Morteros: fotos de los sacos en
