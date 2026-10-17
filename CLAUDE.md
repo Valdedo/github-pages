@@ -192,11 +192,13 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   camping) y `gas.foto()` elige la de cada fila; las rojas de camping y sus envases (2,8 y 0,5 kg) van dibujadas porque no se sabe la marca.
   Si la tienda saca fotos suyas, sustituir esos .webp con el mismo nombre.
 - **Morteros y cementos · Piensos (17/10/2026, en pruebas: solo admin)**: igual que las bombonas, de las hojas plastificadas
-  de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1EJWG…` (la primera, `1BvDP…`, está en la papelera) y «TARIFA_PIENSOS» `1aY4m…` en Mi
+  de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1EJWG…` (la primera, `1BvDP…`, está en la papelera) y «TARIFA_PIENSOS» `1NOFS…` (la anterior, `1aY4m…`, en la papelera) en Mi
   unidad de Andrés (compartidas con casafonsomc), pestaña TARIFA. Costes sacados de Drive el 17/10/2026: morteros de Grupo Puma
   (facturas FNV-…), Tudela Veguín (cemento, CEM V/A 32,5 N de 35 kg: el saco morado) y Construdeco (Prefasec y piedra país, pedidos);
   piensos de **Almacenes Blanco** (Navia; los códigos .00xxxx de la hoja son los suyos; sus facturas llegan en papel y en Drive solo
-  hay hasta dic-2025) y Xardinagro/Camponovo (Friskies, ray grass, diatomeas). IVA de los piensos según sus facturas: grano, harina
+  hay hasta dic-2025). Los piensos son de **Biona (De Heus)**; algunos ya con otro nombre: Bovitac → Kamperina Plus Tac, Creceba →
+  Crecimiento Pollos Oro, Arranque Tradición → Arranque Pollos Oro; Kovital es de terneros (grupo «Vacas y terneros»). Ray grass Nui
+  de Rocalba y Xardinagro/Camponovo (Friskies, ray grass, diatomeas). IVA de los piensos según sus facturas: grano, harina
   de cereal y patata al 4 %, lo demás al 10 %. En la hoja de la tienda ponía «Iberplus»: es el Iberplast de Placo. Bovitac pasó a
   saco de 25 kg (10,65 €, 17/10/2026). Los ** de la hoja de la tienda de morteros quieren decir **IVA aparte** (Andrés): Prefasec,
   piedra país y árido llevan «Sí» en la columna «IVA aparte» y su precio es sin IVA (el con IVA = × 1,21 a céntimos). Si un margen
@@ -206,9 +208,15 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   sale debajo del nombre y da la unidad saco/bolsa), IVA (piensos al 10 % por defecto, patata 4 %; el sin IVA = con IVA ÷ (1 + IVA)),
   Código, Nota, y Coste / Fecha coste / Factura / PDF (si hay coste, la ficha enseña coste, margen y la factura; si no, `solo_pvp`).
   `morteros.foto` / `piensos.foto` eligen la imagen por el nombre (y si no, por el grupo). Morteros: fotos de los sacos en
-  `frontend/public/catalogo/mor/` (`tools/morteros-fotos.py`). Piensos: son de marca de la fábrica, sin fotos en internet, así que
-  llevan dibujos del animal o del grano en `frontend/public/catalogo/pi/` (`tools/pegatinas-piensos.py`, también el árido a granel
-  y las pegatinas `st-prov-morteros` / `st-prov-piensos`). Si la tienda saca fotos de los sacos, sustituir esos .webp.
+  `frontend/public/catalogo/mor/` (`tools/morteros-fotos.py`). Piensos: fotos reales del saco en `frontend/public/catalogo/pi/fotos/`
+  (`tools/piensos-fotos.py`: Biona/De Heus de su web y de tiendas agrícolas, Friskies, Regenera, Massó, Rocalba; `piensos.FOTOS`); lo
+  que no tiene foto de su marca (grano, harinas, pulpa, patata, sal, abono suelto, V. Energía, Kilate gatos, el pienso de perros del
+  saco azul) lleva el dibujo en `frontend/public/catalogo/pi/` (`tools/pegatinas-piensos.py`, también el árido a granel y las pegatinas
+  `st-prov-morteros` / `st-prov-piensos`). Si la tienda saca fotos de esos sacos, ponerlas en `pi/fotos/` y añadirlas a `FOTOS`.
+  **Lista en el ordenador (17/10/2026, Andrés: la cuadrícula de los piensos quedaba enorme)**: `"vista_ordenador": "lista"` en TARIFAS →
+  en ≥1100 px, `ListaTarifa` (tarjeta por grupo, una línea por artículo con foto pequeña, nombre, saco y código, y precio; columnas
+  que se reparten solas). Botón «Lista | Fotos» al lado del buscador (`tf-vista-pc`, se recuerda en `cfTarifaVistaPc` por tarifa).
+  Móvil y tableta, con la cuadrícula.
   Cuadrícula (`CuadriculaTarifa`, `repartir`): grupos de 6 artículos como mucho; si una fila de 6 queda corta, los grupos que quepan
   pasan a tarjetas anchas hasta llenarla (las 3 juntas, solas en su fila, ocupan las 6 columnas), así que el orden de la hoja
   decide cómo casan las filas. El precio va siempre a la misma altura aunque el nombre ocupe dos renglones.

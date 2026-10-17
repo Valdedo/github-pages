@@ -338,7 +338,7 @@ def test_piensos_iva_de_cada_fila_y_mismo_nombre_en_dos_formatos():
     assert a["pi-otros-animales-mezcla-kovita-saco-25-kg"]["iva"] == 10  # vacío: el de los piensos
     pat = a["pi-huerta-patata-de-consumo-saco-25-kg"]
     assert pat["iva"] == 4 and pat["pvp"] == 10.0 and pat["foto"] == "/catalogo/pi/patata.webp"
-    assert p10["foto"] == "/catalogo/pi/gallina.webp"
+    assert p10["foto"] == "/catalogo/pi/gallina.webp"  # «Pienso ponedoras»: sin foto de marca, el dibujo
     assert "10 %" in p10["origen"]
     assert d["orden_familias"] == ["Piensos", "Huerta y otros"]
     assert d["orden_grupos"]["Piensos"] == ["Gallinas", "Otros animales"]
@@ -350,9 +350,12 @@ def test_piensos_foto_por_nombre_y_si_no_por_grupo():
     assert f("Otros", "Sal") == "/catalogo/pi/sal.webp"
     assert f("Grano", "Salvado") == "/catalogo/pi/trigo.webp"  # «sal» no es «salvado»
     assert f("Perros y gatos", "Kilate gatos mix") == "/catalogo/pi/gato.webp"
-    assert f("Perros y gatos", "Kilate mantenimiento") == "/catalogo/pi/perro.webp"
-    assert f("Ovejas y cabras", "Kovital engorde") == "/catalogo/pi/oveja.webp"
-    assert f("Gallinas", "Ceregal") == "/catalogo/pi/gallina.webp"
+    assert f("Perros y gatos", "Pienso perros (saco azul)") == "/catalogo/pi/perro.webp"
+    assert f("Perros y gatos", "Kilate mantenimiento") == "/catalogo/pi/fotos/kilate-mantenimiento.webp"
+    assert f("Vacas y terneros", "Kovital engorde") == "/catalogo/pi/fotos/kovital.webp"
+    assert f("Ovejas y cabras", "Lactación ovejas") == "/catalogo/pi/oveja.webp"
+    assert f("Pollos", "Arranque Tradición") == "/catalogo/pi/fotos/arranque-tradicion.webp"
+    assert f("Gallinas", "Mezcla gallinas") == "/catalogo/pi/mezcla.webp"
 
 
 def test_morteros_iva_21_y_coste_si_la_hoja_lo_trae():

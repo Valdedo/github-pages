@@ -133,7 +133,7 @@ TARIFAS = {
         "nombre": "Piensos",
         "sub": "Piensos, grano y huerta",
         "proveedor": "Piensos",
-        "hoja": "1aY4miMDfowO7hzIAPYAVDVD_6pNuvf38OHq2JoruKZg",  # TARIFA_PIENSOS (Mi unidad de Andrés)
+        "hoja": "1NOFSVZ_WodJREXbwCilC0UlVDOeJDvI8VooM6cqOtnU",  # TARIFA_PIENSOS (Mi unidad de Andrés)
         "pestanas": None,
         "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",

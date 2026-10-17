@@ -1031,6 +1031,7 @@ export function TarifaFichaPage() {
         {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' 
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/lad') ? 'Foto de Cerámica Campo'
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pi/fotos/') ? 'Foto del saco'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pi/') ? 'Dibujo (sin foto del saco)' : 'Foto de referencia'}</span>}
     </div>
   );
