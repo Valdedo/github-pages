@@ -310,3 +310,66 @@ def test_gas_foto_de_cada_bombona():
     assert gas.foto("Envase + carga", "Envase + carga grande roja") == "/catalogo/gas/roja-grande.webp"
     assert gas.foto("Envases", "Envase 0,5 kg") == "/catalogo/gas/roja-pequena.webp"
     assert gas.foto("Otros", "Regulador") is None
+
+
+# ── Hojas de la tienda: morteros y piensos (17/10/2026), con el lector común (datos inventados) ──
+from app.services import hoja_tienda, morteros, piensos
+
+
+def _hoja_piensos():
+    return {"TARIFA": [
+        ["Piensos y agrícola · precio de venta al público con IVA"], [""],
+        ["Familia", "Grupo", "Artículo", "Formato", "PVP con IVA", "IVA", "Sin IVA (para TreyFACT)", "Código", "Nota"],
+        ["Piensos", "Gallinas", "Pienso ponedoras", "Saco 10 kg", "11,00 €", "10", "10,0000 €", "'.000123", ""],
+        ["Piensos", "Gallinas", "Pienso ponedoras", "Saco 25 kg", "22,00 €", "10 %", "", ".000124", "A Juan, 21 €"],
+        ["Piensos", "Otros animales", "Mezcla Kovita", "Saco 25 kg", "5,50 €", "", "", "", ""],
+        ["Huerta y otros", "Huerta", "Patata de consumo", "Saco 25 kg", "10,40 €", "4", "", "", ""],
+    ]}
+
+
+def test_piensos_iva_de_cada_fila_y_mismo_nombre_en_dos_formatos():
+    d = piensos.leer(_hoja_piensos())
+    a = {x["ref"]: x for x in d["articulos"]}
+    assert len(a) == 4  # mismo nombre, distinto saco: dos artículos
+    p10, p25 = a["pi-gallinas-pienso-ponedoras-saco-10-kg"], a["pi-gallinas-pienso-ponedoras-saco-25-kg"]
+    assert p10["pvp_iva"] == 11.0 and p10["pvp"] == 10.0 and p10["iva"] == 10
+    assert p10["codigo"] == ".000123" and p10["formato"] == "Saco 10 kg" and p10["ud_venta"] == "saco"
+    assert p25["apunte"] == "A Juan, 21 €" and p25["solo_pvp"] is True
+    assert a["pi-otros-animales-mezcla-kovita-saco-25-kg"]["iva"] == 10  # vacío: el de los piensos
+    pat = a["pi-huerta-patata-de-consumo-saco-25-kg"]
+    assert pat["iva"] == 4 and pat["pvp"] == 10.0 and pat["foto"] == "/catalogo/pi/patata.webp"
+    assert p10["foto"] == "/catalogo/pi/gallina.webp"
+    assert "10 %" in p10["origen"]
+    assert d["orden_familias"] == ["Piensos", "Huerta y otros"]
+    assert d["orden_grupos"]["Piensos"] == ["Gallinas", "Otros animales"]
+
+
+def test_piensos_foto_por_nombre_y_si_no_por_grupo():
+    f = lambda gru, art: piensos.foto("Piensos", gru, art, "")
+    assert f("Grano", "Salvado de trigo") == "/catalogo/pi/trigo.webp"
+    assert f("Otros", "Sal") == "/catalogo/pi/sal.webp"
+    assert f("Grano", "Salvado") == "/catalogo/pi/trigo.webp"  # «sal» no es «salvado»
+    assert f("Perros y gatos", "Kilate gatos mix") == "/catalogo/pi/gato.webp"
+    assert f("Perros y gatos", "Kilate mantenimiento") == "/catalogo/pi/perro.webp"
+    assert f("Ovejas y cabras", "Kovital engorde") == "/catalogo/pi/oveja.webp"
+    assert f("Gallinas", "Ceregal") == "/catalogo/pi/gallina.webp"
+
+
+def test_morteros_iva_21_y_coste_si_la_hoja_lo_trae():
+    hojas = {"TARIFA": [
+        ["Familia", "Grupo", "Artículo", "Formato", "PVP con IVA", "Sin IVA", "Coste", "Fecha coste", "Factura", "PDF"],
+        ["Cementos y morteros", "Cemento y hormigón", "Cemento gris", "Saco 35 kg", "12,10 €", "", "5,00 €", "02/09/2026", "F-1", "abc123"],
+        ["Cemento cola y juntas", "Juntas", "Junta blanca", "Bolsa 3 kg", "6,05 €", "", "", "", "", ""],
+    ]}
+    d = morteros.leer(hojas)
+    cem, jun = d["articulos"]
+    assert cem["pvp"] == 10.0 and cem["coste"] == 5.0 and cem["margen"] == 100.0 and cem["solo_pvp"] is False
+    assert cem["fecha"] == "sep-26" and d["lineas"][cem["ref"]][0]["pdf"] == "abc123"
+    assert cem["foto"] is None or cem["foto"].startswith("/catalogo/mor/")
+    assert jun["pvp"] == 5.0 and jun["solo_pvp"] is True and jun["ud_venta"] == "bolsa"
+    assert jun["foto"] == "/catalogo/mor/junta-blanca.webp"
+    assert morteros.foto("", "Cemento y hormigón", "Árido a granel", "6 paladas") == "/catalogo/pi/arido.webp"
+
+
+def test_hoja_tienda_numeros():
+    assert hoja_tienda.num("1.234,56 €") == 1234.56 and hoja_tienda.num("10 %") == 10 and hoja_tienda.num("") is None

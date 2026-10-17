@@ -301,6 +301,7 @@ const BUSCA_EJEMPLO: Record<string, string> = {
   pladur: 'Buscar: N 13, montante 70, pasta, código…', dinak: 'Buscar: 150 doble pared, codo, sombrerete…',
   ladrillos: 'Buscar: hueco 4, tabicón, bloque, refractario…',
   gas: 'Buscar: butano, propano, camping…',
+  morteros: 'Buscar: cemento, cola, junta, yeso…', piensos: 'Buscar: gallinas, maíz, conejos, sal…',
 };
 export function TarifaProveedorPage() {
   const { prov = '' } = useParams();
@@ -1007,7 +1008,8 @@ export function TarifaFichaPage() {
       {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">
         {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' 
-          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/lad') ? 'Foto de Cerámica Campo' : 'Foto de referencia'}</span>}
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/lad') ? 'Foto de Cerámica Campo'
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pi/') ? 'Dibujo (sin foto del saco)' : 'Foto de referencia'}</span>}
     </div>
   );
   const precios = d && (
@@ -1120,11 +1122,13 @@ export function TarifaFichaPage() {
         {nueva && d.antes?.length ? <><dt>Código antiguo</dt><dd className="tf-cod">{d.antes.join(', ')}</dd></> : null}
         {nueva && d.tambien?.length ? <><dt>También sale como</dt><dd className="tf-cod">{d.tambien.map(x => x.codigo).join(', ')}</dd></> : null}
         {d.medida && <><dt>Medida</dt><dd>{conPor(d.medida)}</dd></>}
+        {d.formato && <><dt>Formato</dt><dd>{d.formato}</dd></>}
         <dt>Familia</dt><dd>{d.familia.nombre}{d.subcategoria ? ` · ${d.subcategoria}` : ''}</dd>
         {d.original && <><dt>En la factura</dt><dd className="tf-cod">{d.original}</dd></>}
         {d.pvp_fab != null && <><dt>PVP de tarifa {d.pvp_fab_de ?? 'del fabricante'}</dt><dd>{eurUd(d.pvp_fab, d.ud_compra)}</dd></>}
         {!d.solo_pvp && <><dt>Se compra por</dt><dd>{d.ud_compra}</dd></>}
         <dt>Se vende por</dt><dd>{udLarga(d.ud_venta)}</dd>
+        {d.iva != null && d.iva !== 21 && <><dt>IVA</dt><dd>{d.iva} %</dd></>}
         {d.kg_m != null && <><dt>Peso</dt><dd>{d.kg_m.toLocaleString('es-ES', { maximumFractionDigits: 3 })} kg/m</dd></>}
         {datosPieza(d, iva).map(x => <Fragment key={x.t}><dt>{x.t}</dt><dd>{x.v}</dd></Fragment>)}
         {d.compras != null && <><dt>Veces comprado</dt><dd>{d.compras}</dd></>}

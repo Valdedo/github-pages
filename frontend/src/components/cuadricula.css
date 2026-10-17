@@ -1,4 +1,4 @@
-/* Tarifa en cuadrícula (bombonas de gas). Ver components/CuadriculaTarifa.tsx */
+/* Tarifa en cuadrícula (bombonas de gas, morteros, piensos). Ver components/CuadriculaTarifa.tsx */
 .gc { --hueco: 14px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 22px var(--hueco); margin-top: 6px; }
 .gc-grupo { grid-column: span var(--n); min-width: 0; }
 .gc-tit { margin: 0 0 8px; font-family: var(--font-display); font-weight: 500; font-size: 19px; color: var(--brand); line-height: 1.15; }
@@ -14,8 +14,12 @@
 .gc-toca:active { transform: scale(.985); }
 .gc-foto { position: relative; display: block; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: #fff; margin-bottom: 10px; }
 .gc-foto img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.gc-txt { display: flex; flex-direction: column; min-width: 0; }
+.gc-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+/* El precio, siempre a la misma altura en la fila aunque el nombre ocupe uno o dos renglones */
+.gc-txt .gc-precio { margin-top: auto; }
 .gc-nom { font-size: 15px; font-weight: 600; line-height: 1.2; margin-bottom: 6px; color: var(--text-1); }
+/* «Saco 25 kg» (morteros, piensos) */
+.gc-formato { font-size: 13px; color: var(--text-3); margin: -3px 0 7px; line-height: 1.2; }
 .gc-precio { font-family: var(--font-display); font-weight: 600; font-size: 26px; line-height: 1; color: var(--brand-dark); }
 .gc-txt small { font-size: 12px; color: var(--text-3); margin-top: 4px; }
 
@@ -33,6 +37,7 @@
 .gc-grande .gc-tit small { font-size: 13px; }
 .gc-grande .gc-toca { border-radius: 22px; padding: 14px 14px 18px; }
 .gc-grande .gc-nom { font-size: 19px; }
+.gc-grande .gc-formato { font-size: 15px; }
 .gc-grande .gc-precio { font-size: 34px; }
 .gc-grande .gc-txt small { font-size: 14px; }
 .gc-grande .gc-ancha .gc-precio { font-size: 40px; }

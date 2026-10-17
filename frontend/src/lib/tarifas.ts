@@ -24,6 +24,8 @@ export interface TarifaMedida {
   solo_pvp?: boolean;
   /** Ladrillos: piezas por m², kg por pieza, piezas por palé y para qué se usa */
   ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
+  /** Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA si no es el 21 % (piensos al 10 %) */
+  formato?: string | null; iva?: number | null;
 }
 /** Precio por cantidad. «pvp» va por unidad de venta; si es un palé que se vende entero (ladrillos), «total» es lo que
  *  vale el palé y «cantidad» las piezas que lleva. */
@@ -74,6 +76,8 @@ export interface FichaTarifa {
   ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
   /** Solo hay precio de venta, sin coste ni compras (bombonas de gas) */
   solo_pvp?: boolean;
+  /** Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA de la fila */
+  formato?: string | null; iva?: number | null;
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están, en pruebas (oct. 2026): a quien
@@ -85,7 +89,7 @@ export const PROXIMAMENTE = [
 export const PEGATINA_PROVEEDOR: Record<string, string> = {
   hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla', pladur: 'prov-pladur', dinak: 'prov-dinak',
   ladrillos: 'prov-ladrillos',
-  gas: 'prov-gas',
+  gas: 'prov-gas', morteros: 'prov-morteros', piensos: 'prov-piensos',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
@@ -172,6 +176,9 @@ export function claveFamilia(nombre: string): string {
   // Bombonas de gas (oct. 2026): la de casa (butano y propano) y las de camping
   if (/^butano y propano/.test(n)) return 'gas-butano';
   if (/^bombonas camping/.test(n)) return 'gas-camping';
+  // Morteros y piensos (17/10/2026): cada artículo trae su foto o dibujo; la familia, la pegatina de la tarifa
+  if (/^cementos? y morteros|^cemento cola|^morteros/.test(n)) return 'prov-morteros';
+  if (/^piensos?\b|^grano y harinas|^huerta/.test(n)) return 'prov-piensos';
   // Mallas ganaderas de Silva Moreira: foto real por familia (frontend/public/catalogo/silva)
   if (/^malla nudo fijo/.test(n)) return 'silva-nudo-fijo';
   if (/^malla anudada/.test(n)) return /fuerte/.test(n) ? 'silva-fuerte' : 'silva-ligera';
@@ -291,9 +298,9 @@ export const pct = (v: number | null | undefined) =>
   v == null ? '' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v), 1)} %`;
 
 export type ModoPrecio = 'venta' | 'iva' | 'coste';
-/** Precio con IVA: el de la hoja; si la hoja no lo trae, el sin IVA + 21 %. */
-export const conIva = (m: { pvp?: number | null; pvp_iva?: number | null }) =>
-  m.pvp_iva ?? (m.pvp != null ? Math.round(m.pvp * 121) / 100 : null);
+/** Precio con IVA: el de la hoja; si la hoja no lo trae, el sin IVA + su IVA (21 % si no se dice). */
+export const conIva = (m: { pvp?: number | null; pvp_iva?: number | null; iva?: number | null }) =>
+  m.pvp_iva ?? (m.pvp != null ? Math.round(m.pvp * (100 + (m.iva ?? 21))) / 100 : null);
 export const precioModo = (m: TarifaMedida, modo: ModoPrecio) =>
   modo === 'venta' ? m.pvp : modo === 'iva' ? conIva(m) : m.coste;
 /** Familia sin coste (bombonas de gas): no se ofrece «Coste» y, si estaba elegido, se enseña con IVA. */

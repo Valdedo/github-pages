@@ -20,7 +20,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import construdeco, gas, isoltubex, mail_service
+from app.services import construdeco, gas, isoltubex, mail_service, morteros, piensos
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +115,26 @@ TARIFAS = {
         # Pocos artículos: todos de golpe en una cuadrícula con foto y precio, sin pasar por familias (Andrés, 16/10/2026)
         "vista": "cuadricula",
         "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
+    },
+    # Morteros y piensos (17/10/2026): como las bombonas, de las hojas plastificadas de la tienda y en cuadrícula
+    # (lector común en services/hoja_tienda.py). Precio de venta con IVA; el coste, si se apunta en la hoja.
+    "morteros": {
+        "nombre": "Morteros y cementos",
+        "sub": "Cemento, morteros, cemento cola, juntas y yeso",
+        "proveedor": "Morteros y cementos",
+        "hoja": "",  # TARIFA_MORTEROS_CEMENTOS (Mi unidad de Andrés)
+        "pestanas": None,
+        "vista": "cuadricula",
+        "en_pruebas": True,
+    },
+    "piensos": {
+        "nombre": "Piensos",
+        "sub": "Piensos, grano y huerta",
+        "proveedor": "Piensos",
+        "hoja": "",  # TARIFA_PIENSOS (Mi unidad de Andrés)
+        "pestanas": None,
+        "vista": "cuadricula",
+        "en_pruebas": True,
     },
 }
 
@@ -692,7 +712,8 @@ def leer_ladrillos(hojas: dict) -> dict:
 
 
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
-            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos, "gas": gas.leer}
+            "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos, "gas": gas.leer,
+            "morteros": morteros.leer, "piensos": piensos.leer}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -898,6 +919,9 @@ def _item(a: dict, valor: str = "", ud: str = "") -> dict:
             # Ladrillos: piezas por m², peso, piezas por palé y para qué se usa
             **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
             **({"solo_pvp": True} if a.get("solo_pvp") else {}),
+            # Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA si no es el 21 %
+            **({"formato": a["formato"]} if a.get("formato") else {}),
+            **({"iva": a["iva"]} if a.get("iva") not in (None, 21) else {}),
             **({"ms": ms} if len(ms) > 1 else {})}
 
 
@@ -1205,4 +1229,7 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
         # Bombonas de gas: solo precio de venta (sin coste, margen ni compras)
         "solo_pvp": bool(a.get("solo_pvp")),
+        # Hojas de la tienda (morteros, piensos): formato, IVA de la fila y proveedor si la hoja lo dice
+        "formato": a.get("formato"), "iva": a.get("iva"),
+        **({"proveedor_nombre": a["proveedor"]} if a.get("proveedor") else {}),
     }

@@ -6,10 +6,11 @@ import { eur, conIva, fotoArticulo, pegatina, claveFamilia, type Tarifa, type Ta
 import './cuadricula.css';
 
 // ════════════════════════════════════════════════════════════════════════
-// Tarifa en cuadrícula (bombonas de gas, oct. 2026): pocos artículos, todos de golpe con su foto, nombre y precio.
-// Cada grupo (Repsol, Cepsa, Cargas…) ocupa tantas columnas como artículos tiene, y el de uno solo, dos (una tarjeta
-// ancha), así las filas de 6 quedan completas: 3 + 3 · 2 + 4 · 2 + 4. En pantallas estrechas cada grupo va en su fila.
-// Ordenador y móvil: la tarjeta abre la ficha. Tableta: cada toque suma uno a lo apuntado.
+// Tarifa en cuadrícula (bombonas de gas, oct. 2026; morteros y piensos, 17/10/2026): pocos artículos, todos de golpe
+// con su foto, nombre y precio. Cada grupo (Repsol, Cepsa, Cargas…) ocupa tantas columnas como artículos tiene (6 como
+// mucho) y el de uno solo, dos (una tarjeta ancha). Si una fila de 6 queda corta, sus grupos que quepan pasan a tarjetas
+// anchas hasta llenarla (las 3 juntas solas en su fila ocupan las 6 columnas). En pantallas estrechas cada grupo va en
+// su fila. Ordenador y móvil: la tarjeta abre la ficha. Tableta: cada toque suma uno a lo apuntado.
 // ════════════════════════════════════════════════════════════════════════
 
 export type Celda = { f: TarifaFamilia; m: TarifaMedida };
@@ -31,7 +32,34 @@ export function gruposDe(t: Tarifa): Grupo[] {
   return out;
 }
 
+const COLUMNAS = 6;
+type Puesto = { g: Grupo; ancha: boolean; n: number };
+/** Columnas de cada grupo (en el ordenador) y si va en tarjetas anchas, para que las filas de 6 queden completas. */
+export function repartir(gs: Grupo[]): Puesto[] {
+  const out: Puesto[] = gs.map(g => {
+    const k = g.items.length;
+    return { g, ancha: k === 1, n: k === 1 ? 2 : Math.min(k, COLUMNAS) };
+  });
+  let fila: Puesto[] = [], usado = 0;
+  const cerrar = () => {
+    let r = COLUMNAS - usado;
+    for (let i = fila.length - 1; i >= 0 && r > 0; i--) {
+      const x = fila[i], k = x.g.items.length;
+      if (!x.ancha && k <= r && k * 2 <= COLUMNAS) { x.ancha = true; x.n = k * 2; r -= k; }
+    }
+    fila = []; usado = 0;
+  };
+  for (const x of out) {
+    if (usado && x.n > COLUMNAS - usado) cerrar();
+    fila.push(x); usado += x.n;
+    if (usado >= COLUMNAS) cerrar();
+  }
+  if (fila.length) cerrar();
+  return out;
+}
+
 const sinS = (w: string) => w.replace(/s$/, '');
+const SUELTAS = new Set(['de', 'del', 'con', 'para', 'y', 'a', 'en']);
 /** El nombre sin lo que ya dice el título del grupo: «Butano Repsol» en Repsol → «Butano»; «Carga grande azul» en
  *  Cargas → «Grande azul»; «Envase 2,8 kg» en Envases → «2,8 kg». */
 export function nombreCorto(desc: string, grupo: string): string {
@@ -41,9 +69,16 @@ export function nombreCorto(desc: string, grupo: string): string {
   let a = 0, b = pal.length;
   if (g.length < pal.length && g.every((w, i) => n[i] === w)) a = g.length;
   else if (g.length < pal.length && g.every((w, i) => n[pal.length - g.length + i] === w)) b = pal.length - g.length;
-  const r = pal.slice(a, b).join(' ');
-  return r ? r.charAt(0).toUpperCase() + r.slice(1) : desc;
+  const resto = pal.slice(a, b);
+  // «Harina de maíz» en Maíz no se queda en «Harina de»
+  if (!resto.length || SUELTAS.has(normaliza(resto[resto.length - 1])) || SUELTAS.has(normaliza(resto[0]))) return desc;
+  const r = resto.join(' ');
+  return r.charAt(0).toUpperCase() + r.slice(1);
 }
+
+/** «Avipuesta Oro Plus · Saco 10 kg» → «Avipuesta Oro Plus» (el formato va en su renglón, debajo). */
+const sinFormato = (m: TarifaMedida) =>
+  m.formato && m.descripcion.endsWith(` · ${m.formato}`) ? m.descripcion.slice(0, -(m.formato.length + 3)) : m.descripcion;
 
 export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuentaDe, onQuitar }: {
   t: Tarifa;
@@ -60,15 +95,16 @@ export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuent
 }) {
   return (
     <div className={`gc${grande ? ' gc-grande' : ''}`}>
-      {gruposDe(t).map((g, i) => {
-        const ancha = g.items.length === 1;
+      {repartir(gruposDe(t)).map(({ g, ancha, n }, i) => {
+        // La familia, encima de su primer grupo (si no se llama igual que él); en los demás queda el hueco para que
+        // las tarjetas casen
+        const fam = g.primero && normaliza(g.familia) !== normaliza(g.titulo);
         return (
-          <section key={i} className={`gc-grupo${ancha ? ' gc-ancha' : ''}`} style={{ '--n': ancha ? 2 : g.items.length } as CSSProperties}>
-            {/* La familia, encima de su primer grupo; en los demás queda el hueco para que las tarjetas casen */}
-            <h3 className="gc-tit"><small className={g.primero ? undefined : 'gc-hueco'}>{g.primero ? g.familia : ' '}</small>{g.titulo}</h3>
+          <section key={i} className={`gc-grupo${ancha ? ' gc-ancha' : ''}`} style={{ '--n': n } as CSSProperties}>
+            <h3 className="gc-tit"><small className={fam ? undefined : 'gc-hueco'}>{fam ? g.familia : ' '}</small>{g.titulo}</h3>
             <div className="gc-fila">
               {g.items.map(c => (
-                <Tarjeta key={c.m.ref} c={c} nombre={nombreCorto(c.m.descripcion, g.titulo)} iva={iva}
+                <Tarjeta key={c.m.ref} c={c} nombre={nombreCorto(sinFormato(c.m), g.titulo)} iva={iva}
                   enlace={enlace} onTocar={onTocar} cuenta={cuentaDe?.(c) ?? 0} onQuitar={onQuitar} />
               ))}
             </div>
@@ -94,6 +130,7 @@ function Tarjeta({ c, nombre, iva, enlace, onTocar, cuenta, onQuitar }: {
       </span>
       <span className="gc-txt">
         <span className="gc-nom">{nombre}</span>
+        {c.m.formato && <span className="gc-formato">{c.m.formato}</span>}
         <strong className="gc-precio">{eur(grande)}</strong>
         {otro != null && <small>{eur(otro)} {iva ? 'sin' : 'con'} IVA</small>}
       </span>
