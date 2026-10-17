@@ -127,8 +127,10 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         fecha, factura = _mes(v(c_fec)), v(c_fac)
         texto = origen if tipo_iva == iva == 21 else origen.replace("con IVA.", f"con IVA del {tipo_iva:g} %.")
         if coste:
-            de = f"factura {factura}" if factura else "la última compra"
-            texto += f" Coste de {de}{' del ' + _dia(v(c_fec)) if _dia(v(c_fec)) else ''}, sin IVA."
+            f0 = n(factura).split(" ")[0] if factura else ""
+            de = ("la última compra" if not factura else f"l {factura[0].lower()}{factura[1:]}" if f0 in ("pedido", "albaran")
+                  else f" la {factura[0].lower()}{factura[1:]}" if f0 == "tarifa" else f" la factura {factura}")
+            texto += f" Coste de{de if factura else ' ' + de}{' del ' + _dia(v(c_fec)) if _dia(v(c_fec)) else ''}, sin IVA."
         a = {
             # El formato va también en el nombre: en la búsqueda, la ficha y lo apuntado de la tableta se distinguen
             # los dos sacos del mismo pienso (la cuadrícula lo quita del nombre y lo pone debajo)
