@@ -301,7 +301,8 @@ export function MostradorPage() {
                   <b>{eurC(totalAbierto)}</b>
                   <button type="button" className="mo-gc-pie-btn" onClick={() => setVerLista(true)}>Ver lista</button>
                 </>
-              ) : <span className="mo-gc-pie-txt">Toca una bombona para apuntarla · cada toque suma una</span>}
+              ) : <span className="mo-gc-pie-txt">{t?.id === 'gas' ? 'Toca una bombona para apuntarla · cada toque suma una'
+                : 'Toca un artículo para apuntarlo · cada toque suma uno'}</span>}
             </div>
           )}
         </main>

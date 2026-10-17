@@ -122,7 +122,7 @@ TARIFAS = {
         "nombre": "Morteros y cementos",
         "sub": "Cemento, morteros, cola, juntas y yeso",
         "proveedor": "Morteros y cementos",
-        "hoja": "",  # TARIFA_MORTEROS_CEMENTOS (Mi unidad de Andrés)
+        "hoja": "1BvDPupHWzQWMUGbHPYGN8zeW1kn8Ch2ATs-mmBRyXqA",  # TARIFA_MORTEROS_CEMENTOS (Mi unidad de Andrés)
         "pestanas": None,
         "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
@@ -132,7 +132,7 @@ TARIFAS = {
         "nombre": "Piensos",
         "sub": "Piensos, grano y huerta",
         "proveedor": "Piensos",
-        "hoja": "",  # TARIFA_PIENSOS (Mi unidad de Andrés)
+        "hoja": "1aY4miMDfowO7hzIAPYAVDVD_6pNuvf38OHq2JoruKZg",  # TARIFA_PIENSOS (Mi unidad de Andrés)
         "pestanas": None,
         "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
