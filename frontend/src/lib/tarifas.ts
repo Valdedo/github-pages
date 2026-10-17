@@ -51,6 +51,8 @@ export interface Tarifa {
   familias: TarifaFamilia[];
   /** «cuadricula»: pocos artículos, todos de golpe con foto y precio (bombonas de gas) */
   vista?: string | null;
+  /** En el ordenador: «lista» = lista compacta por grupos en vez de la cuadrícula grande (morteros, piensos) */
+  vista_ordenador?: string | null;
 }
 export interface FichaTarifa {
   escalas?: Escala[] | null;

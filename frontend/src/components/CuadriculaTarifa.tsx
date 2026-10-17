@@ -71,7 +71,8 @@ export function nombreCorto(desc: string, grupo: string): string {
   else if (g.length < pal.length && g.every((w, i) => n[pal.length - g.length + i] === w)) b = pal.length - g.length;
   const resto = pal.slice(a, b);
   // «Harina de maíz» en Maíz no se queda en «Harina de»
-  if (!resto.length || SUELTAS.has(normaliza(resto[resto.length - 1])) || SUELTAS.has(normaliza(resto[0]))) return desc;
+  // ni «Mezcla 50 %» en Mezclas en «50 %» (lo que queda empieza por un número)
+  if (!resto.length || SUELTAS.has(normaliza(resto[resto.length - 1])) || SUELTAS.has(normaliza(resto[0])) || /^\d/.test(resto[0])) return desc;
   const r = resto.join(' ');
   return r.charAt(0).toUpperCase() + r.slice(1);
 }
@@ -147,4 +148,47 @@ function Tarjeta({ c, nombre, iva, enlace, onTocar, cuenta, onQuitar }: {
     );
   }
   return <Link className="gc-celda gc-toca" to={enlace ? enlace(c) : '#'} title={c.m.descripcion}>{dentro}</Link>;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Lista compacta para el ordenador (17/10/2026, Andrés: la cuadrícula de los piensos quedaba muy grande en el ordenador).
+// Cada grupo es una tarjeta con una línea por artículo (foto pequeña, nombre, formato y código, precio); las tarjetas van
+// en columnas que se reparten solas por el ancho de la pantalla. La línea abre la ficha.
+// ════════════════════════════════════════════════════════════════════════
+export function ListaTarifa({ t, iva = true, enlace }: { t: Tarifa; iva?: boolean; enlace: (c: Celda) => string }) {
+  return (
+    <div className="gl">
+      {gruposDe(t).map((g, i) => {
+        const fam = g.primero && normaliza(g.familia) !== normaliza(g.titulo);
+        return (
+          <section key={i} className="gl-grupo">
+            <h3 className="gl-tit">{fam && <small>{g.familia}</small>}{g.titulo}</h3>
+            <ul>
+              {g.items.map(c => {
+                const grande = iva ? conIva(c.m) : c.m.pvp;
+                const otro = iva ? c.m.pvp : conIva(c.m);
+                const foto = fotoArticulo(c.f.nombre, c.m.descripcion, c.m.foto) || pegatina(claveFamilia(c.f.nombre));
+                const datos = [c.m.formato, c.m.codigo].filter(Boolean).join(' · ');
+                return (
+                  <li key={c.m.ref}>
+                    <Link className="gl-fila" to={enlace(c)} title={c.m.descripcion}>
+                      <img src={foto} alt="" loading="lazy" />
+                      <span className="gl-txt">
+                        <span className="gl-nom">{nombreCorto(sinFormato(c.m), g.titulo)}</span>
+                        {datos && <small>{datos}</small>}
+                      </span>
+                      <span className="gl-precio">
+                        <b>{eur(grande)}</b>
+                        {otro != null && <small>{eur(otro)} {iva ? 'sin' : 'con'} IVA</small>}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
 }

@@ -81,3 +81,31 @@
 .mo-gc-pie b { font-family: var(--font-display); font-size: 30px; font-weight: 600; white-space: nowrap; }
 .mo-gc-pie-btn { min-height: 56px; padding: 0 26px; border: 0; border-radius: 16px; background: var(--primary-mid); color: #fff;
   font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+/* Lista compacta del ordenador (morteros y piensos; «Lista | Fotos» en la cabecera). Ver ListaTarifa */
+.gl { column-width: 330px; column-gap: 16px; margin-top: 6px; }
+.gl-grupo { break-inside: avoid; display: inline-block; width: 100%; box-sizing: border-box; margin: 0 0 16px; background: #fff;
+  border-radius: 14px; padding: 10px 10px 6px; box-shadow: 0 1px 0 var(--border), 0 4px 12px rgb(18 58 38 / .05); }
+.gl-tit { margin: 2px 6px 6px; font-family: var(--font-display); font-weight: 500; font-size: 17px; color: var(--brand); line-height: 1.15; }
+.gl-tit small { display: block; font-family: var(--font); font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase;
+  letter-spacing: .6px; margin-bottom: 2px; }
+.gl-grupo ul { list-style: none; margin: 0; padding: 0; }
+.gl-grupo li + li { border-top: 1px solid var(--border); }
+.gl-fila { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px; border-radius: 10px;
+  color: inherit; text-decoration: none; }
+.gl-fila:hover { background: var(--brand-light); }
+.gl-fila:focus-visible { outline: 2px solid var(--primary-mid); outline-offset: -2px; }
+.gl-fila img { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: #fff; }
+.gl-txt { display: flex; flex-direction: column; min-width: 0; }
+.gl-nom { font-size: 14px; font-weight: 600; line-height: 1.2; color: var(--text-1); }
+.gl-txt small { font-size: 12px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gl-precio { display: flex; flex-direction: column; align-items: flex-end; text-align: right; white-space: nowrap; }
+.gl-precio b { font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: 1.05; color: var(--brand-dark); }
+.gl-precio small { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+/* «Lista | Fotos» al lado del buscador (solo en el ordenador) */
+.tf-vista-pc { display: flex; flex: none; gap: 4px; padding: 4px; background: #fff; border: 1px solid var(--border); border-radius: 14px; align-self: stretch; }
+.tf-vista-pc button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--text-2); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.tf-vista-pc button:hover:not([aria-pressed="true"]) { background: var(--brand-light); }
+.tf-vista-pc button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+.tf-vista-pc button:focus-visible { outline: 2px solid var(--primary-mid); outline-offset: 2px; }

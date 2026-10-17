@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type KeyboardEvent, Fragment } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown, List, LayoutGrid } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
 import { fechaES, normaliza } from '../lib/texto';
 import { esConsulta, esEncargado } from '../auth';
@@ -12,7 +12,7 @@ import {
   conIva, modoGuardado, guardarModo, totalEscala, datosPieza, soloPvp,
   type Tarifa, type Escala, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
-import { CuadriculaTarifa } from '../components/CuadriculaTarifa';
+import { CuadriculaTarifa, ListaTarifa } from '../components/CuadriculaTarifa';
 import './tarifas.css';
 
 // Lo leído se guarda mientras la app está abierta, para ir y volver entre pantallas sin esperar
@@ -303,6 +303,7 @@ const BUSCA_EJEMPLO: Record<string, string> = {
   gas: 'Buscar: butano, propano, camping…',
   morteros: 'Buscar: cemento, cola, junta, yeso…', piensos: 'Buscar: gallinas, maíz, conejos, sal…',
 };
+const VISTA_PC = 'cfTarifaVistaPc';
 export function TarifaProveedorPage() {
   const { prov = '' } = useParams();
   const navigate = useNavigate();
@@ -329,6 +330,18 @@ export function TarifaProveedorPage() {
   const cuadricula = t?.vista === 'cuadricula';
   const [modoElegido, setModo] = useModoPrecio();
   const iva = modoElegido !== 'venta';
+  // En el ordenador, «Lista | Fotos» (morteros y piensos empiezan en lista; lo elegido se recuerda en este ordenador)
+  const ordenador = !useIsMobile(1099);
+  const [vistasPc, setVistasPc] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(VISTA_PC) || '{}'); } catch { return {}; }
+  });
+  const vistaPc = vistasPc[prov] ?? (t?.vista_ordenador === 'lista' ? 'lista' : 'fotos');
+  const elegirVistaPc = (v: string) => {
+    const n = { ...vistasPc, [prov]: v };
+    setVistasPc(n);
+    try { localStorage.setItem(VISTA_PC, JSON.stringify(n)); } catch { /* nada */ }
+  };
+  const enLista = cuadricula && ordenador && vistaPc === 'lista';
   const refrescarBtn = (
     <button className="btn btn-ghost tf-refrescar" onClick={refrescar} disabled={refrescando || cargando}
       title="La app la vuelve a leer sola cada 3 horas">
@@ -356,6 +369,13 @@ export function TarifaProveedorPage() {
       {t?.aviso && <div className="doc-aviso subidas">{t.aviso}</div>}
       <div className="tf-fila-busca">
         <Buscador q={q} setQ={setQ} placeholder={BUSCA_EJEMPLO[prov] ?? 'Buscar: 50x50x4, IPN 120, pletina…'} onEnter={abrirPrimero} />
+        {cuadricula && ordenador && !q.trim() && (
+          <div className="tf-vista-pc" role="group" aria-label="Cómo enseñar los artículos">
+            {([['lista', 'Lista', List], ['fotos', 'Fotos', LayoutGrid]] as const).map(([v, txt, Icono]) => (
+              <button key={v} type="button" aria-pressed={vistaPc === v} onClick={() => elegirVistaPc(v)}><Icono size={16} /> {txt}</button>
+            ))}
+          </div>
+        )}
         {t && uf && !q.trim() && (
           <a className="tf-ultima" href={uf.enlace} target="_blank" rel="noopener noreferrer"
             title="Abrir la última factura que se apuntó en la tarifa">
@@ -372,7 +392,9 @@ export function TarifaProveedorPage() {
           <p className="tf-nota">Leyendo la tarifa de Drive… la primera vez tarda unos segundos.</p>
         </>
       )}
-      {t && (q.trim() ? <Resultados res={res} q={q} donde={t.nombre} /> : cuadricula ? (
+      {t && (q.trim() ? <Resultados res={res} q={q} donde={t.nombre} /> : enLista ? (
+        <ListaTarifa t={t} iva={iva} enlace={c => enlaceFicha(prov, c.f.id, c.m.ref)} />
+      ) : cuadricula ? (
         <CuadriculaTarifa t={t} iva={iva} enlace={c => enlaceFicha(prov, c.f.id, c.m.ref)} />
       ) : (
         <div className="tf-familias">
