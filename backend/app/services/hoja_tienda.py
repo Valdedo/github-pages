@@ -45,18 +45,17 @@ def num(v) -> Optional[float]:
         return None
 
 
-def _mes(v) -> Optional[str]:
-    """«25/08/2026», «2026-08-25» → «ago-26» (como las demás tarifas)."""
+def _iso(v) -> Optional[str]:
+    """«25/08/2026» o «2026-08-25» → «2026-08-25» (como ladrillos); otra cosa → None."""
     s = str(v or "").strip()
-    m = re.match(r"(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})", s) or None
+    m = re.match(r"(\d{1,2})[/-](\d{1,2})[/-](\d{4})", s)
     if m:
-        d, mm, a = int(m.group(1)), int(m.group(2)), int(m.group(3)) % 100
-    else:
-        m = re.match(r"(\d{4})-(\d{2})-(\d{2})", s)
-        if not m:
+        try:
+            return datetime(int(m.group(3)), int(m.group(2)), int(m.group(1))).strftime("%Y-%m-%d")
+        except ValueError:
             return None
-        a, mm = int(m.group(1)) % 100, int(m.group(2))
-    return f"{MESES[mm - 1]}-{a:02d}" if 1 <= mm <= 12 else None
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", s)
+    return m.group(0) if m else None
 
 
 def _dia(v) -> Optional[str]:
@@ -124,10 +123,14 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         primera = n(formato).split(" ")[0] if formato else ""
         ud = UDS.get(primera, "ud")
         cod = v(c_cod).lstrip("'") or None
-        fecha, factura = _mes(v(c_fec)), v(c_fac)
+        fecha, factura = _iso(v(c_fec)), v(c_fac)
+        # «Pedido 358», «Albarán B2538»: tipo y número (la ficha dice «Último pedido», «Abrir albarán»); «Tarifa …» no es
+        # una compra: solo se dice de dónde sale el coste
+        f0 = n(factura).split(" ")[0] if factura else ""
+        tipo = {"pedido": "Pedido", "albaran": "Albarán"}.get(f0)
+        numero = factura.split(" ", 1)[1] if tipo and " " in factura else factura
         texto = origen if tipo_iva == iva == 21 else origen.replace("con IVA.", f"con IVA del {tipo_iva:g} %.")
         if coste:
-            f0 = n(factura).split(" ")[0] if factura else ""
             de = ("la última compra" if not factura else f"l {factura[0].lower()}{factura[1:]}" if f0 in ("pedido", "albaran")
                   else f" la {factura[0].lower()}{factura[1:]}" if f0 == "tarifa" else f" la factura {factura}")
             texto += f" Coste de{de if factura else ' ' + de}{' del ' + _dia(v(c_fec)) if _dia(v(c_fec)) else ''}, sin IVA."
@@ -148,8 +151,9 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         if c_prov is not None and v(c_prov):
             a["proveedor"] = v(c_prov)
         arts.append(a)
-        lineas[ref] = ([{"fecha": fecha, "factura": factura, "precio": coste, "cantidad": None, "bruto": None,
-                         "dto1": None, "dto2": None, **({"pdf": v(c_pdf)} if v(c_pdf) else {})}]
+        lineas[ref] = ([{"fecha": fecha, "factura": "" if f0 == "tarifa" else numero, "precio": coste, "cantidad": None,
+                         "bruto": None, "dto1": None, "dto2": None, **({"tipo": tipo} if tipo else {}),
+                         **({"pdf": v(c_pdf)} if v(c_pdf) and f0 != "tarifa" else {})}]
                        if coste and fecha else [])
     # «sin_compras»: como mucho la última compra, no cada una (no se cuentan las veces)
     return {"articulos": arts, "log": [], "margen": None, "lineas": lineas, "orden_hoja": True, "sin_compras": True,

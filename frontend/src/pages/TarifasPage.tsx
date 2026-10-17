@@ -909,7 +909,7 @@ function FamiliaNueva() {
 function Evolucion({ puntos, ud }: { puntos: { fecha: string; precio: number; codigo?: string }[]; ud: string }) {
   if (!puntos.length) return <p className="tf-nota">Aún no hay precio de compra apuntado.</p>;
   if (puntos.length < 2) {
-    return <p className="tf-nota">Solo hay un precio de compra apuntado ({puntos[0] ? `${eur(puntos[0].precio)} en ${mesLargo(puntos[0].fecha)}` : '—'}).
+    return <p className="tf-nota">Solo hay un precio de compra apuntado ({puntos[0] ? `${eur(puntos[0].precio)} ${/^\d{4}-/.test(puntos[0].fecha) ? 'del' : 'en'} ${mesLargo(puntos[0].fecha)}` : '—'}).
       Cada precio nuevo que entre se irá añadiendo aquí.</p>;
   }
   const W = 320, H = 100, P = 16;
@@ -1028,7 +1028,7 @@ export function TarifaFichaPage() {
       </div>
       {!d.solo_pvp && <><div className="tf-caja tf-dato"><small>Coste actual</small><strong>{eurUd(d.coste, d.ud_venta)}</strong>
         <span>{eur(d.precio)} / {d.ud_compra}</span></div>
-      <div className="tf-caja tf-dato"><small>Margen</small><strong>{d.margen != null ? `+${String(d.margen).replace('.', ',')} %` : '—'}</strong>
+      <div className="tf-caja tf-dato"><small>Margen</small><strong className={d.margen != null && d.margen < 0 ? 'tf-margen-neg' : undefined}>{d.margen != null ? pct(d.margen) : '—'}</strong>
         <span>{d.redondeo ?? 'redondeado a 0,10 €'}</span></div></>}
     </div>
   );

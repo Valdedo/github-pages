@@ -364,7 +364,7 @@ def test_morteros_iva_21_y_coste_si_la_hoja_lo_trae():
     d = morteros.leer(hojas)
     cem, jun = d["articulos"]
     assert cem["pvp"] == 10.0 and cem["coste"] == 5.0 and cem["margen"] == 100.0 and cem["solo_pvp"] is False
-    assert cem["fecha"] == "sep-26" and d["lineas"][cem["ref"]][0]["pdf"] == "abc123"
+    assert cem["fecha"] == "2026-09-02" and d["lineas"][cem["ref"]][0]["pdf"] == "abc123"
     assert cem["foto"] is None or cem["foto"].startswith("/catalogo/mor/")
     assert jun["pvp"] == 5.0 and jun["solo_pvp"] is True and jun["ud_venta"] == "bolsa"
     assert jun["foto"] == "/catalogo/mor/junta-blanca.webp"

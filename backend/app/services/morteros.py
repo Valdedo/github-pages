@@ -34,8 +34,9 @@ FOTOS = [
     (("niveland",), "niveland-10r"),
     (("iberfino",), "yeso-iberfino"),
     (("fino",), "yeso-iberfino"),
-    (("iberplus",), "yeso-iberplus"),
-    (("yeso",), "yeso-iberplus"),
+    (("iberplast",), "yeso-iberplast"),
+    (("iberplus",), "yeso-iberplast"),  # en la hoja de la tienda pone «Iberplus»: el de Placo es el Iberplast
+    (("yeso",), "yeso-iberplast"),
 ]
 
 
@@ -47,7 +48,7 @@ def foto(fam: str, gru: str, art: str, formato: str) -> Optional[str]:
         if all(p in t for p in palabras):
             return f"/catalogo/mor/{nombre}.webp"
     g = hoja_tienda.n(gru)  # uno nuevo en la hoja: la foto de su grupo
-    for clave, nombre in (("cola", "pegoland-especial-gris"), ("junta", "junta-multicolor"), ("yeso", "yeso-iberplus"),
+    for clave, nombre in (("cola", "pegoland-especial-gris"), ("junta", "junta-multicolor"), ("yeso", "yeso-iberplast"),
                           ("nivel", "paviland-solera"), ("mortero", "prefasec-revoque-gris"), ("cemento", "cemento-tudela-veguin")):
         if clave in g:
             return f"/catalogo/mor/{nombre}.webp"

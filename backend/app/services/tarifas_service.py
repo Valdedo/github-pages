@@ -124,6 +124,7 @@ TARIFAS = {
         "proveedor": "Morteros y cementos",
         "hoja": "",  # TARIFA_MORTEROS_CEMENTOS (Mi unidad de Andrés)
         "pestanas": None,
+        "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
         "en_pruebas": True,
     },
@@ -133,6 +134,7 @@ TARIFAS = {
         "proveedor": "Piensos",
         "hoja": "",  # TARIFA_PIENSOS (Mi unidad de Andrés)
         "pestanas": None,
+        "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
         "en_pruebas": True,
     },

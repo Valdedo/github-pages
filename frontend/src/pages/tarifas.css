@@ -188,6 +188,7 @@
 .tf-dato { gap: 2px; }
 .tf-dato small { font-size: 12.5px; font-weight: 600; color: var(--text-3); }
 .tf-dato strong { font-family: var(--font-display); font-weight: 600; font-size: 22px; }
+.tf-dato strong.tf-margen-neg { color: var(--danger); } /* se vende por debajo de coste */
 .tf-dato span { font-size: 12.5px; color: var(--text-3); }
 .tf-evol { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
 .tf-evol.sube { background: #FFE9C7; color: #7A3E00; }
