@@ -120,7 +120,7 @@ TARIFAS = {
     # (lector común en services/hoja_tienda.py). Precio de venta con IVA; el coste, si se apunta en la hoja.
     "morteros": {
         "nombre": "Morteros y cementos",
-        "sub": "Cemento, morteros, cemento cola, juntas y yeso",
+        "sub": "Cemento, morteros, cola, juntas y yeso",
         "proveedor": "Morteros y cementos",
         "hoja": "",  # TARIFA_MORTEROS_CEMENTOS (Mi unidad de Andrés)
         "pestanas": None,

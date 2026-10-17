@@ -1,6 +1,8 @@
 /* Tarifa en cuadrícula (bombonas de gas, morteros, piensos). Ver components/CuadriculaTarifa.tsx */
 .gc { --hueco: 14px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 22px var(--hueco); margin-top: 6px; }
-.gc-grupo { grid-column: span var(--n); min-width: 0; }
+/* El grupo se estira a lo alto de su fila: la tarjeta ancha (un solo artículo) mide lo mismo que las de al lado */
+.gc-grupo { grid-column: span var(--n); min-width: 0; display: flex; flex-direction: column; }
+.gc-grupo > .gc-fila { flex: 1; }
 .gc-tit { margin: 0 0 8px; font-family: var(--font-display); font-weight: 500; font-size: 19px; color: var(--brand); line-height: 1.15; }
 .gc-tit small { display: block; font-family: var(--font); font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 2px; }
 .gc-fila { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--hueco); }
