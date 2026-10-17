@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus } from 'lucide-react';
+import { Info, Minus } from 'lucide-react';
 import { normaliza } from '../lib/texto';
 import { eur, conIva, fotoArticulo, pegatina, claveFamilia, type Tarifa, type TarifaFamilia, type TarifaMedida } from '../lib/tarifas';
 import './cuadricula.css';
@@ -81,7 +81,7 @@ export function nombreCorto(desc: string, grupo: string): string {
 const sinFormato = (m: TarifaMedida) =>
   m.formato && m.descripcion.endsWith(` · ${m.formato}`) ? m.descripcion.slice(0, -(m.formato.length + 3)) : m.descripcion;
 
-export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuentaDe, onQuitar }: {
+export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuentaDe, onQuitar, onInfo }: {
   t: Tarifa;
   /** Precio grande con IVA (si no, sin IVA) */
   iva?: boolean;
@@ -93,6 +93,8 @@ export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuent
   onTocar?: (c: Celda) => void;
   cuentaDe?: (c: Celda) => number;
   onQuitar?: (c: Celda) => void;
+  /** Tableta: botón «i» de los que tienen «Para qué sirve» (morteros, piensos) */
+  onInfo?: (c: Celda) => void;
 }) {
   return (
     <div className={`gc${grande ? ' gc-grande' : ''}`}>
@@ -106,7 +108,7 @@ export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuent
             <div className="gc-fila">
               {g.items.map(c => (
                 <Tarjeta key={c.m.ref} c={c} nombre={nombreCorto(sinFormato(c.m), g.titulo)} iva={iva}
-                  enlace={enlace} onTocar={onTocar} cuenta={cuentaDe?.(c) ?? 0} onQuitar={onQuitar} />
+                  enlace={enlace} onTocar={onTocar} cuenta={cuentaDe?.(c) ?? 0} onQuitar={onQuitar} onInfo={onInfo} />
               ))}
             </div>
           </section>
@@ -116,9 +118,9 @@ export function CuadriculaTarifa({ t, iva = true, grande, enlace, onTocar, cuent
   );
 }
 
-function Tarjeta({ c, nombre, iva, enlace, onTocar, cuenta, onQuitar }: {
+function Tarjeta({ c, nombre, iva, enlace, onTocar, cuenta, onQuitar, onInfo }: {
   c: Celda; nombre: string; iva: boolean; enlace?: (c: Celda) => string; onTocar?: (c: Celda) => void;
-  cuenta: number; onQuitar?: (c: Celda) => void;
+  cuenta: number; onQuitar?: (c: Celda) => void; onInfo?: (c: Celda) => void;
 }) {
   const grande = iva ? conIva(c.m) : c.m.pvp;
   const otro = iva ? c.m.pvp : conIva(c.m);
@@ -143,6 +145,11 @@ function Tarjeta({ c, nombre, iva, enlace, onTocar, cuenta, onQuitar }: {
         <button type="button" className="gc-toca" onClick={() => onTocar(c)} aria-label={`Apuntar 1 · ${c.m.descripcion}`}>{dentro}</button>
         {cuenta > 0 && onQuitar && (
           <button type="button" className="gc-menos" onClick={() => onQuitar(c)} aria-label="Quitar uno"><Minus size={24} /></button>
+        )}
+        {onInfo && c.m.producto && (
+          <button type="button" className="gc-info" onClick={() => onInfo(c)} aria-label={`Para qué sirve · ${c.m.descripcion}`}>
+            <Info size={26} />
+          </button>
         )}
       </div>
     );

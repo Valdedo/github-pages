@@ -220,6 +220,17 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   Cuadrícula (`CuadriculaTarifa`, `repartir`): grupos de 6 artículos como mucho; si una fila de 6 queda corta, los grupos que quepan
   pasan a tarjetas anchas hasta llenarla (las 3 juntas, solas en su fila, ocupan las 6 columnas), así que el orden de la hoja
   decide cómo casan las filas. El precio va siempre a la misma altura aunque el nombre ocupe dos renglones.
+  **«Para qué sirve» (17/10/2026, Andrés)**: en la ficha (lo primero tras el precio; en el ordenador, arriba a la derecha) y en el
+  panel de la tableta, para qué se usa cada producto, los datos que suele preguntar el cliente (tipo/norma, rendimiento, espesor,
+  fraguado, proteína, etapa…) y un consejo, con enlace a la ficha del fabricante de donde sale. Datos en
+  `backend/app/data/fichas_morteros.json` y `fichas_piensos.json` (de la ficha técnica o la web del fabricante; si no la tiene,
+  de una tienda que copia su etiqueta; nada inventado: lo genérico —grano, sal, patata— solo lleva el uso; `fuente` es la web y
+  `fuente_nombre` lo que se dice si no es la del fabricante; `palabras` casa con el nombre del artículo, gana el primero) y
+  `services/fichas_producto.py`; si la hoja de Drive lleva una columna «Para qué sirve», su texto manda. Componente
+  `components/ParaQueSirve.tsx`. En la cuadrícula de la tableta, botón «i» en cada tarjeta que tiene ficha (`onInfo`) → cajón a
+  la derecha (`PanelInfo`, `?i=prov|ref`, atrás lo cierra). Sin ficha aún: V. Energía, Cerdos crecimiento, Kilate gatos, pienso
+  de perros del saco azul y Mezcla 50 % (no se sabe qué lleva); «Nutricun Único» solo con lo que dice el nombre (¿Cunitec Único?).
+  Al añadir un producto a la hoja, añadir su ficha al JSON.
 - **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
   búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.
   Botones «Con IVA | Sin IVA | Coste» (`MODOS`, «Con IVA» el primero); lo elegido se recuerda en la pestaña y la ficha y la

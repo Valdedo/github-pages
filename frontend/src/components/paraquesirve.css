@@ -1,0 +1,23 @@
+/* «Para qué sirve» en la ficha de las tarifas de la tienda (morteros, piensos) y en el panel de la tableta */
+.pq h2 { margin-bottom: 8px; }
+.pq-uso { margin: 0 0 12px; font-size: 15.5px; line-height: 1.5; color: var(--text-1); }
+.pq-datos { margin: 0; display: grid; grid-template-columns: minmax(110px, max-content) 1fr; gap: 0; border-top: 1px solid var(--border); }
+.pq-datos dt, .pq-datos dd { margin: 0; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; line-height: 1.35; }
+.pq-datos dt { color: var(--text-3); font-weight: 600; padding-right: 14px; }
+.pq-datos dd { color: var(--text-1); font-weight: 500; }
+.pq-consejo { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-sm);
+  background: var(--brand-pale, #e6f4ec); color: var(--cf-bosque, #1F5A3A); font-size: 14.5px; line-height: 1.4; }
+.pq-consejo svg { flex-shrink: 0; margin-top: 1px; }
+.pq-fuente { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 12.5px; color: var(--text-3); text-decoration: none; }
+.pq-fuente:hover { color: var(--cf-bosque, #1F5A3A); text-decoration: underline; }
+
+/* Tableta: se lee de pie, a un metro */
+.pq-tableta { padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface-2); }
+.pq-tableta h2 { font: 600 19px var(--font-display); text-transform: uppercase; color: var(--text-1); margin: 0 0 8px; }
+.pq-tableta .pq-uso { font-size: 17px; }
+.pq-tableta .pq-datos dt, .pq-tableta .pq-datos dd { font-size: 16px; padding-top: 8px; padding-bottom: 8px; }
+.pq-tableta .pq-consejo { font-size: 16px; background: var(--surface); }
+
+@media (max-width: 420px) {
+  .pq-datos { grid-template-columns: minmax(92px, 38%) 1fr; }
+}

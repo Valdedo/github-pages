@@ -26,6 +26,15 @@ export interface TarifaMedida {
   ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
   /** Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA si no es el 21 % (piensos al 10 %) */
   formato?: string | null; iva?: number | null;
+  /** Para qué sirve y lo que suele preguntar el cliente (morteros, piensos) */
+  producto?: Producto | null;
+}
+/** Para qué sirve el producto y los datos que suele preguntar el cliente, de la ficha técnica del fabricante
+ *  (backend/app/data/fichas_<tarifa>.json). «datos»: [etiqueta, valor]. */
+export interface Producto {
+  uso: string | null; datos: [string, string][]; consejo?: string | null; fuente?: string | null;
+  /** De quién es la ficha si la web no es la del fabricante («Tudela Veguín (declaración de prestaciones)») */
+  fuente_nombre?: string | null;
 }
 /** Precio por cantidad. «pvp» va por unidad de venta; si es un palé que se vende entero (ladrillos), «total» es lo que
  *  vale el palé y «cantidad» las piezas que lleva. */
@@ -80,6 +89,14 @@ export interface FichaTarifa {
   solo_pvp?: boolean;
   /** Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA de la fila */
   formato?: string | null; iva?: number | null;
+  /** Para qué sirve y lo que suele preguntar el cliente (morteros, piensos) */
+  producto?: Producto | null;
+}
+
+/** «www.grupopuma.com» de la dirección de la ficha técnica, para decir de dónde sale. */
+export function webDe(url?: string | null): string | null {
+  if (!url) return null;
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
 }
 
 /** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están, en pruebas (oct. 2026): a quien

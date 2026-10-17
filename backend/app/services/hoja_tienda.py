@@ -20,6 +20,8 @@ from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Callable, Optional
 
+from app.services import fichas_producto
+
 MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 
 
@@ -77,7 +79,10 @@ UDS = {"saco": "saco", "sacos": "saco", "bolsa": "bolsa", "bote": "bote", "cubo"
 
 
 def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str], Optional[str]]] = None,
-         iva: float = 21, origen: str = "Precio de venta al público de la hoja de la tienda, con IVA.") -> dict:
+         iva: float = 21, origen: str = "Precio de venta al público de la hoja de la tienda, con IVA.",
+         fichas: Optional[str] = None) -> dict:
+    """«fichas»: la tarifa de backend/app/data/fichas_<tarifa>.json con para qué sirve cada producto y sus datos
+    (services/fichas_producto.py). Una columna «Para qué sirve» en la hoja manda sobre ese texto."""
     vacio = {"articulos": [], "log": [], "margen": None, "lineas": {}}
     filas, ini = None, None
     for nombre in ["TARIFA", *hojas]:  # la pestaña «TARIFA»; si le cambian el nombre, la que tenga los títulos
@@ -102,6 +107,7 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
     c_iva = next((k for k, c in enumerate(cab) if c in ("iva", "iva %", "% iva", "tipo iva", "tipo de iva")), None)
     c_apa = col("iva aparte", "mas iva", "+ iva", "+iva")
     c_fec, c_fac, c_pdf, c_nota, c_prov = col("fecha"), col("factura", "albaran"), col("pdf", "id pdf"), col("nota"), col("proveedor")
+    c_uso = col("para que sirve", "uso")
     ancho = len(cab) + 2
     arts, familias, grupos, vistos, lineas = [], [], {}, set(), {}
     for f in filas[ini + 1:]:
@@ -164,6 +170,11 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         }
         if c_prov is not None and v(c_prov):
             a["proveedor"] = v(c_prov)
+        prod = fichas_producto.buscar(fichas, f"{art} {formato}") if fichas else None
+        if v(c_uso):
+            prod = {**(prod or {"datos": [], "consejo": None, "fuente": None}), "uso": v(c_uso)}
+        if prod:
+            a["producto"] = prod
         arts.append(a)
         lineas[ref] = ([{"fecha": fecha, "factura": "" if f0 == "tarifa" else numero, "precio": coste, "cantidad": None,
                          "bruto": None, "dto1": None, "dto2": None, **({"tipo": tipo} if tipo else {}),

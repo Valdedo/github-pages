@@ -926,6 +926,8 @@ def _item(a: dict, valor: str = "", ud: str = "") -> dict:
             # Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA si no es el 21 %
             **({"formato": a["formato"]} if a.get("formato") else {}),
             **({"iva": a["iva"]} if a.get("iva") not in (None, 21) else {}),
+            # Para qué sirve y los datos que pregunta el cliente (hojas de la tienda): la tableta lo enseña en su panel
+            **({"producto": a["producto"]} if a.get("producto") else {}),
             **({"ms": ms} if len(ms) > 1 else {})}
 
 
@@ -1237,4 +1239,6 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         # Hojas de la tienda (morteros, piensos): formato, IVA de la fila y proveedor si la hoja lo dice
         "formato": a.get("formato"), "iva": a.get("iva"),
         **({"proveedor_nombre": a["proveedor"]} if a.get("proveedor") else {}),
+        # Para qué sirve, datos del fabricante, un consejo y de dónde sale (services/fichas_producto.py)
+        "producto": a.get("producto"),
     }

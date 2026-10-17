@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Search, X, Home, Eye, EyeOff, Maximize, Minimize, Plus, Minus, ClipboardList,
-  Check, Trash2, LogOut, Clock, Hand, Keyboard,
+  Check, Trash2, LogOut, Clock, Hand, Keyboard, Info,
 } from 'lucide-react';
 import { getTarifas, describeApiError } from '../api/client';
 import { normaliza, numES } from '../lib/texto';
@@ -18,6 +18,7 @@ import {
   enlaceFicha, type Bloque,
 } from './TarifasPage';
 import { CuadriculaTarifa } from '../components/CuadriculaTarifa';
+import { ParaQueSirve } from '../components/ParaQueSirve';
 import './mostrador.css';
 
 // ════════════════════════════════════════════════════════════════════════
@@ -152,6 +153,14 @@ export function MostradorPage() {
   const rejilla = !!t && t.vista === 'cuadricula' && !f && !q.trim();
   const [selProv, selRef] = sel.split('|');
   const elegido = sel ? buscarArticulo(tarifas, selProv, selRef ?? '') : null;
+  // «Para qué sirve» abierto desde el botón «i» de la cuadrícula (morteros, piensos); en la dirección, para que atrás lo cierre
+  const info = sp.get('i') ?? '';
+  const [infoProv, infoRef] = info.split('|');
+  const infoE = info ? buscarArticulo(tarifas, infoProv, infoRef ?? '') : null;
+  const infoAqui = useRef(false); // abierto con el botón (no al cargar la dirección): cerrar = atrás
+  const cerrarInfo = useCallback(() => {
+    if (infoAqui.current) { infoAqui.current = false; window.history.back(); } else ir({ i: null }, true);
+  }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Coste tapado por defecto ──
   const [verCoste, setVerCoste] = useState(() => { try { return sessionStorage.getItem(COSTE) === '1'; } catch { return false; } });
@@ -222,7 +231,8 @@ export function MostradorPage() {
   else if (prov && f && t) cuerpo = <Familia t={t} f={f} medida={medida} sel={sel} onMedida={m => ir({ m }, true)} onElegir={elegir} />;
   else if (prov && t && rejilla) cuerpo = (
     <CuadriculaTarifa t={t} grande onTocar={c => tocar(lineaDe({ t, f: c.f, m: c.m }))}
-      cuentaDe={c => cuentaDe(t.id, c.m.ref)} onQuitar={c => quitarUno(t.id, c.m.ref)} />
+      cuentaDe={c => cuentaDe(t.id, c.m.ref)} onQuitar={c => quitarUno(t.id, c.m.ref)}
+      onInfo={c => { infoAqui.current = true; ir({ i: `${t.id}|${c.m.ref}` }); }} />
   );
   else if (prov && t) cuerpo = <Familias t={t} onFamilia={id => ir({ f: id, m: null })} />;
   else if (prov && !t) cuerpo = fallidas[prov]
@@ -302,13 +312,16 @@ export function MostradorPage() {
                   <button type="button" className="mo-gc-pie-btn" onClick={() => setVerLista(true)}>Ver lista</button>
                 </>
               ) : <span className="mo-gc-pie-txt">{t?.id === 'gas' ? 'Toca una bombona para apuntarla · cada toque suma una'
-                : 'Toca un artículo para apuntarlo · cada toque suma uno'}</span>}
+                : t?.familias.some(f => f.grupos.some(g => g.medidas.some(m => m.producto)))
+                  ? <>Toca un artículo para apuntarlo · cada toque suma uno · <Info size={17} className="mo-gc-pie-i" /> para qué sirve</>
+                  : 'Toca un artículo para apuntarlo · cada toque suma uno'}</span>}
             </div>
           )}
         </main>
         {horizontal ? (!rejilla || verLista) && <aside className="mo-der">{panel}</aside>
           : (elegido || verLista) && <div className="mo-hoja">{panel}</div>}
       </div>
+      {infoE && <PanelInfo e={infoE} onCerrar={cerrarInfo} />}
     </div>
   );
 }
@@ -566,7 +579,36 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, cuenta, cuentaPale, o
       ) : (
         <button type="button" className="mo-otra" onClick={() => setOtra(true)}><Keyboard size={20} /> Escribir otra cantidad (muchas piezas o decimales)</button>
       ))}
+      {m.producto && <ParaQueSirve p={m.producto} tableta />}
       <Link className="mo-ficha" to={enlaceFicha(t.id, f.id, m.ref)}>{m.solo_pvp ? 'Ver ficha completa' : 'Ver ficha completa (factura, evolución)'} <ChevronRight size={18} /></Link>
+    </div>
+  );
+}
+
+// ── «Para qué sirve» desde la cuadrícula: cajón a la derecha, encima de todo ──
+function PanelInfo({ e, onCerrar }: { e: Elegido; onCerrar: () => void }) {
+  const { t, f, m } = e;
+  const iva = conIva(m);
+  useEffect(() => {
+    const tecla = (ev: globalThis.KeyboardEvent) => { if (ev.key === 'Escape') onCerrar(); };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [onCerrar]);
+  const nombre = m.formato && m.descripcion.endsWith(` · ${m.formato}`) ? m.descripcion.slice(0, -(m.formato.length + 3)) : m.descripcion;
+  return (
+    <div className="mo-cajon" onClick={onCerrar}>
+      <div className="mo-cajon-in" role="dialog" aria-modal="true" aria-label={`Para qué sirve · ${m.descripcion}`} onClick={ev => ev.stopPropagation()}>
+        <button type="button" className="mo-hoja-x" onClick={onCerrar} aria-label="Cerrar"><X size={28} /></button>
+        <div className="mo-cajon-cab">
+          <span className="mo-cajon-foto"><Foto src={fotoArticulo(f.nombre, m.descripcion, m.foto)} alt="" respaldo={pegatina(claveFamilia(f.nombre))} /></span>
+          <div>
+            <h2>{conPor(nombre)}</h2>
+            <p>{[m.formato, t.nombre].filter(Boolean).join(' · ')}</p>
+            {iva != null && <strong>{eur(iva)}<small> con IVA</small></strong>}
+          </div>
+        </div>
+        {m.producto ? <ParaQueSirve p={m.producto} tableta /> : <p className="mo-nota">No hay datos de este producto.</p>}
+      </div>
     </div>
   );
 }

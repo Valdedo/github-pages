@@ -56,4 +56,4 @@ def foto(fam: str, gru: str, art: str, formato: str) -> Optional[str]:
 
 
 def leer(hojas: dict) -> dict:
-    return hoja_tienda.leer(hojas, "mor", foto)
+    return hoja_tienda.leer(hojas, "mor", foto, fichas="morteros")

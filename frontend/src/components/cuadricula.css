@@ -50,6 +50,10 @@
 @keyframes gc-pop { from { transform: scale(.6); } to { transform: scale(1); } }
 .gc-menos { position: absolute; left: 10px; top: 10px; width: 52px; height: 52px; border-radius: 999px; border: 0; background: #fff;
   color: var(--brand); box-shadow: 0 2px 8px rgb(18 58 38 / .22); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+/* Tableta: «i» abajo a la derecha de los que tienen «Para qué sirve» (morteros, piensos); no suma, abre la explicación */
+.gc-info { position: absolute; right: 10px; bottom: 12px; width: 46px; height: 46px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--cf-bosque); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.gc-info:active { transform: scale(.94); background: var(--brand-pale); }
 
 /* Estrecho (tableta en vertical, móvil): cada grupo en su fila */
 @media (max-width: 1099px) {

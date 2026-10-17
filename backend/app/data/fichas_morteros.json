@@ -1,0 +1,862 @@
+{
+  "productos": [
+    {
+      "clave": "pegoland-especial-blanco",
+      "palabras": [
+        [
+          "pegoland",
+          "especial",
+          "blanc"
+        ]
+      ],
+      "uso": "Cemento cola para pegar azulejo y baldosa cerámica en suelos de interior y exterior y en paredes de interior. Vale también para piscinas con gresite (mosaico vítreo) y sobre placa de yeso laminado. Porcelánico, solo en interior y en piezas de hasta 30 cm.",
+      "datos": [
+        [
+          "Tipo",
+          "C1 TE (UNE-EN 12004)"
+        ],
+        [
+          "Color",
+          "Blanco"
+        ],
+        [
+          "Rendimiento",
+          "4 kg/m² (doble encolado, 6 kg/m²)"
+        ],
+        [
+          "Tiempo para ajustar",
+          "Unos 30 min"
+        ],
+        [
+          "Vida de la pasta",
+          "Unas 2 h"
+        ],
+        [
+          "Rejuntar",
+          "24 h en pared · 48 h en suelo"
+        ],
+        [
+          "Piscina",
+          "Se llena a los 7 días"
+        ]
+      ],
+      "consejo": "No aplicar sobre yeso, escayola ni pintura, y nunca a pegotes (por puntos).",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-especial-c1-te-es-es"
+    },
+    {
+      "clave": "pegoland-especial-gris",
+      "palabras": [
+        [
+          "pegoland",
+          "especial",
+          "gris"
+        ]
+      ],
+      "uso": "Cemento cola para pegar azulejo y baldosa cerámica en suelos de interior y exterior y en paredes de interior. Vale también para piscinas con gresite (mosaico vítreo) y sobre placa de yeso laminado. Porcelánico, solo en interior y en piezas de hasta 30 cm.",
+      "datos": [
+        [
+          "Tipo",
+          "C1 TE (UNE-EN 12004)"
+        ],
+        [
+          "Color",
+          "Gris"
+        ],
+        [
+          "Rendimiento",
+          "4 kg/m² (doble encolado, 6 kg/m²)"
+        ],
+        [
+          "Tiempo para ajustar",
+          "Unos 30 min"
+        ],
+        [
+          "Vida de la pasta",
+          "Unas 2 h"
+        ],
+        [
+          "Rejuntar",
+          "24 h en pared · 48 h en suelo"
+        ],
+        [
+          "Piscina",
+          "Se llena a los 7 días"
+        ]
+      ],
+      "consejo": "No aplicar sobre yeso, escayola ni pintura, y nunca a pegotes (por puntos).",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-especial-c1-te-es-es"
+    },
+    {
+      "clave": "pegoland-flex-blanco",
+      "palabras": [
+        [
+          "pegoland",
+          "flex",
+          "blanc"
+        ]
+      ],
+      "uso": "Cemento cola flexible para porcelánico y piezas grandes, en suelos y paredes de interior y exterior. Sirve para fachadas, terrazas, piscinas, suelo radiante y para pegar encima de baldosa vieja.",
+      "datos": [
+        [
+          "Tipo",
+          "C2 TE S1 (UNE-EN 12004 y 12002)"
+        ],
+        [
+          "Color",
+          "Blanco"
+        ],
+        [
+          "Rendimiento",
+          "4 kg/m² (doble encolado, 6 kg/m²)"
+        ],
+        [
+          "Agua",
+          "5,2–6,2 L por saco de 20 kg"
+        ],
+        [
+          "Tiempo para ajustar",
+          "Unos 30 min (vida de la pasta, unas 4 h)"
+        ],
+        [
+          "Espesor",
+          "Hasta 15 mm"
+        ],
+        [
+          "Rejuntar",
+          "24 h en pared · 48 h en suelo"
+        ]
+      ],
+      "consejo": "En suelo radiante, apagar la calefacción 48 h antes y volver a encenderla poco a poco pasados al menos 7 días.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-profesional-flex-c2-te-s1-es-es"
+    },
+    {
+      "clave": "pegoland-flex-gris",
+      "palabras": [
+        [
+          "pegoland",
+          "flex",
+          "gris"
+        ]
+      ],
+      "uso": "Cemento cola flexible para porcelánico y piezas grandes, en suelos y paredes de interior y exterior. Sirve para fachadas, terrazas, piscinas, suelo radiante y para pegar encima de baldosa vieja.",
+      "datos": [
+        [
+          "Tipo",
+          "C2 TE S1 (UNE-EN 12004 y 12002)"
+        ],
+        [
+          "Color",
+          "Gris"
+        ],
+        [
+          "Rendimiento",
+          "4 kg/m² (doble encolado, 6 kg/m²)"
+        ],
+        [
+          "Agua",
+          "5,2–6,2 L por saco de 20 kg"
+        ],
+        [
+          "Tiempo para ajustar",
+          "Unos 30 min (vida de la pasta, unas 4 h)"
+        ],
+        [
+          "Espesor",
+          "Hasta 15 mm"
+        ],
+        [
+          "Rejuntar",
+          "24 h en pared · 48 h en suelo"
+        ]
+      ],
+      "consejo": "En suelo radiante, apagar la calefacción 48 h antes y volver a encenderla poco a poco pasados al menos 7 días.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-profesional-flex-c2-te-s1-es-es"
+    },
+    {
+      "clave": "junta-multicolor",
+      "palabras": [
+        [
+          "junta",
+          "multicolor"
+        ],
+        [
+          "junta",
+          "colores"
+        ]
+      ],
+      "uso": "Mortero para rellenar las juntas de azulejo, porcelánico, piedra y gresite, en suelos y paredes de interior y exterior: también piscinas, terrazas, fachadas y suelo radiante. Repele el agua y frena hongos y algas.",
+      "datos": [
+        [
+          "Tipo",
+          "CG2 FWA (UNE-EN 13888)"
+        ],
+        [
+          "Color",
+          "Más de 30 en la carta de Grupo Puma"
+        ],
+        [
+          "Ancho de junta",
+          "Hasta 20 mm"
+        ],
+        [
+          "Agua",
+          "0,6–0,8 L por bolsa de 3 kg"
+        ],
+        [
+          "Tiempo de trabajo",
+          "20–25 min"
+        ],
+        [
+          "Se pisa",
+          "A las 3 h (en uso a las 24 h; piscinas, 48 h)"
+        ],
+        [
+          "Consumo (ejemplo)",
+          "0,30 kg/m² con pieza de 30×40 cm y 6 mm de grueso, junta de 5 mm"
+        ]
+      ],
+      "consejo": "Limpiar con esponja apenas húmeda cuando la pasta se vuelve mate (15–30 min). En juntas de dilatación no vale: ahí va un sellador elástico.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-profesional-junta-cg2-a-w-es-es"
+    },
+    {
+      "clave": "junta-blanca",
+      "palabras": [
+        [
+          "junta",
+          "blanc"
+        ]
+      ],
+      "uso": "Mortero para rellenar las juntas de azulejo, porcelánico, piedra y gresite, en suelos y paredes de interior y exterior: también piscinas, terrazas, fachadas y suelo radiante. Repele el agua y frena hongos y algas.",
+      "datos": [
+        [
+          "Tipo",
+          "CG2 FWA (UNE-EN 13888)"
+        ],
+        [
+          "Color",
+          "Blanco (154)"
+        ],
+        [
+          "Ancho de junta",
+          "Hasta 20 mm"
+        ],
+        [
+          "Agua",
+          "0,6–0,8 L por bolsa de 3 kg"
+        ],
+        [
+          "Tiempo de trabajo",
+          "20–25 min"
+        ],
+        [
+          "Se pisa",
+          "A las 3 h (en uso a las 24 h; piscinas, 48 h)"
+        ],
+        [
+          "Consumo (ejemplo)",
+          "0,30 kg/m² con pieza de 30×40 cm y 6 mm de grueso, junta de 5 mm"
+        ]
+      ],
+      "consejo": "Limpiar con esponja apenas húmeda cuando la pasta se vuelve mate (15–30 min). En juntas de dilatación no vale: ahí va un sellador elástico.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-profesional-junta-cg2-a-w-es-es"
+    },
+    {
+      "clave": "junta-negra",
+      "palabras": [
+        [
+          "junta",
+          "negr"
+        ]
+      ],
+      "uso": "Mortero para rellenar las juntas de azulejo, porcelánico, piedra y gresite, en suelos y paredes de interior y exterior: también piscinas, terrazas, fachadas y suelo radiante. Repele el agua y frena hongos y algas.",
+      "datos": [
+        [
+          "Tipo",
+          "CG2 FWA (UNE-EN 13888)"
+        ],
+        [
+          "Color",
+          "Negro (181)"
+        ],
+        [
+          "Ancho de junta",
+          "Hasta 20 mm"
+        ],
+        [
+          "Agua",
+          "0,6–0,8 L por bolsa de 3 kg"
+        ],
+        [
+          "Tiempo de trabajo",
+          "20–25 min"
+        ],
+        [
+          "Se pisa",
+          "A las 3 h (en uso a las 24 h; piscinas, 48 h)"
+        ],
+        [
+          "Consumo (ejemplo)",
+          "0,30 kg/m² con pieza de 30×40 cm y 6 mm de grueso, junta de 5 mm"
+        ]
+      ],
+      "consejo": "Limpiar con esponja apenas húmeda cuando la pasta se vuelve mate (15–30 min). En juntas de dilatación no vale: ahí va un sellador elástico.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/pegoland-profesional-junta-cg2-a-w-es-es"
+    },
+    {
+      "clave": "prefasec-enlucido-blanco",
+      "palabras": [
+        [
+          "enlucido",
+          "blanc"
+        ]
+      ],
+      "uso": "Mortero fino para dar la última capa (enlucido) sobre un revoque o enfoscado de cemento, en interior y exterior. Deja acabado fratasado o, pasando llana de acero, liso. Es hidrófugo: absorbe poca agua.",
+      "datos": [
+        [
+          "Tipo",
+          "GP CS III W2 (UNE-EN 998-1)"
+        ],
+        [
+          "Color",
+          "Blanco (ref. R213B)"
+        ],
+        [
+          "Espesor",
+          "De 1 a 4 mm"
+        ],
+        [
+          "Consumo",
+          "3–4 kg/m²"
+        ],
+        [
+          "Agua",
+          "4,75 L por saco de 25 kg (19 %)"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 30 °C"
+        ]
+      ],
+      "consejo": "No aplicar sobre soportes con hidrofugante. Si hace más de 20 °C o el soporte está muy seco, mojarlo antes sin encharcar.",
+      "fuente": "https://www.morterostudelaveguin.com/uploads/productos_catalogo_documentos/FDT_PREFASEC_ENLUCIDO_rev01_2013.06.14.pdf"
+    },
+    {
+      "clave": "prefasec-enlucido-gris",
+      "palabras": [
+        [
+          "enlucido",
+          "gris"
+        ],
+        [
+          "enlucido"
+        ]
+      ],
+      "uso": "Mortero fino para dar la última capa (enlucido) sobre un revoque o enfoscado de cemento, en interior y exterior. Deja acabado fratasado o, pasando llana de acero, liso. Es hidrófugo: absorbe poca agua.",
+      "datos": [
+        [
+          "Tipo",
+          "GP CS III W2 (UNE-EN 998-1)"
+        ],
+        [
+          "Color",
+          "Gris (ref. R213)"
+        ],
+        [
+          "Espesor",
+          "De 1 a 4 mm"
+        ],
+        [
+          "Consumo",
+          "3–4 kg/m²"
+        ],
+        [
+          "Agua",
+          "4,75 L por saco de 25 kg (19 %)"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 30 °C"
+        ]
+      ],
+      "consejo": "No aplicar sobre soportes con hidrofugante. Si hace más de 20 °C o el soporte está muy seco, mojarlo antes sin encharcar.",
+      "fuente": "https://www.morterostudelaveguin.com/uploads/productos_catalogo_documentos/FDT_PREFASEC_ENLUCIDO_rev01_2013.06.14.pdf"
+    },
+    {
+      "clave": "prefasec-revoque-gris",
+      "palabras": [
+        [
+          "revoque"
+        ]
+      ],
+      "uso": "Mortero para revocar (enfoscar) muros, tabiques, pilares y techos, en interior y exterior. Se da a mano o con máquina y admite acabado rascado, fratasado o enlucido. Es hidrófugo: protege la pared del agua.",
+      "datos": [
+        [
+          "Tipo",
+          "GP CS IV W2 (UNE-EN 998-1)"
+        ],
+        [
+          "Color",
+          "Gris"
+        ],
+        [
+          "Espesor",
+          "10–20 mm por capa (total, de 15 a 40 mm)"
+        ],
+        [
+          "Consumo",
+          "18–20 kg/m² por cada cm"
+        ],
+        [
+          "Agua",
+          "4,5 L por saco de 25 kg (18 %)"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 30 °C"
+        ]
+      ],
+      "consejo": "Poner malla en las uniones de materiales, pilares, cajas de persiana y esquinas de puertas y ventanas para que no fisure.",
+      "fuente": "https://www.morterostudelaveguin.com/uploads/productos_catalogo_documentos/FDT_PREFASEC_REVOQUE_rev06_2021.09.03.pdf"
+    },
+    {
+      "clave": "encintado-oscuro",
+      "palabras": [
+        [
+          "encintado",
+          "oscuro"
+        ],
+        [
+          "piedra",
+          "pais",
+          "oscuro"
+        ]
+      ],
+      "uso": "Mortero de color para encintar (rellenar y marcar las juntas) de muros de piedra o ladrillo con acabado rústico, y también para levantarlos. Interior y exterior, obra nueva y restauración.",
+      "datos": [
+        [
+          "Tipo",
+          "G M7,5 (UNE-EN 998-2)"
+        ],
+        [
+          "Resistencia",
+          "≥ 7,5 N/mm²"
+        ],
+        [
+          "Hidrófugo",
+          "Sí, absorbe poca agua"
+        ],
+        [
+          "Color",
+          "Oscuro (ref. LC22)"
+        ],
+        [
+          "Agua",
+          "4,5 L por saco de 25 kg (18 %)"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 30 °C"
+        ]
+      ],
+      "consejo": "Dejar reposar la masa 5 min antes de usarla. Para acabado de piedra, cepillar antes de que endurezca, y mojarlo a las 24 h.",
+      "fuente": "https://www.morterostudelaveguin.com/uploads/productos_catalogo_documentos/FDT_PREFASEC_ENCINTADO_rev03_2023.12.28.pdf"
+    },
+    {
+      "clave": "encintado-claro",
+      "palabras": [
+        [
+          "encintado",
+          "claro"
+        ],
+        [
+          "encintado",
+          "rustico"
+        ],
+        [
+          "piedra",
+          "pais",
+          "claro"
+        ]
+      ],
+      "uso": "Mortero de color para encintar (rellenar y marcar las juntas) de muros de piedra o ladrillo con acabado rústico, y también para levantarlos. Interior y exterior, obra nueva y restauración.",
+      "datos": [
+        [
+          "Tipo",
+          "G M7,5 (UNE-EN 998-2)"
+        ],
+        [
+          "Resistencia",
+          "≥ 7,5 N/mm²"
+        ],
+        [
+          "Hidrófugo",
+          "Sí, absorbe poca agua"
+        ],
+        [
+          "Color",
+          "Claro"
+        ],
+        [
+          "Agua",
+          "4,5 L por saco de 25 kg (18 %)"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 30 °C"
+        ]
+      ],
+      "consejo": "Dejar reposar la masa 5 min antes de usarla. Para acabado de piedra, cepillar antes de que endurezca, y mojarlo a las 24 h.",
+      "fuente": "https://www.morterostudelaveguin.com/uploads/productos_catalogo_documentos/FDT_PREFASEC_ENCINTADO_rev03_2023.12.28.pdf"
+    },
+    {
+      "clave": "paviland-solera",
+      "palabras": [
+        [
+          "paviland",
+          "solera"
+        ],
+        [
+          "solera",
+          "autonivelante"
+        ]
+      ],
+      "uso": "Mortero autonivelante para hacer o nivelar soleras de interior antes de poner cerámica, parquet, vinilo o moqueta. Es muy fluido y deja el suelo plano. Vale para suelo radiante.",
+      "datos": [
+        [
+          "Tipo",
+          "CT C25 F5 (UNE-EN 13813)"
+        ],
+        [
+          "Espesor",
+          "10–50 mm pegada al soporte · 50–100 mm flotante"
+        ],
+        [
+          "Rendimiento",
+          "17–19 kg/m² por cada cm"
+        ],
+        [
+          "Agua",
+          "4,1–4,6 L por saco de 25 kg"
+        ],
+        [
+          "Se pisa",
+          "A las 24 h"
+        ],
+        [
+          "Para revestir",
+          "A los 7 días"
+        ],
+        [
+          "Tiempo de trabajo",
+          "60 min"
+        ]
+      ],
+      "consejo": "Solo para interiores. Sobre hormigón, dar antes la imprimación Paviland Primer R.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/paviland-solera-autonivelante-es-es"
+    },
+    {
+      "clave": "niveland-10r",
+      "palabras": [
+        [
+          "niveland"
+        ]
+      ],
+      "uso": "Pasta autonivelante rápida para dejar el suelo de interior liso y plano antes de poner parquet, tarima, cerámica o moqueta. Corrige desniveles pequeños, de hasta 1 cm. Vale también con suelo radiante, encima del recrecido.",
+      "datos": [
+        [
+          "Tipo",
+          "CT C30 F5 (UNE-EN 13813)"
+        ],
+        [
+          "Espesor",
+          "De 2 a 10 mm, en una capa"
+        ],
+        [
+          "Rendimiento",
+          "1,5 kg/m² por cada mm"
+        ],
+        [
+          "Agua",
+          "4,5–5 L por saco de 25 kg"
+        ],
+        [
+          "Tiempo de trabajo",
+          "Unos 20 min"
+        ],
+        [
+          "Se pisa",
+          "A las 2–3 h"
+        ],
+        [
+          "Para revestir",
+          "Cerámica o moqueta, 8–12 h · parquet, 12–24 h"
+        ]
+      ],
+      "consejo": "Solo para interiores y siempre tapado (no es acabado). Dar antes la imprimación Paviland Primer R.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/niveland-10r-es-es"
+    },
+    {
+      "clave": "paviland-h25",
+      "palabras": [
+        [
+          "paviland",
+          "h25"
+        ],
+        [
+          "paviland",
+          "hs25"
+        ],
+        [
+          "hormigon",
+          "seco"
+        ]
+      ],
+      "uso": "Hormigón ya mezclado en seco: solo hay que añadir agua. Para soleras, pequeñas losas, pavimentos, recrecidos y trabajos de albañilería, en interior y exterior. No es para estructura.",
+      "datos": [
+        [
+          "Resistencia",
+          "> 25 N/mm² a 28 días"
+        ],
+        [
+          "Agua",
+          "Unos 2,5 L por saco de 25 kg"
+        ],
+        [
+          "Árido",
+          "De 0 a 12 mm"
+        ],
+        [
+          "Espesor mínimo",
+          "4 cm"
+        ],
+        [
+          "Rendimiento",
+          "22–23 kg/m² por cada cm"
+        ],
+        [
+          "Uso estructural",
+          "No"
+        ],
+        [
+          "Colores de fábrica",
+          "Blanco, gris, rojo, amarillo y verde"
+        ]
+      ],
+      "consejo": "No añadirle arena, cemento ni aditivos, ni más agua de la indicada. Aplicar entre 5 y 35 °C.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/paviland-hs25-es-es"
+    },
+    {
+      "clave": "morfex",
+      "palabras": [
+        [
+          "morfex"
+        ],
+        [
+          "refractario"
+        ]
+      ],
+      "uso": "Mortero refractario para levantar con ladrillo refractario chimeneas, barbacoas y hornos, y para enlucir zonas que van a estar al fuego.",
+      "datos": [
+        [
+          "Tipo",
+          "Mortero refractario de cemento aluminoso"
+        ],
+        [
+          "Temperatura",
+          "Hasta 1.200 °C"
+        ],
+        [
+          "Agua",
+          "16 % del peso (unos 4 L por saco de 25 kg)"
+        ],
+        [
+          "Resistencia",
+          "≥ 15 N/mm² a 28 días"
+        ],
+        [
+          "Rendimiento",
+          "16 kg/m² por cada cm"
+        ],
+        [
+          "Puesta en servicio",
+          "A los 7 días, calentando poco a poco"
+        ]
+      ],
+      "consejo": "No aplicar sobre yeso ni pintura, ni por debajo de 5 °C o por encima de 30 °C.",
+      "fuente": "https://www.grupopuma.com/es-ES/productos/ver/morfex-es-es"
+    },
+    {
+      "clave": "yeso-iberfino",
+      "palabras": [
+        [
+          "iberfino"
+        ]
+      ],
+      "uso": "Yeso fino para dar la última mano (enlucido) sobre el yeso grueso, en paredes y techos de interior. Deja la superficie lisa y lista para pintar.",
+      "datos": [
+        [
+          "Tipo",
+          "C6 (UNE-EN 13279-1)"
+        ],
+        [
+          "Grano",
+          "Fino: 0–0,2 o 0–0,4 mm, según fábrica"
+        ],
+        [
+          "Agua",
+          "1–1,5 L por kg de yeso"
+        ],
+        [
+          "Dónde",
+          "Solo interior"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 40 °C"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://www.placo.es/documents/fichas-tecnicas/ft-iberfino-es.pdf"
+    },
+    {
+      "clave": "yeso-iberplast",
+      "palabras": [
+        [
+          "iberplast"
+        ],
+        [
+          "iberplus"
+        ]
+      ],
+      "uso": "Yeso grueso de fraguado rápido (yeso negro o tosco) para albañilería en general en interior: tapar huecos pequeños y recibir reglas, marcos, cajas y similares.",
+      "datos": [
+        [
+          "Tipo",
+          "B1 · YG, yeso grueso (UNE-EN 13279-1)"
+        ],
+        [
+          "Fraguado",
+          "Rápido"
+        ],
+        [
+          "Grano",
+          "0–2 mm"
+        ],
+        [
+          "Agua",
+          "1–1,2 L por kg de yeso (según fábrica)"
+        ],
+        [
+          "Espesor",
+          "1–2 cm"
+        ],
+        [
+          "Soportes",
+          "Ladrillo, hormigón y bloque"
+        ],
+        [
+          "Temperatura de uso",
+          "Entre 5 y 40 °C"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://www.placo.es/documents/fichas-tecnicas/ft-iberplast-es.pdf"
+    },
+    {
+      "clave": "cemento-prompt",
+      "palabras": [
+        [
+          "prompt"
+        ],
+        [
+          "cemento",
+          "rapido"
+        ]
+      ],
+      "uso": "Cemento natural que fragua en pocos minutos. Para arreglos urgentes, anclar postes y estacas, taponar vías de agua y trabajos en zonas húmedas o bajo el agua. Por su color ocre claro se usa también en restauración de piedra.",
+      "datos": [
+        [
+          "Tipo",
+          "Cemento natural rápido (NF P 15-314)"
+        ],
+        [
+          "Empieza a fraguar",
+          "Unos 2 min a 20 °C (1 min a 30 °C)"
+        ],
+        [
+          "Endurece",
+          "Entre 15 y 90 min, según la mezcla"
+        ],
+        [
+          "Resistencia",
+          "4 MPa a los 30 min (mortero 1 de Prompt : 1 de arena)"
+        ],
+        [
+          "Mezcla habitual",
+          "1 parte de Prompt y 1 de arena seca, en volumen"
+        ],
+        [
+          "Agua",
+          "0,3–0,5 L por cada 2 L de Prompt + 2 L de arena"
+        ],
+        [
+          "Color",
+          "Ocre claro"
+        ]
+      ],
+      "consejo": "Con calor, amasar con agua fría para frenar el fraguado. El agua de más le quita resistencia.",
+      "fuente": "https://www.cemento-natural-prompt.es/fraguado-y-endurecimiento-rapidos"
+    },
+    {
+      "clave": "cemento-tudela-veguin",
+      "palabras": [
+        [
+          "cemento",
+          "tudela"
+        ],
+        [
+          "cemento",
+          "veguin"
+        ]
+      ],
+      "uso": "Cemento gris para hacer hormigón, mortero y pasta en obra, mezclándolo con arena, grava y agua.",
+      "datos": [
+        [
+          "Tipo",
+          "CEM V/A (S-V) 32,5 N (UNE-EN 197-1)"
+        ],
+        [
+          "Qué lleva",
+          "Cemento portland con ceniza volante y escoria de horno alto"
+        ],
+        [
+          "Resistencia",
+          "Clase 32,5 N (resistencia inicial normal)"
+        ],
+        [
+          "Fábrica",
+          "Aboño (Asturias)"
+        ],
+        [
+          "Saco",
+          "35 kg"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://media.adeo.com/media/5233253/media.pdf",
+      "fuente_nombre": "la declaración de prestaciones de Tudela Veguín"
+    },
+    {
+      "clave": "arido-granel",
+      "palabras": [
+        [
+          "arido"
+        ]
+      ],
+      "uso": "Arena o grava suelta que se vende a paladas, para hacer mortero u hormigón en obra mezclándola con cemento y agua.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    }
+  ]
+}

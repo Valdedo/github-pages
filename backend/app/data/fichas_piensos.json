@@ -1,0 +1,709 @@
+{
+  "productos": [
+    {
+      "clave": "avipuesta",
+      "palabras": [
+        [
+          "avipuesta"
+        ]
+      ],
+      "uso": "Pienso completo para gallinas ponedoras durante la puesta. Se da como alimento único, a libre disposición.",
+      "datos": [
+        [
+          "Para",
+          "Gallinas ponedoras en puesta"
+        ],
+        [
+          "Presentación",
+          "Harina"
+        ],
+        [
+          "Proteína",
+          "16 %"
+        ],
+        [
+          "Grasa",
+          "5 %"
+        ],
+        [
+          "Calcio",
+          "4,3 %"
+        ]
+      ],
+      "consejo": "Para que la cáscara salga buena, no mezclar con más de un 20 % de cereal en la ración del día.",
+      "fuente": "https://solloso.es/producto/pienso-gallinas-avipuesta-oro-biona-25-kg/"
+    },
+    {
+      "clave": "conchavit",
+      "palabras": [
+        [
+          "conchavit"
+        ]
+      ],
+      "uso": "Complemento mineral con calcio, vitaminas y oligoelementos para todo tipo de aves de corral. Se pone aparte del pienso o del grano. Ayuda a la cáscara del huevo y a los huesos, y evita cojeras.",
+      "datos": [
+        [
+          "Para",
+          "Gallinas, pollos camperos y demás aves"
+        ],
+        [
+          "Presentación",
+          "En partículas"
+        ],
+        [
+          "Calcio",
+          "38 %"
+        ],
+        [
+          "Gallinas en jaula",
+          "5 g por ave y día"
+        ],
+        [
+          "Camperas y pollos camperos",
+          "A libre disposición"
+        ]
+      ],
+      "consejo": "Viene muy bien a las aves que comen mucho grano: completa lo que le falta al cereal.",
+      "fuente": "https://cortijolospicos.es/producto/conchavit-complemento-gallinas/"
+    },
+    {
+      "clave": "arranque-pollos",
+      "palabras": [
+        [
+          "arranque",
+          "tradicion"
+        ],
+        [
+          "arranque",
+          "pollos"
+        ]
+      ],
+      "uso": "Pienso completo de arranque para pollitos de engorde, desde que nacen hasta los 14 días. Se da como alimento único.",
+      "datos": [
+        [
+          "Para",
+          "Pollitos de 0 a 14 días"
+        ],
+        [
+          "Cómo se da",
+          "Alimento único"
+        ],
+        [
+          "Después",
+          "Crecimiento Pollos Oro (Creceba), desde los 14 días"
+        ],
+        [
+          "Nombre actual",
+          "Arranque Pollos Oro (Biona)"
+        ]
+      ],
+      "consejo": "Guardar en sitio fresco, separado de paredes y suelo.",
+      "fuente": "https://solloso.es/producto/pienso-pollos-arranque-oro-biona-25-kg/"
+    },
+    {
+      "clave": "crecimiento-pollos",
+      "palabras": [
+        [
+          "creceba"
+        ],
+        [
+          "crecimiento",
+          "pollos"
+        ]
+      ],
+      "uso": "Pienso completo para pollos de engorde a partir de los 14 días de vida. Se da como alimento único, a libre disposición, durante casi toda la ceba.",
+      "datos": [
+        [
+          "Para",
+          "Pollos de engorde desde los 14 días"
+        ],
+        [
+          "Presentación",
+          "Harina"
+        ],
+        [
+          "Lleva",
+          "Coccidiostático"
+        ],
+        [
+          "Retirada",
+          "Quitarlo 1 día antes de matar los pollos"
+        ],
+        [
+          "Nombre actual",
+          "Crecimiento Pollos Oro (Biona)"
+        ]
+      ],
+      "consejo": "No mezclar nunca con cereales antes de los 50 días de vida.",
+      "fuente": "https://www.deheus.es/productos-y-servicios/productos-avicultura/crecimiento-pollos-oro"
+    },
+    {
+      "clave": "ceregal",
+      "palabras": [
+        [
+          "ceregal"
+        ]
+      ],
+      "uso": "Pienso completo para pollos, gallinas y otras aves de corral. Es una mezcla de maíz partido y trigo entero enriquecida con vitaminas, minerales y aminoácidos. Se da como alimento único, a libre disposición.",
+      "datos": [
+        [
+          "Para",
+          "Pollos, gallinas y aves de corral"
+        ],
+        [
+          "Presentación",
+          "Grano: maíz partido y trigo entero"
+        ],
+        [
+          "Proteína",
+          "15,4 %"
+        ],
+        [
+          "Grasa",
+          "4,9 %"
+        ],
+        [
+          "Fibra",
+          "3 %"
+        ],
+        [
+          "Calcio",
+          "1,7 %"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://cortijolospicos.es/producto/pienso-ceregal-pollos-y-gallinas-de-corral/"
+    },
+    {
+      "clave": "kamperina-tac",
+      "palabras": [
+        [
+          "bovitac"
+        ],
+        [
+          "kamperina"
+        ]
+      ],
+      "uso": "Tacos (pienso en pastillas) para vacas en extensivo. Completan el pasto cuando escasea: de las primeras heladas a la primavera y en veranos secos. Se echan en el suelo, sin comedero.",
+      "datos": [
+        [
+          "Para",
+          "Vacas en extensivo"
+        ],
+        [
+          "Presentación",
+          "Tacos"
+        ],
+        [
+          "Vaca seca o sin cría",
+          "2,5 a 3 kg al día"
+        ],
+        [
+          "Vaca con cría",
+          "4 a 5 kg al día"
+        ],
+        [
+          "Nombre actual",
+          "Kamperina Plus Tac (De Heus)"
+        ]
+      ],
+      "consejo": "Repartirlos bien para que coman todas, porque las vacas son muy jerárquicas. Mejor tener aparte las secas de las que crían.",
+      "fuente": "https://elcampodeasturias.es/2016/12/16/lo-importante-es-suministrar-diferentes-cantidades-en-funcion-de-los-requerimientos-del-animal/"
+    },
+    {
+      "clave": "kovital-arranque",
+      "palabras": [
+        [
+          "kovital",
+          "arranque"
+        ]
+      ],
+      "uso": "Pienso de arranque para terneros, el primero de la gama Kovital de De Heus. En Asturias lo indican desde el primer mes de vida hasta los 4 o 5 meses.",
+      "datos": [
+        [
+          "Para",
+          "Terneros de 1 a 4-5 meses"
+        ],
+        [
+          "Después",
+          "Kovital Engorde (cebo)"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://www.deheus.es/noticias-y-medios/noticias/de-heus-lanza-kovitalr-mucho-mas-que-un-pienso-de-terneros"
+    },
+    {
+      "clave": "kovital-engorde",
+      "palabras": [
+        [
+          "kovital",
+          "engorde"
+        ],
+        [
+          "kovital",
+          "cebo"
+        ]
+      ],
+      "uso": "Pienso de cebo para terneros, después del Kovital Arranque. De Heus tiene tres de cebo (Engorde, Selección e Intensivo) con distinta energía, según el forraje y el manejo de cada casa.",
+      "datos": [
+        [
+          "Para",
+          "Terneros en cebo, después del arranque"
+        ],
+        [
+          "Antes",
+          "Kovital Arranque (hasta los 4-5 meses)"
+        ],
+        [
+          "Al final",
+          "Kovital Supremo, los 3-4 últimos meses de cebo"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://www.deheus.es/noticias-y-medios/noticias/de-heus-lanza-kovitalr-mucho-mas-que-un-pienso-de-terneros"
+    },
+    {
+      "clave": "cunitec-unico",
+      "palabras": [
+        [
+          "nutricun",
+          "unico"
+        ],
+        [
+          "cunitec"
+        ]
+      ],
+      "uso": "Pienso completo para conejos, para dar como alimento único.",
+      "datos": [
+        [
+          "Para",
+          "Conejos"
+        ],
+        [
+          "Cómo se da",
+          "Alimento único"
+        ]
+      ],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "nutricun-oro",
+      "palabras": [
+        [
+          "nutricun"
+        ]
+      ],
+      "uso": "Pienso completo para conejos: para las conejas que crían y para los gazapos de engorde. Se da a voluntad, como alimento único.",
+      "datos": [
+        [
+          "Para",
+          "Conejas en producción y gazapos en cebo"
+        ],
+        [
+          "Presentación",
+          "Granulado"
+        ],
+        [
+          "Proteína",
+          "16 %"
+        ],
+        [
+          "Fibra",
+          "16 %"
+        ],
+        [
+          "Grasa",
+          "3 %"
+        ],
+        [
+          "Retirada",
+          "No tiene periodo de retirada"
+        ]
+      ],
+      "consejo": "Que tengan siempre agua limpia y fresca.",
+      "fuente": "https://www.pimasur.es/biona-linea-oro-nutricun-oro-gra-10-kg-pienso-para-conejos/"
+    },
+    {
+      "clave": "kilate-mantenimiento",
+      "palabras": [
+        [
+          "kilate",
+          "mantenimiento"
+        ]
+      ],
+      "uso": "Pienso completo de mantenimiento para perros adultos. La cantidad depende de la actividad, la raza y el tiempo que haga.",
+      "datos": [
+        [
+          "Para",
+          "Perros adultos"
+        ],
+        [
+          "Proteína",
+          "25 %"
+        ],
+        [
+          "Grasa",
+          "9 %"
+        ],
+        [
+          "Fibra",
+          "3,5 %"
+        ],
+        [
+          "Carne",
+          "Buey (15 %)"
+        ]
+      ],
+      "consejo": "Dar la ración del día en 2 o 3 tomas, siempre a las mismas horas, y agua limpia siempre.",
+      "fuente": "https://agrotendas.com/alimentacion/920-kilate-mantenimiento-20-kg.html"
+    },
+    {
+      "clave": "friskies-adulto",
+      "palabras": [
+        [
+          "friskies"
+        ]
+      ],
+      "uso": "Pienso seco completo para gatos adultos (desde 1 año), con buey, pollo y verduras. Se puede dar solo o con comida húmeda Friskies.",
+      "datos": [
+        [
+          "Para",
+          "Gatos adultos (desde 1 año)"
+        ],
+        [
+          "Ración (solo seco)",
+          "Gato de 3 kg: 45 g · 4 kg: 60 g · 5 kg: 75 g al día"
+        ],
+        [
+          "Proteína",
+          "30 %"
+        ],
+        [
+          "Grasa",
+          "11 %"
+        ],
+        [
+          "Fibra",
+          "3 %"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://www.purina.es/gatos/comida-gatos/purina-friskies-adulto-con-buey-pollo-y-verduras"
+    },
+    {
+      "clave": "equifeed-essence",
+      "palabras": [
+        [
+          "equifeed"
+        ]
+      ],
+      "uso": "Pienso complementario para caballos de ocio con poca actividad o de mantenimiento. Lleva fibra de calidad y levaduras para que el caballo digiera bien. Se da racionado, como complemento del forraje.",
+      "datos": [
+        [
+          "Para",
+          "Caballos de poca actividad, mantenimiento o en recuperación"
+        ],
+        [
+          "Presentación",
+          "Granulado"
+        ],
+        [
+          "Cómo se da",
+          "Racionado, con el forraje"
+        ]
+      ],
+      "consejo": "Muy seguro para caballos que pasan mucho tiempo en la cuadra o con tendencia a problemas de tripa: reduce el riesgo de cólicos y laminitis.",
+      "fuente": "https://www.deheus.es/productos-y-servicios/productos-caballos/equifeed-essence"
+    },
+    {
+      "clave": "melkum-produccion",
+      "palabras": [
+        [
+          "melkum"
+        ]
+      ],
+      "uso": "Pienso complementario para cabras de leche de alta producción. Se da junto con el forraje de la casa, en la cantidad que marque el técnico.",
+      "datos": [
+        [
+          "Para",
+          "Cabras de leche en producción"
+        ],
+        [
+          "Presentación",
+          "Granulado de 3,5 mm"
+        ],
+        [
+          "Proteína",
+          "19 %"
+        ],
+        [
+          "Grasa",
+          "3,5 %"
+        ],
+        [
+          "Fibra",
+          "6,2 %"
+        ]
+      ],
+      "consejo": "Agua fresca siempre a libre disposición.",
+      "fuente": "https://www.deheus.es/productos-y-servicios/productos-rumiantes/melkum-produccion"
+    },
+    {
+      "clave": "regenera",
+      "palabras": [
+        [
+          "regenera"
+        ]
+      ],
+      "uso": "Abono orgánico en pellet, hecho con estiércol de oveja con algo de caballo y gallinaza. Para abonar de fondo o en cobertura huertas, prados, frutales y césped. Sirve para agricultura ecológica.",
+      "datos": [
+        [
+          "Riqueza (N-P-K)",
+          "4,2 - 2,8 - 4,2"
+        ],
+        [
+          "Patatas",
+          "250 a 350 g/m² (2.500-3.500 kg/ha)"
+        ],
+        [
+          "Tomate",
+          "150 a 250 g/m²"
+        ],
+        [
+          "Prados",
+          "220 a 300 g/m² (2.200-3.000 kg/ha)"
+        ],
+        [
+          "Césped",
+          "250 a 300 g/m²"
+        ],
+        [
+          "Frutales",
+          "90 a 200 g/m²"
+        ]
+      ],
+      "consejo": "Guardar el saco bien cerrado y en sitio fresco.",
+      "fuente": "https://www.redondoizal.com/especificaciones-del-abono-organico-de-redondo-izal/"
+    },
+    {
+      "clave": "ray-grass-nui",
+      "palabras": [
+        [
+          "ray",
+          "grass"
+        ],
+        [
+          "raygrass"
+        ],
+        [
+          "nui"
+        ]
+      ],
+      "uso": "Semilla de raigrás inglés para praderas. Sirve sobre todo para pastoreo, y también para verde, heno o ensilado. Se siembra mucho en mezclas con leguminosas.",
+      "datos": [
+        [
+          "Especie",
+          "Raigrás inglés (Lolium perenne), diploide"
+        ],
+        [
+          "Época de siembra",
+          "Otoño o primavera"
+        ],
+        [
+          "Siembra",
+          "30 a 40 kg/ha (3 a 4 kg cada 1.000 m²)"
+        ],
+        [
+          "Aprovechamiento",
+          "Pastoreo, verde, heno o ensilado"
+        ]
+      ],
+      "consejo": "El pastoreo ayuda a que la pradera agarre bien.",
+      "fuente": "https://www.agrovademecum.com/ray-grass-lolium-semillas/ingles-lolium-perenne-semillas-raygrass/ray-grass-ingles-nui-semillas-batlle"
+    },
+    {
+      "clave": "diatomeas",
+      "palabras": [
+        [
+          "diatomeas"
+        ]
+      ],
+      "uso": "Polvo de tierra de diatomeas, 100 % natural. En huerta y jardín se espolvorea contra bichos rastreros (hormigas, babosas, caracoles, pulgón, orugas…) y también mejora el suelo.",
+      "datos": [
+        [
+          "Composición",
+          "100 % tierra de diatomeas, sin tratar"
+        ],
+        [
+          "En el suelo",
+          "20 g por cada 10 m²"
+        ],
+        [
+          "Pulverizado",
+          "10 g por litro de agua"
+        ],
+        [
+          "Envase",
+          "2 kg"
+        ]
+      ],
+      "consejo": "No respirar el polvo. Guardar en sitio seco, lejos de niños y alimentos.",
+      "fuente": "https://www.puntojardin.com/plaguicidas/1835-tierra-de-diatomeas-mass%C3%B3-2-kg-8424084031941.html"
+    },
+    {
+      "clave": "pulpa-acor",
+      "palabras": [
+        [
+          "pulpa"
+        ],
+        [
+          "remolacha"
+        ]
+      ],
+      "uso": "Pulpa de remolacha seca y prensada en pellet, para el ganado. Es fibra muy digestible con mucha energía; se usa sobre todo en vacas, ovejas y cabras.",
+      "datos": [
+        [
+          "Presentación",
+          "Pellet"
+        ],
+        [
+          "Aporta",
+          "Fibra muy digestible y energía"
+        ],
+        [
+          "Para",
+          "Ganado, sobre todo rumiantes"
+        ]
+      ],
+      "consejo": "",
+      "fuente": "https://cooperativaacor.com/productos/"
+    },
+    {
+      "clave": "salvado-trigo",
+      "palabras": [
+        [
+          "salvado"
+        ]
+      ],
+      "uso": "Cáscara del grano de trigo, la que sale al molerlo. Aporta fibra; se mezcla en la ración de vacas, terneros, caballos, cerdos y conejos.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "trigo-grano",
+      "palabras": [
+        [
+          "trigo"
+        ]
+      ],
+      "uso": "Trigo en grano entero. Se da sobre todo a gallinas y aves de corral, solo o mezclado con maíz. Completa el pienso, no lo sustituye.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "maiz-harina",
+      "palabras": [
+        [
+          "maiz",
+          "harina"
+        ]
+      ],
+      "uso": "Maíz molido. Para hacer amasijos y mezclas para cerdos, terneros y aves, solo o con otros cereales y pienso.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "maiz-partido",
+      "palabras": [
+        [
+          "maiz",
+          "partido"
+        ],
+        [
+          "picon"
+        ]
+      ],
+      "uso": "Maíz troceado, más fácil de comer para pollos y gallinas. Se echa aparte o mezclado con el pienso. Da energía, pero no es un alimento completo.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "maiz-grano",
+      "palabras": [
+        [
+          "maiz"
+        ]
+      ],
+      "uso": "Maíz en grano entero. Para gallinas y aves ya criadas, y para mezclar en la ración del ganado. Da energía, pero no es un alimento completo.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "cebada-harina",
+      "palabras": [
+        [
+          "cebada",
+          "harina"
+        ]
+      ],
+      "uso": "Cebada molida, para mezclas y amasijos de cerdos, terneros y demás ganado.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "cebada-grano",
+      "palabras": [
+        [
+          "cebada"
+        ]
+      ],
+      "uso": "Cebada en grano para el ganado: vacas, ovejas, caballos, cerdos y gallinas. Se da entera, aplastada o mezclada con otros cereales.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "patata-consumo",
+      "palabras": [
+        [
+          "patata"
+        ]
+      ],
+      "uso": "Patata nueva para comer en casa. No es patata de siembra.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "sal",
+      "palabras": [
+        [
+          "sal"
+        ]
+      ],
+      "uso": "Sal en saco de 25 kg. En el campo se usa para el ganado, para salar en la matanza y para echar en el hielo.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    },
+    {
+      "clave": "abono-organico",
+      "palabras": [
+        [
+          "abono"
+        ]
+      ],
+      "uso": "Abono orgánico para huerta, frutales y jardín. Se mezcla con la tierra antes de plantar o se echa alrededor de las plantas.",
+      "datos": [],
+      "consejo": "",
+      "fuente": ""
+    }
+  ]
+}

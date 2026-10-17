@@ -13,6 +13,7 @@ import {
   type Tarifa, type Escala, type TarifaResumen, type TarifaMedida, type FichaTarifa, type ModoPrecio, type TarifaFamilia, type TarifaGrupo,
 } from '../lib/tarifas';
 import { CuadriculaTarifa, ListaTarifa } from '../components/CuadriculaTarifa';
+import { ParaQueSirve } from '../components/ParaQueSirve';
 import './tarifas.css';
 
 // Lo leído se guarda mientras la app está abierta, para ir y volver entre pantallas sin esperar
@@ -1163,6 +1164,8 @@ export function TarifaFichaPage() {
   const otras = d?.solo_pvp
     ? <MismoGrupo prov={prov} fam={fam} refActual={ref} grupo={d.subcategoria} />
     : <OtrasMedidas prov={prov} fam={fam} refActual={ref} />;
+  // Morteros, piensos: para qué sirve y lo que pregunta el cliente, lo primero después del precio
+  const sirve = d?.producto ? <ParaQueSirve p={d.producto} /> : null;
 
   return (
     <div className="page-wide tf">
@@ -1175,11 +1178,11 @@ export function TarifaFichaPage() {
       {d && (ancho ? (
         <div className="tf-ficha tf-ficha-esc">
           <div className="tf-col">{precios}{escalas}{foto}{carac}</div>
-          <div className="tf-col">{compra}{evolucion}{otras}</div>
+          <div className="tf-col">{sirve}{compra}{evolucion}{otras}</div>
         </div>
       ) : (
         <div className="tf-ficha">
-          <div className="tf-col">{foto}{precios}{escalas}{otras}{evolucion}{compra}{carac}</div>
+          <div className="tf-col">{foto}{precios}{escalas}{sirve}{otras}{evolucion}{compra}{carac}</div>
         </div>
       ))}
     </div>

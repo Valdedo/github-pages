@@ -61,4 +61,4 @@ def foto(fam: str, gru: str, art: str, formato: str) -> Optional[str]:
 
 
 def leer(hojas: dict) -> dict:
-    return hoja_tienda.leer(hojas, "pi", foto, iva=IVA)
+    return hoja_tienda.leer(hojas, "pi", foto, iva=IVA, fichas="piensos")

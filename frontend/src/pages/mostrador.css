@@ -248,3 +248,18 @@
 .mo-fila-peg[src^="/catalogo/silva/"] { width: 48px; height: 48px; margin: 0; border-radius: 10px; border-width: 2px; }
 .mo-hoja .mo-panel-foto { height: 150px; }
 .mo-hoja .mo-panel-foto img { max-height: 150px; }
+
+/* ── «Para qué sirve» desde la cuadrícula (botón «i»): cajón a la derecha, encima de todo ── */
+.mo-cajon { position: fixed; inset: 0; z-index: 60; background: rgb(18 26 20 / .38); display: flex; justify-content: flex-end; animation: mo-fundido .15s ease-out; }
+.mo-cajon-in { position: relative; width: min(520px, 100%); height: 100%; overflow-y: auto; box-sizing: border-box; background: var(--surface);
+  padding: 22px 22px 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: -10px 0 30px rgb(0 0 0 / .18); animation: mo-entra .2s ease-out; }
+.mo-cajon-cab { display: flex; gap: 16px; align-items: center; padding-right: 64px; }
+.mo-cajon-foto { width: 104px; height: 104px; flex-shrink: 0; border-radius: var(--r-lg); background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.mo-cajon-foto img { max-width: 100%; max-height: 104px; object-fit: contain; }
+.mo-cajon-cab h2 { margin: 0; font: 600 24px/1.15 var(--font-display); text-transform: uppercase; color: var(--text-1); }
+.mo-cajon-cab p { margin: 4px 0 6px; color: var(--text-2); font-size: 15px; }
+.mo-cajon-cab strong { font: 600 30px var(--font-display); color: var(--cf-bosque); }
+.mo-cajon-cab strong small { font: 500 14px 'Montserrat', sans-serif; color: var(--text-2); }
+.mo-gc-pie-i { vertical-align: -3px; }
+@keyframes mo-fundido { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mo-entra { from { transform: translateX(40px); opacity: .5; } to { transform: none; opacity: 1; } }

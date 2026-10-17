@@ -1,5 +1,7 @@
 """Tarifas de proveedor: códigos comodín y artículos repetidos de Zabaleta, y la medida por la que se filtra
 una familia (oct. 2026). Datos inventados: el repositorio es público, no van precios reales."""
+import json
+
 from app.services import tarifas_service as ts
 
 CAB = ["CATEGORÍA", "SUBCATEGORÍA", "ARTÍCULO", "DESCRIPCIÓN", "UD", "Nº COMPRAS", "PRECIO COMPRA ANT.", "FECHA ANT.",
@@ -388,3 +390,32 @@ def test_morteros_iva_aparte():
     assert enl["pvp"] == 5.5 and enl["pvp_iva"] == 6.66 and enl["iva"] == 21 and enl["iva_aparte"] is True
     assert enl["margen"] == 25.0 and "+ IVA" in enl["origen"]
     assert rev["pvp"] == 5.0 and rev["pvp_iva"] == 6.05 and "iva_aparte" not in rev
+
+
+def test_para_que_sirve_por_palabras_y_columna_de_la_hoja(tmp_path, monkeypatch):
+    from app.services import fichas_producto
+    (tmp_path / "fichas_morteros.json").write_text(json.dumps({"productos": [
+        {"clave": "cola-blanca", "palabras": [["cola", "blanc"]], "uso": "Pegar azulejo.", "datos": [["Tipo", "C1"]],
+         "consejo": "No por debajo de 5 °C.", "fuente": "https://ejemplo.es/ficha.pdf"},
+        {"clave": "cola", "palabras": [["cola"]], "uso": "Pegar.", "datos": []},
+        {"clave": "sal", "palabras": [["sal"]], "uso": "Sal.", "datos": []},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr(fichas_producto, "DATOS", tmp_path)
+    fichas_producto._productos.cache_clear()
+    try:
+        hojas = {"TARIFA": [
+            ["Familia", "Grupo", "Artículo", "Formato", "PVP con IVA", "Para qué sirve"],
+            ["Cemento cola", "Cola", "Cola Blanca", "Saco 25 kg", "12,10 €", ""],
+            ["Cemento cola", "Cola", "Cola gris", "Saco 25 kg", "10,10 €", "Lo de la hoja manda."],
+            ["Cemento cola", "Cola", "Salvado", "Saco 25 kg", "10,10 €", ""],
+            ["Cemento cola", "Cola", "Junta", "Bolsa 3 kg", "6,05 €", ""],
+        ]}
+        bla, gri, salv, jun = hoja_tienda.leer(hojas, "mor", fichas="morteros")["articulos"]
+        assert bla["producto"] == {"uso": "Pegar azulejo.", "datos": [["Tipo", "C1"]], "consejo": "No por debajo de 5 °C.",
+                                   "fuente": "https://ejemplo.es/ficha.pdf"}  # «blanc» casa con «blanca», gana el primero
+        assert gri["producto"]["uso"] == "Lo de la hoja manda."  # la columna de la hoja manda sobre el archivo
+        assert "producto" not in salv  # «sal» (menos de 4 letras) tiene que ser la palabra entera
+        assert "producto" not in jun
+        assert fichas_producto.buscar("no-existe", "Cola blanca") is None
+    finally:
+        fichas_producto._productos.cache_clear()
