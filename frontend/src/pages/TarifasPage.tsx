@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown, List, LayoutGrid } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
 import { fechaES, normaliza } from '../lib/texto';
-import { esConsulta, esEncargado } from '../auth';
 import { useIsMobile } from '../hooks';
 import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
@@ -135,7 +134,6 @@ const udGrupo = (ms: TarifaMedida[]) => {
   const uds = [...new Set(ms.map(m => m.ud_venta))];
   return uds.length === 1 && uds[0] !== 'ud' ? <small className="tf-grupo-ud"> · precio por {udLarga(uds[0])}</small> : null;
 };
-const udMezcla = (ms: TarifaMedida[]) => new Set(ms.map(m => m.ud_venta)).size > 1;
 /** «7,50 €/m»; si no hay precio, solo «—» */
 const eurUd = (v: number | null | undefined, ud: string) => v == null ? '—' : `${eur(v)}/${ud}`;
 /** El código del proveedor tal como se enseña; el comodín de Zabaleta («INC») no identifica a nadie. */
@@ -181,7 +179,7 @@ export function buscar(ts: Tarifa[], q: string): Resultado[] {
 function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: string }) {
   const navigate = useNavigate();
   const movil = useIsMobile();
-  const nueva = esEncargado(); // vista nueva (en pruebas): el código a la vista
+  const nueva = true; // el código a la vista (para todos desde el 19/10/2026)
   const MAX = 100;
   if (!res.length) return <div className="tf-vacio">No hay nada con «{q}» en {donde}. Prueba con menos palabras o solo la medida (p. ej. 50x50).</div>;
   const vistos = res.slice(0, MAX);
@@ -491,147 +489,13 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
   );
 }
 
-/** En pruebas (oct. 2026): Andrés ve la vista nueva; la tienda y Manolo, la de siempre. */
+/** La familia, igual para todos desde el 19/10/2026 (Andrés: «todas las tarifas como están para mí, de la misma forma para
+ *  el resto»). La vista de antes (FamiliaActual, con botones de medida) ya no existe. */
 export function TarifaFamiliaPage() {
-  return esEncargado() ? <FamiliaNueva /> : <FamiliaActual />;
+  return <FamiliaNueva />;
 }
 
-function FamiliaActual() {
-  const { prov = '', fam = '' } = useParams();
-  const navigate = useNavigate();
-  const { t, error, cargando, cargar } = useTarifa(prov);
-  const ancho = !useIsMobile(1099); // con panel a la derecha
-  const [modoElegido, setModo] = useModoPrecio();
-  const [sel, setSel] = useState<TarifaMedida | null>(null);
-  useEffect(() => {
-    const h = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, []);
-  const f = t?.familias.find(x => x.id === fam);
-  const sinCoste = soloPvp(f); // bombonas de gas: solo precio de venta
-  const modo: ModoPrecio = sinCoste && modoElegido === 'coste' ? 'iva' : modoElegido;
-  const iva = modo !== 'venta';
-  const total = f?.grupos.reduce((s, g) => s + g.medidas.length, 0) ?? 0;
-  const elegir = (m: TarifaMedida) => setSel(s => s?.ref === m.ref && !ancho ? null : m);
-  const abrir = (m: TarifaMedida) => navigate(enlaceFicha(prov, fam, m.ref));
-  const modoActual = MODOS.find(m => m.v === modo)!;
-
-  const chips = (g: TarifaGrupo, i: number) => (
-    <section key={i} className="tf-grupo">
-      <h3>{conPor(g.titulo!)}{udGrupo(g.medidas)}</h3>
-      <div className={`tf-chips${chipsLargos(g.medidas) ? ' tf-chips-largos' : ''}`}>
-        {g.medidas.map(m => (
-          <button key={m.ref} type="button" className="tf-chip" aria-pressed={sel?.ref === m.ref}
-            onClick={() => elegir(m)} onDoubleClick={() => abrir(m)} title={conPor(m.descripcion)}>
-            <span>{etiquetaMedida(m)}</span>
-            <strong>{eur(precioModo(m, modo))}{udMezcla(g.medidas) && <small>/{m.ud_venta}</small>}</strong>
-            {esReciente(m.fecha) && m.evol ? <i className={m.evol > 0 ? 'sube' : 'baja'} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-  const sueltos = (g: TarifaGrupo) => g.medidas.map(m => (
-    <button key={m.ref} type="button" className="tf-grupo tf-suelto" aria-pressed={sel?.ref === m.ref}
-      onClick={() => elegir(m)} onDoubleClick={() => abrir(m)}>
-      <span>{conPor(m.descripcion)}</span>
-      <strong>{eur(precioModo(m, modo))}<small>/{m.ud_venta}</small></strong>
-    </button>
-  ));
-  // Tarifas con subcategorías (Zabaleta): una sección por subcategoría, con lo que va por medidas
-  // en botones y el resto en una lista con su referencia.
-  const secciones = f && f.grupos.some(g => g.seccion)
-    ? f.grupos.reduce<{ t: string; gs: TarifaGrupo[] }[]>((acc, g) => {
-      const t = g.seccion || 'Otros';
-      const u = acc[acc.length - 1];
-      if (u && u.t === t) u.gs.push(g); else acc.push({ t, gs: [g] });
-      return acc;
-    }, [])
-    : null;
-  const lista = f && (secciones ? (
-    <div className="tf-grupos tf-con-subs">
-      {secciones.map(sc => (
-        <section key={sc.t} className="tf-sub">
-          <h2 className="tf-sub-tit">{sc.t} <small>{sc.gs.reduce((n, g) => n + g.medidas.length, 0)}</small></h2>
-          {sc.gs.filter(g => g.titulo).map(chips)}
-          {sc.gs.filter(g => !g.titulo).map((g, i) => (
-            <div key={i} className="tf-filas">
-              {g.medidas.map(m => (
-                <button key={m.ref} type="button" className="tf-filita" aria-pressed={sel?.ref === m.ref}
-                  onClick={() => elegir(m)} onDoubleClick={() => abrir(m)}>
-                  <span className="tf-filita-txt">{conPor(m.descripcion)}{m.codigo && <small>{m.codigo}</small>}</span>
-                  {esReciente(m.fecha) && m.evol ? <i className={`tf-punto ${m.evol > 0 ? 'sube' : 'baja'}`} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
-                  <strong>{eur(precioModo(m, modo))}<small>/{m.ud_venta}</small></strong>
-                </button>
-              ))}
-            </div>
-          ))}
-        </section>
-      ))}
-    </div>
-  ) : (
-    <div className="tf-grupos">
-      {f.grupos.map((g, i) => g.titulo ? chips(g, i) : sueltos(g))}
-    </div>
-  ));
-
-  return (
-    <div className={`page-wide tf tf-con-barra${sel && !ancho ? ' tf-hay-sel' : ''}`}>
-      <Cabecera migas={[{ to: '/tarifas', t: 'Tarifas' }, { to: `/tarifas/${prov}`, t: t?.nombre ?? 'Tarifa' }]}
-        titulo={f?.nombre ?? 'Familia'} sub={f ? `${total} ${total === 1 ? 'artículo' : 'artículos'} · precios por unidad de venta` : undefined}
-        pegatinaSrc={f ? pegatina(claveFamilia(f.nombre)) : undefined}
-        acciones={
-          <div className="tf-modos" role="group" aria-label="Qué precio enseñar">
-            {(sinCoste ? MODOS.filter(m => m.v !== 'coste') : MODOS).map(m => <button key={m.v} type="button" aria-pressed={modo === m.v} onClick={() => setModo(m.v)} title={m.largo}>{m.t}</button>)}
-          </div>
-        } />
-      {error && <ConnectionError message={error} onRetry={cargar} />}
-      {cargando && !t && <div className="tf-grupos">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="tf-grupo skeleton" style={{ height: 96 }} />)}</div>}
-      {t && !f && <div className="tf-vacio">Esta familia ya no está en la tarifa. <Link to={`/tarifas/${prov}`}>Ver las familias</Link></div>}
-      {f && ancho && (
-        <div className="tf-fam-esc">
-          <div className="tf-fam-lista">
-            <p className="tf-nota tf-fam-ayuda">Precios de <strong>{modoActual.frase}</strong>. Haz clic en una medida para ver sus datos a la derecha.</p>
-            {lista}
-          </div>
-          <PanelMedida prov={prov} fam={fam} f={f} sel={sel} total={total} modo={modo} />
-        </div>
-      )}
-      {f && !ancho && (
-        <>
-          <div className="tf-intro">
-            <Foto className="tf-intro-foto" src={fotoArticulo(f.nombre)} alt={f.nombre} respaldo={pegatina(claveFamilia(f.nombre))} />
-            <div>
-              <strong>{total} {total === 1 ? 'artículo' : 'artículos'}</strong>
-              <span>Toca una medida para ver su precio. Precios de {modoActual.frase}.</span>
-              {!soloPvp(f) && <Leyenda />}
-            </div>
-          </div>
-          {lista}
-          {sel && (
-            <div className="tf-barra" role="region" aria-label="Medida elegida">
-              <div className="tf-barra-txt">
-                <small>Elegido</small>
-                <strong>{conPor(sel.descripcion)}</strong>
-              </div>
-              <div className="tf-barra-precio">
-                <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
-                <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA{!sel.solo_pvp && <> · coste {eur(sel.coste)}</>}</small>
-                {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => escalaCorta(e, iva)).join(' · ')}</small> : null}
-              </div>
-              <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
-                Ver ficha <ChevronRight size={18} />
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── 3b · Familia, vista nueva (en pruebas: solo el encargado, oct. 2026) ──
+// ── 3b · Familia (vista nueva, oct. 2026; para todos desde el 19/10/2026) ──
 // - Arriba, las medidas de la familia: al elegir una salen juntas todas las piezas de esa medida.
 // - Si un grupo tiene varias piezas de la misma medida (formatos de un tubo, colores, la misma pieza con dos
 //   códigos), va en filas con su código, el precio y lo que sale el metro; si hay una por medida, en botones.
@@ -1016,7 +880,7 @@ export function TarifaFichaPage() {
   const { d, error, cargar } = useFicha(prov, ref);
   const { t } = useTarifa(prov);
   const ancho = !useIsMobile(999);
-  const nueva = esEncargado(); // vista nueva (en pruebas): código a la vista, códigos antiguos y precio por metro
+  const nueva = true; // código a la vista, códigos antiguos y precio por metro (para todos desde el 19/10/2026)
   const iva = modoGuardado() !== 'venta'; // con IVA en grande, salvo que se haya elegido «Sin IVA» en la lista
   const grande = d ? (iva ? conIva(d) : d.pvp) : null;
   const otro = d ? (iva ? d.pvp : conIva(d)) : null;

@@ -99,8 +99,8 @@ export function webDe(url?: string | null): string | null {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
 }
 
-/** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están, en pruebas (oct. 2026): a quien
- *  aún no los ve le siguen saliendo aquí. */
+/** Proveedores que llegarán más adelante (se ven apagados). Pladur y Dinak ya están para todos (19/10/2026): solo salen
+ *  aquí si una tarifa vuelve a ponerse «en pruebas». */
 export const PROXIMAMENTE = [
   { id: 'pladur', nombre: 'Pladur', sub: 'Construdeco · placas, perfilería y pastas', pegatina: 'prov-pladur' },
   { id: 'dinak', nombre: 'Dinak', sub: 'Construdeco · chimeneas', pegatina: 'prov-dinak' },

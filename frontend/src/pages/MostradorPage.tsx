@@ -22,7 +22,7 @@ import { ParaQueSirve } from '../components/ParaQueSirve';
 import './mostrador.css';
 
 // ════════════════════════════════════════════════════════════════════════
-// Mostrador (tableta junto al ordenador de ventas). En pruebas, oct. 2026.
+// Mostrador (tableta junto al ordenador de ventas). Oct. 2026; para toda la tienda desde el 19/10/2026.
 // Buscar con el dedo un artículo de las tarifas y ver su precio en grande para
 // pasarlo a TreyFACT. Todo en una pantalla: a la izquierda se navega
 // (proveedor → familia → medida) o se busca; a la derecha, el precio elegido
@@ -298,7 +298,6 @@ export function MostradorPage() {
               ))}</nav>}
               <h1>{titulo}</h1>
             </div>
-            <span className="mo-pruebas">En pruebas</span>
           </div>
           {/* Aviso de las que no se pudieron leer: en la portada y al buscar (dentro de otra tarifa, no molesta) */}
           {error && tarifas.length > 0 && (!prov || q.trim()) && <ConnectionError message={error} onRetry={cargar} />}

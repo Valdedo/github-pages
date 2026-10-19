@@ -87,6 +87,8 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'Mostrador', items: [
     { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
     { to: '/tarifas', label: 'Tarifas de proveedor', short: 'Tarifas', icon: BookMarked },
+    // La tableta del mostrador: para toda la tienda desde el 19/10/2026 (antes, en pruebas)
+    { to: '/mostrador', label: 'Tarifas en la tableta', short: 'Tableta', icon: Tablet },
     { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
   ] },
   { titulo: 'Proveedores', items: [
@@ -101,7 +103,6 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   // Lo que se está probando: solo lo ve el encargado
   { titulo: 'En pruebas', items: [
     { to: '/vencimientos', label: 'Vencimientos', icon: CalendarClock, soloEncargado: true },
-    { to: '/mostrador', label: 'Tarifas en la tableta', short: 'Tableta', icon: Tablet, soloEncargado: true },
   ] },
 ];
 const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
@@ -450,8 +451,8 @@ function AppShell() {
     arrancarCola(); arrancarColaCargas(); // órdenes de carga: toda la tienda y el reparto
   }, []);
   if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /><NuevaVersion /></>;
-  // Mostrador (tableta junto al ordenador de ventas): a pantalla completa, sin el menú. En pruebas: solo el encargado.
-  if (location.pathname === '/mostrador' && getRol() === 'admin') {
+  // Mostrador (tableta junto al ordenador de ventas): a pantalla completa, sin el menú. Encargado y tienda (19/10/2026).
+  if (location.pathname === '/mostrador' && (getRol() === 'admin' || getRol() === 'tienda')) {
     return <><ErrorPantalla><Suspense fallback={<Cargando />}><MostradorPage /></Suspense></ErrorPantalla><AvisosGlobales /><NuevaVersion /></>;
   }
   const reparto = getRol() === 'reparto' || location.pathname === '/reparto' || isReparto();

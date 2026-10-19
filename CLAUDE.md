@@ -75,8 +75,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 
 ## Novedades y tutorial
 - `components/Novedades.tsx`: aviso que sale una vez por dispositivo al abrir la app (clave `cfNovedadesVistas` = `VERSION`);
-  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-10-16` (tarifas nuevas Isoltubex y mallas; sigue lo del
-  15/10: tarifas con IVA, «Volver», firmantes y anular firma, buscar sin tildes).
+  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-10-19` (tarifas para todos: Pladur, Dinak, ladrillos, gas,
+  morteros y piensos; familias en lista; «Para qué sirve»; tarifas en la tableta).
 - `components/Tutorial.tsx`: tutorial guiado con hueco de luz sobre cada botón (`PASOS`: ruta, selectores `data-tour`/clase,
   texto; si no encuentra el botón, el cartel sale en el centro). Se abre desde las Novedades o «Tutorial» del menú (`abrirTutorial`).
   Al cambiar pantallas, mantener los `data-tour` (`nav-*`, `subir-albaranes`, `filtro-cliente`, `nueva-carga`).
@@ -118,7 +118,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   Google Sheets (las actualizan las tareas programadas de Claude); la app las lee con la acción `hoja` del Apps Script
   (`tools/correo-casafonso.gs`, la hoja tiene que estar compartida con casafonsomc), guarda copia en `tarifa_copias`
   y apunta cada precio visto en `tarifa_precios` (evolución). Lector por proveedor en `services/tarifas_service.py`
-  (`LECTORES`: Hierros Santander, Zabaleta, Isoltubex, Silva, Pladur y Dinak, ladrillos y las hojas de la tienda: gas, morteros, piensos; Zabaleta trae cada línea de factura en «Detalle facturas», así que la evolución y la factura exacta salen de ahí, y en la app se enseña con una organización propia: 14 familias, grupos, tipo de pieza con sus medidas y un nombre claro por referencia, en `backend/app/data/zabaleta_catalogo.json`, generado con `tools/zabaleta-clasifica.py`; las referencias nuevas salen en «Nuevos (sin ordenar)» de su familia hasta que se añaden al clasificador; sus PDF están en la carpeta NAVARRO ZABALETA del Drive de casafonsomc, `Zabaleta_AAAA-MM-DD_nº.pdf`); Isoltubex (oct. 2026; **para todos desde el 16/10/2026**, decisión de Andrés; la marca `en_pruebas` de `TARIFAS` — `_prov`/`resumen` en `api/tarifas.py` devuelven 404 / la ocultan al resto — sigue para Pladur y Dinak): hoja «TARIFA_ISOLTUBEX_2026» `1JGwp…` (hay dos copias viejas de abril con el mismo nombre: no usarlas), una pestaña por tipo de accesorio + SIN_NETO_AVISO; sin facturas (el coste es el de sus listas de netos, mes en las notas de INICIO). Se ordena con reglas en `services/isoltubex.py` (9 familias, grupos, tipo de pieza, medida «16 × ½″» y nombre claro; las referencias nuevas caen solas). Fotos del catálogo oficial (isoltubex.net, catalogoIsoltubex2025.pdf) en `frontend/public/catalogo/iso/`, por referencia y por tipo en `backend/app/data/isoltubex_fotos.json`, generadas con `tools/isoltubex-fotos.py` (correcciones a mano en FORZAR / XREF_GRUPO / XREF_REF); pegatinas `st-iso-*`). Pegatinas en `frontend/public/catalogo/` (generadas con
+  (`LECTORES`: Hierros Santander, Zabaleta, Isoltubex, Silva, Pladur y Dinak, ladrillos y las hojas de la tienda: gas, morteros, piensos; Zabaleta trae cada línea de factura en «Detalle facturas», así que la evolución y la factura exacta salen de ahí, y en la app se enseña con una organización propia: 14 familias, grupos, tipo de pieza con sus medidas y un nombre claro por referencia, en `backend/app/data/zabaleta_catalogo.json`, generado con `tools/zabaleta-clasifica.py`; las referencias nuevas salen en «Nuevos (sin ordenar)» de su familia hasta que se añaden al clasificador; sus PDF están en la carpeta NAVARRO ZABALETA del Drive de casafonsomc, `Zabaleta_AAAA-MM-DD_nº.pdf`); Isoltubex (oct. 2026; **para todos desde el 16/10/2026**, decisión de Andrés; la marca `en_pruebas` de `TARIFAS` — `_prov`/`resumen` en `api/tarifas.py` devuelven 404 / la ocultan al resto — ya no la lleva ninguna desde el 19/10/2026; se queda para lo nuevo que haya que probar): hoja «TARIFA_ISOLTUBEX_2026» `1JGwp…` (hay dos copias viejas de abril con el mismo nombre: no usarlas), una pestaña por tipo de accesorio + SIN_NETO_AVISO; sin facturas (el coste es el de sus listas de netos, mes en las notas de INICIO). Se ordena con reglas en `services/isoltubex.py` (9 familias, grupos, tipo de pieza, medida «16 × ½″» y nombre claro; las referencias nuevas caen solas). Fotos del catálogo oficial (isoltubex.net, catalogoIsoltubex2025.pdf) en `frontend/public/catalogo/iso/`, por referencia y por tipo en `backend/app/data/isoltubex_fotos.json`, generadas con `tools/isoltubex-fotos.py` (correcciones a mano en FORZAR / XREF_GRUPO / XREF_REF); pegatinas `st-iso-*`). Pegatinas en `frontend/public/catalogo/` (generadas con
   `tools/pegatinas-catalogo.py`); las fotos de referencia se enlazan desde Obramat/Leroy Merlin (`lib/tarifas.ts`),
   no se copian al repo. En el ordenador (≥1100 px) las medidas van en filas con un panel fijo a la derecha
   (precio, coste y factura sin salir de la lista); en móvil, barra flotante «Ver ficha». La búsqueda sale en tabla en el
@@ -135,7 +135,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   nudo fijo) en `frontend/public/catalogo/silva/`, por familia (`foto` del lector y `fotoArticulo` en `lib/tarifas.ts`). También
   sustituyen a la pegatina de la familia (tarjetas, cabecera, buscador): `claveFamilia` devuelve `silva-*` y `pegatina()` da la foto;
   estilo con borde blanco en `tarifas.css` (`img[src^="/catalogo/silva/"]`).
-- **Pladur y Dinak (Construdeco, 16/10/2026, en pruebas: solo admin)**: lectores en `services/construdeco.py`
+- **Pladur y Dinak (Construdeco, 16/10/2026; para todos desde el 19/10/2026)**: lectores en `services/construdeco.py`
   (`leer_pladur`, `leer_dinak`). Hojas de Mi unidad de Andrés compartidas con casafonsomc: «tarifa_pladur_construdeco»
   `1IK8J…` y «TARIFA_DINAK_2024_2026» `1-Se5r…`; las actualizan las tareas de los miércoles y los jueves con los pedidos
   de Construdeco (carpeta CONSTRUDECO `1118ym…`; los PDF se llaman por la hora del escaneo, así que no se enlaza la factura:
@@ -149,7 +149,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   código Dinak en dos filas (030120020a/b) se junta en el del precio más reciente; filas sin descripción ni precio, fuera
   (`incompletas`). Fotos: Pladur e Isover del fabricante en `frontend/public/catalogo/pladur/` (`tools/pladur-fotos.py`);
   Placo y Dinak, de referencia de Obramat (`FOTOS_ADEO`, se enlazan); lo que no tiene una parecida, la pegatina. Pegatinas
-  `st-pla-*` y `st-dk-*`. A quien no las ve, Pladur y Dinak le siguen saliendo en «Próximamente».
+  `st-pla-*` y `st-dk-*`.
   **Pedidos (16/10/2026)**: hoja «PEDIDOS_CONSTRUDECO» `1mmxp…` (Mi unidad de Andrés, lector casafonsomc; `PEDIDOS_CONSTRUDECO`
   y `"pedidos"` en `TARIFAS`): una fila por línea de pedido de Pladur y Dinak desde 2024 (Fecha dd/mm/aaaa · Documento ·
   Tipo Compra/Presupuesto/Devolución · Tarifa Pladur/Dinak · Código · Descripción · Ud · Cantidad · Precio neto · Importe ·
@@ -160,7 +160,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   último pedido, precio anterior y «Abrir pedido (PDF)» (`pdf` → drive.google.com/file/d/…). Si el último pedido trae otro
   precio que la hoja, «Revisar precio» y un apunte; si el código de la hoja no es el de los pedidos, también se apunta.
   Presupuestos (Pladur, R24-003271): «De dónde sale el coste · Presupuesto», no cuentan como compras.
-- **Ladrillos (16/10/2026, en pruebas: solo admin)**: hoja «TARIFA_LADRILLOS_2026» `13c9n…` en Mi unidad de Andrés (tiene que
+- **Ladrillos (16/10/2026; para todos desde el 19/10/2026)**: hoja «TARIFA_LADRILLOS_2026» `13c9n…` en Mi unidad de Andrés (tiene que
   estar compartida con casafonsomc como lector). Hecha desde la hoja de mostrador **vigente desde el 09/09/2026**
   (`Hoja_Mostrador_Ladrillos_ago2026.pdf`, compra del 08/08/2026; las hojas «Tarifa_Ladrillos_*» e «Importacion_TreyFact_Ladrillos»
   de mayo en Drive son **antiguas**). Pestañas INICIO y TARIFA: una fila por ladrillo; el lector `leer_ladrillos` busca las columnas
@@ -173,7 +173,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   fotos de Cerámica Campo en `frontend/public/catalogo/lad/` (de su web; el rasillón machihembrado, del dibujo de su ficha técnica,
   porque en la web no tiene foto) y de referencia (Obramat, se enlazan) para lo de Alar, que no es de Campo (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
 - `eur()` enseña el tercer decimal por debajo de 1 € si lo tiene (0,242 € con IVA); los importes (cantidad × precio) con `eurC`.
-- **Bombonas de gas (16/10/2026, en pruebas: solo admin)**: hoja «TARIFA_GAS_BOMBONAS» `17sRs…` en Mi unidad de Andrés
+- **Bombonas de gas (16/10/2026; para todos desde el 19/10/2026)**: hoja «TARIFA_GAS_BOMBONAS» `17sRs…` en Mi unidad de Andrés
   (compartida con casafonsomc), pestaña TARIFA: Familia | Grupo | Artículo | PVP con IVA | Sin IVA (fórmula, solo para mirar).
   No es tarifa de compra: solo el PVP con IVA de las hojas plastificadas de la tienda, que Andrés cambia a mano (decisión suya:
   los precios tal cual los tenía). Lector `services/gas.py` (`gas.leer`): «Butano y propano» (Repsol, Cepsa, Casco vacío) y
@@ -191,7 +191,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `frontend/public/catalogo/gas/` (`tools/gas-fotos.py`: Repsol de su tienda online, Cepsa de su cartel, Campingaz de tiendas de
   camping) y `gas.foto()` elige la de cada fila; las rojas de camping y sus envases (2,8 y 0,5 kg) van dibujadas porque no se sabe la marca.
   Si la tienda saca fotos suyas, sustituir esos .webp con el mismo nombre.
-- **Morteros y cementos · Piensos (17/10/2026, en pruebas: solo admin)**: igual que las bombonas, de las hojas plastificadas
+- **Morteros y cementos · Piensos (17/10/2026; para todos desde el 19/10/2026)**: igual que las bombonas, de las hojas plastificadas
   de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1EJWG…` (la primera, `1BvDP…`, está en la papelera) y «TARIFA_PIENSOS» `1NOFS…` (la anterior, `1aY4m…`, en la papelera) en Mi
   unidad de Andrés (compartidas con casafonsomc), pestaña TARIFA. Costes sacados de Drive el 17/10/2026: morteros de Grupo Puma
   (facturas FNV-…), Tudela Veguín (cemento, CEM V/A 32,5 N de 35 kg: el saco morado) y Construdeco (Prefasec y piedra país, pedidos);
@@ -247,8 +247,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
     (PE020 → PAL10020, más caro). Dos referencias con el mismo nombre claro en la misma familia se juntan solas como «antes».
   - Isoltubex: la misma pieza en la lista de netos y sin neto (PEX16-B4 / PEX-A16B4) → se queda la de precio, la otra como
     «también» (`isoltubex.leer`). «Marsella reducido 1/2 M - 3/8 H» ya sale como ⅜″ × ½″.
-  - **Vista nueva de la familia, en pruebas (solo admin)**: `TarifaFamiliaPage` elige `FamiliaNueva` (encargado) o
-    `FamiliaActual` (tienda y Manolo, la de siempre). Medidas arriba (`mp`/`op`/`ms` de cada pieza, de `medida_principal` y
+  - **Vista nueva de la familia (para todos desde el 19/10/2026)**: `TarifaFamiliaPage` = `FamiliaNueva` (la de antes,
+    `FamiliaActual`, con botones de medida, se quitó). Medidas arriba (`mp`/`op`/`ms` de cada pieza, de `medida_principal` y
     `medidas_de`: «todo lo de 20», una reducción 3/4"×1/2" sale también en 1/2"; solo si hay ≥4 y alguna junta grupos
     distintos; `?medida=` en la dirección). Grupos con varias piezas de la misma medida (tubos con `metros`, `repes`, etiquetas
     repetidas) van en filas con código, precio y €/m; los demás, en botones. Código a la vista en filas, panel, barra del móvil,
@@ -261,16 +261,17 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
     ordenador, abiertas si la familia tiene ≤40 artículos. «Abrir/Cerrar todas las medidas» (`todas`) y las que se tocan a mano
     (`a`) van en la dirección: al volver de la ficha sigue igual. Cerrada, la línea dice las medidas («3/4" · 1 1/4"» o «8 medidas
     · de X a Y») y ▲/▼ si alguna cambió. Hierros: la línea de la medida dice «50×50×3» en vez de «3». Clases `tfl-*`.
-    La tienda y Manolo siguen con la de siempre (`FamiliaActual`) hasta que Andrés diga.
-    Cuando Andrés la apruebe: dejar solo `FamiliaNueva` y quitar los `esEncargado()` de Resultados, panel y ficha.
+    **19/10/2026, Andrés: «todas las tarifas como están para mí, de la misma forma para el resto»**: todas las tarifas sin
+    `en_pruebas`, solo `FamiliaNueva` y sin los `esEncargado()` de Resultados, panel y ficha (código a la vista para todos).
+    La tienda y Manolo ya veían el coste y el margen; eso no cambia.
   - Pruebas: `backend/tests/test_tarifas.py` (datos inventados: el repo es público, no van precios reales).
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
-## Mostrador: tarifas en la tableta (14/10/2026, en pruebas: solo admin)
+## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)
 - Tableta junto al ordenador de ventas: buscar con el dedo y ver el precio en grande para pasarlo a TreyFACT.
   `/mostrador` (`pages/MostradorPage.tsx` + `mostrador.css`), a pantalla completa y sin el menú (`AppShell` en `App.tsx`;
-  a la tienda le manda a `/tarifas`). En el menú: En pruebas → «Tarifas en la tableta».
+  admin y tienda; Manolo no la tiene). En el menú: Mostrador → «Tarifas en la tableta».
 - Lee todas las tarifas al entrar (búsqueda al instante; lo más parecido arriba: código exacto, luego lo que empieza igual).
   Si una no se puede leer (hoja sin compartir, Drive caído), las demás siguen: aviso en la portada «No se pudo leer la tarifa
   de…» con «Reintentar», y al entrar en esa sale su error (`fallidas`, `Promise.allSettled`). Antes se quedaba toda la tableta en error.

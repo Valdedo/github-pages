@@ -80,7 +80,6 @@ TARIFAS = {
         "desde": datetime(2026, 10, 16, 17, 29),  # copias de antes: sin los pedidos ni las correcciones de la hoja
         "redondeo": "redondeado a 0,10 € hacia arriba",
         "origen_corto": "albarán de Construdeco",
-        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     "dinak": {
         "nombre": "Dinak",
@@ -93,7 +92,6 @@ TARIFAS = {
         "redondeo": "25 % del precio de venta (coste ÷ 0,75), sin redondear",
         "origen_corto": "pedido de Construdeco",
         "fabricante": "Dinak 2026",
-        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     "ladrillos": {
         "nombre": "Ladrillos",
@@ -103,7 +101,6 @@ TARIFAS = {
         "hoja": "13c9n7tc835qQ1CYgqfMMUTAk55YkRiBZ4jkVPQWPlLY",
         "pestanas": ["TARIFA"],
         "redondeo": "por unidad, al alza a 0,05 €; el palé, al euro",
-        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     # Bombonas de gas (16/10/2026): solo PVP con IVA, el de las hojas de la tienda; Andrés lo cambia a mano en la hoja.
     "gas": {
@@ -114,7 +111,6 @@ TARIFAS = {
         "pestanas": None,
         # Pocos artículos: todos de golpe en una cuadrícula con foto y precio, sin pasar por familias (Andrés, 16/10/2026)
         "vista": "cuadricula",
-        "en_pruebas": True,  # solo Andrés hasta que dé el visto bueno (api/tarifas.py)
     },
     # Morteros y piensos (17/10/2026): como las bombonas, de las hojas plastificadas de la tienda y en cuadrícula
     # (lector común en services/hoja_tienda.py). Precio de venta con IVA; el coste, si se apunta en la hoja.
@@ -127,7 +123,6 @@ TARIFAS = {
         "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
         "vista_ordenador": "lista",  # en el ordenador, lista compacta (la cuadrícula grande quedaba enorme, Andrés)
-        "en_pruebas": True,
     },
     "piensos": {
         "nombre": "Piensos",
@@ -138,7 +133,6 @@ TARIFAS = {
         "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
         "vista_ordenador": "lista",  # en el ordenador, lista compacta (la cuadrícula grande quedaba enorme, Andrés)
-        "en_pruebas": True,
     },
 }
 
