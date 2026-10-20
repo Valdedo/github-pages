@@ -1,0 +1,45 @@
+/* Horario de Melchor en su pantalla de reparto (components/HorarioReparto.tsx, 20/10/2026, opción C) */
+
+/* Hoy, dentro de la cabecera verde (.reparto-hero pone display:block, 17px y verde claro a todos los span) */
+.reparto-hero .hr-hoy { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding: 14px 16px; border-radius: 16px;
+  background: rgb(255 255 255 / .1); border: 2px solid rgb(255 255 255 / .22); }
+.reparto-hero .hr-hoy span { font-size: inherit; color: inherit; }
+.reparto-hero .hr-hoy .hr-hoy-fecha { font-size: 16px; font-weight: 700; color: #D5E8DC; }
+.reparto-hero .hr-hoy-horas { display: flex; align-items: flex-end; gap: 14px; }
+.reparto-hero .hr-hoy-horas > span:not(.hr-hoy-flecha) { display: flex; flex-direction: column; }
+.reparto-hero .hr-hoy-horas small { font-size: 15px; font-weight: 600; color: #D5E8DC; }
+.reparto-hero .hr-hoy-horas b { font: 600 44px/1 var(--font-display); color: #fff; }
+.reparto-hero .hr-hoy .hr-hoy-flecha { display: inline; font-size: 30px; color: var(--cf-verde); padding-bottom: 4px; }
+.reparto-hero .hr-hoy .hr-hoy-nota { font-size: 14.5px; color: #D5E8DC; }
+.reparto-hero .hr-hoy-libre { font: 600 36px/1.1 var(--font-display); color: #fff; }
+@media (max-width: 360px) { .reparto-hero .hr-hoy-horas b { font-size: 38px; } }
+
+/* La semana, debajo de lo de cargar */
+.hr { padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 16px; }
+.hr-cab { display: flex; align-items: center; gap: 8px; font: 600 17px var(--font-display); text-transform: uppercase;
+  letter-spacing: .02em; color: var(--cf-bosque); }
+.hr-semana { display: flex; flex-direction: column; gap: 8px; }
+.hr-semana-tit { font-size: 16px; font-weight: 700; color: var(--text-1); }
+.hr-semana-tit small { display: block; font-size: 14px; font-weight: 500; color: var(--text-3); }
+.hr-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.hr-lista li { padding: 11px 14px; border-radius: 12px; background: var(--brand-pale); font-size: 16.5px; }
+.hr-lista-fila { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.hr-lista-dia { color: var(--text-1); font-weight: 600; }
+.hr-lista-dia b { font-weight: 700; }
+.hr-lista-horas { color: var(--text-2); white-space: nowrap; }
+.hr-lista-horas b { color: var(--cf-bosque-2); font-size: 18px; }
+.hr-lista li.libre { background: var(--surface-2); }
+.hr-lista li.libre .hr-lista-dia { color: var(--text-3); font-weight: 500; }
+.hr-lista-libre { color: var(--text-3); font-weight: 600; }
+.hr-lista-nota { display: block; margin-top: 2px; font-size: 13.5px; color: var(--text-2); }
+@media (max-width: 360px) {
+  .hr { padding: 14px 12px 12px; }
+  .hr-lista li { padding: 10px 12px; font-size: 15.5px; }
+  .hr-lista-horas b { font-size: 16.5px; }
+}
+
+/* Ver más turnos */
+.hr-vermas { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 52px; border-radius: 999px;
+  border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--cf-bosque-2); font-size: 16.5px;
+  font-weight: 700; text-decoration: none; }
+.hr-vermas:active { background: var(--brand-pale); }

@@ -89,6 +89,13 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   Tarjeta: turno de hoy, mañana y el siguiente día que trabaja (equipos de la tienda: «Tienda» y los turnos de hoy de todos),
   Mis turnos, avisos, Mi código, Códigos y Márgenes (admin), tutorial y cerrar sesión. Sustituye a los enlaces de sesión.
   Melchor también lo tiene en la cabecera del reparto (sin tutorial); su tarjeta de turno y sus enlaces de abajo se quitaron.
+- **Horario de Melchor en su pantalla (20/10/2026, opción C elegida por Andrés entre tres; «es nulo para la tecnología»)**:
+  `components/HorarioReparto.tsx` + `horario.css`. `HoyCabecera` dentro de la cabecera verde de `RepartoPage`: «Hoy, martes 20 ·
+  Entras 8:30 → Sales 18:30 · Comida de 13:30 a 14:30» (o «Libras», «Estás de vacaciones», «Festivo · nombre»). Debajo de lo de
+  cargar, `HorarioReparto`: «Tu horario» con lo que queda de esta semana (desde mañana) y la semana que viene, un día por renglón
+  con el nombre entero y «de 8:30 a 18:30» (entra y sale; la comida no) o «Libras»; el domingo solo si trabaja; la nota del
+  cambio debajo. «Ver más turnos» → `/turnos`. Lee `GET /api/turnos/cuadrante` (lunes de esta semana, 14 días), que el
+  service worker guarda para sin cobertura. Las otras dos opciones (casillas arriba, lista arriba) se descartaron.
 - Turnos de una persona: «Semana | Mes» (`vistaP`; móvil empieza en semana, ordenador en mes). Semana = un día por fila con
   el horario grande, se desliza para cambiar de semana y el encargado toca un día para cambiarlo. Mes en el móvil = rayita de
   color por tipo (`tcal-<tipo>`) en vez de texto. «Turnos» sigue también en el menú (decisión de Andrés, primer mes).

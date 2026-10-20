@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HorarioReparto, HoyCabecera } from '../components/HorarioReparto';
 import { Vacio } from '../components/Pegatinas';
 import { PenLine, ChevronRight, CheckCircle, RefreshCw, CloudOff, AlertTriangle } from 'lucide-react';
 import { listFirmas, describeApiError, paraCargar, verCarga, type OrdenCarga } from '../api/client';
@@ -7,7 +8,7 @@ import { CargasReparto, cargasEntregadas, cargasPendientes } from '../components
 import { ConnectionError } from '../components/ConnectionError';
 import { AvisosCard } from '../components/AvisosCard';
 import { setReparto } from '../reparto';
-import { getRol } from '../auth';
+import { getRol, getYo } from '../auth';
 import { fmtFecha, fmtEuros } from './FirmasPage';
 import { cola, enviarCola, prepararSinCobertura, reintentarFirma, descartarFirma, type FirmaEnCola } from '../lib/offline';
 import type { ClientDeliveryNote } from '../types';
@@ -30,6 +31,8 @@ export function RepartoPage() {
   const [, setColaCargas] = useState(0);
 
   useEffect(() => { setReparto(true); }, []);
+  // Su horario (20/10/2026): hoy en la cabecera y la semana debajo de lo de cargar
+  const yo = getYo() || 'melchor';
   const nombre = (() => { try { return localStorage.getItem('repartoNombre') || 'Melchor'; } catch { return 'Melchor'; } })();
 
   const load = useCallback((quiet = false) => {
@@ -96,6 +99,7 @@ export function RepartoPage() {
             <RefreshCw size={16} /> Actualizar
           </button>
         </div>
+        <HoyCabecera yo={yo} />
       </div>
 
       {!online && (
@@ -199,6 +203,8 @@ export function RepartoPage() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: 28 }}><HorarioReparto yo={yo} /></div>
 
       <div style={{ marginTop: 24 }}><AvisosCard grande /></div>
 
