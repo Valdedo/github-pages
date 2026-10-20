@@ -133,6 +133,7 @@ TARIFAS = {
         "redondeo": "precio de la hoja de la tienda",
         "vista": "cuadricula",
         "vista_ordenador": "lista",  # en el ordenador, lista compacta (la cuadrícula grande quedaba enorme, Andrés)
+        "ocultar_a": ("consulta",),  # Manolo no la ve (Andrés, 20/10/2026)
     },
 }
 
@@ -1034,10 +1035,15 @@ def _grupos_sub(arts: list, orden: Optional[list] = None, por_nombre: bool = Tru
     return out
 
 
-def resumen(db: Session, en_pruebas: bool = True) -> list:
+def oculta(prov: str, rol: str | None) -> bool:
+    """Tarifas que no ve un rol («ocultar_a»; p. ej. Manolo no ve los piensos)."""
+    return bool(rol) and rol in TARIFAS[prov].get("ocultar_a", ())
+
+
+def resumen(db: Session, en_pruebas: bool = True, rol: str | None = None) -> list:
     out = []
     for prov, cfg in TARIFAS.items():
-        if cfg.get("en_pruebas") and not en_pruebas:
+        if (cfg.get("en_pruebas") and not en_pruebas) or oculta(prov, rol):
             continue
         try:
             c, _ = copia(db, prov)  # la primera vez se lee de Drive para poder dar los números

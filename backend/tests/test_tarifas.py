@@ -1,6 +1,7 @@
 """Tarifas de proveedor: códigos comodín y artículos repetidos de Zabaleta, y la medida por la que se filtra
 una familia (oct. 2026). Datos inventados: el repositorio es público, no van precios reales."""
 import json
+import pytest
 
 from app.services import tarifas_service as ts
 
@@ -419,3 +420,22 @@ def test_para_que_sirve_por_palabras_y_columna_de_la_hoja(tmp_path, monkeypatch)
         assert fichas_producto.buscar("no-existe", "Cola blanca") is None
     finally:
         fichas_producto._productos.cache_clear()
+
+
+def test_piensos_ocultos_a_manolo(monkeypatch):
+    """Manolo (rol consulta) no ve la tarifa de piensos: ni en la lista ni abriéndola (Andrés, 20/10/2026)."""
+    from fastapi import HTTPException
+    from types import SimpleNamespace
+    from app.api import tarifas as api
+    monkeypatch.setattr(api.acc, "config", lambda: True)
+    pide = lambda rol: SimpleNamespace(state=SimpleNamespace(rol=rol))
+    assert ts.oculta("piensos", "consulta") and not ts.oculta("piensos", "tienda") and not ts.oculta("gas", "consulta")
+    with pytest.raises(HTTPException) as e:
+        api._prov("piensos", pide("consulta"))
+    assert e.value.status_code == 404
+    assert api._prov("piensos", pide("tienda")) == "piensos"
+    assert api._prov("gas", pide("consulta")) == "gas"
+    monkeypatch.setattr(ts, "copia", lambda db, prov, forzar=False: (_ for _ in ()).throw(RuntimeError("sin Drive")))
+    sin = SimpleNamespace(get=lambda *a: None)
+    assert "piensos" not in [t["id"] for t in ts.resumen(sin, en_pruebas=False, rol="consulta")]
+    assert "piensos" in [t["id"] for t in ts.resumen(sin, en_pruebas=False, rol="tienda")]

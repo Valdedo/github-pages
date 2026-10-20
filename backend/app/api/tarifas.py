@@ -20,16 +20,22 @@ def _admin(request: Request) -> bool:
     return not acc.config() or getattr(request.state, "rol", None) == "admin"
 
 
+def _rol(request: Request):
+    return getattr(request.state, "rol", None) if acc.config() else None
+
+
 def _prov(prov: str, request: Request) -> str:
-    # Las tarifas «en pruebas» (Isoltubex, oct. 2026) solo las ve Andrés hasta que dé el visto bueno
-    if prov not in ts.TARIFAS or (ts.TARIFAS[prov].get("en_pruebas") and not _admin(request)):
+    # Las tarifas «en pruebas» (Isoltubex, oct. 2026) solo las ve Andrés hasta que dé el visto bueno;
+    # «ocultar_a»: las que no ve un rol (Manolo no ve los piensos, 20/10/2026)
+    if (prov not in ts.TARIFAS or (ts.TARIFAS[prov].get("en_pruebas") and not _admin(request))
+            or ts.oculta(prov, _rol(request))):
         raise HTTPException(404, "Esa tarifa no está en el catálogo")
     return prov
 
 
 @router.get("")
 def proveedores(request: Request, db: Session = Depends(get_db)):
-    return ts.resumen(db, en_pruebas=_admin(request))
+    return ts.resumen(db, en_pruebas=_admin(request), rol=_rol(request))
 
 
 @router.get("/{prov}")

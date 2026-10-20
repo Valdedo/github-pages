@@ -18,6 +18,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   Backend: lista blanca `_CONSULTA` en `main.py` (GET de tarifas y vencimientos, y «volver a leer» la tarifa);
   `puede_ver` en `api/tarifas.py` y `api/vencimientos.py` (admin y consulta); los ajustes de vencimientos, solo admin.
   Sin avisos push por ahora. Su código lo pone Andrés desde «Códigos».
+  **No ve la tarifa de piensos** (Andrés, 20/10/2026): `"ocultar_a": ("consulta",)` en `TARIFAS` → `ts.oculta()`; la lista
+  (`resumen(rol=…)`) no la trae y `_prov` da 404, así que tampoco sale en su búsqueda. Para ocultarle otra, lo mismo.
 
 ## Reglas de la casa
 1. **Móvil y ordenador van a la par.** En la oficina se usa mucho el ordenador: todo tiene que estar
