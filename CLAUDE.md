@@ -181,6 +181,24 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (`orden_hoja`), pegatinas `st-lad-*` y `st-prov-ladrillos` (`tools/pegatinas-catalogo.py <carpeta> <nombres>` genera solo esas),
   fotos de Cerámica Campo en `frontend/public/catalogo/lad/` (de su web; el rasillón machihembrado, del dibujo de su ficha técnica,
   porque en la web no tiene foto) y de referencia (Obramat, se enlazan) para lo de Alar, que no es de Campo (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
+- **Inyectometal (21/10/2026, «en pruebas»: solo Andrés)**: hoja «TARIFA_INYECTOMETAL_2026» `1i4Iy…` en Mi unidad de Andrés
+  (compartida con casafonsomc **como editor**: se rellenó desde el navegador de la app con su sesión). Sale de la tarifa **M26**
+  que manda Inyectometal (aleon@inyectometal.com) en `Tarifa.csv` a casafonsomc: en vigor desde el **03/08/2026**, une el
+  catálogo y el «librito» de netos, 1.373 referencias. Los descuentos de Casa Fonso están en la hoja (columna «Dto. %», uno para
+  el catálogo y otro para los netos, y el segundo descuento en B15), **no en el repo** (es público). Una pestaña: arriba los márgenes por familia (B6:B14, sobre
+  coste; Andrés aprobó 40 % casi todo, 30 % racores para polietileno —así quedan como Obramat—, 45 % juntas y pequeño material),
+  debajo una fila por referencia: Grupo (cód. corto LR1, CU2…; familia y grupo salen de la tabla R:T por fórmula), Código y EAN
+  (texto), Descripción, Precio tarifa M26, Dto. %, y por ARRAYFORMULA en la fila 18: Coste neto, Margen %, PVP con IVA (al alza
+  a 0,05 €; 0,10 € desde 5 €; mínimo 0,10 €), PVP sin IVA (= con IVA ÷ 1,21), Evol. coste %; más Última compra / Pagado entonces
+  (la factura 2025/A/8994 del 02/10/2025, la única por correo, y el albarán A/9721 de 2024) y Aviso (las excéntricas: la M26
+  sale mucho más barata que lo pagado, revisar). La hoja está en español: decimales con coma y fórmulas con «;».
+  Lector `services/inyectometal.py` (`leer`): columnas por su título; el tipo de pieza y la medida salen de la descripción
+  («CODO LATON H-H 1/2» → «Codo latón H-H» · «½″», «CONTRA-ROSCA» → «Machón», variantes cromado/EVO/ECO/R/paso reducido al
+  tipo, serie del cobre «(serie 270)», latiguillos «⅜″ × ⅜″ · 75 cm»); en latón, válvulas, riego, flotadores y juntas la medida
+  del filtro es la rosca (`_principal`). `pvp_fab` solo en lo del catálogo (descuento grande). La evolución: lo pagado y el coste M26
+  (`hist_extra`, que `_ficha_lineas` añade). Pegatinas: las de Zabaleta de lo mismo (`INYECTOMETAL` en `lib/tarifas.ts`).
+  Si llega una tarifa nueva de Inyectometal: mismo formato (CodigoArticulo;CodigoAlternativo;Descripcion;Precio;dto…): rehacer
+  las filas de datos de la hoja y mantener las fórmulas de la fila 18.
 - `eur()` enseña el tercer decimal por debajo de 1 € si lo tiene (0,242 € con IVA); los importes (cantidad × precio) con `eurC`.
 - **Bombonas de gas (16/10/2026; para todos desde el 19/10/2026)**: hoja «TARIFA_GAS_BOMBONAS» `17sRs…` en Mi unidad de Andrés
   (compartida con casafonsomc), pestaña TARIFA: Familia | Grupo | Artículo | PVP con IVA | Sin IVA (fórmula, solo para mirar).

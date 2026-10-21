@@ -109,6 +109,7 @@ export const PEGATINA_PROVEEDOR: Record<string, string> = {
   hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla', pladur: 'prov-pladur', dinak: 'prov-dinak',
   ladrillos: 'prov-ladrillos',
   gas: 'prov-gas', morteros: 'prov-morteros', piensos: 'prov-piensos',
+  inyectometal: 'zab-laton',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
@@ -189,6 +190,12 @@ const LAD_FAMILIA: Record<string, string> = {
   'lad-hueco': '/catalogo/lad/bloque.webp', 'lad-semimacizo': '/catalogo/lad/semimacizo.webp',
   'lad-rasillon': '/catalogo/lad/rasillon.webp', 'lad-refractario': '/catalogo/lad/refractario.webp', 'lad-alar': ADEO('4415710'),
 };
+// Familias de Inyectometal (21/10/2026): las pegatinas de Zabaleta de lo mismo (latón roscado y cobre ya casan con las suyas)
+const INYECTOMETAL: [RegExp, string][] = [
+  [/^racores para polietileno/, 'zab-abastecimiento'], [/^valvulas y llaves/, 'zab-llaves'], [/^flotadores y boyas/, 'zab-sanitario'],
+  [/^riego y manguera/, 'zab-abastecimiento'], [/^conexiones flexibles/, 'zab-fontaneria'], [/^griferia y bano/, 'zab-sanitario'],
+  [/^juntas y pequeno material/, 'zab-ferreteria'],
+];
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
@@ -207,6 +214,8 @@ export function claveFamilia(nombre: string): string {
   if (iso) return iso[1];
   const lad = LADRILLOS.find(([rx]) => rx.test(n));
   if (lad) return lad[1];
+  const iny = INYECTOMETAL.find(([rx]) => rx.test(n));
+  if (iny) return iny[1];
   const z = ZABALETA.find(([rx]) => rx.test(n));
   if (z) return z[1];
   return FAMILIAS.find(([rx]) => rx.test(n))?.[1] ?? 'malla';

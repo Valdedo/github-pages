@@ -20,7 +20,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import construdeco, gas, isoltubex, mail_service, morteros, piensos
+from app.services import construdeco, gas, inyectometal, isoltubex, mail_service, morteros, piensos
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +134,19 @@ TARIFAS = {
         "vista": "cuadricula",
         "vista_ordenador": "lista",  # en el ordenador, lista compacta (la cuadrícula grande quedaba enorme, Andrés)
         "ocultar_a": ("consulta",),  # Manolo no la ve (Andrés, 20/10/2026)
+    },
+    # Inyectometal (21/10/2026, en pruebas): tarifa M26 (en vigor desde el 03/08/2026) con las condiciones de Casa Fonso
+    # (en la hoja, no aquí). La hoja hace las cuentas (coste, margen por familia y PVP); ver inyectometal.py.
+    "inyectometal": {
+        "nombre": "Inyectometal",
+        "sub": "Racorería de latón, válvulas, flexos y grifería",
+        "proveedor": "Inyectometal (vía Representaciones Asla Bermúdez)",
+        "hoja": inyectometal.HOJA,  # TARIFA_INYECTOMETAL_2026 (Mi unidad de Andrés)
+        "pestanas": None,
+        "en_pruebas": True,
+        "redondeo": "con IVA, al alza a 0,05 € (0,10 € desde 5 €); sin IVA = con IVA ÷ 1,21",
+        "fabricante": "Inyectometal M26",
+        "origen_corto": "tarifa M26",
     },
 }
 
@@ -712,7 +725,7 @@ def leer_ladrillos(hojas: dict) -> dict:
 
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
             "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos, "gas": gas.leer,
-            "morteros": morteros.leer, "piensos": piensos.leer}
+            "morteros": morteros.leer, "piensos": piensos.leer, "inyectometal": inyectometal.leer}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -1200,6 +1213,10 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         historial = [dict(h) for h in a["hist"] if h.get("fecha")]
     if not historial and a["precio"] is not None and a["fecha"]:
         historial = [{"fecha": a["fecha"], "precio": a["precio"]}]
+    # Inyectometal: después de la última compra, el precio de la tarifa nueva (para ver lo que ha subido)
+    for h in a.get("hist_extra") or []:
+        if h.get("fecha") and not any(x["fecha"] == h["fecha"] for x in historial):
+            historial.append(dict(h))
     archivos = _archivos(c)
     ult = next((l for l in reversed(lineas) if l["fecha"] == a["fecha"]), lineas[-1] if lineas else None)
     factura = None

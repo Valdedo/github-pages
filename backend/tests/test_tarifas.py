@@ -439,3 +439,32 @@ def test_piensos_ocultos_a_manolo(monkeypatch):
     sin = SimpleNamespace(get=lambda *a: None)
     assert "piensos" not in [t["id"] for t in ts.resumen(sin, en_pruebas=False, rol="consulta")]
     assert "piensos" in [t["id"] for t in ts.resumen(sin, en_pruebas=False, rol="tienda")]
+
+
+# ── Inyectometal (21/10/2026): la hoja hace las cuentas; el lector saca el tipo de pieza y la medida ──
+def test_inyectometal_tipo_medida_y_compra():
+    from app.services import inyectometal as iy
+    cab = ["Grupo (cód.)", "Familia", "Grupo", "Código", "EAN", "Descripción", "Precio tarifa M26", "Dto. %", "Coste neto",
+           "Margen %", "PVP con IVA", "PVP sin IVA", "Última compra", "Pagado entonces (ud.)", "Evol. coste %", "Aviso", "",
+           "Grupo (cód.)", "Familia", "Grupo"]
+    filas = [["TARIFA INYECTOMETAL"], ["Familia", "Margen %"], ["Latón roscado", "40"], ["Dto. 2 % (todas)", "5"], cab,
+             ["LR6", "Latón roscado", "Codos y curvas", "1001", "8400000000001", "CODO LATON H-H 1 1/4", "10", "60",
+              "4,462", "40", "7,6", "6,281", "", "", "", "", "", "LR6", "Latón roscado", "Codos y curvas"],
+             ["LR6", "Latón roscado", "Codos y curvas", "1002", "", "CODO LATON M-H 1/2 CROMO", "2", "60",
+              "0,8924", "40", "1,55", "1,281", "02/10/2025 · fra. 2025/A/1", "0,7", "27,5", "", ""],
+             ["LR3", "Latón roscado", "Racores marsella", "1003", "", "RACOR MARSELLA M1/2-H3/4", "1", "10",
+              "0,8924", "40", "1,55", "1,281", "", "", "", "", ""],
+             ["CF4", "Conexiones flexibles", "Acero inoxidable", "1004", "", "CONEXION ACERO INOXIDABLE M3/8-H 3/8 75 CM",
+              "3", "10", "2,6772", "40", "4,55", "3,7603", "", "", "", "", ""]]
+    d = iy.leer({"Hoja 1": filas})
+    a = {x["ref"]: x for x in d["articulos"]}
+    assert a["1001"]["tipo"] == "Codo latón H-H" and a["1001"]["medida_c"] == "1¼″"
+    assert a["1001"]["pvp_iva"] == 7.6 and a["1001"]["pvp_fab"] == 10          # catálogo: su PVP de tarifa
+    assert "60 % + 5 %" in a["1001"]["origen"] and "− 5 %" in a["1001"]["apunte"]
+    assert a["1002"]["tipo"] == "Codo latón M-H cromado" and a["1002"]["medida_c"] == "½″"
+    assert a["1002"]["precio_ant"] == 0.7 and a["1002"]["fecha_ant"] == "2025-10-02"
+    assert d["lineas"]["1002"][0]["factura"] == "2025/A/1"
+    assert a["1003"]["tipo"] == "Racor marsella M-H" and a["1003"]["medida_c"] == "½″ × ¾″"
+    assert a["1003"]["pvp_fab"] is None                                            # netos: no es un PVP
+    assert a["1004"]["tipo"] == "Conexión acero inoxidable M-H" and a["1004"]["medida_c"] == "⅜″ × ⅜″ · 75 cm"
+    assert d["orden_familias"] == ["Latón roscado", "Conexiones flexibles"]
