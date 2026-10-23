@@ -292,6 +292,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
     **19/10/2026, Andrés: «todas las tarifas como están para mí, de la misma forma para el resto»**: todas las tarifas sin
     `en_pruebas`, solo `FamiliaNueva` y sin los `esEncargado()` de Resultados, panel y ficha (código a la vista para todos).
     La tienda y Manolo ya veían el coste y el margen; eso no cambia.
+  - Cabecera (`Cabecera` en `TarifasPage.tsx`, `.tf-cab` en `tarifas.css`; 23/10/2026): en el ordenador título y botones en la
+    misma fila si caben (el título pide 300 px); si no, los botones bajan a otra fila a la derecha. La tabla de datos de la ficha
+    (`.tf-carac`): el título del dato como mucho el 45 % del ancho.
   - Pruebas: `backend/tests/test_tarifas.py` (datos inventados: el repo es público, no van precios reales).
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
@@ -417,6 +420,9 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
 - Frontend: `npm run build && npx vite preview --port 3000` (proxy a :8000), o `npx vite` para desarrollo.
 - Sesión: poner en localStorage `cfToken`, `cfRol` (`admin`/`tienda`/`reparto`) y `cfAvisosNo='1'`.
 - Probar con Playwright en 390 px, 320 px, 1280×800, 1366×650 (portátil) y 1920×1080; mirar las capturas, no solo que no haya errores.
+  También ~860 px de ancho: un portátil de 1080 px con Windows al 125 % se ve así, con el menú plegado (23/10/2026: la cabecera de
+  las tarifas en cuadrícula ponía el título letra a letra). En títulos dentro de una fila flex, `overflow-wrap: break-word`, nunca
+  `anywhere` (con `anywhere` el título se deja estrechar hasta una letra), y que los botones puedan bajar a otra fila.
 
 ## Pendiente (octubre 2026)
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).

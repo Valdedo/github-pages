@@ -38,7 +38,7 @@
 .mo-volver:active { background: var(--brand-light); }
 .mo-titulo-peg { width: 76px; height: 76px; margin: -8px -6px; flex-shrink: 0; }
 .mo-titulo-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0; }
-.mo-titulo h1 { margin: 0; font-size: 30px !important; line-height: 1.1; text-transform: uppercase; overflow-wrap: anywhere; }
+.mo-titulo h1 { margin: 0; font-size: 30px !important; line-height: 1.1; text-transform: uppercase; overflow-wrap: break-word; }
 .mo-migas { display: flex; flex-wrap: wrap; align-items: center; color: var(--text-3); margin-left: -10px; }
 .mo-migas span { display: inline-flex; align-items: center; }
 .mo-migas button { border: 0; background: transparent; color: var(--cf-bosque); font-size: 16px; font-weight: 600; min-height: 40px; padding: 0 10px; border-radius: 999px; }
@@ -236,6 +236,9 @@
   .mo-buscar input { font-size: 19px; }
   .mo-provs { grid-template-columns: 1fr 1fr; }
   .mo-familias { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  /* En un móvil pequeño el título no cabe a 30 px al lado de «Volver» y el dibujo */
+  .mo-titulo h1 { font-size: 24px !important; }
+  .mo-titulo-peg { width: 60px; height: 60px; margin: -6px -4px; }
 }
 @media (prefers-reduced-motion: reduce) { .mo-hoja { animation: none; } .mo-familia { transition: none; } .mo-cuenta { animation: none; } }
 
