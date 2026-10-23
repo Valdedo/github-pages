@@ -77,8 +77,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 
 ## Novedades y tutorial
 - `components/Novedades.tsx`: aviso que sale una vez por dispositivo al abrir la app (clave `cfNovedadesVistas` = `VERSION`);
-  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-10-19` (tarifas para todos: Pladur, Dinak, ladrillos, gas,
-  morteros y piensos; familias en lista; «Para qué sirve»; tarifas en la tableta).
+  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-10-23` (tarifa de Inyectometal para todos;
+  «Tarifas en la tableta» solo en el menú de la tableta). La anterior, `2026-10-19`: Pladur, Dinak, ladrillos, gas, morteros y
+  piensos; familias en lista; «Para qué sirve»; tarifas en la tableta.
 - `components/Tutorial.tsx`: tutorial guiado con hueco de luz sobre cada botón (`PASOS`: ruta, selectores `data-tour`/clase,
   texto; si no encuentra el botón, el cartel sale en el centro). Se abre desde las Novedades o «Tutorial» del menú (`abrirTutorial`).
   Al cambiar pantallas, mantener los `data-tour` (`nav-*`, `subir-albaranes`, `filtro-cliente`, `nueva-carga`).
@@ -181,7 +182,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   (`orden_hoja`), pegatinas `st-lad-*` y `st-prov-ladrillos` (`tools/pegatinas-catalogo.py <carpeta> <nombres>` genera solo esas),
   fotos de Cerámica Campo en `frontend/public/catalogo/lad/` (de su web; el rasillón machihembrado, del dibujo de su ficha técnica,
   porque en la web no tiene foto) y de referencia (Obramat, se enlazan) para lo de Alar, que no es de Campo (`FOTOS_LAD`). m², kg y palé con `datosPieza` (lib/tarifas.ts). Margen: palé ≈15 % (al euro), suelto ≥30 % (a 0,05 €).
-- **Inyectometal (21/10/2026, «en pruebas»: solo Andrés)**: hoja «TARIFA_INYECTOMETAL_2026» `1i4Iy…` en Mi unidad de Andrés
+- **Inyectometal (21/10/2026; para todos desde el 23/10/2026)**: hoja «TARIFA_INYECTOMETAL_2026» `1i4Iy…` en Mi unidad de Andrés
   (compartida con casafonsomc **como editor**: se rellenó desde el navegador de la app con su sesión). Sale de la tarifa **M26**
   que manda Inyectometal (aleon@inyectometal.com) en `Tarifa.csv` a casafonsomc: en vigor desde el **03/08/2026**, une el
   catálogo y el «librito» de netos, 1.373 referencias. Los descuentos de Casa Fonso están en la hoja (columna «Dto. %», uno para
@@ -298,7 +299,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 ## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)
 - Tableta junto al ordenador de ventas: buscar con el dedo y ver el precio en grande para pasarlo a TreyFACT.
   `/mostrador` (`pages/MostradorPage.tsx` + `mostrador.css`), a pantalla completa y sin el menú (`AppShell` en `App.tsx`;
-  admin y tienda; Manolo no la tiene). En el menú: Mostrador → «Tarifas en la tableta».
+  admin y tienda; Manolo no la tiene). En el menú: Mostrador → «Tarifas en la tableta», **solo en tabletas** (Andrés, 23/10/2026:
+  en el móvil y el ordenador no sale): `soloTableta` en `navGroups` + `esTableta()` de `lib/dispositivo.ts` (puntero táctil o iPad,
+  y lado corto ≥600 px). La dirección `/mostrador` sigue abriéndose en cualquier aparato.
 - Lee todas las tarifas al entrar (búsqueda al instante; lo más parecido arriba: código exacto, luego lo que empieza igual).
   Si una no se puede leer (hoja sin compartir, Drive caído), las demás siguen: aviso en la portada «No se pudo leer la tarifa
   de…» con «Reintentar», y al entrar en esa sale su error (`fallidas`, `Promise.allSettled`). Antes se quedaba toda la tableta en error.

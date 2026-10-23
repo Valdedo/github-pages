@@ -23,6 +23,7 @@ import { useCfToast } from './components/CfToast';
 import { arrancarCola } from './lib/offline';
 import { arrancarColaCargas } from './lib/offlineCargas';
 import { getRol } from './auth';
+import { esTableta } from './lib/dispositivo';
 import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
 import './pages/consulta.css';
 
@@ -76,7 +77,7 @@ interface NavBadge {
 }
 
 // Menú agrupado por áreas del negocio (igual para la tienda y el encargado)
-type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean; soloEncargado?: boolean };
+type NavItem = { to: string; label: string; short?: string; icon: typeof FileText; badge?: keyof NavBadge; exact?: boolean; soloEncargado?: boolean; soloTableta?: boolean };
 const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'Clientes', items: [
     { to: '/firmas', label: 'Albaranes de venta', short: 'Ventas', icon: PenLine, badge: 'firmas' },
@@ -87,8 +88,8 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
   { titulo: 'Mostrador', items: [
     { to: '/consulta', label: 'Consultar precio', short: 'Precios', icon: Search },
     { to: '/tarifas', label: 'Tarifas de proveedor', short: 'Tarifas', icon: BookMarked },
-    // La tableta del mostrador: para toda la tienda desde el 19/10/2026 (antes, en pruebas)
-    { to: '/mostrador', label: 'Tarifas en la tableta', short: 'Tableta', icon: Tablet },
+    // La tableta del mostrador: para toda la tienda desde el 19/10/2026; en el menú solo sale en las tabletas (Andrés, 23/10/2026)
+    { to: '/mostrador', label: 'Tarifas en la tableta', short: 'Tableta', icon: Tablet, soloTableta: true },
     { to: '/etiquetas', label: 'Etiquetas', icon: Tag },
   ] },
   { titulo: 'Proveedores', items: [
@@ -105,7 +106,7 @@ const navGroups: { titulo: string; items: NavItem[] }[] = [
     { to: '/vencimientos', label: 'Vencimientos', icon: CalendarClock, soloEncargado: true },
   ] },
 ];
-const visible = (i: NavItem) => !i.soloEncargado || getRol() === 'admin';
+const visible = (i: NavItem) => (!i.soloEncargado || getRol() === 'admin') && (!i.soloTableta || esTableta());
 const soloAdmin = (el: JSX.Element) => getRol() === 'admin' ? el : <Navigate to="/" replace />;
 const cuenta = (n: number, max = 99) => n > max ? `${max}+` : String(n);
 const navItems = navGroups.flatMap(g => g.items);

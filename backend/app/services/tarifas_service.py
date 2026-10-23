@@ -135,7 +135,7 @@ TARIFAS = {
         "vista_ordenador": "lista",  # en el ordenador, lista compacta (la cuadrícula grande quedaba enorme, Andrés)
         "ocultar_a": ("consulta",),  # Manolo no la ve (Andrés, 20/10/2026)
     },
-    # Inyectometal (21/10/2026, en pruebas): tarifa M26 (en vigor desde el 03/08/2026) con las condiciones de Casa Fonso
+    # Inyectometal (21/10/2026; para todos desde el 23/10/2026): tarifa M26 (en vigor desde el 03/08/2026) con las condiciones de Casa Fonso
     # (en la hoja, no aquí). La hoja hace las cuentas (coste, margen por familia y PVP); ver inyectometal.py.
     "inyectometal": {
         "nombre": "Inyectometal",
@@ -143,7 +143,6 @@ TARIFAS = {
         "proveedor": "Inyectometal (vía Representaciones Asla Bermúdez)",
         "hoja": inyectometal.HOJA,  # TARIFA_INYECTOMETAL_2026 (Mi unidad de Andrés)
         "pestanas": None,
-        "en_pruebas": True,
         "redondeo": "con IVA, al alza a 0,05 € (0,10 € desde 5 €); sin IVA = con IVA ÷ 1,21",
         "fabricante": "Inyectometal M26",
         "origen_corto": "tarifa M26",

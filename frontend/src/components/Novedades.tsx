@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Info, List, Play, Tablet } from 'lucide-react';
+import { BookMarked, Play, Tablet } from 'lucide-react';
 import { Ilustracion } from './Pegatinas';
 import { abrirTutorial } from './Tutorial';
 
@@ -8,18 +8,14 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-10-19';
+const VERSION = '2026-10-23';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
-  { icono: BookMarked, titulo: 'Más tarifas para todos',
-    texto: 'En «Tarifas de proveedor» ya están también Pladur, Dinak, ladrillos, bombonas de gas, morteros y piensos.', ir: '/tarifas' },
-  { icono: List, titulo: 'Familias en lista',
-    texto: 'Dentro de cada familia todo va en líneas con su código y su precio. Lo que tiene varias medidas se abre tocándolo.' },
-  { icono: Info, titulo: 'Para qué sirve',
-    texto: 'En morteros y piensos, la ficha dice para qué sirve cada producto y lo que suele preguntar el cliente: rendimiento, agua por saco, para qué animal…' },
+  { icono: BookMarked, titulo: 'Nueva tarifa: Inyectometal',
+    texto: 'En «Tarifas de proveedor» ya está Inyectometal: racorería de latón y cobre, válvulas y llaves, flexos, riego y grifería, con el precio de cada medida.', ir: '/tarifas/inyectometal' },
   { icono: Tablet, titulo: 'Tarifas en la tableta',
-    texto: 'Menú → Mostrador → «Tarifas en la tableta»: el precio en grande, y tocando la foto se apunta lo que se lleva el cliente.' },
+    texto: 'Ahora solo sale en el menú de la tableta del mostrador. En el móvil y el ordenador ya no aparece.' },
 ];
 
 export const hayNovedades = () => { try { return localStorage.getItem(CLAVE) !== VERSION; } catch { return false; } };
@@ -50,7 +46,7 @@ export function Novedades({ onCerrar }: { onCerrar: () => void }) {
               <span>
                 <b>{titulo}</b>
                 <span>{texto}</span>
-                {ir && <button className="turnos-link" onClick={() => cerrar(ir)}>Ver las tarifas</button>}
+                {ir && <button className="turnos-link" onClick={() => cerrar(ir)}>Ver la tarifa</button>}
               </span>
             </li>
           ))}
