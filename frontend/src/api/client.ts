@@ -400,6 +400,8 @@ export interface EntregaCarga {
   firmado_por: string | null; firmado_at: string | null; treyfact_at: string | null; lineas: LineaCarga[];
   lista_at?: string | null;  // «Listo para llevar»: carga confirmada y bloqueada
   foto_entrega: string | null; drive_at: string | null;
+  /** Entregado sin firma (no estaba el cliente): dónde se dejó. */
+  sin_firma?: string | null; whatsapp_at?: string | null; whatsapp_error?: string | null;
   albaran_cambiado?: boolean;  // se subió otra versión del albarán después de leerlo: la firma no le pasa sola
   firmantes?: string[];        // quién firmó otras veces por este cliente (sugerencias al firmar)
 }
@@ -450,6 +452,20 @@ export const fotoEntregaCarga = (id: number, foto: Blob) => {
   form.append('foto', foto, 'entrega.jpg');
   return api.post<EntregaCarga>(`/api/cargas/entregas/${id}/foto`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 });
 };
+/** No estaba el cliente: entregado con foto y dónde se dejó (sitio: obra | almacen | persona | otro). */
+export const sinFirmaEntregaCarga = (id: number, foto: Blob, d: { sitio: string; quien?: string; otro?: string;
+  hechoEl?: string; ubicacion?: string; cargadas?: Record<string, { ok: boolean; cargado: number | null }> }) => {
+  const form = new FormData();
+  form.append('foto', foto, 'entrega.jpg');
+  form.append('sitio', d.sitio);
+  if (d.quien) form.append('quien', d.quien);
+  if (d.otro) form.append('otro', d.otro);
+  if (d.hechoEl) form.append('hecho_el', d.hechoEl);
+  if (d.ubicacion) form.append('ubicacion', d.ubicacion);
+  if (d.cargadas) form.append('cargadas', JSON.stringify(d.cargadas));
+  return api.post<EntregaCarga>(`/api/cargas/entregas/${id}/sin-firma`, form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 });
+};
+export const whatsappEntregaCarga = (id: number) => api.post<EntregaCarga>(`/api/cargas/entregas/${id}/whatsapp`);
 export const ordenarEntregasCarga = (ordenId: number, ids: number[]) => api.put<OrdenCarga>(`/api/cargas/${ordenId}/orden-entregas`, { ids });
 export const anularFirmaCarga = (id: number) => api.post<EntregaCarga>(`/api/cargas/entregas/${id}/anular-firma`);
 export const hojaEntregaUrl = (id: number) => withToken(`${BASE}/api/cargas/entregas/${id}/pdf`);

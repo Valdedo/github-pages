@@ -70,6 +70,12 @@ class EntregaCarga(Base):
     treyfact_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     foto_entrega: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # foto del material descargado
     drive_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)     # copia de la hoja en Drive
+    # Entregado sin firma (no estaba el cliente): dónde se dejó, p. ej. «Dejado en la obra». Lleva foto obligatoria.
+    sin_firma: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    ubicacion: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)       # «lat,lon» del móvil al entregar
+    # Aviso al cliente por el WhatsApp de la empresa (si está conectado)
+    whatsapp_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    whatsapp_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

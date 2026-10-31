@@ -353,6 +353,25 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   queda bloqueada (el servidor rechaza cambios de líneas con 409); solo entonces sale «Firma del cliente». «Desbloquear
   para cambiar» lo deshace. Vale sin cobertura (tipo `lista` en `lib/offlineCargas.ts`). Igual para todos los roles.
 
+## Entregado sin firma (no estaba el cliente) — 31/10/2026, «En pruebas»
+- En la firma de la entrega (`FirmaModal` de `CargasPage`), arriba: «Firma el cliente» | «No está el cliente». Solo lo ve el
+  encargado hasta que Andrés lo apruebe (`SIN_FIRMA_PARA_TODOS` en `CargasPage.tsx`; el servidor ya lo acepta de reparto).
+- Sin firma: dónde se dejó (En la obra / En el garaje o almacén / Con un vecino o familiar + nombre / En otro sitio + texto),
+  **foto obligatoria** y la ubicación del móvil si la da. `POST /api/cargas/entregas/{eid}/sin-firma` (form: foto, sitio,
+  quien, otro, hecho_el, ubicacion, cargadas). Campos `sin_firma`, `ubicacion`, `whatsapp_at`, `whatsapp_error` en
+  `entregas_carga` y `sin_firma` en `client_delivery_notes`.
+- La entrega queda «entregada» con `firmado_por` = el nombre de quien lo recoge o «Sin firma». La hoja lleva el sello rojo
+  «SIN FIRMA DEL CLIENTE» y la foto. El albarán de TreyFACT queda `firmado` (para archivarlo y facturarlo) con el sello
+  (`firma_service.sello_sin_firma`) en el hueco de la firma y la foto en una página al final; en la app sale «Sin firma».
+- «El cliente está aquí: que lo firme ahora» (albarán) = `anular-firma`, permitido aunque la carga esté entregada si es sin
+  firma: el albarán vuelve a «Por firmar» y la hoja de entrega no se toca. «Deshacer la entrega» en la orden = `anular-firma` de la entrega.
+- Sin cobertura: va en la cola de firmas (`FirmaCargaEnCola.sinFirma`, png vacío, foto obligatoria).
+- **WhatsApp de la empresa** (`services/whatsapp_service.py`): al entregar sin firma manda al móvil del cliente (el de la entrega
+  o el de su ficha `client_contacts`; solo móviles 6/7) la plantilla de Meta con la foto. Apagado mientras no haya en Railway
+  `WHATSAPP_TOKEN` y `WHATSAPP_PHONE_ID` (opcional `WHATSAPP_PLANTILLA`, por defecto `entrega_sin_firma`, y `WHATSAPP_IDIOMA`, `es`).
+  El número de la oficina va por «coexistencia» (sigue en la app WhatsApp Business). Texto de la plantilla en el docstring
+  del servicio. Reintento: `POST /api/cargas/entregas/{eid}/whatsapp` (botón «Reintentar» en la orden si falló).
+
 ## Vencimientos de facturas (Andrés; Manolo solo los ve)
 - El script de facturas (Apps Script de la cuenta de Andrés, «FacturasAutomaticas») lleva un archivo extra
   `tools/vencimientos-facturas.gs`: cada hora lee las facturas nuevas de «FACTURAS PARA GESTORIA», apunta los

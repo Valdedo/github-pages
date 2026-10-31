@@ -30,6 +30,8 @@ class ClientDeliveryNote(Base):
     signer_dni: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
 
     nota: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Entregado sin firma desde la orden de carga (no estaba el cliente): dónde se dejó
+    sin_firma: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
 
     # Importe total del albarán (leído del PDF)
     importe: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

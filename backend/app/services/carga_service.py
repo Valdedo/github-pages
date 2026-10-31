@@ -290,10 +290,25 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
             top = 643
             c.setFillColor(gris_cab); c.rect(X0 + 2, T(top + 13), 325, 13, stroke=0, fill=1)
             c.setFillColor(black); c.setFont("Helvetica", 7.8)
-            c.drawString(X0 + 12, T(top + 9.5), "Recibí conforme — firma del cliente")
+            sin_firma = getattr(e, "sin_firma", None)
+            c.drawString(X0 + 12, T(top + 9.5), "Entregado sin firma — no estaba el cliente" if sin_firma
+                         else "Recibí conforme — firma del cliente")
             c.setStrokeColor(HexColor("#BBBBBB")); c.setLineWidth(.6)
             c.rect(X0 + 2, T(top + 112), 325, 99, stroke=1, fill=0)
-            if firma_png:
+            if sin_firma:
+                rojo = HexColor("#B02828")
+                c.setStrokeColor(rojo); c.setLineWidth(1.6)
+                c.roundRect(X0 + 22, T(top + 92), 285, 62, 8, stroke=1, fill=0)
+                c.setFillColor(rojo); c.setFont("Helvetica-Bold", 15)
+                c.drawCentredString(X0 + 2 + 162.5, T(top + 54), "SIN FIRMA DEL CLIENTE")
+                c.setFont("Helvetica-Bold", 9)
+                c.drawCentredString(X0 + 2 + 162.5, T(top + 72), sin_firma[:60])
+                c.setFillColor(gris_txt); c.setFont("Helvetica", 7.4)
+                extra = "Foto del material en la página siguiente" if foto else ""
+                if getattr(e, "ubicacion", None):
+                    extra += (" · " if extra else "") + f"Ubicación del móvil: {e.ubicacion}"
+                c.drawCentredString(X0 + 2 + 162.5, T(top + 106), extra[:90])
+            elif firma_png:
                 try:
                     img = ImageReader(io.BytesIO(firma_png))
                     iw, ih = img.getSize()
@@ -305,7 +320,10 @@ def hoja_pdf(e, firma_png: Optional[bytes], foto: Optional[bytes] = None) -> byt
             # Columna de datos de la firma (como Bruto / Neto…)
             lx, vx = 412, X1
             c.setFillColor(gris_caja); c.rect(lx, T(top + 92), 80, 92, stroke=0, fill=1)
-            filas_f = [("Firmado por", (e.firmado_por or "")[:22]), ("DNI", e.firmado_dni or ""),
+            filas_f = [("Recibido por" if sin_firma else "Firmado por",
+                        ("Nadie" if sin_firma and e.firmado_por == "Sin firma" else (e.firmado_por or ""))[:22]),
+                       ("Entregó" if sin_firma else "DNI", (getattr(e, "entregado_por", None) or "").capitalize()
+                        if sin_firma else e.firmado_dni or ""),
                        ("Fecha", fecha.strftime("%d/%m/%Y") if e.firmado_at else ""),
                        ("Hora", fecha.strftime("%H:%M") if e.firmado_at else ""),
                        ("Pendiente", "Sí" if pendientes else "No")]

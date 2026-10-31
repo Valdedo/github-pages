@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff, ChevronLeft, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff, ChevronLeft, AlertTriangle, RefreshCw, PenLine } from 'lucide-react';
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
   getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, repartoFirmas, type MarcasFirma,
@@ -347,6 +347,17 @@ export function FirmaDetailPage() {
     } catch (err) { show(describeApiError(err), { error: true }); }
     finally { setPasando(false); }
   };
+  /** Entregado sin firma: el cliente pasa por la tienda y lo firma. El albarán vuelve a «Por firmar». */
+  const onFirmarAhora = async () => {
+    if (!note || pasando) return;
+    setPasando(true);
+    try {
+      const { data } = await anularFirmaAlbaran(note.id);
+      setNote(data);
+      show('Listo: ya puede firmar el cliente');
+    } catch (err) { show(describeApiError(err), { error: true }); }
+    finally { setPasando(false); }
+  };
   /** El albarán cambió después de cargarlo: se le pasa la firma de la hoja de entrega. */
   const onFirmaEntrega = async () => {
     if (!note || pasando) return;
@@ -410,7 +421,7 @@ export function FirmaDetailPage() {
           <Marcas n={note} sinEstado />
         </div>
         <span className={`status-chip ${firmado ? 'firmado' : 'pendiente'}`} style={{ marginLeft: 'auto' }}>
-          {firmado ? 'Firmado' : 'Por firmar'}
+          {firmado ? (note.sin_firma ? 'Sin firma' : 'Firmado') : 'Por firmar'}
         </span>
       </div>
 
@@ -448,14 +459,20 @@ export function FirmaDetailPage() {
           ) : firmado ? (
             <>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <CheckCircle size={22} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                <CheckCircle size={22} style={{ color: note.sin_firma ? 'var(--warning)' : 'var(--success)', flexShrink: 0 }} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>Recibió {note.signed_by}</div>
+                  <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{note.sin_firma ? `Entregado sin firma · ${note.sin_firma}` : `Recibió ${note.signed_by}`}</div>
                   <div style={{ fontSize: 13, color: 'var(--text-3)' }}>
                     {fmtFirmado(note.signed_at)}{note.signer_dni ? ` · DNI ${note.signer_dni}` : ''}
+                    {note.sin_firma ? ' · No estaba el cliente. La foto va al final del albarán.' : ''}
                   </div>
                 </div>
               </div>
+              {note.sin_firma && !note.facturado_at && !reparto && (
+                <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onFirmarAhora} disabled={pasando}>
+                  <PenLine size={14} /> El cliente está aquí: que lo firme ahora
+                </button>
+              )}
               {movil ? <>{envio}{imprimir}</> : <>{imprimir}{envio}</>}
               {impreso && !note.copia_at && !reparto && (
                 <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => marcar({ copia: true })}>
@@ -579,7 +596,7 @@ export function FirmaDetailPage() {
           {!reparto && (
             <details className="firma-mas-opciones">
               <summary>Más opciones</summary>
-              {firmado && !note.facturado_at && note.carga_estado !== 'entregada' && (
+              {firmado && !note.facturado_at && note.carga_estado !== 'entregada' && !note.sin_firma && (
                 <button className="firma-borrar" onClick={onAnular} disabled={pasando}>
                   <Eraser size={13} /> {pasando ? 'Anulando…' : 'Anular la firma (se firmó por error)'}
                 </button>

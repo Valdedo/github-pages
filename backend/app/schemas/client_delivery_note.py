@@ -15,6 +15,7 @@ class ClientDeliveryNoteResponse(BaseModel):
     page_count: int = 1
     signed_at: Optional[datetime] = None
     signed_by: Optional[str] = None
+    sin_firma: Optional[str] = None
     signer_dni: Optional[str] = None
     nota: Optional[str] = None
     emailed_to: Optional[str] = None

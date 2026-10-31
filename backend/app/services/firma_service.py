@@ -6,6 +6,7 @@ Firma de albaranes de venta (treyFACT).
   (en el hueco libre sobre el cuadro de impuestos) o, si no cabe, en una página nueva.
 """
 import io
+import logging
 import re
 from dataclasses import dataclass, asdict
 from typing import Optional
@@ -15,6 +16,8 @@ from pypdf import PdfReader, PdfWriter
 from reportlab.lib.colors import Color
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+
+logger = logging.getLogger(__name__)
 
 SLOT_W, SLOT_H, SLOT_MARGIN = 250, 100, 8
 
@@ -197,7 +200,8 @@ def _texto_ajustado(c, texto: str, x: float, y: float, ancho: float, size: float
     c.drawString(x, y, texto)
 
 
-def _draw_box(c, box, sig_png: bytes, nombre: str, dni: str, firmado_el: str):
+def _draw_box(c, box, sig_png: bytes, nombre: str, dni: str, firmado_el: str,
+              titulo: str = "Recibí conforme", pie: str = "Firmado el"):
     x, y, w, h = box
     ink, grey = Color(0.1, 0.1, 0.1), Color(0.45, 0.45, 0.45)
     c.setStrokeColor(Color(0.75, 0.75, 0.75))
@@ -205,7 +209,7 @@ def _draw_box(c, box, sig_png: bytes, nombre: str, dni: str, firmado_el: str):
     c.rect(x, y, w, h)
     c.setFillColor(ink)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(x + 8, y + h - 13, "Recibí conforme")
+    c.drawString(x + 8, y + h - 13, titulo)
     img = ImageReader(io.BytesIO(sig_png))
     iw, ih = img.getSize()
     base = 40 if dni else 28                       # con DNI, una línea más bajo la raya
@@ -221,11 +225,14 @@ def _draw_box(c, box, sig_png: bytes, nombre: str, dni: str, firmado_el: str):
         _texto_ajustado(c, f"DNI {dni}", x + 8, y + 17, w - 16, 8)
     c.setFillColor(grey)
     c.setFont("Helvetica", 7)
-    c.drawString(x + 8, y + 7, f"Firmado el {firmado_el}")
+    c.drawString(x + 8, y + 7, f"{pie} {firmado_el}")
 
 
 def stamp_signature(pdf_bytes: bytes, sig_png: bytes, numero: str, cliente: str,
-                    nombre: str, dni: str, firmado_el: str) -> bytes:
+                    nombre: str, dni: str, firmado_el: str, sin_firma: bool = False,
+                    foto: Optional[bytes] = None, foto_titulo: str = "") -> bytes:
+    """Pone la firma en el hueco del albarán. Con sin_firma, en vez de la firma va el sello «Entregado sin
+    firma» (sig_png es ese sello) y, con foto, se añade una página con la foto de la entrega."""
     reader = PdfReader(io.BytesIO(pdf_bytes))
     writer = PdfWriter()
     for p in reader.pages:
@@ -237,7 +244,7 @@ def stamp_signature(pdf_bytes: bytes, sig_png: bytes, numero: str, cliente: str,
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=(W, H))
     if slot:
-        _draw_box(c, slot, sig_png, nombre, dni, firmado_el)
+        _draw_box(c, slot, sig_png, nombre, dni, firmado_el, *_textos(sin_firma))
         c.save()
         last.merge_page(PdfReader(io.BytesIO(buf.getvalue())).pages[0])
     else:
@@ -245,10 +252,69 @@ def stamp_signature(pdf_bytes: bytes, sig_png: bytes, numero: str, cliente: str,
         c.drawString(40, H - 70, "Conformidad de entrega")
         c.setFont("Helvetica", 10)
         c.drawString(40, H - 92, f"Albarán {numero}" + (f"  –  {cliente}" if cliente else ""))
-        _draw_box(c, (40, H - 230, SLOT_W, SLOT_H), sig_png, nombre, dni, firmado_el)
+        _draw_box(c, (40, H - 230, SLOT_W, SLOT_H), sig_png, nombre, dni, firmado_el, *_textos(sin_firma))
         c.save()
         writer.add_page(PdfReader(io.BytesIO(buf.getvalue())).pages[0])
+    if foto:
+        try:
+            writer.add_page(PdfReader(io.BytesIO(pagina_foto(foto, W, H, foto_titulo))).pages[0])
+        except Exception as ex:
+            logger.warning("No se pudo añadir la foto al albarán %s: %s", numero, ex)
 
     out = io.BytesIO()
     writer.write(out)
     return out.getvalue()
+
+
+def _textos(sin_firma: bool):
+    return ("Entregado sin firma", "Entregado el") if sin_firma else ("Recibí conforme", "Firmado el")
+
+
+def sello_sin_firma(donde: str) -> bytes:
+    """Imagen (PNG) que va en el hueco de la firma cuando el cliente no estaba."""
+    from PIL import Image, ImageDraw, ImageFont
+    W, H = 900, 260
+    im = Image.new("RGBA", (W, H), (255, 255, 255, 0))
+    d = ImageDraw.Draw(im)
+    def fuente(t):
+        for n in ("DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+            try:
+                return ImageFont.truetype(n, t)
+            except OSError:
+                pass
+        return ImageFont.load_default()
+    rojo = (176, 40, 40, 255)
+    d.rounded_rectangle((8, 8, W - 8, H - 8), radius=26, outline=rojo, width=10)
+    t1 = "SIN FIRMA DEL CLIENTE"
+    tam = 70
+    while tam > 30 and d.textlength(t1, font=fuente(tam)) > W - 80:
+        tam -= 2
+    f1, f2 = fuente(tam), fuente(40)
+    d.text(((W - d.textlength(t1, font=f1)) / 2, 52), t1, font=f1, fill=rojo)
+    t2 = (donde or "")[:44]
+    d.text(((W - d.textlength(t2, font=f2)) / 2, 160), t2, font=f2, fill=rojo)
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def pagina_foto(foto: bytes, W: float, H: float, titulo: str) -> bytes:
+    """Una página con la foto de la entrega (para añadirla al final de un PDF)."""
+    from PIL import Image, ImageOps
+    im = ImageOps.exif_transpose(Image.open(io.BytesIO(foto))).convert("RGB")
+    im.thumbnail((1800, 1800))
+    b2 = io.BytesIO()
+    im.save(b2, "JPEG", quality=82)
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(W, H))
+    c.setFont("Helvetica-Bold", 12.5)
+    c.drawString(32, H - 60, "FOTO DE LA ENTREGA")
+    c.setFont("Helvetica", 9)
+    c.setFillColor(Color(0.45, 0.45, 0.45))
+    c.drawString(32, H - 76, titulo[:120])
+    ancho, alto_max = W - 64, H - 130
+    esc = min(ancho / im.width, alto_max / im.height)
+    w, h = im.width * esc, im.height * esc
+    c.drawImage(ImageReader(io.BytesIO(b2.getvalue())), 32 + (ancho - w) / 2, H - 92 - h, width=w, height=h)
+    c.save()
+    return buf.getvalue()

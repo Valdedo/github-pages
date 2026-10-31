@@ -48,7 +48,7 @@ const enviado = (n: ClientDeliveryNote) => !!(n.emailed_at || n.whatsapp_at || n
 export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: boolean }) {
   const firmado = n.status === 'firmado';
   const todas = [
-    { on: n.status === 'firmado', label: n.status === 'firmado' ? 'Firmado' : 'Sin firmar', icon: PenLine, cls: 'firmado' },
+    { on: n.status === 'firmado', label: n.status === 'firmado' ? (n.sin_firma ? 'Entregado sin firma' : 'Firmado') : 'Sin firmar', icon: PenLine, cls: 'firmado' },
     { on: !!n.emailed_at, label: 'Correo', icon: Mail, cls: 'correo' },
     { on: !!n.whatsapp_at, label: 'WhatsApp', icon: MessageCircle, cls: 'whatsapp' },
     { on: !!n.copia_at, label: 'Copia', icon: HandHelping, cls: 'copia' },

@@ -115,7 +115,8 @@ def firmantes(db: Session, n: ClientDeliveryNote, limite: int = 4) -> List[str]:
     if not n.codigo_cliente:
         return []
     filas = (db.query(ClientDeliveryNote.signed_by)
-             .filter(ClientDeliveryNote.codigo_cliente == n.codigo_cliente, ClientDeliveryNote.signed_by.isnot(None))
+             .filter(ClientDeliveryNote.codigo_cliente == n.codigo_cliente, ClientDeliveryNote.signed_by.isnot(None),
+                     ClientDeliveryNote.sin_firma.is_(None))
              .order_by(ClientDeliveryNote.signed_at.desc()).limit(40).all())
     out, vistos = [], set()
     empresa = re.sub(r"\W+", "", (n.cliente or "").lower())
@@ -511,7 +512,8 @@ def _firmar(db: Session, request: Request, n: ClientDeliveryNote, png: bytes, no
 
 
 def firmar_desde_entrega(db: Session, note_id: int, png: bytes, nombre: str, dni: str,
-                         cuando_utc: datetime) -> bool:
+                         cuando_utc: datetime, sin_firma: Optional[str] = None,
+                         foto: Optional[bytes] = None) -> bool:
     """La firma de la hoja de entrega (orden de carga) pasa también al albarán de TreyFACT.
     Si el albarán ya estaba firmado (p. ej. en la tienda), no se toca. Devuelve si se firmó."""
     tomado = (db.query(ClientDeliveryNote)
@@ -524,7 +526,9 @@ def firmar_desde_entrega(db: Session, note_id: int, png: bytes, nombre: str, dni
     try:
         ahora = cuando_utc.replace(tzinfo=ZoneInfo("UTC")).astimezone(TZ)
         signed = stamp_signature(Path(n.original_path).read_bytes(), png, n.numero, n.cliente or "",
-                                 nombre[:80], (dni or "").strip()[:20], ahora.strftime("%d/%m/%Y a las %H:%M"))
+                                 nombre[:80], (dni or "").strip()[:20], ahora.strftime("%d/%m/%Y a las %H:%M"),
+                                 sin_firma=bool(sin_firma), foto=foto,
+                                 foto_titulo=f"Albarán {n.numero} · {n.cliente or ''} · {ahora:%d/%m/%Y %H:%M}")
         path = _dir() / f"{uuid.uuid4().hex}_firmado.pdf"
         path.write_bytes(signed)
         n.signed_path = str(path)
@@ -532,6 +536,7 @@ def firmar_desde_entrega(db: Session, note_id: int, png: bytes, nombre: str, dni
         n.signed_at = ahora.replace(tzinfo=None)
         n.signed_by = nombre[:200]
         n.signer_dni = (dni or "").strip() or None
+        n.sin_firma = sin_firma[:200] if sin_firma else None
         n.page_count = len(PdfReader(io.BytesIO(signed)).pages)
         db.commit()
     except Exception:
@@ -582,16 +587,21 @@ def anular_firma(note_id: int, db: Session = Depends(get_db)):
     if n.facturado_at:
         raise HTTPException(409, f"El albarán {n.numero} ya está facturado. Quítale antes la marca de facturado.")
     con_carga(db, [n])
-    if n.carga_estado == "entregada":
+    # Entregado sin firma: el albarán vuelve a «Por firmar» para que firme el cliente cuando pase por la tienda;
+    # la hoja de entrega se queda como está (entregada, con su foto).
+    if n.carga_estado == "entregada" and not n.sin_firma:
         raise HTTPException(409, "Esta firma viene de la hoja de entrega. Repítela desde su orden de carga («Repetir la firma»).")
     if n.signed_path:
         Path(n.signed_path).unlink(missing_ok=True)
+    estaba_sin_firma = n.sin_firma
+    n.sin_firma = None
     quien = n.signed_by
     n.signed_path = None
     n.status = "pendiente"
     n.signed_at = n.signed_by = n.signer_dni = None
     n.backup_at = None
-    n.nota = f"Firma anulada el {datetime.now(TZ):%d/%m a las %H:%M}" + (f" (la había firmado {quien})" if quien else "")
+    n.nota = (f"Se entregó sin firma ({estaba_sin_firma.lower()}). Falta que firme el cliente." if estaba_sin_firma else
+              f"Firma anulada el {datetime.now(TZ):%d/%m a las %H:%M}" + (f" (la había firmado {quien})" if quien else ""))
     db.commit()
     logger.info("Firma del albarán %s anulada", n.numero)
     return con_carga(db, [_get(db, note_id)])[0]

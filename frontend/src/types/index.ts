@@ -278,6 +278,8 @@ export interface ClientDeliveryNote {
   page_count: number;
   signed_at?: string | null;
   signed_by?: string | null;
+  /** Entregado sin firma desde la orden de carga: dónde se dejó. */
+  sin_firma?: string | null;
   signer_dni?: string | null;
   nota?: string | null;
   emailed_to?: string | null;

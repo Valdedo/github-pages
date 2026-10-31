@@ -3,7 +3,7 @@
  * Las firmas (con su foto y lo marcado como cargado) y los «cargado» que se tocan sin señal
  * se guardan en el móvil y se envían solos al volver la cobertura.
  */
-import { editarLineaCarga, firmarEntregaCarga, listaEntregaCarga, type EntregaCarga } from '../api/client';
+import { editarLineaCarga, firmarEntregaCarga, listaEntregaCarga, sinFirmaEntregaCarga, type EntregaCarga } from '../api/client';
 import { getToken } from '../auth';
 import { sinRed } from './offline';
 
@@ -16,7 +16,10 @@ export interface FirmaCargaEnCola {
   tipo: 'firma'; entregaId: number; ordenId: number; cliente: string; nombre: string; dni: string;
   png: string; foto?: string | null; cargadas: Record<string, { ok: boolean; cargado: number | null }>; at: string;
   error?: string;  // el servidor la rechazó: se guarda y se avisa, nunca se tira
+  /** No estaba el cliente: entregado sin firma, con foto (obligatoria) y dónde se dejó. Entonces png va vacío. */
+  sinFirma?: SinFirmaDatos;
 }
+export interface SinFirmaDatos { sitio: string; quien?: string; otro?: string; ubicacion?: string }
 export interface ListaEnCola { tipo: 'lista'; entregaId: number; lista: boolean; at: string }
 type Item = MarcaEnCola | FirmaCargaEnCola | ListaEnCola;
 
@@ -67,6 +70,15 @@ export function marcarSinRed(lineaId: number, ok: boolean) {
   guardar([...colaCargas().filter(x => !(x.tipo === 'marca' && x.lineaId === lineaId)), { tipo: 'marca', lineaId, ok, at: new Date().toISOString() }]);
 }
 
+/** «No está el cliente» sin cobertura: va en la misma cola que las firmas. */
+export async function sinFirmaSinRed(f: Omit<FirmaCargaEnCola, 'tipo' | 'png' | 'foto' | 'at' | 'nombre' | 'dni' | 'sinFirma'>,
+  datos: SinFirmaDatos, foto: Blob) {
+  const item: FirmaCargaEnCola = { ...f, tipo: 'firma', nombre: '', dni: '', png: '', foto: await aDataUrl(foto), sinFirma: datos, at: new Date().toISOString() };
+  const ids = new Set(Object.keys(f.cargadas).map(Number));
+  guardar([...colaCargas().filter(x => !(x.tipo === 'firma' && x.entregaId === f.entregaId) && !(x.tipo === 'lista' && x.entregaId === f.entregaId) && !(x.tipo === 'marca' && ids.has(x.lineaId))), item]);
+  if (!firmaEnCola(f.entregaId)) throw new Error('No se pudo guardar en el móvil');
+}
+
 export async function firmaSinRed(f: Omit<FirmaCargaEnCola, 'tipo' | 'png' | 'foto' | 'at'>, png: Blob, foto: Blob | null) {
   const item: FirmaCargaEnCola = { ...f, tipo: 'firma', png: await aDataUrl(png), foto: foto ? await aDataUrl(foto) : null, at: new Date().toISOString() };
   // Las marcas de esa entrega ya van dentro de la firma
@@ -89,6 +101,9 @@ export async function enviarColaCargas(): Promise<number> {
           await editarLineaCarga(it.lineaId, { cargado_ok: it.ok, cargado: null });
         } else if (it.tipo === 'lista') {
           await listaEntregaCarga(it.entregaId, it.lista);
+        } else if (it.sinFirma) {
+          const foto = await (await fetch(it.foto!)).blob();
+          await sinFirmaEntregaCarga(it.entregaId, foto, { ...it.sinFirma, hechoEl: it.at, cargadas: it.cargadas });
         } else {
           const png = await (await fetch(it.png)).blob();
           const foto = it.foto ? await (await fetch(it.foto)).blob() : null;
@@ -109,7 +124,7 @@ export async function enviarColaCargas(): Promise<number> {
             ? 'Esta orden ya no está en tu móvil (la han retirado o borrado en la tienda). La firma sigue guardada: avisa en la tienda.'
             : typeof det === 'string' ? det : 'El servidor no la aceptó';
           guardar(colaCargas().map(x => igual(x) ? { ...it, error } : x));
-          avisar(`La firma de ${it.cliente} no se pudo enviar. Ábrela para verla.`);
+          avisar(it.sinFirma ? `La entrega sin firma de ${it.cliente} no se pudo enviar. Ábrela para verla.` : `La firma de ${it.cliente} no se pudo enviar. Ábrela para verla.`);
         } else {
           // Un «cargado» o «listo» que ya no vale (carga firmada o bloqueada, material quitado): se quita y se avisa
           guardar(colaCargas().filter(x => !igual(x)));

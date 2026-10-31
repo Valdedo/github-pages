@@ -96,3 +96,27 @@ button.venc-dia-cab:disabled { cursor: default; opacity: 1; }
 /* Turnos: de quién es la semana */
 .tsem-quien { display: flex; align-items: center; gap: 10px; margin: 0 2px 8px; font-size: 16px; }
 .tsem-quien .turnohoy-avatar { width: 30px; height: 30px; font-size: 15px; }
+
+/* «No está el cliente»: entregado sin firma, con foto (31/10/2026) */
+.carga-firma-modo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; padding: 5px; border-radius: 16px;
+  background: var(--surface-2); border: 1px solid var(--border); }
+.carga-firma-modo button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 6px 10px;
+  border: 0; border-radius: 12px; background: transparent; color: var(--text-2); font: 600 15px/1.2 var(--font); cursor: pointer; text-align: center; }
+.carga-firma-modo button.on { background: var(--surface); color: var(--cf-bosque); box-shadow: 0 2px 8px rgb(18 58 38 / .12); }
+.carga-firma-modo button:focus-visible { outline: 3px solid var(--cf-verde); outline-offset: 1px; }
+.carga-sin-firma { margin-top: 14px; }
+.carga-sitios { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.carga-sitio { min-height: 56px; padding: 8px 12px; border-radius: 14px; border: 1.5px solid var(--border-strong); background: var(--surface);
+  color: var(--text-1); font: 600 15px/1.25 var(--font); cursor: pointer; text-align: center; }
+.carga-sitio.on { background: var(--cf-bosque); border-color: var(--cf-bosque); color: #fff; }
+.carga-sf-camara { width: 100%; min-height: 128px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 2px dashed var(--cf-verde); border-radius: 18px; background: var(--brand-pale); color: var(--cf-bosque); cursor: pointer; font: 700 17px/1.2 var(--font); }
+.carga-sf-camara small { font: 500 13px/1.3 var(--font); color: var(--text-3); }
+.carga-sf-foto { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.carga-sf-foto img { max-height: 180px; max-width: 100%; border-radius: 14px; display: block; }
+.carga-firma-botones .carga-sf-boton { grid-column: 1 / -1; }
+.carga-sin-firma-hecha { color: var(--warning); display: inline-flex; align-items: flex-start; gap: 6px; }
+.carga-sin-firma-hecha svg { flex-shrink: 0; margin-top: 3px; }
+.carga-wa-error { color: var(--warning); }
+@media (min-width: 700px) { .carga-sitios { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 340px) { .carga-firma-modo button { font-size: 14px; gap: 5px; } .carga-sitio { font-size: 14px; } }

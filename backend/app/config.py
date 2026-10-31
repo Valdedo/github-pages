@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     vencimientos_clave: str = Field(default="", env="VENCIMIENTOS_CLAVE")
     drive_albaranes_id: str = Field(default="1-1jmSwZz4ctHkMtP_4KWApb6X6Ey1_Jz", env="DRIVE_ALBARANES_ID")
 
+    # WhatsApp de la empresa (API de Meta, número de la oficina conectado por «coexistencia»).
+    # Sin token o sin número no se manda nada. Solo en Railway, nunca en el código.
+    whatsapp_token: str = Field(default="", env="WHATSAPP_TOKEN")
+    whatsapp_phone_id: str = Field(default="", env="WHATSAPP_PHONE_ID")
+    whatsapp_plantilla: str = Field(default="entrega_sin_firma", env="WHATSAPP_PLANTILLA")
+    whatsapp_idioma: str = Field(default="es", env="WHATSAPP_IDIOMA")
+
     # OCR
     tesseract_lang: str = Field(default="spa+eng", env="TESSERACT_LANG")
 

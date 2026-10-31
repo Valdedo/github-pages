@@ -124,6 +124,12 @@ def _run_migrations():
         ("entregas_carga", "albaran_cambiado", "BOOLEAN DEFAULT 0"),
         # Huella del archivo de un albarán de compra, para no leer dos veces el mismo
         ("documents", "huella",           "VARCHAR(64)"),
+        # Entregado sin firma (no estaba el cliente), con foto, y aviso por WhatsApp (31/10/2026)
+        ("entregas_carga", "sin_firma",      "VARCHAR(200)"),
+        ("entregas_carga", "ubicacion",      "VARCHAR(60)"),
+        ("entregas_carga", "whatsapp_at",    "DATETIME"),
+        ("entregas_carga", "whatsapp_error", "TEXT"),
+        ("client_delivery_notes", "sin_firma", "VARCHAR(200)"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

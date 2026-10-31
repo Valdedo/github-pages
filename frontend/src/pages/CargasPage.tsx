@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, PenLine, ClipboardCheck, Check, Pencil, Plus, Trash2, Phone, FileText,
   AlertTriangle, ArrowLeft, Truck, Eraser, ChevronRight, X, ChevronUp, ChevronDown, MapPin, CloudOff, Cloud, Search, Send, Undo2, Lock, LockOpen, PackageCheck,
-  RefreshCw,
+  RefreshCw, UserX,
 } from 'lucide-react';
 import {
   listarCargas, verCarga, borrarCarga, fotoCargaUrl, releerAlbaranCarga, editarEntregaCarga, fotoEntregaCarga, ordenarEntregasCarga,
-  borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, treyfactEntregaCarga,
+  borrarEntregaCarga, firmarEntregaCarga, anularFirmaCarga, treyfactEntregaCarga, sinFirmaEntregaCarga, whatsappEntregaCarga,
   nuevaLineaCarga, editarLineaCarga, borrarLineaCarga, describeApiError, enviarCarga, listaEntregaCarga,
   type OrdenCarga, type EntregaCarga, type LineaCarga,
 } from '../api/client';
@@ -22,7 +22,8 @@ import { HojaVisor } from '../components/HojaVisor';
 import { SelloHecho, Vacio } from '../components/Pegatinas';
 import { ElegirAlbaranes, LeyendoAlbaran } from '../components/AlCamion';
 import { sinRed } from '../lib/offline';
-import { firmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reintentarFirmaCarga, reducirFoto, listaSinRed, estaLista } from '../lib/offlineCargas';
+import { esEncargado } from '../auth';
+import { firmaSinRed, sinFirmaSinRed, firmaEnCola, marcaEnCola, marcarSinRed, enviarColaCargas, descartarFirma, reintentarFirmaCarga, reducirFoto, listaSinRed, estaLista } from '../lib/offlineCargas';
 
 const cant = (n: number | null | undefined) => (n == null ? '' : String(+n.toFixed(2)).replace('.', ','));
 const fechaHora = (iso?: string | null) => {
@@ -311,6 +312,12 @@ function LineaModal({ entregaId, ln, onClose, onSaved, onDelete }: {
 
 // ─── Firma del cliente ───────────────────────────────────────────────────────
 
+/** «No está el cliente» en la firma de la entrega. En pruebas: solo Andrés hasta que lo apruebe (31/10/2026). */
+const SIN_FIRMA_PARA_TODOS = false;
+const SITIOS: [string, string][] = [
+  ['obra', 'En la obra'], ['almacen', 'En el garaje o almacén'], ['persona', 'Con un vecino o familiar'], ['otro', 'En otro sitio'],
+];
+
 function FirmaModal({ e, ordenId, onClose, onFirmado }: {
   e: EntregaCarga; ordenId: number; onClose: () => void; onFirmado: (sinRed: boolean) => void;
 }) {
@@ -325,6 +332,12 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
   const [foto, setFoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // «No está el cliente»: se entrega sin firma, con foto obligatoria y dónde se dejó
+  const [modo, setModo] = useState<'firma' | 'sin'>('firma');
+  const [sitio, setSitio] = useState('');
+  const [quien, setQuien] = useState('');
+  const [otro, setOtro] = useState('');
+  const ubicacion = useRef('');
   const llevados = e.lineas.filter(l => l.cargado_ok || l.cargado);
   const faltan = e.lineas.filter(l => !l.cargado_ok);
   useEffect(() => () => { if (foto) URL.revokeObjectURL(foto.url); }, [foto]);
@@ -335,6 +348,37 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
     const blob = await reducirFoto(f);
     setFoto({ blob, url: URL.createObjectURL(blob) });
     ev.target.value = '';
+  };
+
+  const pasarASinFirma = () => {
+    setModo('sin'); setError('');
+    // Dónde está el móvil (para la hoja); si tarda o no deja, se entrega igual
+    try {
+      navigator.geolocation?.getCurrentPosition(
+        p => { ubicacion.current = `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`; },
+        () => undefined, { timeout: 8000, maximumAge: 120000, enableHighAccuracy: true });
+    } catch { /* sin ubicación */ }
+  };
+
+  const entregarSinFirma = async () => {
+    if (!sitio) { setError('Elige dónde lo dejaste'); return; }
+    if (sitio === 'persona' && !quien.trim()) { setError('Escribe el nombre de quien lo recoge'); return; }
+    if (sitio === 'otro' && !otro.trim()) { setError('Escribe dónde lo dejaste'); return; }
+    if (!foto) { setError('Falta la foto del material descargado'); return; }
+    setSaving(true); setError('');
+    const cargadas = Object.fromEntries(e.lineas.map(l => [String(l.id), { ok: l.cargado_ok, cargado: l.cargado }]));
+    const datos = { sitio, quien: sitio === 'persona' ? quien.trim() : '', otro: sitio === 'otro' ? otro.trim() : '', ubicacion: ubicacion.current };
+    try {
+      await sinFirmaEntregaCarga(e.id, foto.blob, { ...datos, cargadas });
+      onFirmado(false);
+    } catch (err) {
+      if (sinRed(err)) {
+        try {
+          await sinFirmaSinRed({ entregaId: e.id, ordenId, cliente: e.cliente, cargadas }, datos, foto.blob);
+          onFirmado(true);
+        } catch (e2) { setError((e2 as Error).message); }
+      } else setError(mensajeError(err, describeApiError(err)));
+    } finally { setSaving(false); }
   };
 
   const firmar = async () => {
@@ -381,6 +425,52 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
           {faltan.length > 0 && <small style={{ color: 'var(--warning)' }}>Sin cargar o a medias: {faltan.map(l => l.descripcion).join(', ')}. Saldrá como pendiente en la hoja.</small>}
         </div>
 
+        {(SIN_FIRMA_PARA_TODOS || esEncargado()) && (
+          <div className="carga-firma-modo" role="tablist" aria-label="¿Está el cliente?">
+            <button type="button" role="tab" aria-selected={modo === 'firma'} className={modo === 'firma' ? 'on' : ''}
+              onClick={() => { setModo('firma'); setError(''); }}><PenLine size={18} /> Firma el cliente</button>
+            <button type="button" role="tab" aria-selected={modo === 'sin'} className={modo === 'sin' ? 'on' : ''}
+              onClick={pasarASinFirma}><UserX size={18} /> No está el cliente</button>
+          </div>
+        )}
+
+        {modo === 'sin' ? (
+          <div className="carga-sin-firma">
+            <div className="form-label">¿Dónde lo dejaste?</div>
+            <div className="carga-sitios">
+              {SITIOS.map(([k, txt]) => (
+                <button key={k} type="button" className={`carga-sitio${sitio === k ? ' on' : ''}`} aria-pressed={sitio === k}
+                  onClick={() => { setSitio(k); setError(''); }}>{txt}</button>
+              ))}
+            </div>
+            {sitio === 'persona' && (
+              <div style={{ marginTop: 10 }}>
+                <label className="form-label" htmlFor={`sf-quien-${e.id}`}>¿Quién lo recoge?</label>
+                <input id={`sf-quien-${e.id}`} className="form-input" value={quien} onChange={ev => setQuien(ev.target.value)}
+                  autoComplete="off" autoCapitalize="words" placeholder="Ej.: Luis, el vecino" />
+              </div>
+            )}
+            {sitio === 'otro' && (
+              <div style={{ marginTop: 10 }}>
+                <label className="form-label" htmlFor={`sf-otro-${e.id}`}>¿Dónde?</label>
+                <input id={`sf-otro-${e.id}`} className="form-input" value={otro} onChange={ev => setOtro(ev.target.value)}
+                  autoComplete="off" placeholder="Ej.: detrás de la casa" />
+              </div>
+            )}
+            <div className="form-label" style={{ marginTop: 14 }}>Foto del material descargado</div>
+            {foto ? (
+              <div className="carga-sf-foto">
+                <img src={foto.url} alt="Foto de la entrega" />
+                <button className="btn btn-ghost btn-sm" onClick={() => camara.current?.click()}><Camera size={15} /> Repetir la foto</button>
+              </div>
+            ) : (
+              <button type="button" className="carga-sf-camara" onClick={() => camara.current?.click()}>
+                <Camera size={30} /> <span>Hacer la foto</span><small>Que se vea el material y el sitio</small>
+              </button>
+            )}
+            <input ref={camara} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
+          </div>
+        ) : (<>
         <div className="campos-2" style={{ marginTop: 12 }}>
           <div><label className="form-label" htmlFor={`firma-nombre-${e.id}`}>Nombre de quien firma</label>
             <input id={`firma-nombre-${e.id}`} className="form-input" value={nombre} onChange={ev => setNombre(ev.target.value)}
@@ -413,13 +503,20 @@ function FirmaModal({ e, ordenId, onClose, onFirmado }: {
           )}
           <input ref={camara} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
         </div>
+        </>)}
         <div className="carga-firma-botones">
           {/* El aviso, en la barra fija: abajo del todo quedaba tapado y parecía que «Firmar» no hacía nada */}
           {error && <div className="doc-aviso error carga-firma-error" role="alert">{error}</div>}
-          <button className="btn btn-ghost btn-lg" onClick={() => pad.current?.clear()} disabled={!tinta}><Eraser size={18} /> Borrar</button>
-          <button className="btn btn-primary btn-lg" onClick={firmar} disabled={saving || !tinta}>
-            {saving ? 'Guardando…' : <><Check size={20} /> Firmar</>}
-          </button>
+          {modo === 'sin' ? (
+            <button className="btn btn-primary btn-lg carga-sf-boton" onClick={entregarSinFirma} disabled={saving}>
+              {saving ? 'Guardando…' : <><Check size={20} /> Entregado sin firma</>}
+            </button>
+          ) : (<>
+            <button className="btn btn-ghost btn-lg" onClick={() => pad.current?.clear()} disabled={!tinta}><Eraser size={18} /> Borrar</button>
+            <button className="btn btn-primary btn-lg" onClick={firmar} disabled={saving || !tinta}>
+              {saving ? 'Guardando…' : <><Check size={20} /> Firmar</>}
+            </button>
+          </>)}
         </div>
       </div>
     </div>
@@ -624,9 +721,16 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
   };
 
   const repetirFirma = async (e: EntregaCarga) => {
-    if (!await confirm({ title: 'Repetir la firma', message: 'Se borra la firma de esta entrega para volver a firmarla.', confirmLabel: 'Borrar firma', danger: true })) return;
+    if (!await confirm(e.sin_firma
+      ? { title: 'Deshacer la entrega sin firma', message: 'La entrega vuelve a estar pendiente para firmarla. Si el cliente firma en la tienda, mejor ábrelo desde su albarán («Que lo firme ahora»).', confirmLabel: 'Deshacer', danger: true }
+      : { title: 'Repetir la firma', message: 'Se borra la firma de esta entrega para volver a firmarla.', confirmLabel: 'Borrar firma', danger: true })) return;
     try { await anularFirmaCarga(e.id); load(); }
     catch (err) { show(`No se pudo: ${describeApiError(err)}`, { error: true }); }
+  };
+
+  const reenviarWhatsapp = async (e: EntregaCarga) => {
+    try { await whatsappEntregaCarga(e.id); show('Enviando por WhatsApp…'); setTimeout(load, 4000); }
+    catch (err) { show(`No se pudo: ${mensajeError(err, describeApiError(err))}`, { error: true }); }
   };
 
   const releer = async (e: EntregaCarga) => {
@@ -806,7 +910,7 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                   <div className="doc-aviso error" style={{ margin: 0, width: '100%' }}>
                     <AlertTriangle size={18} />
                     <div>
-                      <b>La firma guardada sin cobertura no se pudo enviar</b>
+                      <b>{guardada.sinFirma ? 'La entrega sin firma' : 'La firma'} guardada sin cobertura no se pudo enviar</b>
                       <span>{guardada.error}</span>
                       <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button className="btn btn-primary btn-sm" onClick={() => { reintentarFirmaCarga(e.id); }}>
@@ -820,17 +924,23 @@ export function OrdenCargaPage({ reparto = false }: { reparto?: boolean }) {
                     </div>
                   </div>
                 ) : (
-                  <span className="carga-en-cola"><CloudOff size={18} /> Firmada por {guardada.nombre} sin cobertura. Se enviará sola al volver la señal.</span>
+                  <span className="carga-en-cola"><CloudOff size={18} /> {guardada.sinFirma ? 'Entregada sin firma' : `Firmada por ${guardada.nombre}`} sin cobertura. Se enviará sola al volver la señal.</span>
                 )
               ) : e.estado === 'entregada' ? (
                 <>
-                  <span className="rep-hecha">✓ Firmado por {e.firmado_por} · {fechaHora(e.firmado_at)}</span>
+                  {e.sin_firma
+                    ? <span className="rep-hecha carga-sin-firma-hecha"><Camera size={15} /> Entregado sin firma · {e.sin_firma} · {fechaHora(e.firmado_at)}</span>
+                    : <span className="rep-hecha">✓ Firmado por {e.firmado_por} · {fechaHora(e.firmado_at)}</span>}
                   <button className="btn btn-primary" onClick={() => setHoja(e.id)}><FileText size={17} /> Hoja de entrega</button>
                   {e.foto_entrega
                     ? <button className="carga-foto-mini" onClick={() => setFoto(e.foto_entrega!)} aria-label="Ver la foto de la entrega"><img src={fotoCargaUrl(e.foto_entrega)} alt="" /></button>
                     : <button className="btn btn-ghost btn-sm" onClick={() => { setFotoPara(e.id); fotoEntrega.current?.click(); }}><Camera size={15} /> Añadir foto</button>}
                   {!reparto && <span className="carga-drive">{e.drive_at ? <><Cloud size={14} /> Guardada en Drive</> : 'Guardándose en Drive…'}</span>}
-                  {!reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => repetirFirma(e)}>Repetir la firma</button>}
+                  {!reparto && e.sin_firma && (e.whatsapp_at
+                    ? <span className="carga-drive"><Check size={14} /> Avisado por WhatsApp</span>
+                    : e.whatsapp_error ? <span className="carga-drive carga-wa-error">WhatsApp sin enviar: {e.whatsapp_error}
+                        {' '}<button className="btn btn-ghost btn-sm" onClick={() => reenviarWhatsapp(e)}><RefreshCw size={13} /> Reintentar</button></span> : null)}
+                  {!reparto && <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-3)' }} onClick={() => repetirFirma(e)}>{e.sin_firma ? 'Deshacer la entrega' : 'Repetir la firma'}</button>}
                 </>
               ) : lista ? (
                 <>

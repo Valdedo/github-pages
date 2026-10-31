@@ -32,7 +32,7 @@ _REPARTO = (
     ("GET", re.compile(r"^/api/cargas/\d+$")),
     ("GET", re.compile(r"^/api/cargas/foto/entrega_[\w.-]+$")),  # solo la foto de la entrega, no la libreta
     ("PUT", re.compile(r"^/api/cargas/lineas/\d+$")),
-    ("POST", re.compile(r"^/api/cargas/entregas/\d+/(firmar|foto)$")),
+    ("POST", re.compile(r"^/api/cargas/entregas/\d+/(firmar|foto|sin-firma)$")),
     ("PUT", re.compile(r"^/api/cargas/entregas/\d+/lista$")),
     ("GET", re.compile(r"^/api/cargas/entregas/\d+/(pdf|hoja|pagina/\d+\.png)$")),
 )
@@ -106,6 +106,9 @@ class EntregaOut(BaseModel):
     treyfact_at: Optional[datetime] = None
     foto_entrega: Optional[str] = None
     drive_at: Optional[datetime] = None
+    sin_firma: Optional[str] = None
+    whatsapp_at: Optional[datetime] = None
+    whatsapp_error: Optional[str] = None
     albaran_cambiado: bool = False
     # Quién firmó otras veces por este cliente (sugerencias al firmar)
     firmantes: List[str] = []
@@ -709,6 +712,194 @@ async def firmar(
     return _ent(e)
 
 
+# Dónde se dejó cuando no estaba el cliente (lo que se ve en la hoja y en el albarán) y cómo se dice en el WhatsApp
+_SITIOS = {
+    "obra": ("Dejado en la obra", "en la obra"),
+    "almacen": ("Dejado en el garaje o almacén", "en el garaje o almacén"),
+}
+
+
+def _jpeg(datos: bytes) -> Optional[bytes]:
+    """Foto girada bien y en JPEG (la API de WhatsApp y el PDF la quieren así). None si no es una imagen."""
+    import io
+    try:
+        from PIL import Image, ImageOps
+        im = ImageOps.exif_transpose(Image.open(io.BytesIO(datos))).convert("RGB")
+        im.thumbnail((1600, 1600))
+        b = io.BytesIO()
+        im.save(b, "JPEG", quality=82)
+        return b.getvalue()
+    except Exception:
+        return None
+
+
+@router.post("/entregas/{eid}/sin-firma", response_model=EntregaOut)
+async def entregar_sin_firma(
+    eid: int, request: Request,
+    foto: UploadFile = File(...), sitio: str = Form(...), quien: str = Form(default=""), otro: str = Form(default=""),
+    nota: str = Form(default=""), hecho_el: Optional[str] = Form(default=None), ubicacion: str = Form(default=""),
+    cargadas: Optional[str] = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    """No estaba el cliente: se da por entregado con una foto del material descargado y dónde se dejó.
+    El albarán queda como entregado sin firma (con la foto) y, si el WhatsApp está conectado, se avisa al cliente."""
+    e = _entrega(db, eid)
+    _suya(request, e.orden)
+    if e.estado == "entregada":
+        raise HTTPException(409, "Esta entrega ya está firmada")
+    if not (e.cliente or "").strip():
+        raise HTTPException(422, "Falta el nombre del cliente")
+    quien, otro = quien.strip()[:120], otro.strip()[:120]
+    if sitio in _SITIOS:
+        etiqueta, wa = _SITIOS[sitio]
+    elif sitio == "persona":
+        if not quien:
+            raise HTTPException(400, "Escribe el nombre de quien lo recoge")
+        etiqueta, wa = f"Recogido por {quien} (sin firmar)", f"con {quien}"
+    elif sitio == "otro":
+        if not otro:
+            raise HTTPException(400, "Escribe dónde se dejó")
+        if otro.lower().startswith(("dejado ", "dejada ", "dejados ", "dejadas ")):
+            otro = otro.split(" ", 1)[1]
+        etiqueta, wa = f"Dejado {otro}", otro
+    else:
+        raise HTTPException(400, "Elige dónde se dejó el material")
+    if cargadas:
+        try:  # hecho sin cobertura: lo que se marcó como cargado en el móvil
+            marcas = json.loads(cargadas)
+            for ln in e.lineas:
+                if str(ln.id) in marcas:
+                    m = marcas[str(ln.id)]
+                    ln.cargado_ok = bool(m.get("ok"))
+                    ln.cargado = m.get("cargado")
+        except Exception:
+            pass
+    if not any(ln.cargado_ok or ln.cargado for ln in e.lineas):
+        raise HTTPException(400, "No hay nada marcado como cargado. Marca lo que se entrega antes.")
+    datos = await foto.read(MAX_FOTO + 1)
+    if not datos or len(datos) > MAX_FOTO:
+        raise HTTPException(400, "Falta la foto del material descargado")
+    jpg = _jpeg(datos)
+    if e.foto_entrega:
+        (_dir() / e.foto_entrega).unlink(missing_ok=True)
+    e.foto_entrega = f"entrega_{e.id}_{uuid.uuid4().hex[:8]}" + (".jpg" if jpg else (Path(foto.filename or "").suffix.lower() or ".jpg"))
+    (_dir() / e.foto_entrega).write_bytes(jpg or datos)
+
+    e.sin_firma = etiqueta[:200]
+    e.firma_archivo = None
+    e.firmado_por = (quien or "Sin firma")[:200]
+    e.firmado_dni = None
+    e.firmado_at = datetime.utcnow()
+    if hecho_el:
+        try:  # hora real (hecho sin cobertura), en UTC sin zona
+            from datetime import timezone
+            f = datetime.fromisoformat(hecho_el.replace("Z", "+00:00"))
+            if f.tzinfo:
+                f = f.astimezone(timezone.utc).replace(tzinfo=None)
+            if f <= e.firmado_at:
+                e.firmado_at = f
+        except ValueError:
+            pass
+    if re.fullmatch(r"-?\d{1,3}\.\d+,-?\d{1,3}\.\d+", ubicacion.strip()):
+        e.ubicacion = ubicacion.strip()
+    if nota.strip():
+        e.notas = ((e.notas + "\n") if e.notas else "") + f"Al entregar: {nota.strip()[:300]}"
+    e.entregado_por = getattr(request.state, "persona", None)
+    e.lista_at = e.lista_at or e.firmado_at
+    e.estado = "entregada"
+    e.drive_at = None
+    for ln in e.lineas:
+        ln.confirmada = True
+    with _NUMERANDO:
+        if not e.numero:
+            e.numero = _numero(db)
+        db.flush(); db.refresh(e.orden); _estado(e.orden)
+        db.commit()
+    db.refresh(e)
+    if e.albaran_id and not e.albaran_cambiado:
+        # El albarán de TreyFACT queda «firmado» con el sello «Sin firma del cliente» y la foto al final: así se
+        # archiva y se puede facturar. Si el cliente pasa por la tienda, «Que lo firme ahora» lo vuelve a «Por firmar».
+        from app.api.firmas import firmar_desde_entrega
+        from app.services.firma_service import sello_sin_firma
+        firmar_desde_entrega(db, e.albaran_id, sello_sin_firma(etiqueta), e.firmado_por, "", e.firmado_at,
+                             sin_firma=etiqueta, foto=jpg)
+        db.refresh(e)
+    elif e.albaran_id and e.albaran is not None and e.albaran.status == "pendiente":
+        e.albaran.nota = (f"Ojo: la hoja de entrega {e.numero} se entregó sin firma con la versión anterior de este "
+                          "albarán. Compruébalo antes de facturar.")
+        db.commit()
+    from app.services.backup_service import backup_en_segundo_plano
+    backup_en_segundo_plano()
+    _avisar_whatsapp(e.id)
+    from app.services import push_service
+    if _es_reparto(request):
+        push_service.avisar(push_service.a_tienda, f"Entregado sin firma: {e.cliente}",
+                            f"{etiqueta}. Lleva foto.", f"/cargas/{e.orden_id}", f"entrega-{e.id}")
+    return _ent(e)
+
+
+def _avisar_whatsapp(eid: int) -> None:
+    """Manda al cliente la foto y dónde se dejó, desde el WhatsApp de la empresa (en segundo plano)."""
+    from app.services import whatsapp_service as wa
+    if not wa.activo():
+        return
+
+    def tarea():
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            e = db.get(EntregaCarga, eid)
+            if e is None or not e.sin_firma or e.whatsapp_at:
+                return
+            tel = wa.movil(e.telefono)
+            if not tel and e.albaran_id and e.albaran and e.albaran.codigo_cliente:
+                from app.models.client_delivery_note import ClientContact
+                ct = db.get(ClientContact, e.albaran.codigo_cliente)
+                tel = wa.movil(ct.telefono if ct else None)
+            if not tel:
+                e.whatsapp_error = "No hay un móvil del cliente (ni en la entrega ni en su ficha)"
+                db.commit()
+                return
+            hora = e.firmado_at.replace(tzinfo=ZoneInfo("UTC")).astimezone(MADRID).strftime("%H:%M")
+            numero = (e.albaran.numero if e.albaran_id and e.albaran else None) or e.numero or str(e.id)
+            sitio = e.sin_firma or ""
+            for k, (etq, frase) in _SITIOS.items():
+                if etq == sitio:
+                    sitio = frase
+            if sitio.startswith("Recogido por "):
+                sitio = "con " + sitio[len("Recogido por "):].replace(" (sin firmar)", "")
+            elif sitio.startswith("Dejado "):
+                sitio = sitio[len("Dejado "):]
+            foto = (_dir() / e.foto_entrega).read_bytes() if e.foto_entrega and (_dir() / e.foto_entrega).exists() else None
+            try:
+                wa.entrega_sin_firma(tel, hora, numero, sitio, _jpeg(foto) if foto else None)
+                e.whatsapp_at, e.whatsapp_error = datetime.utcnow(), None
+            except Exception as ex:
+                logger.warning("No se pudo avisar por WhatsApp de la entrega %s: %s", eid, ex)
+                e.whatsapp_error = str(ex)[:300]
+            db.commit()
+        finally:
+            db.close()
+
+    threading.Thread(target=tarea, daemon=True).start()
+
+
+@router.post("/entregas/{eid}/whatsapp", response_model=EntregaOut)
+def reenviar_whatsapp(eid: int, db: Session = Depends(get_db)):
+    """Volver a intentar el aviso por WhatsApp (p. ej. después de poner el móvil del cliente)."""
+    from app.services import whatsapp_service as wa
+    e = _entrega(db, eid)
+    if not e.sin_firma:
+        raise HTTPException(409, "Esta entrega está firmada por el cliente")
+    if not wa.activo():
+        raise HTTPException(409, "El WhatsApp de la empresa aún no está conectado")
+    e.whatsapp_at, e.whatsapp_error = None, None
+    db.commit()
+    _avisar_whatsapp(e.id)
+    db.refresh(e)
+    return _ent(e)
+
+
 @router.post("/entregas/{eid}/foto", response_model=EntregaOut)
 async def subir_foto_entrega(eid: int, request: Request, foto: UploadFile = File(...), db: Session = Depends(get_db)):
     """Añadir o cambiar la foto del material descargado (también después de firmar)."""
@@ -735,7 +926,7 @@ def anular_firma(eid: int, db: Session = Depends(get_db)):
     """Para repetir una firma mal hecha."""
     e = _entrega(db, eid)
     n = e.albaran if e.albaran_id else None
-    if n is not None and n.status == "firmado" and n.signed_by == e.firmado_por:
+    if n is not None and n.status == "firmado" and n.signed_by == e.firmado_por and n.sin_firma == e.sin_firma:
         if n.facturado_at:
             raise HTTPException(409, f"El albarán {n.numero} ya está facturado: no se puede repetir la firma.")
         if n.signed_path:
@@ -743,11 +934,13 @@ def anular_firma(eid: int, db: Session = Depends(get_db)):
         n.signed_path = None
         n.status = "pendiente"
         n.signed_at = n.signed_by = n.signer_dni = None
+        n.sin_firma = None
         n.backup_at = None
     if e.firma_archivo:
         (_dir() / e.firma_archivo).unlink(missing_ok=True)
     e.firma_archivo = e.firmado_por = e.firmado_dni = None
     e.firmado_at = None
+    e.sin_firma = e.ubicacion = None
     e.estado = "pendiente"
     e.drive_at = None
     db.flush(); db.refresh(e.orden); _estado(e.orden)
