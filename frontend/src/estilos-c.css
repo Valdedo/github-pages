@@ -487,3 +487,39 @@ button.tsem:active { transform: scale(.985); }
 .nueva-version small { font-size: 12.5px; opacity: .8; }
 .nueva-version .btn { background: var(--cf-verde); border-color: var(--cf-verde); color: #0B2A1A; flex-shrink: 0; }
 @media (min-width: 769px) { .nueva-version { bottom: 20px; left: auto; right: 20px; transform: none; } }
+
+/* Albaranes de venta: resumen por cliente (sin firmar · sin copia · por facturar) */
+.cli-lista { display: flex; flex-direction: column; gap: 10px; }
+.cli-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.cli-card-cab { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.cli-card-cab:disabled { cursor: default; }
+.cli-card-nombre { font-weight: 700; font-size: 16px; overflow-wrap: break-word; min-width: 0; }
+.cli-card-cab small { grid-column: 1; font-size: 13px; color: var(--text-3); }
+.cli-card-cab small b { color: var(--text-1); }
+.cli-card-flecha { grid-column: 2; grid-row: 1 / span 2; color: var(--text-3); }
+.cli-card-cab:disabled .cli-card-flecha { display: none; }
+.cli-estado { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cli-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 999px; border: 1.5px solid transparent;
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; line-height: 1.2; }
+.cli-chip.firmar { background: var(--brand-light); color: var(--cf-bosque); }
+.cli-chip.copia { background: #FEF3C7; color: #7A4A00; }
+.cli-chip.facturar { background: #EDE9FE; color: #4C1D95; }
+.cli-chip.ok { background: var(--surface-2); color: var(--text-3); cursor: default; font-weight: 500; }
+.cli-chip.cero { background: transparent; border-color: var(--border); color: var(--text-3); font-weight: 500; }
+.cli-chip[aria-pressed="true"] { border-color: currentColor; }
+.cli-chip:hover:not(.ok) { filter: brightness(.97); }
+.cli-card-copia { margin-left: auto; }
+.cli-resumen { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.cli-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.cli-rapido { margin-bottom: 10px; }
+.cli-mas { margin: 4px 0 0; width: 100%; }
+@media (max-width: 520px) {
+  .cli-card-copia { margin-left: 0; width: 100%; }
+  .cli-card-copia .btn { width: 100%; justify-content: center; }
+  .cli-acciones, .cli-acciones .btn { width: 100%; justify-content: center; }
+}
+.cli-resumen-cab { flex: 1 1 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cli-resumen-cab b { font-size: 16px; overflow-wrap: break-word; min-width: 0; }
+.cli-resumen-cab .turnos-link { display: inline-flex; align-items: center; gap: 2px; }

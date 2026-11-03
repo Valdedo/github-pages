@@ -38,6 +38,8 @@ const PASOS: Paso[] = [
     texto: 'Dentro de la orden, «Enviar a Melchor» se la pone en su móvil. Si la lleva otro, se carga y se firma desde la propia orden. Cuando el cliente firma la hoja de entrega, el albarán queda firmado también.' },
   { ruta: '/firmas', sel: ['[data-tour="filtro-cliente"]', '[data-tour="filtrar"]'], titulo: 'Obras de cada cliente',
     texto: 'Elige un cliente aquí (en el móvil, dentro de «Filtrar») y salen sus obras como botones. En «Por facturar» puedes facturar obra por obra.' },
+  { ruta: '/firmas', sel: ['[data-tour="vista-clientes"]'], titulo: 'Por cliente',
+    texto: 'Aquí ves cada cliente en una línea con lo que le falta: sin firmar, sin copia y por facturar. «Dar copia» saca en un PDF sus firmados y los deja marcados como copia entregada.' },
   { ruta: '/firmas', sel: ['[data-tour="nav-tarifas"]', '[data-tour="nav-mas"]'], titulo: 'Tarifas de proveedor',
     texto: 'Las tarifas están aquí. Busca por medidas, por ejemplo «50x50x4», y ves el precio y la factura.',
     textoOtro: 'Las tarifas están dentro de «Más», en el apartado «Mostrador». Busca por medidas, por ejemplo «50x50x4».' },

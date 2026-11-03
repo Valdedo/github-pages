@@ -66,6 +66,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 ## Nombres de los apartados (13/10/2026, para no confundir)
 - «Albaranes de compra» (`/albaranes`, abajo en el móvil «Compras»): los de proveedor que se leen con IA.
 - «Albaranes de venta» (`/firmas`, abajo «Ventas»): los de TreyFACT a clientes; firmar, al camión, facturar.
+  (3/11/2026) Pestaña «Por cliente» (antes «Todos»): una tarjeta por cliente con «N sin firmar / N sin copia / N por facturar»
+  y «Dar copia»; al elegir cliente sale arriba su resumen (`cli-resumen`) con «Dar copia de los N firmados» y «Marcar facturados».
+  «Sin copia» = firmado sin copia, correo ni WhatsApp (`sinCopia`). **Todo PDF de varios firmados (`copiaBtn`) marca «Copia
+  entregada» solo** en los que no la tenían, con Deshacer (antes el PDF no apuntaba nada y se quedaba sin marcar).
+  Avisos de facturación: uno solo para todo lo de meses anteriores (ámbar hasta el día 10, rojo después), solo en Inicio.
 - «Órdenes de carga» (`/cargas`) va en el grupo Clientes, debajo de los de venta.
 - En «Albaranes de venta», al elegir un cliente salen sus **obras y referencias** como botones (campo `obra` del albarán,
   REFERENCIA de TreyFACT) y la lista se agrupa por obra; en «Por facturar» cada empresa se parte por obras, con PDF y

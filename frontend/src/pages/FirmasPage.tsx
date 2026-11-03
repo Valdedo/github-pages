@@ -5,7 +5,6 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { listFirmas, uploadFirmas, firmasCombinadoUrl, marcarFirmas, repartoFirmas, describeApiError } from '../api/client';
-import { FirmasAvisos } from '../components/FirmasAvisos';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { Vacio } from '../components/Pegatinas';
@@ -22,7 +21,7 @@ const VISTAS: { value: Vista; label: string }[] = [
   { value: 'firmar', label: 'Por firmar' },
   { value: 'facturar', label: 'Por facturar' },
   { value: 'facturados', label: 'Facturados' },
-  { value: 'todos', label: 'Todos' },
+  { value: 'todos', label: 'Por cliente' },
 ];
 
 export function fmtFecha(iso?: string | null): string {
@@ -41,6 +40,9 @@ export const fmtEuros = (v?: number | null) =>
   euros(v);
 
 const enviado = (n: ClientDeliveryNote) => !!(n.emailed_at || n.whatsapp_at || n.copia_at);
+/** Firmado y el cliente aún no tiene copia (ni en mano, ni por correo, ni por WhatsApp). */
+const sinCopia = (n: ClientDeliveryNote) => n.status === 'firmado' && !enviado(n);
+const plural = (n: number, uno: string, varios: string) => `${n} ${n !== 1 ? varios : uno}`;
 
 /** Las cinco marcas de seguimiento: en color si está hecho, en gris si no.
  *  Sin firmar solo se enseña lo que ya está hecho (lo demás aún no aplica).
@@ -145,6 +147,8 @@ export function FirmasPage() {
   const [verFiltros, setVerFiltros] = useState(false);
   // «Por facturar»: cada cliente plegado o desplegado (los de más de 3 albaranes empiezan plegados)
   const [plegado, setPlegado] = useState<Record<string, boolean>>({});
+  // «Por cliente»: se enseñan unos pocos y «Ver más» saca otros tantos
+  const [nClientes, setNClientes] = useState(5);
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
   const { toast, show } = useCfToast();
@@ -191,7 +195,7 @@ export function FirmasPage() {
     firmar: notes.filter(n => enLaVista('firmar', n)).length,
     facturar: notes.filter(n => enLaVista('facturar', n)).length,
     facturados: notes.filter(n => enLaVista('facturados', n)).length,
-    todos: notes.length,
+    todos: new Set(notes.map(n => n.codigo_cliente || '—')).size,
   };
   const hayFiltros = !!(search.trim() || cliente || mes || envio);
   // Obras y referencias de cada cliente, juntando las que son la misma escrita de otra forma
@@ -250,6 +254,38 @@ export function FirmasPage() {
       .sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [vista, filtered]);
 
+  // «Por cliente»: una línea por cliente con lo que le falta (firmar, copia, facturar)
+  const porCliente = useMemo(() => {
+    if (vista !== 'todos' || cliente) return [];
+    const m = new Map<string, ClientDeliveryNote[]>();
+    filtered.forEach(n => { const k = n.codigo_cliente || '—'; m.set(k, [...(m.get(k) || []), n]); });
+    return [...m.entries()].map(([cod, list]) => {
+      const porFacturar = list.filter(n => n.status === 'firmado' && !n.facturado_at);
+      return {
+        cod, list, nombre: list[0].cliente || 'Cliente sin identificar',
+        sinFirmar: list.filter(n => n.status === 'pendiente').length,
+        porFacturar, sinCopia: list.filter(sinCopia),
+        importe: porFacturar.reduce((t, n) => t + (n.importe ?? 0), 0),
+        ultima: list.reduce((u, n) => ((n.fecha || '') > u ? n.fecha || '' : u), ''),
+      };
+    }).sort((a, b) => {
+      const pa = a.sinFirmar + a.porFacturar.length + a.sinCopia.length > 0 ? 0 : 1;
+      const pb = b.sinFirmar + b.porFacturar.length + b.sinCopia.length > 0 ? 0 : 1;
+      return pa - pb || b.ultima.localeCompare(a.ultima) || a.nombre.localeCompare(b.nombre);
+    });
+  }, [vista, cliente, filtered]);
+  // Lo del cliente elegido (con su obra, si hay), sea cual sea la pestaña
+  const delCliente = cliente ? notes.filter(n => n.codigo_cliente === cliente && (!obra || grupoObra(n) === obra)) : [];
+  const resumenCliente = {
+    sinFirmar: delCliente.filter(n => n.status === 'pendiente').length,
+    porFacturar: delCliente.filter(n => n.status === 'firmado' && !n.facturado_at),
+    sinCopia: delCliente.filter(sinCopia),
+  };
+  const irA = (cambios: Record<string, string>, v?: Vista) => {
+    ponFiltros({ ...cambios, ...(v ? { vista: v } : {}) }); setSel(new Set());
+    if (v) { try { sessionStorage.setItem('firmasVista', v); } catch { /* nada */ } }
+  };
+
   const selectable = vista !== 'firmar';
   const firmadosFiltro = filtered.filter(n => n.status === 'firmado');
   const toggle = (id: number) => setSel(s => { const c = new Set(s); if (c.has(id)) c.delete(id); else c.add(id); return c; });
@@ -293,6 +329,36 @@ export function FirmasPage() {
     }
   };
   const quitarFacturado = () => marcarFacturados(selNotes, false);
+
+  // Al sacar el PDF de varios firmados se apunta solo «Copia entregada» en los que no la tenían
+  // (antes había que marcarlo uno a uno y se quedaba sin marcar). Se puede deshacer.
+  const darCopia = async (list: ClientDeliveryNote[]) => {
+    const ids = list.filter(n => n.status === 'firmado' && !n.copia_at).map(n => n.id);
+    if (!ids.length) return;
+    try {
+      const { data } = await marcarFirmas(ids, { copia: true });
+      setNotes(prev => { const byId = new Map(data.map(u => [u.id, u])); return prev.map(n => byId.get(n.id) ?? n); });
+      show(`Copia entregada: ${plural(ids.length, 'albarán', 'albaranes')}${quien(list)}`, {
+        undo: async () => {
+          const { data: back } = await marcarFirmas(ids, { copia: false });
+          setNotes(prev => { const byId = new Map(back.map(u => [u.id, u])); return prev.map(n => byId.get(n.id) ?? n); });
+        },
+      });
+    } catch (err) {
+      show(`El PDF sale, pero no se pudo apuntar la copia: ${describeApiError(err)}`, { error: true });
+    }
+  };
+  /** Botón que descarga en un PDF los firmados de la lista y los marca como copia entregada. */
+  const copiaBtn = (list: ClientDeliveryNote[], texto: string, cls = 'btn btn-ghost btn-sm', titulo?: string) => {
+    const firmados = list.filter(n => n.status === 'firmado');
+    if (!firmados.length) return null;
+    return (
+      <a className={cls} href={firmasCombinadoUrl(firmados.map(n => n.id))} onClick={() => darCopia(firmados)}
+        title={titulo ?? 'Un solo PDF con estos albaranes firmados. Quedan marcados como «Copia entregada»'}>
+        <FileDown size={14} /> {texto}
+      </a>
+    );
+  };
 
   const onFiles = async (list: FileList | null) => {
     const todos = Array.from(list || []);
@@ -378,8 +444,6 @@ export function FirmasPage() {
           onChange={e => onFiles(e.target.files)} />
       </div>
 
-      <div className="firmas-avisos"><FirmasAvisos /></div>
-
       {uploadMsg && (
         <div className={`firmas-msg${uploadMsg.error ? ' error' : ''}`} role={uploadMsg.error ? 'alert' : 'status'}>
           <span>{uploadMsg.text}</span>
@@ -390,6 +454,7 @@ export function FirmasPage() {
       <div className="firma-vistas" role="tablist" aria-label="Qué albaranes ver">
         {VISTAS.map(v => (
           <button key={v.value} role="tab" aria-selected={vista === v.value} onClick={() => cambiarVista(v.value)}
+            data-tour={v.value === 'todos' ? 'vista-clientes' : undefined}
             className={`firma-vista${vista === v.value ? ' on' : ''}`}>
             {v.label}
             <span className="firma-vista-n">{count[v.value]}</span>
@@ -420,7 +485,7 @@ export function FirmasPage() {
         <select className="form-input" value={envio} onChange={e => ponFiltros({ envio: e.target.value })}
           style={{ margin: 0, flex: '0 1 190px' }} aria-label="Envío">
           <option value="">Cualquier envío</option>
-          <option value="sin">Sin enviar ni entregar</option>
+          <option value="sin">Sin copia (ni correo ni WhatsApp)</option>
           <option value="correo">Enviados por correo</option>
           <option value="whatsapp">Enviados por WhatsApp</option>
           <option value="copia">Copia entregada</option>
@@ -459,7 +524,50 @@ export function FirmasPage() {
         </div>
       )}
 
-      {selectable && filtered.length > 0 && (
+      {cliente && delCliente.length > 0 && (
+        <div className="cli-resumen" role="group" aria-label="Lo que falta de este cliente">
+          <div className="cli-resumen-cab">
+            <b>{delCliente[0].cliente || cliente}</b>
+            <button className="turnos-link" onClick={() => irA({ cliente: '', obra: '', envio: '' }, 'todos')}>
+              <ChevronRight size={14} style={{ transform: 'rotate(180deg)' }} /> Todos los clientes
+            </button>
+          </div>
+          <div className="cli-estado">
+            <button className={`cli-chip firmar${resumenCliente.sinFirmar ? '' : ' cero'}`} onClick={() => irA({}, 'firmar')} aria-pressed={vista === 'firmar'}>
+              <PenLine size={14} /> {resumenCliente.sinFirmar ? `${resumenCliente.sinFirmar} sin firmar` : 'Todo firmado'}
+            </button>
+            <button className={`cli-chip copia${resumenCliente.sinCopia.length ? '' : ' cero'}`} onClick={() => irA({ envio: resumenCliente.sinCopia.length ? 'sin' : '' }, 'todos')}>
+              <HandHelping size={14} /> {resumenCliente.sinCopia.length ? `${resumenCliente.sinCopia.length} sin copia` : 'Copias dadas'}
+            </button>
+            <button className={`cli-chip facturar${resumenCliente.porFacturar.length ? '' : ' cero'}`} onClick={() => irA({ envio: '' }, 'facturar')} aria-pressed={vista === 'facturar'}>
+              <Receipt size={14} /> {resumenCliente.porFacturar.length ? `${resumenCliente.porFacturar.length} por facturar` : 'Todo facturado'}
+            </button>
+          </div>
+          <div className="cli-acciones">
+            {resumenCliente.sinCopia.length > 0 && copiaBtn(resumenCliente.sinCopia, `Dar copia de ${resumenCliente.sinCopia.length === 1 ? 'el firmado' : `los ${resumenCliente.sinCopia.length} firmados`}`, 'btn btn-primary btn-sm',
+              'Un PDF con los firmados que aún no tienen copia, para dárselo o mandárselo al cliente. Quedan marcados como «Copia entregada»')}
+            {resumenCliente.porFacturar.length > 0 && (
+              <button className="btn btn-negro btn-sm" onClick={() => marcarFacturados(resumenCliente.porFacturar, true)}>
+                <Receipt size={14} /> Marcar {resumenCliente.porFacturar.length === 1 ? 'facturado' : `los ${resumenCliente.porFacturar.length} facturados`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {vista === 'facturar' && count.facturar > 0 && (() => {
+        const n = notes.filter(x => enLaVista('facturar', x) && sinCopia(x) && (!cliente || x.codigo_cliente === cliente)).length;
+        return n > 0 || envio === 'sin' ? (
+          <div className="cli-rapido">
+            <button className={`firma-obra${envio === 'sin' ? ' on' : ''}`} aria-pressed={envio === 'sin'}
+              onClick={() => { ponFiltros({ envio: envio === 'sin' ? '' : 'sin' }); setSel(new Set()); }}>
+              <HandHelping size={14} /> Sin copia <span>{n}</span>
+            </button>
+          </div>
+        ) : null;
+      })()}
+
+      {selectable && filtered.length > 0 && vista !== 'todos' || (vista === 'todos' && cliente && filtered.length > 0) ? (
         <div style={{ display: 'flex', gap: 8, marginBottom: 10, fontSize: 13 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set(filtered.map(n => n.id)))}>
             Seleccionar todos ({filtered.length})
@@ -475,7 +583,7 @@ export function FirmasPage() {
             );
           })()}
         </div>
-      )}
+      ) : null}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-3)' }}>Cargando…</div>
@@ -503,6 +611,53 @@ export function FirmasPage() {
           <div className="empty-state-icon"><Receipt size={36} style={{ opacity: 0.3 }} /></div>
           <div className="empty-state-text">Todavía no hay albaranes facturados.</div>
         </div>
+      ) : vista === 'todos' && !cliente ? (
+        <div className="cli-lista">
+          {porCliente.slice(0, nClientes).map(c => {
+            const abrir = () => irA(c.cod !== '—' ? { cliente: c.cod, obra: '' } : { q: '' });
+            const nada = !c.sinFirmar && !c.porFacturar.length && !c.sinCopia.length;
+            return (
+              <div key={c.cod} className="card cli-card">
+                <button className="cli-card-cab" onClick={abrir} disabled={c.cod === '—'}
+                  aria-label={`Ver los albaranes de ${c.nombre}`}>
+                  <span className="cli-card-nombre">{c.nombre}</span>
+                  <small>
+                    {c.cod !== '—' && <>Cód. {c.cod} · </>}{plural(c.list.length, 'albarán', 'albaranes')}
+                    {c.importe > 0 && <> · <b>{fmtEuros(c.importe)}</b> por facturar</>}
+                  </small>
+                  <ChevronRight size={18} className="cli-card-flecha" />
+                </button>
+                <div className="cli-estado">
+                  {nada && <span className="cli-chip ok"><Check size={14} strokeWidth={3} /> Todo al día</span>}
+                  {c.sinFirmar > 0 && (
+                    <button className="cli-chip firmar" onClick={() => irA({ cliente: c.cod, obra: '' }, 'firmar')}>
+                      <PenLine size={14} /> {c.sinFirmar} sin firmar
+                    </button>
+                  )}
+                  {c.sinCopia.length > 0 && (
+                    <button className="cli-chip copia" onClick={() => irA({ cliente: c.cod, obra: '', envio: 'sin' })}>
+                      <HandHelping size={14} /> {c.sinCopia.length} sin copia
+                    </button>
+                  )}
+                  {c.porFacturar.length > 0 && (
+                    <button className="cli-chip facturar" onClick={() => irA({ cliente: c.cod, obra: '' }, 'facturar')}>
+                      <Receipt size={14} /> {c.porFacturar.length} por facturar
+                    </button>
+                  )}
+                  {c.sinCopia.length > 0 && <span className="cli-card-copia">
+                    {copiaBtn(c.sinCopia, `Dar copia (${c.sinCopia.length})`, 'btn btn-ghost btn-sm',
+                      'Un PDF con los firmados que aún no tienen copia. Quedan marcados como «Copia entregada»')}
+                  </span>}
+                </div>
+              </div>
+            );
+          })}
+          {porCliente.length > nClientes && (
+            <button className="firma-ver-todos cli-mas" onClick={() => setNClientes(n => n + 5)}>
+              Ver más clientes ({porCliente.length - nClientes} más) <ChevronRight size={15} />
+            </button>
+          )}
+        </div>
       ) : vista === 'facturar' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {grupos.map(g => {
@@ -522,13 +677,11 @@ export function FirmasPage() {
                       {g.cod !== '—' && <>Cód. {g.cod} · </>}{g.list.length} {g.list.length !== 1 ? 'albaranes' : 'albarán'}
                       {total > 0 && <> · <strong style={{ color: 'var(--text-1)' }}>{fmtEuros(total)}</strong></>}
                       {nObras > 1 && <> · {nObras} obras</>}
+                      {(() => { const k = g.list.filter(sinCopia).length; return k > 0 ? <> · <span style={{ color: '#7A4A00', fontWeight: 600 }}>{k} sin copia</span></> : null; })()}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <a className="btn btn-ghost btn-sm" href={firmasCombinadoUrl(g.list.map(n => n.id))}
-                      title="Un solo PDF con todos estos albaranes, para adjuntar a la factura">
-                      <FileDown size={14} /> PDF
-                    </a>
+                    {copiaBtn(g.list, 'PDF')}
                     <button className="btn btn-primary" onClick={() => marcarFacturados(g.list, true)}>
                       <Receipt size={16} /> Marcar {g.list.length === 1 ? 'como facturado' : `los ${g.list.length} como facturados`}
                     </button>
@@ -549,7 +702,7 @@ export function FirmasPage() {
                           <small>{list.length} {list.length !== 1 ? 'albaranes' : 'albarán'}{list.some(n => n.importe != null) && <> · {fmtEuros(list.reduce((s2, n) => s2 + (n.importe ?? 0), 0))}</>}</small>
                         </span>
                         <span className="firma-obra-acc">
-                          <a className="btn btn-ghost btn-sm" href={firmasCombinadoUrl(list.map(n => n.id))} title="Un solo PDF con los albaranes de esta obra"><FileDown size={14} /> PDF</a>
+                          {copiaBtn(list, 'PDF')}
                           <button className="btn btn-ghost btn-sm" onClick={() => marcarFacturados(list, true)}><Receipt size={14} /> Facturar esta obra</button>
                         </span>
                       </div>
@@ -586,10 +739,8 @@ export function FirmasPage() {
       )}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
-        {vista !== 'firmar' && firmadosFiltro.length > 0 && (
-          <a className="btn btn-ghost btn-largo" href={firmasCombinadoUrl(firmadosFiltro.map(n => n.id))}>
-            <FileDown size={15} /> Descargar en un PDF los {firmadosFiltro.length} firmados de esta lista
-          </a>
+        {vista !== 'firmar' && !(vista === 'todos' && !cliente) && firmadosFiltro.length > 0 && (
+          copiaBtn(firmadosFiltro, `Descargar en un PDF los ${firmadosFiltro.length} firmados de esta lista`, 'btn btn-ghost btn-largo')
         )}
         <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--text-3)' }}
           onClick={() => { if (window.confirm('¿Activar el modo reparto en este dispositivo? Es la vista sencilla para el camionero.')) navigate('/reparto'); }}>
@@ -607,9 +758,7 @@ export function FirmasPage() {
               </button>
             )}
             {selNotes.some(n => n.status === 'firmado') && (
-              <a className="btn btn-ghost btn-sm" href={firmasCombinadoUrl(selNotes.filter(n => n.status === 'firmado').map(n => n.id))}>
-                <FileDown size={14} /> PDF
-              </a>
+              copiaBtn(selNotes, 'PDF')
             )}
             {selNotes.some(n => n.facturado_at) && (
               <button className="btn btn-ghost btn-sm" onClick={quitarFacturado}>

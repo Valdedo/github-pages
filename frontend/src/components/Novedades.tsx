@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Play, Tablet } from 'lucide-react';
+import { HandHelping, Play, Users } from 'lucide-react';
 import { Ilustracion } from './Pegatinas';
 import { abrirTutorial } from './Tutorial';
 
@@ -8,14 +8,15 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-10-23';
+const VERSION = '2026-11-03';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
-  { icono: BookMarked, titulo: 'Nueva tarifa: Inyectometal',
-    texto: 'En «Tarifas de proveedor» ya está Inyectometal: racorería de latón y cobre, válvulas y llaves, flexos, riego y grifería, con el precio de cada medida.', ir: '/tarifas/inyectometal' },
-  { icono: Tablet, titulo: 'Tarifas en la tableta',
-    texto: 'Ahora solo sale en el menú de la tableta del mostrador. En el móvil y el ordenador ya no aparece.' },
+  { icono: Users, titulo: 'Albaranes de venta por cliente',
+    texto: 'En Ventas, la pestaña «Por cliente» enseña cada cliente en una línea con lo que le falta: sin firmar, sin copia y por facturar. Toca el cliente para ver sus albaranes.',
+    ir: '/firmas?vista=todos', boton: 'Ver los clientes' },
+  { icono: HandHelping, titulo: 'La copia se apunta sola',
+    texto: 'Al sacar en PDF varios albaranes firmados (por ejemplo, «Dar copia» de un cliente), quedan marcados como «Copia entregada». Si no se la diste, pulsa «Deshacer».' },
 ];
 
 export const hayNovedades = () => { try { return localStorage.getItem(CLAVE) !== VERSION; } catch { return false; } };
@@ -40,13 +41,13 @@ export function Novedades({ onCerrar }: { onCerrar: () => void }) {
           </div>
         </div>
         <ul className="novedades-lista">
-          {COSAS.map(({ icono: Icono, titulo, texto, ir }) => (
+          {COSAS.map(({ icono: Icono, titulo, texto, ir, boton }) => (
             <li key={titulo}>
               <span className="novedades-icono"><Icono size={20} /></span>
               <span>
                 <b>{titulo}</b>
                 <span>{texto}</span>
-                {ir && <button className="turnos-link" onClick={() => cerrar(ir)}>Ver la tarifa</button>}
+                {ir && <button className="turnos-link" onClick={() => cerrar(ir)}>{boton}</button>}
               </span>
             </li>
           ))}
