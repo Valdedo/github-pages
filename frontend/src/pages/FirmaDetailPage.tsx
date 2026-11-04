@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff, ChevronLeft, AlertTriangle, RefreshCw, PenLine } from 'lucide-react';
+import { Printer, Mail, MessageCircle, Download, Eraser, Trash2, CheckCircle, Check, Truck, CloudOff, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, PenLine, HandHelping, Receipt } from 'lucide-react';
 import {
   getFirma, signFirma, deleteFirma, firmaPageUrl, firmaPdfUrl, describeApiError,
   getFirmaContacto, putFirmaContacto, emailFirma, enlaceFirma, marcarFirma, repartoFirmas, type MarcasFirma,
@@ -15,6 +15,7 @@ import { TopazPad, type TopazHandle } from '../components/TopazPad';
 import { isReparto } from '../reparto';
 import { AlCamionModal } from '../components/AlCamion';
 import { getRol } from '../auth';
+import { ventasNueva, siguienteDe } from '../lib/ventasNueva';
 import { fmtFecha, fmtFirmado, fmtEuros, Marcas } from './FirmasPage';
 import type { ClientDeliveryNote } from '../types';
 
@@ -131,6 +132,9 @@ export function FirmaDetailPage() {
   const irALista = () => (!reparto && hayAtras() ? navigate(-1) : navigate(volver));
   const padRef = useRef<{ clear: () => void; toBlob: () => Promise<Blob | null>; isEmpty: () => boolean } | null>(null);
   const { toast, show } = useCfToast();
+  const v2 = !reparto && ventasNueva();
+  const siguiente = v2 ? siguienteDe(noteId) : null;
+  const irSiguiente = () => { if (siguiente) navigate(`/firmas/${siguiente}`, { replace: true }); };
 
   const [note, setNote] = useState<ClientDeliveryNote | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -144,6 +148,11 @@ export function FirmaDetailPage() {
   const [hecho, setHecho] = useState(false);
   const [guardada, setGuardada] = useState(() => firmaGuardada(noteId));
   useEffect(() => { setGuardada(firmaGuardada(noteId)); }, [noteId]);
+  // «Siguiente albarán» reutiliza la pantalla: se empieza de cero con cada uno
+  useEffect(() => {
+    setNote(null); setNombre(''); setDni(''); setError(null); setImpreso(false); setFactRef(null);
+    setEmail(''); setTelefono(''); setEnvioMsg(null); setHasInk(false); padRef.current?.clear();
+  }, [noteId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [factRef, setFactRef] = useState<string | null>(null); // null: sin tocar
   const [printPages, setPrintPages] = useState<string[]>([]);
   const [camionGuardando, setCamionGuardando] = useState(false);
@@ -264,6 +273,12 @@ export function FirmaDetailPage() {
     try { const { data } = await marcarFirma(note.id, m); setNote(data); }
     catch (err) { setEnvioMsg({ ok: false, text: describeApiError(err) }); }
   };
+  /** Versión nueva: imprimir o descargar la copia la deja marcada como entregada (con «Deshacer»). */
+  const copiaSola = () => {
+    if (!v2 || !note || note.copia_at) return;
+    marcar({ copia: true });
+    show('Marcado «Copia entregada»', { undo: () => marcar({ copia: false }) });
+  };
 
   // Imprimir: se cargan las páginas firmadas en alta resolución y se manda a la impresora.
   // No se marca «Copia entregada» sola (no se sabe si se imprimió o se canceló): se marca a mano.
@@ -275,11 +290,11 @@ export function FirmaDetailPage() {
   useEffect(() => {
     if (!printing || !printPages.length) return;
     const imgs = Array.from(document.querySelectorAll<HTMLImageElement>('#firma-print img'));
-    const despues = () => { setImpreso(true); window.removeEventListener('afterprint', despues); };
+    const despues = () => { setImpreso(true); copiaSola(); window.removeEventListener('afterprint', despues); };
     Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = () => r(null); })))
       .then(() => { window.addEventListener('afterprint', despues); window.print(); setPrinting(false); });
     return () => window.removeEventListener('afterprint', despues);
-  }, [printing, printPages]);
+  }, [printing, printPages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onEmail = async () => {
     if (!note) return;
@@ -409,23 +424,26 @@ export function FirmaDetailPage() {
 
   return (
     <div className="page-wide">
-      <button className="btn btn-ghost btn-sm firma-volver-pc" onClick={irALista}>
-        <ChevronLeft size={16} /> Volver a la lista
-      </button>
+      <div className="firma-volver-fila">
+        <button className="btn btn-ghost btn-sm firma-volver-pc" onClick={irALista}>
+          <ChevronLeft size={16} /> Volver a la lista
+        </button>
+        {siguiente && !firmado && <button className="btn btn-ghost btn-sm firma-saltar" onClick={irSiguiente}>Saltar este <ChevronRight size={16} /></button>}
+      </div>
       <div className="firma-cabecera">
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em' }}>Albarán {note.numero}</h1>
           <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
             {[note.cliente, note.obra, fmtFecha(note.fecha), fmtEuros(note.importe)].filter(Boolean).join(' · ')}
           </p>
-          <Marcas n={note} sinEstado />
+          {!v2 && <Marcas n={note} sinEstado />}
         </div>
         <span className={`status-chip ${firmado ? 'firmado' : 'pendiente'}`} style={{ marginLeft: 'auto' }}>
           {firmado ? (note.sin_firma ? 'Sin firma' : 'Firmado') : 'Por firmar'}
         </span>
       </div>
 
-      <div className="firma-layout">
+      <div className={`firma-layout${v2 ? ' v2' : ''}${v2 && firmado ? ' firmado' : ''}`}>
         <div className="firma-preview">
           {pages.map(p => (
             <img key={`${p}-${version}`} src={firmaPageUrl(note.id, p, 110, version)} alt={`Página ${p}`} />
@@ -454,8 +472,80 @@ export function FirmaDetailPage() {
                 <b>Firmado. Se enviará al recuperar cobertura</b>
                 <small>La firma está guardada en este móvil. No hace falta hacer nada más.</small>
               </div>
-              <button className="btn btn-primary firma-big" onClick={() => navigate(volver)}>{reparto ? 'Siguiente entrega' : 'Volver a la lista'}</button>
+              {siguiente
+                ? <button className="btn btn-primary firma-big" onClick={irSiguiente}>Siguiente albarán</button>
+                : <button className="btn btn-primary firma-big" onClick={() => navigate(volver)}>{reparto ? 'Siguiente entrega' : 'Volver a la lista'}</button>}
             </div>
+          ) : firmado && v2 ? (
+            <>
+              <div className="fv2-quien">
+                <CheckCircle size={22} style={{ color: note.sin_firma ? 'var(--warning)' : 'var(--success)', flexShrink: 0 }} />
+                <div style={{ minWidth: 0 }}>
+                  <b>{note.sin_firma ? `Entregado sin firma · ${note.sin_firma}` : note.signed_by ? `Recibió ${note.signed_by}` : 'Firmado'}</b>
+                  <small>{fmtFirmado(note.signed_at)}{note.signer_dni ? ` · DNI ${note.signer_dni}` : ''}{note.sin_firma ? ' · La foto va al final del albarán.' : ''}</small>
+                </div>
+              </div>
+              {note.sin_firma && !note.facturado_at && (
+                <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onFirmarAhora} disabled={pasando}>
+                  <PenLine size={14} /> El cliente está aquí: que lo firme ahora
+                </button>
+              )}
+
+              {/* Estado: se toca para poner o quitar (antes estaba repetido arriba y en «Seguimiento») */}
+              <div className="fv2-estado" role="group" aria-label="Estado del albarán">
+                <button className={`fv2-chip copia${note.copia_at || note.emailed_at || note.whatsapp_at ? ' on' : ''}`} aria-pressed={!!note.copia_at}
+                  onClick={() => marcar({ copia: !note.copia_at })}
+                  title={note.copia_at ? 'Toca para quitar «Copia entregada»' : 'Toca si ya le diste la copia'}>
+                  {note.copia_at || note.emailed_at || note.whatsapp_at ? <Check size={15} strokeWidth={3} /> : <HandHelping size={15} />}
+                  {note.copia_at ? 'Copia entregada' : note.emailed_at ? 'Copia por correo' : note.whatsapp_at ? 'Copia por WhatsApp' : 'Sin copia'}
+                </button>
+                <button className={`fv2-chip facturado${note.facturado_at ? ' on' : ''}`} aria-pressed={!!note.facturado_at}
+                  onClick={() => marcar({ facturado: !note.facturado_at })}
+                  title={note.facturado_at ? 'Toca para quitar «Facturado»' : 'Toca cuando esté facturado en TreyFACT'}>
+                  {note.facturado_at ? <Check size={15} strokeWidth={3} /> : <Receipt size={15} />}
+                  {note.facturado_at ? (note.factura_ref ? `Facturado ${note.factura_ref}` : 'Facturado') : 'Sin facturar'}
+                </button>
+              </div>
+              {note.facturado_at && (
+                <input className="form-input fv2-ref" value={factRef ?? note.factura_ref ?? ''} placeholder="Nº de factura (opcional), p. ej. F-2026/0145" maxLength={50}
+                  aria-label="Número de factura" onChange={e => setFactRef(e.target.value)} onBlur={guardarFactRef}
+                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+              )}
+
+              <div className="fv2-tit">Dar la copia al cliente</div>
+              <button className="btn btn-primary fv2-big" onClick={onPrint} disabled={printing}>
+                <Printer size={19} /> {printing ? 'Preparando…' : impreso ? 'Imprimir otra vez' : 'Imprimir'}
+              </button>
+              <div className="fv2-canal">
+                <input className="form-input" type="tel" placeholder="Móvil del cliente" value={telefono} autoComplete="off"
+                  onChange={e => setTelefono(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onWhatsApp(); }} aria-label="Móvil del cliente" />
+                <button className={`btn ${note.whatsapp_at ? 'btn-ghost' : 'btn-primary'} fv2-btn`} onClick={onWhatsApp}>
+                  <MessageCircle size={17} /> {note.whatsapp_at ? 'Otra vez' : 'WhatsApp'}
+                </button>
+              </div>
+              <div className="fv2-canal">
+                <input className="form-input" type="email" placeholder="Correo del cliente" value={email} autoComplete="off"
+                  onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onEmail(); }} aria-label="Correo del cliente" />
+                <button className={`btn ${note.emailed_at ? 'btn-ghost' : 'btn-primary'} fv2-btn`} onClick={onEmail} disabled={enviando}>
+                  <Mail size={17} /> {enviando ? 'Enviando…' : note.emailed_at ? 'Otra vez' : 'Correo'}
+                </button>
+              </div>
+              {note.emailed_at && <small className="fv2-nota">Enviado por correo a {note.emailed_to} el {fmtFirmado(note.emailed_at)}</small>}
+              {envioMsg && <div role={envioMsg.ok ? 'status' : 'alert'} style={{ fontSize: 13, color: envioMsg.ok ? 'var(--success)' : 'var(--danger)' }}>{envioMsg.text}</div>}
+              <div className="fv2-pie">
+                <a className="fv2-link" href={firmaPdfUrl(note.id, true)} onClick={copiaSola}><Download size={14} /> Descargar PDF</a>
+                {note.codigo_cliente && (
+                  <label className="firma-auto fv2-auto">
+                    <input type="checkbox" checked={auto.on} onChange={e => cambiarAuto(e.target.checked)} />
+                    Mandar siempre por correo a este cliente al firmar
+                  </label>
+                )}
+              </div>
+              <div className="fv2-nav">
+                <button className="btn btn-ghost" onClick={irALista}><ChevronLeft size={16} /> Lista</button>
+                {siguiente && <button className="btn btn-primary" onClick={irSiguiente}>Siguiente albarán <ChevronRight size={16} /></button>}
+              </div>
+            </>
           ) : firmado ? (
             <>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -569,7 +659,16 @@ export function FirmaDetailPage() {
                 </div>
               )}
               {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
-              {!reparto && (
+              {!reparto && v2 && (
+                note.carga_id
+                  ? <button className="btn btn-ghost fv2-camion on" onClick={() => navigate(`/cargas/${note.carga_id}`)}>
+                      <Truck size={17} /> Va en una orden de carga · abrirla <ChevronRight size={16} />
+                    </button>
+                  : <button className="btn btn-ghost fv2-camion" onClick={() => setAlCamion(true)}>
+                      <Truck size={17} /> No se firma aquí: mandar al camión <ChevronRight size={16} />
+                    </button>
+              )}
+              {!reparto && !v2 && (
                 note.carga_id
                   ? <button className="firma-toggle on" onClick={() => navigate(`/cargas/${note.carga_id}`)}>
                       <span className="box"><Check size={14} /></span>

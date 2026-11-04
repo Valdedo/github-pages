@@ -13,6 +13,7 @@ import { getRol } from '../auth';
 import type { ClientDeliveryNote } from '../types';
 import { agruparObras, SIN_OBRA, type GrupoObra } from '../lib/obras';
 import { coincide, euros } from '../lib/texto';
+import { ventasNueva, guardarOrden, diasDesde } from '../lib/ventasNueva';
 
 type Vista = 'firmar' | 'facturar' | 'facturados' | 'todos';
 type Envio = '' | 'sin' | 'correo' | 'whatsapp' | 'copia';
@@ -47,8 +48,13 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n !== 1 ? var
 /** Las cinco marcas de seguimiento: en color si está hecho, en gris si no.
  *  Sin firmar solo se enseña lo que ya está hecho (lo demás aún no aplica).
  *  `sinEstado`: sin la marca «Firmado / Sin firmar» (cuando la pantalla ya lo dice). */
-export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: boolean }) {
+export function Marcas({ n, sinEstado, dias }: { n: ClientDeliveryNote; sinEstado?: boolean; dias?: boolean }) {
   const firmado = n.status === 'firmado';
+  // Versión nueva: cuántos días lleva sin firmar (desde 2)
+  const d = dias && !firmado ? diasDesde(n.created_at) : 0;
+  if (d >= 2 && sinEstado) {
+    return <div className="marcas"><span className={`marca dias${d >= 7 ? ' mucho' : ''}`} title="Días desde que se subió">{d} días sin firmar</span></div>;
+  }
   const todas = [
     { on: n.status === 'firmado', label: n.status === 'firmado' ? (n.sin_firma ? 'Entregado sin firma' : 'Firmado') : 'Sin firmar', icon: PenLine, cls: n.sin_firma ? 'firmado sinfirma' : 'firmado' },
     { on: !!n.emailed_at, label: 'Correo', icon: Mail, cls: 'correo' },
@@ -70,8 +76,8 @@ export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: bo
   );
 }
 
-function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado, enCarga, sinCliente }: {
-  n: ClientDeliveryNote; selectable: boolean; selected: boolean; sinEstado?: boolean;
+function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado, enCarga, sinCliente, dias }: {
+  n: ClientDeliveryNote; selectable: boolean; selected: boolean; sinEstado?: boolean; dias?: boolean;
   /** Dentro de un cliente ya elegido o agrupado: no se repite su nombre en cada línea (en el ordenador). */
   sinCliente?: boolean;
   onToggle: () => void; onOpen: () => void; onCamion?: () => void; camionOcupado?: boolean;
@@ -97,7 +103,7 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
           <span className="firma-fecha" style={{ fontSize: 12, color: 'var(--text-3)' }}>{fmtFecha(n.fecha)}</span>
           <span className="firma-importe" style={{ fontSize: 13, fontWeight: 600 }}>{n.importe != null ? fmtEuros(n.importe) : ''}</span>
         </div>
-        <Marcas n={n} sinEstado={sinEstado} />
+        <Marcas n={n} sinEstado={sinEstado} dias={dias} />
         {n.nota && <div className="firma-nota" style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
       </div>
       {onCamion && (
@@ -157,17 +163,27 @@ export function FirmasPage() {
   const [camionOcupado, setCamionOcupado] = useState<Set<number>>(new Set());
   const { toast, show } = useCfToast();
   const raton = conRaton();
+  const v2 = ventasNueva();
   // «Al camión» prepara la orden de carga con los materiales del albarán
   const conCargas = getRol() !== 'reparto';
   const [alCamion, setAlCamion] = useState<ClientDeliveryNote | null>(null);
 
   const SIN_FILTROS = { q: '', cliente: '', obra: '', mes: '', envio: '' };
   const cambiarVista = (v: Vista, sinFiltros = false) => {
-    ponFiltros({ vista: v, ...(sinFiltros ? SIN_FILTROS : {}) }); setSel(new Set());
+    // Versión nueva: «Facturados» abre en el último mes con facturados (si no, con el tiempo serían cientos);
+    // al salir de ahí se quita ese mes para que no filtre las otras pestañas sin querer
+    const mesAuto: Record<string, string> = {};
+    if (v2 && !sinFiltros) {
+      if (v === 'facturados' && !mes) {
+        const ult = notes.filter(n => n.facturado_at).map(n => (n.fecha || '').slice(0, 7)).filter(Boolean).sort().pop();
+        if (ult) mesAuto.mes = ult;
+      } else if (vista === 'facturados' && v !== 'facturados') mesAuto.mes = '';
+    }
+    ponFiltros({ vista: v, ...(sinFiltros ? SIN_FILTROS : {}), ...mesAuto }); setSel(new Set());
     try { sessionStorage.setItem('firmasVista', v); } catch { /* nada */ }
   };
   const quitarFiltros = () => { ponFiltros(SIN_FILTROS); setSel(new Set()); };
-  const nFiltros = (cliente ? 1 : 0) + (envio ? 1 : 0) + (mes ? 1 : 0);
+  const nFiltros = (cliente ? 1 : 0) + (envio && !v2 ? 1 : 0) + (mes ? 1 : 0);
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setLoading(true);
@@ -289,6 +305,16 @@ export function FirmasPage() {
     ponFiltros({ ...cambios, ...(v ? { vista: v } : {}) }); setSel(new Set());
     if (v) { try { sessionStorage.setItem('firmasVista', v); } catch { /* nada */ } }
   };
+
+  // Orden en el que se ven, para «Siguiente albarán» dentro de la ficha
+  useEffect(() => {
+    if (loading) return;
+    const ids = vista === 'facturar'
+      ? grupos.flatMap(g => { const p = porObra(g.list, g.cod); return (p.length > 1 ? p.flatMap(x => x.list) : g.list).map(n => n.id); })
+      : vista === 'todos' && !cliente ? []
+      : (cliente && !obra && porObra(filtered, cliente).length > 1 ? porObra(filtered, cliente).flatMap(x => x.list) : filtered).map(n => n.id);
+    guardarOrden(ids);
+  }, [loading, filtered, grupos, vista, cliente, obra]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectable = vista !== 'firmar';
   const firmadosFiltro = filtered.filter(n => n.status === 'firmado');
@@ -426,11 +452,11 @@ export function FirmasPage() {
         : conCargas ? () => (n.carga_id ? navigate(`/cargas/${n.carga_id}`) : setAlCamion(n))
         : () => camion(n)}
       camionOcupado={camionOcupado.has(n.id)} enCarga={conCargas}
-      sinEstado={vista === 'firmar'} sinCliente={!!cliente || vista === 'facturar'} />
+      sinEstado={vista === 'firmar'} sinCliente={!!cliente || vista === 'facturar'} dias={v2} />
   );
 
   return (
-    <div className={`page firmas-page vista-${vista}`}
+    <div className={`page firmas-page vista-${vista}${v2 ? ' v2' : ''}`}
       onDragOver={e => e.preventDefault()}
       onDrop={e => { e.preventDefault(); onFiles(e.dataTransfer.files); }}>
       {loadError && <ConnectionError message={loadError} onRetry={() => load()} />}
@@ -442,7 +468,7 @@ export function FirmasPage() {
         </div>
         <button className="btn btn-primary btn-lg" disabled={uploading} data-tour="subir-albaranes"
           onClick={() => { if (fileRef.current) { fileRef.current.value = ''; fileRef.current.click(); } }}>
-          <Upload size={19} /> {uploading ? 'Subiendo…' : 'Subir albaranes'}
+          <Upload size={19} /> {uploading ? 'Subiendo…' : v2 ? <><span className="fv2-solo-pc">Subir albaranes</span><span className="fv2-solo-movil">Subir</span></> : 'Subir albaranes'}
         </button>
         <input ref={fileRef} type="file" accept="application/pdf" multiple hidden
           onChange={e => onFiles(e.target.files)} />
@@ -461,7 +487,7 @@ export function FirmasPage() {
             data-tour={v.value === 'todos' ? 'vista-clientes' : undefined}
             className={`firma-vista${vista === v.value ? ' on' : ''}`}>
             {v.label}
-            <span className="firma-vista-n">{count[v.value]}</span>
+            {!(v2 && v.value === 'todos') && <span className="firma-vista-n">{count[v.value]}</span>}
           </button>
         ))}
       </div>
@@ -486,14 +512,14 @@ export function FirmasPage() {
           <option value="">Todos los clientes</option>
           {clientes.map(([cod, nom]) => <option key={cod} value={cod}>{nom} ({cod})</option>)}
         </select>
-        <select className="form-input" value={envio} onChange={e => ponFiltros({ envio: e.target.value })}
+        {!v2 && <select className="form-input" value={envio} onChange={e => ponFiltros({ envio: e.target.value })}
           style={{ margin: 0, flex: '0 1 190px' }} aria-label="Envío">
           <option value="">Cualquier envío</option>
           <option value="sin">Sin copia (ni correo ni WhatsApp)</option>
           <option value="correo">Enviados por correo</option>
           <option value="whatsapp">Enviados por WhatsApp</option>
           <option value="copia">Copia entregada</option>
-        </select>
+        </select>}
         <select className="form-input firmas-mes-sel" value={mes} onChange={e => ponFiltros({ mes: e.target.value })} aria-label="Mes"
           style={{ margin: 0, flex: '0 1 170px' }}>
           <option value="">Cualquier mes</option>
@@ -559,8 +585,9 @@ export function FirmasPage() {
         </div>
       )}
 
-      {vista === 'facturar' && count.facturar > 0 && (() => {
-        const n = notes.filter(x => enLaVista('facturar', x) && sinCopia(x) && (!cliente || x.codigo_cliente === cliente)).length;
+      {(v2 ? vista !== 'firmar' && !(vista === 'todos' && !cliente) : vista === 'facturar') && count[vista] > 0 && (() => {
+        const n = notes.filter(x => enLaVista(vista, x) && sinCopia(x) && (!cliente || x.codigo_cliente === cliente)
+          && (!mes || (x.fecha || '').startsWith(mes))).length;
         return n > 0 || envio === 'sin' ? (
           <div className="cli-rapido">
             <button className={`firma-obra${envio === 'sin' ? ' on' : ''}`} aria-pressed={envio === 'sin'}
@@ -663,7 +690,7 @@ export function FirmasPage() {
           )}
         </div>
       ) : vista === 'facturar' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="firma-empresas" style={{ display: 'flex', flexDirection: 'column', gap: v2 ? 8 : 18 }}>
           {grupos.map(g => {
             const total = g.list.reduce((s, n) => s + (n.importe ?? 0), 0);
             const cerrado = plegado[g.cod] ?? (g.list.length > 3 && !cliente);
@@ -686,12 +713,12 @@ export function FirmasPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     {copiaBtn(g.list, 'PDF')}
-                    <button className="btn btn-primary" onClick={() => marcarFacturados(g.list, true)}>
-                      <Receipt size={16} /> Marcar {g.list.length === 1 ? 'como facturado' : `los ${g.list.length} como facturados`}
+                    <button className={`btn btn-primary${v2 ? ' btn-sm' : ''}`} onClick={() => marcarFacturados(g.list, true)}>
+                      <Receipt size={16} /> {v2 ? `Marcar facturado${g.list.length !== 1 ? `s (${g.list.length})` : ''}` : `Marcar ${g.list.length === 1 ? 'como facturado' : `los ${g.list.length} como facturados`}`}
                     </button>
                   </div>
                 </div>
-                {cerrado ? (
+                {cerrado ? (v2 ? null :
                   <button className="firma-ver-todos" onClick={() => setPlegado(v => ({ ...v, [g.cod]: false }))}>
                     Ver los {g.list.length} albaranes{nObras > 1 ? `, por obras` : ''} <ChevronRight size={15} />
                   </button>
@@ -720,7 +747,7 @@ export function FirmasPage() {
         </div>
       ) : (
         <>
-          {vista === 'firmar' && filtered.length > 0 && (
+          {vista === 'firmar' && filtered.length > 0 && (!v2 || enCamion > 0) && (
             <p className="camion-resumen"><Truck size={16} /> <span>{conCargas
               ? (enCamion
                 ? <>En órdenes de carga: <b>{enCamion}</b>. Los demás se firman aquí, en la tienda.</>
@@ -744,7 +771,7 @@ export function FirmasPage() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
         {vista !== 'firmar' && !(vista === 'todos' && !cliente) && firmadosFiltro.length > 0 && (
-          copiaBtn(firmadosFiltro, `Descargar en un PDF los ${firmadosFiltro.length} firmados de esta lista`, 'btn btn-ghost btn-largo')
+          copiaBtn(firmadosFiltro, firmadosFiltro.length === 1 ? 'Descargar en PDF el firmado de esta lista' : `Descargar en un PDF los ${firmadosFiltro.length} firmados de esta lista`, 'btn btn-ghost btn-largo')
         )}
         <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--text-3)' }}
           onClick={() => { if (window.confirm('¿Activar el modo reparto en este dispositivo? Es la vista sencilla para el camionero.')) navigate('/reparto'); }}>

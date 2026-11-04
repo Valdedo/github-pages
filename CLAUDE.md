@@ -76,6 +76,16 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   dentro del grid de `.firma-card-info`; con «Al camión» (`con-camion`, botón de 124 px) la última columna se estrecha para que todo
   siga alineado. Solo las marcas hechas + «Sin copia» (`marca falta`, solo en el ordenador); con cliente elegido o en «Por facturar»
   no se repite el nombre del cliente (`sinCliente`). Pestañas más bajas. El móvil no cambia.
+  **Versión nueva «En pruebas» (4/11/2026, solo Andrés; `lib/ventasNueva.ts`: `VENTAS_NUEVA_PARA_TODOS = false` → poner `true`
+  cuando la apruebe; clase `v2` en la página y `fv2-*` en `estilos-c.css`)**: cabecera pequeña sin la frase («Subir» en el móvil);
+  sin el desplegable de envío (queda el botón «Sin copia» en todas las pestañas menos «Por firmar»); «Por cliente» sin número;
+  «Facturados» abre en el último mes con facturados y al salir se quita ese mes; en «Por facturar» cada cliente plegado en una
+  línea (sin «Ver los N albaranes»); «N días sin firmar» en la lista (desde 2; rojo desde 7; `diasDesde(created_at)`); sin el
+  aviso de «Al camión» salvo que haya algo en carga. Ficha firmada: estado tocable («Copia entregada / Sin copia», «Facturado /
+  Sin facturar»), «Dar la copia al cliente» con Imprimir, WhatsApp y Correo; imprimir o «Descargar PDF» marcan la copia solos
+  (`copiaSola`, con Deshacer); sin «Seguimiento». En el móvil, firmado: primero el panel y luego el PDF. «Siguiente albarán» /
+  «Saltar este» con el orden de la lista que se veía (`guardarOrden` / `siguienteDe`, sessionStorage `cfVentasOrden`).
+  Sin firmar: «Al camión» es un botón («No se firma aquí: mandar al camión»), no una casilla.
 - «Órdenes de carga» (`/cargas`) va en el grupo Clientes, debajo de los de venta.
 - En «Albaranes de venta», al elegir un cliente salen sus **obras y referencias** como botones (campo `obra` del albarán,
   REFERENCIA de TreyFACT) y la lista se agrupa por obra; en «Por facturar» cada empresa se parte por obras, con PDF y

@@ -523,3 +523,69 @@ button.tsem:active { transform: scale(.985); }
 .cli-resumen-cab { flex: 1 1 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .cli-resumen-cab b { font-size: 16px; overflow-wrap: break-word; min-width: 0; }
 .cli-resumen-cab .turnos-link { display: inline-flex; align-items: center; gap: 2px; }
+
+/* ── Albaranes de venta · versión nueva (4/11/2026, En pruebas: `v2`, lib/ventasNueva.ts) ── */
+/* Cabecera pequeña: sin la frase de explicación */
+.firmas-page.v2 .firmas-head { padding: 14px 20px; margin-bottom: 12px; }
+.firmas-page.v2 .firmas-head p { display: none; }
+.firmas-page.v2 .firmas-head h1 { font-size: 26px; margin: 0; }
+.firmas-page.v2 .firmas-head .btn-lg { min-height: 44px; padding: 8px 20px; font-size: 15px; }
+@media (max-width: 768px) {
+  .firmas-page.v2 .firmas-head { padding: 12px 14px; flex-wrap: nowrap; }
+  .firmas-page.v2 .firmas-head h1 { font-size: 22px; }
+  .firmas-page.v2 .firmas-head .btn-lg { width: auto; flex-shrink: 0; padding: 8px 14px; }
+}
+/* Por facturar: cada cliente plegado en una sola línea */
+.firmas-page.v2 .firma-empresa.plegada { padding: 10px 14px; gap: 0; }
+.firmas-page.v2 .firma-empresa.plegada .firma-grupo { border-bottom: 0; padding: 0; margin: 0; }
+.firmas-page.v2 .firma-empresa:not(.plegada) { padding: 14px 16px; }
+/* Días sin firmar */
+.marca.dias { background: #FEF3C7; color: #7A4A00; border: 1px solid #F6DDA4; font-weight: 600; }
+.marca.dias.mucho { background: #FDECEA; color: #8A1F12; border-color: #F8C9C3; }
+@media (min-width: 769px) {
+  .firmas-page.v2.vista-firmar .firma-card-info { grid-template-columns: 96px minmax(120px, 1fr) 80px 90px 130px !important; }
+  .firmas-page.v2 .firma-card .marca.dias { display: inline-flex !important; }
+}
+@media (min-width: 769px) and (max-width: 1100px) {
+  .firmas-page.v2.vista-firmar .firma-card-info { grid-template-columns: 86px minmax(100px, 1fr) 76px 84px 120px !important; }
+}
+
+/* Ficha del albarán */
+.firma-volver-fila { display: flex; align-items: center; gap: 8px; }
+.firma-volver-fila .firma-saltar { margin-left: auto; }
+.fv2-quien { display: flex; gap: 10px; align-items: flex-start; }
+.fv2-quien b { display: block; font-weight: 600; overflow-wrap: break-word; }
+.fv2-quien small { font-size: 13px; color: var(--text-3); }
+.fv2-estado { display: flex; flex-wrap: wrap; gap: 8px; }
+.fv2-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 6px 14px; border-radius: 999px;
+  border: 1.5px dashed var(--border-strong); background: var(--surface); font: 600 14px var(--font); color: var(--text-2); cursor: pointer; }
+.fv2-chip:hover { border-color: var(--text-3); }
+.fv2-chip.copia.on { background: #FEF3C7; color: #7A4A00; border: 1.5px solid #F6DDA4; }
+.fv2-chip.facturado.on { background: #EDE9FE; color: #4C1D95; border: 1.5px solid #DDD6FE; }
+.fv2-chip.copia:not(.on) { color: #7A4A00; border-color: #E8C77A; }
+.fv2-ref { margin: 0; }
+.fv2-tit { font-weight: 700; font-size: 15px; margin-top: 4px; }
+.fv2-big { min-height: 52px; font-size: 16px; justify-content: center; }
+.fv2-canal { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 8px; }
+.fv2-canal .form-input { margin: 0; }
+.fv2-btn { justify-content: center; min-height: 46px; }
+.fv2-nota { font-size: 12.5px; color: var(--text-3); overflow-wrap: break-word; }
+.fv2-pie { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.fv2-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--cf-bosque); text-decoration: underline; align-self: flex-start; }
+.fv2-auto { font-size: 13px; }
+.fv2-nav { display: flex; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border); }
+.fv2-nav .btn-primary { margin-left: auto; }
+.fv2-camion { justify-content: flex-start; min-height: 46px; border: 1.5px solid var(--border-strong); }
+.fv2-camion svg:last-child { margin-left: auto; }
+.fv2-camion.on { border-color: var(--cf-bosque); color: var(--cf-bosque); }
+/* En el móvil, firmado: primero lo que se hace y luego el PDF */
+@media (max-width: 900px) {
+  .firma-layout.v2.firmado .firma-panel { order: -1; }
+}
+@media (max-width: 380px) { .fv2-canal { grid-template-columns: minmax(0, 1fr) 112px; } }
+.fv2-solo-movil { display: none; }
+@media (max-width: 768px) {
+  .fv2-solo-pc { display: none; }
+  .fv2-solo-movil { display: inline; }
+}
+.firmas-page.v2 .firmas-mes-sel { flex: 0 0 180px !important; }
