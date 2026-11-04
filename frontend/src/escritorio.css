@@ -212,3 +212,7 @@ input[type="date"].form-input, input[type="month"].form-input { min-width: 0; }
   .firmas-page .firma-card.con-camion .firma-card-info { grid-template-columns: 86px minmax(100px, 1fr) 76px 84px 56px; }
   .firmas-page.vista-firmar .firma-card-info { grid-template-columns: 86px minmax(100px, 1fr) 76px 84px !important; }
 }
+@media (min-width: 769px) {
+  /* En la lista, «Firmado» sobra (lo dice la pestaña y que no tenga «Al camión»); «Entregado sin firma» sí se ve */
+  .firmas-page .firma-card .marca.on.firmado:not(.sinfirma) { display: none; }
+}

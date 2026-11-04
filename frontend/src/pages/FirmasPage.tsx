@@ -50,7 +50,7 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n !== 1 ? var
 export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: boolean }) {
   const firmado = n.status === 'firmado';
   const todas = [
-    { on: n.status === 'firmado', label: n.status === 'firmado' ? (n.sin_firma ? 'Entregado sin firma' : 'Firmado') : 'Sin firmar', icon: PenLine, cls: 'firmado' },
+    { on: n.status === 'firmado', label: n.status === 'firmado' ? (n.sin_firma ? 'Entregado sin firma' : 'Firmado') : 'Sin firmar', icon: PenLine, cls: n.sin_firma ? 'firmado sinfirma' : 'firmado' },
     { on: !!n.emailed_at, label: 'Correo', icon: Mail, cls: 'correo' },
     { on: !!n.whatsapp_at, label: 'WhatsApp', icon: MessageCircle, cls: 'whatsapp' },
     { on: !!n.copia_at, label: 'Copia', icon: HandHelping, cls: 'copia' },
