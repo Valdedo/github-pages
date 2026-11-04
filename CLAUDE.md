@@ -371,7 +371,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - «El cliente está aquí: que lo firme ahora» (albarán) = `anular-firma`, permitido aunque la carga esté entregada si es sin
   firma: el albarán vuelve a «Por firmar» y la hoja de entrega no se toca. «Deshacer la entrega» en la orden = `anular-firma` de la entrega.
 - Sin cobertura: va en la cola de firmas (`FirmaCargaEnCola.sinFirma`, png vacío, foto obligatoria).
-- **WhatsApp de la empresa** (`services/whatsapp_service.py`): al entregar sin firma manda al móvil del cliente (el de la entrega
+- **WhatsApp de la empresa — aparcado (Andrés, 04/11/2026)**: la coexistencia exige un proveedor oficial (p. ej. 360dialog, ~49 €/mes)
+  y deja sin funcionar el WhatsApp de Windows; tampoco quiso el botón manual «Avisar por WhatsApp». El código se queda apagado.
+  Si se retoma con 360dialog, cambiar la dirección y la cabecera de la API (`D360-API-KEY`). (`services/whatsapp_service.py`): al entregar sin firma manda al móvil del cliente (el de la entrega
   o el de su ficha `client_contacts`; solo móviles 6/7) la plantilla de Meta con la foto. Apagado mientras no haya en Railway
   `WHATSAPP_TOKEN` y `WHATSAPP_PHONE_ID` (opcional `WHATSAPP_PLANTILLA`, por defecto `entrega_sin_firma`, y `WHATSAPP_IDIOMA`, `es`).
   El número de la oficina va por «coexistencia» (sigue en la app WhatsApp Business). Texto de la plantilla en el docstring
