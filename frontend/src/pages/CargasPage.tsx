@@ -312,8 +312,8 @@ function LineaModal({ entregaId, ln, onClose, onSaved, onDelete }: {
 
 // ─── Firma del cliente ───────────────────────────────────────────────────────
 
-/** «No está el cliente» en la firma de la entrega. En pruebas: solo Andrés hasta que lo apruebe (31/10/2026). */
-const SIN_FIRMA_PARA_TODOS = false;
+/** «No está el cliente» en la firma de la entrega: para todos, Melchor incluido, desde el 04/11/2026 (Andrés). */
+const SIN_FIRMA_PARA_TODOS = true;
 const SITIOS: [string, string][] = [
   ['obra', 'En la obra'], ['almacen', 'En el garaje o almacén'], ['persona', 'Con un vecino o familiar'], ['otro', 'En otro sitio'],
 ];

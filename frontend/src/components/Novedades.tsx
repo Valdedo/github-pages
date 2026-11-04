@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HandHelping, Play, Users } from 'lucide-react';
+import { Camera, HandHelping, Play, Users } from 'lucide-react';
 import { Ilustracion } from './Pegatinas';
 import { abrirTutorial } from './Tutorial';
 
@@ -8,10 +8,12 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-11-03';
+const VERSION = '2026-11-04';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
+  { icono: Camera, titulo: 'Entregar sin firma',
+    texto: 'Si al llevar un pedido no está el cliente, en «Firma del cliente» pulsa «No está el cliente»: elige dónde lo dejaste y haz una foto. El albarán queda como «Entregado sin firma» con la foto. Si luego pasa por la tienda, puede firmarlo desde su albarán.' },
   { icono: Users, titulo: 'Albaranes de venta por cliente',
     texto: 'En Ventas, la pestaña «Por cliente» enseña cada cliente en una línea con lo que le falta: sin firmar, sin copia y por facturar. Toca el cliente para ver sus albaranes.',
     ir: '/firmas?vista=todos', boton: 'Ver los clientes' },

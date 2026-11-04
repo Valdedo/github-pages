@@ -358,9 +358,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   queda bloqueada (el servidor rechaza cambios de líneas con 409); solo entonces sale «Firma del cliente». «Desbloquear
   para cambiar» lo deshace. Vale sin cobertura (tipo `lista` en `lib/offlineCargas.ts`). Igual para todos los roles.
 
-## Entregado sin firma (no estaba el cliente) — 31/10/2026, «En pruebas»
-- En la firma de la entrega (`FirmaModal` de `CargasPage`), arriba: «Firma el cliente» | «No está el cliente». Solo lo ve el
-  encargado hasta que Andrés lo apruebe (`SIN_FIRMA_PARA_TODOS` en `CargasPage.tsx`; el servidor ya lo acepta de reparto).
+## Entregado sin firma (no estaba el cliente) — 31/10/2026; para todos desde el 04/11/2026
+- En la firma de la entrega (`FirmaModal` de `CargasPage`), arriba: «Firma el cliente» | «No está el cliente». Para todos,
+  Melchor incluido (`SIN_FIRMA_PARA_TODOS = true` en `CargasPage.tsx`, decisión de Andrés 04/11/2026). Novedades `2026-11-04`.
 - Sin firma: dónde se dejó (En la obra / En el garaje o almacén / Con un vecino o familiar + nombre / En otro sitio + texto),
   **foto obligatoria** y la ubicación del móvil si la da. `POST /api/cargas/entregas/{eid}/sin-firma` (form: foto, sitio,
   quien, otro, hecho_el, ubicacion, cargadas). Campos `sin_firma`, `ubicacion`, `whatsapp_at`, `whatsapp_error` en
