@@ -2,6 +2,7 @@ import { fechaES } from '../lib/texto';
 import { useEffect, useState } from 'react';
 import { updateDocument } from '../api/client';
 import type { Document, Supplier } from '../types';
+import { disenoNuevo } from '../lib/diseno';
 
 interface Props {
   document: Document;
@@ -55,7 +56,7 @@ export function MetadataPanel({ document, suppliers, onUpdated, onToast, onPront
     <div className="card">
       <div className="card-header" style={{ justifyContent: 'space-between' }}>
         <span>Datos del albarán</span>
-        <button className={`btn btn-sm ${editing ? 'btn-ghost' : 'btn-primary'}`} onClick={() => setEditing(!editing)}>
+        <button className={`btn btn-sm ${editing || disenoNuevo() ? 'btn-ghost' : 'btn-primary'}`} onClick={() => setEditing(!editing)}>
           {editing ? 'Cancelar' : 'Cambiar'}
         </button>
       </div>

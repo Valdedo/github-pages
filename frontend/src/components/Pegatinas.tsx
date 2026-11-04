@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CAMION_CUERPO } from './camionCuerpo';
+import { disenoNuevo } from '../lib/diseno';
 
 /**
  * Dibujos estilo «pegatina» de Casa Fonso: planos, dos tonos, borde blanco recortado y sombra.
@@ -208,6 +209,16 @@ export function AccesoPegatina({ to, dibujo, escala = 1, lineas, giro = 0, color
 }) {
   // Rótulo más grande y más claro (repaso 15/10/2026): en el móvil la letra salía de unos 9 px y no se leía
   const ancho = Math.max(lineas[0].length, lineas[1].length) * 10.8 + 28;
+  // Diseño nuevo (en pruebas): el dibujo solo y el rótulo en letra normal debajo, que se lee a cualquier tamaño
+  if (disenoNuevo()) {
+    const solo = `<g filter="url(#cfs-pega)" transform="rotate(${giro} 80 70)"><g transform="translate(80 62) scale(${escala * 1.08})">${DIBUJOS[dibujo]}</g></g>`;
+    return (
+      <Link to={to} className="acceso-peg dz-acceso">
+        <svg viewBox="0 0 160 124" aria-hidden="true" style={{ overflow: 'visible' }} dangerouslySetInnerHTML={{ __html: solo }} />
+        <span className="dz-acceso-txt">{`${lineas[0]} ${lineas[1]}`.replace(/\s+/g, ' ').trim()}</span>
+      </Link>
+    );
+  }
   const html = `<g filter="url(#cfs-pega)" transform="rotate(${giro} 80 70)">
     <g transform="translate(80 48) scale(${escala})">${DIBUJOS[dibujo]}</g>
     <g transform="translate(80 104) rotate(${-giro * 1.6 - 3})">

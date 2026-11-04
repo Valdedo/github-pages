@@ -10,6 +10,7 @@ import { coincide, fechaES } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { REPARACION_ESTADO, REPARACION_SIGUIENTE } from '../lib/estados';
 import type { Repair, RepairStatus } from '../types';
+import { disenoNuevo } from '../lib/diseno';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
   { value: '', label: 'Todas' },
@@ -462,7 +463,7 @@ export function RepairsPage() {
           <input
             className="form-input"
             type="search"
-            placeholder="Buscar cliente, teléfono, herramienta, modelo…"
+            placeholder={disenoNuevo() ? 'Buscar cliente o herramienta…' : 'Buscar cliente, teléfono, herramienta, modelo…'}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }}

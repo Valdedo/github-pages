@@ -13,6 +13,7 @@ import { borrarArticuloYa, mensajeError } from '../lib/descargas';
 import type { Article } from '../types/index';
 import { Trash2 } from 'lucide-react';
 import { numES } from '../lib/texto';
+import { disenoNuevo } from '../lib/diseno';
 
 const NUMERICOS = ['cantidad', 'precio_unitario_bruto', 'descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'iva_pct', 'recargo_pct', 'margen_pct'];
 const OPCIONALES = ['descuento_1', 'descuento_2', 'descuento_3', 'descuento_4', 'recargo_pct'];
@@ -635,7 +636,7 @@ export function ArticleTable({ documentId, articles, onArticlesChanged, onSelect
         <div className="art-cabecera-acc">
           <input
             type="search"
-            placeholder="Buscar descripción, código, EAN…"
+            placeholder={disenoNuevo() ? 'Buscar artículo…' : 'Buscar descripción, código, EAN…'}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="art-buscar"

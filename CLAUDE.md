@@ -410,6 +410,15 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `venc_ajustes`, se cambian desde el engranaje de la tarjeta; push una sola vez por factura, `venc_avisos`) y
   pendiente por proveedor con su forma de pago y a cuántos días suele vencer.
 
+## Diseño nuevo «En pruebas» (4/11/2026, solo Andrés)
+Ideas de Roberto Jirón (jiron.design) y sus 10 heurísticas; informe en el proyecto (`claude/repaso-diseno-2026-11-04.md`).
+`lib/diseno.ts` pone la clase `dz` en `<html>` (`disenoNuevo()`: admin y `cfDiseno` ≠ `no`; interruptor «Diseño nuevo» en
+`MenuCuenta`); estilos en `diseno.css`, todos bajo `html.dz`. Reglas: un botón fuerte por pantalla (en listas y tarjetas,
+botón claro); estados verde = hecho, ámbar = pendiente, rojo = falla, gris = informativo (sin azules ni morados); texto a la
+izquierda. Cambios: pestañas elegidas en verde claro, botones de Reparaciones y WhatsApp/Correo del albarán firmado claros,
+«Por terminar» ámbar, marcas de venta hechas en verde, cabecera de Tarifas blanca, rótulos de Inicio debajo del dibujo
+(`AccesoPegatina`), buscadores con texto corto. Para todos: `DISENO_NUEVO_PARA_TODOS = true`.
+
 ## Repaso general (15/10/2026, publicado ese día)
 Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`). Andrés pidió dejar como estaban el botón
 único de «Subir albaranes» (compra/venta separados) y qué precio manda entre tarifas y «Consultar precio» (casi no se usa).

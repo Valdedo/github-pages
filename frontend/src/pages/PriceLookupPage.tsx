@@ -8,6 +8,7 @@ import { getRol } from '../auth';
 import { useCfToast } from '../components/CfToast';
 import { nombreProveedor } from '../lib/proveedor';
 import type { CatalogArticle } from '../types';
+import { disenoNuevo } from '../lib/diseno';
 
 /**
  * Consultar precio (+ la antigua «Venta»).
@@ -187,7 +188,7 @@ export function PriceLookupPage() {
       <div className="consulta-buscador">
         <Search size={22} className="consulta-lupa" />
         <input ref={inputRef} type="text" enterKeyHint="search" value={query} onChange={e => onChange(e.target.value)} onKeyDown={onKeyDown}
-          onFocus={e => e.target.select()} placeholder="Código de barras, referencia o nombre…" autoComplete="off"
+          onFocus={e => e.target.select()} placeholder={disenoNuevo() ? 'Código o nombre…' : 'Código de barras, referencia o nombre…'} autoComplete="off"
           aria-label="Buscar artículo" />
         {query && <button className="consulta-borrar" onClick={limpiar} aria-label="Borrar búsqueda"><X size={20} /></button>}
       </div>

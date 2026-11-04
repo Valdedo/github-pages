@@ -1,0 +1,99 @@
+/*
+ * Diseño nuevo «En pruebas» (4/11/2026) — solo con la clase `dz` en <html> (lib/diseno.ts: Andrés, interruptor en su círculo).
+ * Tres reglas, de los consejos de Roberto Jirón (jiron.design):
+ *   1. Un solo botón fuerte por pantalla: la acción principal. Lo demás, botón claro.
+ *   2. Pocos colores y siempre con el mismo significado: verde = hecho/bien · ámbar = pendiente/espera ·
+ *      rojo = falla/urge · gris = informativo. Sin azules ni morados en los estados.
+ *   3. Texto alineado a la izquierda; centrado solo en mensajes cortos de «no hay nada».
+ */
+
+/* ── 1. Pestañas y selectores: la elegida se marca, pero no parece un botón de acción ── */
+html.dz .firma-vista.on {
+  background: var(--brand-pale);
+  color: var(--cf-bosque-2);
+  border-color: var(--cf-bosque);
+  box-shadow: inset 0 -3px 0 var(--cf-bosque);
+}
+html.dz .firma-vista.on .firma-vista-n { color: var(--cf-bosque); }
+html.dz .venc-seg button.on { background: var(--surface); color: var(--cf-bosque-2); box-shadow: 0 1px 3px rgb(0 0 0 / .1); }
+
+/* «Con tableta | Con ratón» en la firma: es un selector, el botón fuerte es «Firmar albarán» */
+html.dz .firma-panel .btn-sm.btn-primary,
+html.dz .firma-panel .btn-sm.btn-ghost {
+  background: var(--surface-2); color: var(--text-2); border: 1.5px solid var(--border);
+}
+html.dz .firma-panel .btn-sm.btn-primary {
+  background: var(--surface); color: var(--cf-bosque-2); border-color: var(--cf-bosque);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .08);
+}
+
+/* ── 1. Botones dentro de las listas: claros. El fuerte queda para la cabecera de la pantalla ── */
+html.dz .rep-card .btn-primary,
+html.dz .firma-card .btn-primary {
+  background: var(--surface); color: var(--cf-bosque-2); border: 1.5px solid var(--cf-bosque);
+}
+html.dz .rep-card .btn-primary:hover:not(:disabled),
+html.dz .firma-card .btn-primary:hover:not(:disabled) { background: var(--brand-pale); color: var(--cf-bosque-2); }
+html.dz .rep-card .wa-btn:not(.hecho) {
+  background: var(--surface); color: #178C46; border: 1.5px solid #1FA855;
+}
+html.dz .rep-card .wa-btn:not(.hecho):hover { background: #EAF8EF; color: #178C46; }
+
+/* Ficha del albarán firmado: «Imprimir» es lo principal; WhatsApp y Correo, al lado y claros */
+html.dz .fv2-canal .btn-primary {
+  background: var(--surface); color: var(--cf-bosque-2); border: 1.5px solid var(--cf-bosque);
+}
+html.dz .fv2-canal .btn-primary:hover:not(:disabled) { background: var(--brand-pale); color: var(--cf-bosque-2); }
+
+/* ── 2. Estados con los mismos colores en toda la app ── */
+html.dz .status-chip.recibida  { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+html.dz .status-chip.pedido,
+html.dz .status-chip.parcial   { background: #fef3c7; color: #92400e; }
+html.dz .status-chip.en_taller,
+html.dz .status-chip.pendiente { background: #fef3c7; color: #92400e; }
+html.dz .status-chip.reparada,
+html.dz .status-chip.recibido  { background: #dcfce7; color: #15803d; }
+
+/* Marcas de los albaranes de venta: lo hecho (firmado, copia, correo, WhatsApp, facturado), todo en verde;
+   lo que falta («Sin copia»), en ámbar. Antes había azul, morado y ámbar para cosas ya hechas. */
+html.dz .marca.on.firmado,
+html.dz .marca.on.correo,
+html.dz .marca.on.whatsapp,
+html.dz .marca.on.copia,
+html.dz .marca.on.facturado { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+html.dz .marca.falta { background: #fef3c7; color: #92400e; border: 1px dashed #E8C77A; }
+html.dz .fv2-chip.copia.on,
+html.dz .fv2-chip.facturado.on { background: #dcfce7; color: #15803d; border: 1.5px solid #bbf7d0; }
+
+/* Albaranes de compra: el punto de color repetía lo que ya dice la etiqueta */
+html.dz .doc-fila-dot { display: none; }
+
+/* Tarifas: cabecera blanca como el resto de pantallas (antes era la única en verde oscuro) */
+html.dz .tf-cab { background: var(--surface); color: var(--text-1); border: 1px solid var(--border); }
+html.dz .tf-cab h1 { color: var(--text-1); }
+html.dz .tf-cab p { color: var(--text-2); }
+html.dz .tf-migas a { color: var(--text-2); }
+html.dz .tf-migas a:hover { background: var(--surface-2); color: var(--text-1); }
+html.dz .tf-migas a:focus-visible { outline-color: var(--cf-verde); }
+html.dz .tf-miga-sep { color: var(--text-3); }
+html.dz .tf-refrescar { background: var(--surface); color: var(--text-1); border-color: var(--border-strong); }
+html.dz .tf-refrescar:hover:not(:disabled) { background: var(--surface-2); color: var(--text-1); border-color: var(--border-strong); }
+
+/* ── 3. Textos a la izquierda ── */
+html.dz .consulta-vacio { text-align: left; }
+
+/* Accesos de Inicio: dibujo y debajo el rótulo en letra normal (antes iba dentro del dibujo y no se leía) */
+html.dz .dz-acceso {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  text-decoration: none; color: var(--text-1);
+}
+html.dz .dz-acceso svg { width: 100%; max-width: 120px; }
+html.dz .dz-acceso-txt {
+  font-family: var(--font); font-weight: 700; font-size: 14px; line-height: 1.25;
+  text-align: center; color: var(--cf-bosque-2);
+}
+html.dz .dz-acceso:hover { transform: translateY(-2px); }
+@media (min-width: 769px) {
+  html.dz .dz-acceso svg { max-width: 130px; }
+  html.dz .dz-acceso-txt { font-size: 15px; }
+}

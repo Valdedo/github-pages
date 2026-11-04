@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import { accesoEstado, accesoEntrar, accesoConfigurar, accesoMiCodigo, describeApiError } from '../api/client';
 import { CodigoInput } from './CodigoInput';
 import { getToken, getRol, getPersona, setSesion, cerrarSesion, type Rol } from '../auth';
+import { aplicarDiseno } from '../lib/diseno';
 import { setReparto } from '../reparto';
 import { Logo } from './Logo';
 import { PegatinaDefs, CamionPegatina } from './Pegatinas';
@@ -30,6 +31,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
         if (!data.configurado) setFase('crear');
         else if (data.rol && getToken()) {
           setSesion(getToken(), data.rol, data.persona);
+          aplicarDiseno();
           if (data.rol === 'reparto') setReparto(true);
           setFase('dentro');
         } else { cerrarSesion(); setFase('entrar'); }
@@ -40,6 +42,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
         if (!(err as { response?: unknown })?.response && getToken() && rol) {
           if (rol === 'reparto') setReparto(true);
           setSesion(getToken(), rol, getPersona() || null);
+          aplicarDiseno();
           setFase('dentro');
         } else setFase('sin-conexion');
       });
@@ -54,6 +57,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
 
   const entrarCon = (token: string, rol: Rol, persona?: string | null) => {
     setSesion(token, rol, persona);
+    aplicarDiseno();
     setReparto(rol === 'reparto');
     if (rol === 'reparto') window.history.replaceState(null, '', '/reparto');
     setFase('dentro');
@@ -79,6 +83,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     try {
       const { data } = await accesoMiCodigo(entrada, codigo);
       setSesion(data.token, data.rol, data.persona);
+      aplicarDiseno();
       setCodigo(''); setEntrada(''); setFase('dentro');
     } catch (err) {
       setError(describeApiError(err));

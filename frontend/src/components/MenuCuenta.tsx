@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, BellOff, CalendarDays, ChevronRight, KeyRound, LogOut, Play, SlidersHorizontal, Users } from 'lucide-react';
+import { Bell, BellOff, CalendarDays, Palette, ChevronRight, KeyRound, LogOut, Play, SlidersHorizontal, Users } from 'lucide-react';
 import { getCuadrante, type Cuadrante, type TurnoDia } from '../api/client';
 import { cerrarSesion, getPersona, getRol, getYo, sesionPersonal } from '../auth';
 import { activarAvisos, desactivarAvisos, estadoAvisos, type EstadoAvisos } from '../lib/avisos';
 import { hoyIso } from '../lib/turnos';
 import { setReparto } from '../reparto';
 import { abrirTutorial } from './Tutorial';
+import { cambiarDiseno, disenoNuevo, puedeCambiarDiseno } from '../lib/diseno';
 import { MiCodigoModal } from './MiCodigoModal';
 import { CodigosModal } from './CodigosModal';
 
@@ -121,6 +122,11 @@ export function MenuCuenta({ className = '', lateral = false }: { className?: st
             {personal && <button onClick={() => setModal('mio')}><KeyRound size={18} /> Mi código</button>}
             {rol === 'admin' && <button onClick={() => setModal('codigos')}><Users size={18} /> Códigos de acceso</button>}
             {rol === 'admin' && <button onClick={() => ir('/ajustes')}><SlidersHorizontal size={18} /> Márgenes y precios<ChevronRight size={16} /></button>}
+            {puedeCambiarDiseno() && (
+              <button onClick={() => cambiarDiseno(!disenoNuevo())}>
+                <Palette size={18} /> Diseño nuevo<small>{disenoNuevo() ? 'encendido · en pruebas' : 'apagado'}</small>
+              </button>
+            )}
             {rol !== 'reparto' && <button onClick={() => { setAbierto(false); abrirTutorial(); }}><Play size={18} /> Ver el tutorial</button>}
             <button className="cuenta-salir" onClick={() => { if (window.confirm('¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir el código.')) { cerrarSesion(); if (rol === 'reparto') setReparto(false); window.location.href = '/'; } }}>
               <LogOut size={18} /> Cerrar sesión

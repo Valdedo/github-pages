@@ -7,6 +7,7 @@ import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
 import type { Document, DocumentListItem } from '../types';
 import { coincide, fechaES, ORDEN_ALBARANES } from '../lib/texto';
+import { disenoNuevo } from '../lib/diseno';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -148,7 +149,7 @@ export function HomePage() {
                 type="search"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar por nombre, proveedor, nº albarán…"
+                placeholder={disenoNuevo() ? 'Buscar proveedor o nº…' : 'Buscar por nombre, proveedor, nº albarán…'}
                 autoComplete="off"
               />
               {search && (
@@ -225,7 +226,7 @@ const DOT_COLOR: Record<string, string> = {
 
 function DocCard({ doc, onOpen }: { doc: DocumentListItem; onOpen: () => void }) {
   const st = doc.status === 'completed' && doc.terminado_at ? { label: 'Terminado', cls: 'badge badge-grey' }
-    : doc.status === 'completed' ? { label: 'Por terminar', cls: 'badge badge-success' }
+    : doc.status === 'completed' ? { label: 'Por terminar', cls: disenoNuevo() ? 'badge badge-warning' : 'badge badge-success' }
     : statusConfig[doc.status] || statusConfig.uploaded;
   const isProcessing = doc.status === 'processing' || doc.status === 'uploaded';
   const dateStr = fechaES(doc.doc_date || doc.created_at);

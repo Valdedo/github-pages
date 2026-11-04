@@ -10,6 +10,7 @@ import { PEDIDO_ESTADO } from '../lib/estados';
 import { coincide, fechaES } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
+import { disenoNuevo } from '../lib/diseno';
 
 // Status flow: pendiente → pedido → recibido → entregado
 // entregado + cancelado are "done" → go to history
@@ -432,7 +433,7 @@ export function OrdersPage() {
           <input
             className="form-input"
             type="search"
-            placeholder="Buscar cliente, teléfono, artículo, proveedor…"
+            placeholder={disenoNuevo() ? 'Buscar cliente o artículo…' : 'Buscar cliente, teléfono, artículo, proveedor…'}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 42, margin: 0, borderRadius: 999 }}
