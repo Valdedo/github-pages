@@ -71,6 +71,11 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   «Sin copia» = firmado sin copia, correo ni WhatsApp (`sinCopia`). **Todo PDF de varios firmados (`copiaBtn`) marca «Copia
   entregada» solo** en los que no la tenían, con Deshacer (antes el PDF no apuntaba nada y se quedaba sin marcar).
   Avisos de facturación: uno solo para todo lo de meses anteriores (ámbar hasta el día 10, rojo después), solo en Inicio.
+  (4/11/2026, Andrés: «cada albarán ocupa mucho») En el ordenador (≥769 px, `escritorio.css`) la lista es un solo panel con una
+  línea fina por albarán en columnas fijas (nº · obra/cliente · fecha · importe · marcas): `.firma-card-linea` va `display: contents`
+  dentro del grid de `.firma-card-info`; con «Al camión» (`con-camion`, botón de 124 px) la última columna se estrecha para que todo
+  siga alineado. Solo las marcas hechas + «Sin copia» (`marca falta`, solo en el ordenador); con cliente elegido o en «Por facturar»
+  no se repite el nombre del cliente (`sinCliente`). Pestañas más bajas. El móvil no cambia.
 - «Órdenes de carga» (`/cargas`) va en el grupo Clientes, debajo de los de venta.
 - En «Albaranes de venta», al elegir un cliente salen sus **obras y referencias** como botones (campo `obra` del albarán,
   REFERENCIA de TreyFACT) y la lista se agrupa por obra; en «Por facturar» cada empresa se parte por obras, con PDF y

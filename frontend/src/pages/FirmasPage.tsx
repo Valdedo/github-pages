@@ -60,6 +60,7 @@ export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: bo
   if (!items.length) return null;
   return (
     <div className="marcas">
+      {firmado && !enviado(n) && <span className="marca falta" title="Firmado, pero el cliente aún no tiene copia">Sin copia</span>}
       {items.map(({ on, label, icon: Icon, cls }) => (
         <span key={cls} className={`marca ${on ? `on ${cls}` : ''}`} title={on ? label : `${label}: no`}>
           {on ? <Check size={13} strokeWidth={3} /> : <Icon size={13} />} {label}
@@ -69,15 +70,17 @@ export function Marcas({ n, sinEstado }: { n: ClientDeliveryNote; sinEstado?: bo
   );
 }
 
-function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado, enCarga }: {
+function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOcupado, sinEstado, enCarga, sinCliente }: {
   n: ClientDeliveryNote; selectable: boolean; selected: boolean; sinEstado?: boolean;
+  /** Dentro de un cliente ya elegido o agrupado: no se repite su nombre en cada línea (en el ordenador). */
+  sinCliente?: boolean;
   onToggle: () => void; onOpen: () => void; onCamion?: () => void; camionOcupado?: boolean;
   /** Con órdenes de carga: «Al camión» prepara la carga; si ya va en una, la abre. */
   enCarga?: boolean;
 }) {
   const enCamion = enCarga ? !!n.carga_id : !!n.reparto_at;
   return (
-    <div className={`card firma-card${selected ? ' selected' : ''}`} onClick={onOpen} role="button" tabIndex={0}
+    <div className={`card firma-card${selected ? ' selected' : ''}${onCamion ? ' con-camion' : ''}`} onClick={onOpen} role="button" tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter') onOpen(); }}>
       {selectable && (
         <input type="checkbox" className="firma-check" checked={selected} aria-label={`Seleccionar ${n.numero}`}
@@ -85,16 +88,17 @@ function NoteRow({ n, selectable, selected, onToggle, onOpen, onCamion, camionOc
       )}
       <div className="firma-card-info" style={{ flex: 1, minWidth: 0 }}>
         <div className="firma-card-linea" style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{n.numero}</span>
-          <span style={{ fontSize: 13, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 160px', minWidth: 0 }}>
-            {n.cliente || 'Cliente sin identificar'}
-            {n.obra && <span style={{ color: 'var(--text-3)' }}> · {n.obra}</span>}
+          <span className="firma-num" style={{ fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap' }}>{n.numero}</span>
+          <span className={`firma-cli${sinCliente ? ' sin-cli' : ''}`} title={[n.cliente, n.obra].filter(Boolean).join(' · ')}
+            style={{ fontSize: 13, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 160px', minWidth: 0 }}>
+            <span className="firma-cli-nombre">{n.cliente || 'Cliente sin identificar'}</span>
+            {n.obra && <span className="firma-cli-obra" style={{ color: 'var(--text-3)' }}><span className="firma-cli-sep"> · </span>{n.obra}</span>}
           </span>
-          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{fmtFecha(n.fecha)}</span>
-          {n.importe != null && <span style={{ fontSize: 13, fontWeight: 600 }}>{fmtEuros(n.importe)}</span>}
+          <span className="firma-fecha" style={{ fontSize: 12, color: 'var(--text-3)' }}>{fmtFecha(n.fecha)}</span>
+          <span className="firma-importe" style={{ fontSize: 13, fontWeight: 600 }}>{n.importe != null ? fmtEuros(n.importe) : ''}</span>
         </div>
         <Marcas n={n} sinEstado={sinEstado} />
-        {n.nota && <div style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
+        {n.nota && <div className="firma-nota" style={{ fontSize: 12, marginTop: 4, color: 'var(--warning)' }}>{n.nota}</div>}
       </div>
       {onCamion && (
         <button className={`camion-btn${enCamion ? ' on' : ''}`} disabled={camionOcupado} aria-busy={camionOcupado}
@@ -422,11 +426,11 @@ export function FirmasPage() {
         : conCargas ? () => (n.carga_id ? navigate(`/cargas/${n.carga_id}`) : setAlCamion(n))
         : () => camion(n)}
       camionOcupado={camionOcupado.has(n.id)} enCarga={conCargas}
-      sinEstado={vista === 'firmar'} />
+      sinEstado={vista === 'firmar'} sinCliente={!!cliente || vista === 'facturar'} />
   );
 
   return (
-    <div className="page firmas-page"
+    <div className={`page firmas-page vista-${vista}`}
       onDragOver={e => e.preventDefault()}
       onDrop={e => { e.preventDefault(); onFiles(e.dataTransfer.files); }}>
       {loadError && <ConnectionError message={loadError} onRetry={() => load()} />}
@@ -546,7 +550,7 @@ export function FirmasPage() {
           <div className="cli-acciones">
             {resumenCliente.sinCopia.length > 0 && copiaBtn(resumenCliente.sinCopia, `Dar copia de ${resumenCliente.sinCopia.length === 1 ? 'el firmado' : `los ${resumenCliente.sinCopia.length} firmados`}`, 'btn btn-primary btn-sm',
               'Un PDF con los firmados que aún no tienen copia, para dárselo o mandárselo al cliente. Quedan marcados como «Copia entregada»')}
-            {resumenCliente.porFacturar.length > 0 && (
+            {resumenCliente.porFacturar.length > 0 && vista !== 'facturar' && (
               <button className="btn btn-negro btn-sm" onClick={() => marcarFacturados(resumenCliente.porFacturar, true)}>
                 <Receipt size={14} /> Marcar {resumenCliente.porFacturar.length === 1 ? 'facturado' : `los ${resumenCliente.porFacturar.length} facturados`}
               </button>

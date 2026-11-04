@@ -166,3 +166,49 @@ input[type="date"].form-input, input[type="month"].form-input { min-width: 0; }
 }
 @media (max-width: 768px) { .solo-pc { display: none; } }
 @media (max-width: 768px) { .doc-page-hero .doc-hero-dcha > div:last-child { flex-wrap: wrap; justify-content: flex-end; } }
+
+/* ── Albaranes de venta en el ordenador: una línea fina por albarán, en columnas (4/11/2026, Andrés: «ocupa mucho») ── */
+.marca.falta { display: none; }
+@media (min-width: 769px) {
+  .firmas-page .firma-lista { gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .firmas-page .firma-lista .firma-card { border-radius: 0; padding: 6px 12px 6px 14px; min-height: 42px; gap: 10px; background: transparent;
+    border-bottom: 1px solid var(--border); box-shadow: none; transform: none; }
+  .firmas-page .firma-lista .firma-card:last-child { border-bottom: 0; }
+  .firmas-page .firma-lista .firma-card:hover { background: var(--brand-pale); box-shadow: none; transform: none; }
+  .firmas-page .firma-lista .firma-card.selected { box-shadow: inset 3px 0 0 var(--cf-bosque) !important; }
+  /* Columnas fijas para que número, fecha e importe queden alineados de una línea a otra */
+  .firmas-page .firma-card-info { display: grid !important; grid-template-columns: 96px minmax(120px, 1fr) 80px 90px 250px;
+    align-items: center; column-gap: 12px; }
+  .firmas-page.vista-firmar .firma-card-info { grid-template-columns: 96px minmax(120px, 1fr) 80px 90px !important; }
+  /* «Al camión» va fuera de las columnas: con él, la de las marcas se estrecha lo mismo y todo sigue alineado */
+  .firmas-page .firma-card .camion-btn { width: 124px; justify-content: center; }
+  .firmas-page .firma-card.con-camion .firma-card-info { grid-template-columns: 96px minmax(120px, 1fr) 80px 90px 116px; }
+  .firmas-page .firma-card-info > .marcas { overflow: hidden; }
+  .firmas-page .firma-card-linea { display: contents !important; }
+  .firmas-page .firma-card .firma-num { font-size: 16px !important; }
+  .firmas-page .firma-card .firma-cli { font-size: 13.5px !important; }
+  .firmas-page .firma-cli.sin-cli .firma-cli-nombre, .firmas-page .firma-cli.sin-cli .firma-cli-sep { display: none; }
+  .firmas-page .firma-cli.sin-cli .firma-cli-obra { color: var(--text-2) !important; }
+  .firmas-page .firma-fecha { font-size: 13px !important; }
+  .firmas-page .firma-importe { text-align: right; font-size: 13.5px !important; }
+  .firmas-page .firma-card-info > .marcas { margin: 0; gap: 4px; flex-wrap: nowrap; justify-content: flex-end; }
+  .firmas-page .marca { font-size: 12px; padding: 2px 8px; border-width: 1px; }
+  .firmas-page .marca:not(.on):not(.falta) { display: none; }
+  .firmas-page .marca.falta { display: inline-flex; background: #FEF3C7; color: #7A4A00; border: 1px solid #F6DDA4; font-weight: 600; }
+  .firmas-page .firma-nota { grid-column: 1 / -1; margin-top: 0 !important; }
+  .firmas-page .firma-card .camion-btn { min-height: 30px; padding: 3px 11px; font-size: 12.5px; }
+  .firmas-page .firma-check { width: 18px; height: 18px; }
+  .firma-empresa .firma-lista { margin: 0; }
+  .firma-obra-grupo .firma-obra-cab { padding-bottom: 6px; }
+}
+@media (min-width: 769px) {
+  /* Pestañas más bajas en el ordenador */
+  .firmas-page .firma-vista { min-height: 0; padding: 10px 16px; border-radius: 14px; font-size: 15px; }
+  .firmas-page .firma-vista-n { font-size: 22px; }
+  .firmas-page .firma-vistas { gap: 8px; }
+}
+@media (min-width: 769px) and (max-width: 1100px) {
+  .firmas-page .firma-card-info { grid-template-columns: 86px minmax(100px, 1fr) 76px 84px 190px; column-gap: 10px; }
+  .firmas-page .firma-card.con-camion .firma-card-info { grid-template-columns: 86px minmax(100px, 1fr) 76px 84px 56px; }
+  .firmas-page.vista-firmar .firma-card-info { grid-template-columns: 86px minmax(100px, 1fr) 76px 84px !important; }
+}
