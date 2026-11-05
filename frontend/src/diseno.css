@@ -72,6 +72,12 @@ html.dz .doc-fila-dot { display: none; }
 html.dz .tf-cab { background: var(--surface); color: var(--text-1); border: 1px solid var(--border); }
 html.dz .tf-cab h1 { color: var(--text-1); }
 html.dz .tf-cab p { color: var(--text-2); }
+/* Con la cabecera blanca, los botones «Con IVA | Sin IVA | Coste» iban en letra blanca y no se veían (5/11/2026) */
+html.dz .tf-cab .tf-modos { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+html.dz .tf-cab .tf-modos button { color: var(--text-2); }
+html.dz .tf-cab .tf-modos button:hover:not([aria-pressed="true"]) { background: var(--brand-pale); }
+html.dz .tf-cab .tf-modos button[aria-pressed="true"] { background: var(--cf-bosque); color: #fff; }
+html.dz .tf-cab .tf-modos button:focus-visible { outline-color: var(--cf-bosque); }
 html.dz .tf-migas a { color: var(--text-2); }
 html.dz .tf-migas a:hover { background: var(--surface-2); color: var(--text-1); }
 html.dz .tf-migas a:focus-visible { outline-color: var(--cf-verde); }

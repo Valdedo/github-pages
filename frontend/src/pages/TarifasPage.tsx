@@ -552,6 +552,15 @@ export function medidasDe(secciones: Seccion[]): { mp: string; op: number | null
   return lista.length >= 4 && lista.some(x => x.grupos.size >= 2) ? lista.map(({ mp, op }) => ({ mp, op })) : [];
 }
 
+/** Foto del catálogo del fabricante que trae la pieza (de momento, Inyectometal). */
+export const fotoCatalogo = (m: TarifaMedida) => (m.foto?.startsWith('/catalogo/iny/') ? m.foto : '');
+/** La foto que más se repite entre las medidas de un tipo de pieza. */
+export function fotoComun(items: TarifaMedida[]): string {
+  const c = new Map<string, number>();
+  for (const m of items) { const f = fotoCatalogo(m); if (f) c.set(f, (c.get(f) ?? 0) + 1); }
+  return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+}
+
 /** Una pieza de la familia: un tipo con varias medidas o un artículo solo. Se enseñan igual y, si la tarifa va por
  *  nombre, mezcladas por orden alfabético (la llave de bola suelta, al lado de las llaves de bola por medidas). */
 export type Pieza = { g: TarifaGrupo; items: TarifaMedida[]; filas: boolean } | { m: TarifaMedida };
@@ -563,14 +572,17 @@ export function piezasDe(sc: Seccion, porNombre: boolean): Pieza[] {
 }
 
 /** Una pieza en una fila: nombre (o formato), código, precio y, si es rollo o barra, lo que sale el metro. */
-function FilaPieza({ m, etiqueta, modo, sel, onSel, onOpen }: {
+function FilaPieza({ m, etiqueta, modo, sel, onSel, onOpen, foto }: {
   m: TarifaMedida; etiqueta: string; modo: ModoPrecio; sel: boolean; onSel: () => void; onOpen: () => void;
+  /** Foto del catálogo a la izquierda (Inyectometal); '' deja el hueco vacío para que las filas sigan alineadas */
+  foto?: string;
 }) {
   const p = precioModo(m, modo);
   const pm = porMetro(m, modo);
   return (
-    <button type="button" className={`tfn-fila${p == null ? ' tfn-sin' : ''}`} aria-pressed={sel} onClick={onSel} onDoubleClick={onOpen}
+    <button type="button" className={`tfn-fila${p == null ? ' tfn-sin' : ''}${foto != null ? ' tfn-con-foto' : ''}`} aria-pressed={sel} onClick={onSel} onDoubleClick={onOpen}
       title={etiqueta !== m.descripcion ? conPor(m.descripcion) : undefined}>
+      {foto != null && <span className="tfn-foto">{foto && <img src={foto} alt="" loading="lazy" />}</span>}
       <span className="tfn-fila-txt">
         <span className="tfn-fila-nom">{conPor(etiqueta)}</span>
         {m.codigo && <span className="tfn-cod">{codigoVisible(m)}</span>}
@@ -644,8 +656,11 @@ function FamiliaNueva() {
     const fin = prov === 'hierros' ? conPor(g.titulo ?? '').match(/(\d[\d,.×]*)$/) : null;
     return fin && /^\d+([.,]\d+)?$/.test(e) ? `${fin[1]}×${e}` : e;
   };
-  const fila = (m: TarifaMedida, etiqueta: string) => (
-    <FilaPieza key={m.ref} m={m} etiqueta={etiqueta} modo={modo} sel={sel?.ref === m.ref} onSel={() => elegir(m)} onOpen={() => abrir(m)} />
+  // Inyectometal (5/11/2026, Andrés: «muy visual, como en el catálogo»): cada línea con la foto de la pieza del catálogo
+  const conFotos = useMemo(() => !!f?.grupos.some(g => g.medidas.some(m => fotoCatalogo(m))), [f]);
+  const fila = (m: TarifaMedida, etiqueta: string, foto?: string) => (
+    <FilaPieza key={m.ref} m={m} etiqueta={etiqueta} modo={modo} sel={sel?.ref === m.ref} onSel={() => elegir(m)} onOpen={() => abrir(m)}
+      foto={foto ?? (conFotos ? fotoCatalogo(m) : undefined)} />
   );
 
   const desde = (items: TarifaMedida[]) => {
@@ -668,11 +683,13 @@ function FamiliaNueva() {
     const uds = [...new Set(items.map(m => m.ud_venta))];
     const ud1 = uds.length === 1 ? uds[0] : null;
     const meds = items.map(m => etiquetaMedida(m)).filter(Boolean);
+    const fotoG = conFotos ? fotoComun(items) : undefined;
     const resumen = abierto || meds.length !== items.length ? `${items.length} ${p.filas ? 'formatos' : 'medidas'}`
       : items.length <= 4 ? meds.join(' · ') : `${items.length} medidas · de ${meds[0]} a ${meds[meds.length - 1]}`;
     return (
       <div key={k} className={`tfl-grupo${abierto ? ' tfl-abierto' : ''}`}>
-        <button type="button" className={`tfn-fila tfl-cab${conSel && !abierto ? ' tfl-con-sel' : ''}`} aria-expanded={abierto} onClick={() => cambia(k)}>
+        <button type="button" className={`tfn-fila tfl-cab${conSel && !abierto ? ' tfl-con-sel' : ''}${fotoG != null ? ' tfn-con-foto' : ''}`} aria-expanded={abierto} onClick={() => cambia(k)}>
+          {fotoG != null && <span className="tfn-foto">{fotoG && <img src={fotoG} alt="" loading="lazy" />}</span>}
           <span className="tfn-fila-txt">
             <span className="tfn-fila-nom">{conPor(g.titulo!)}</span>
             <span className="tfn-cod tfl-meds">{conPor(resumen)}</span>
@@ -683,7 +700,9 @@ function FamiliaNueva() {
           </span>
           <ChevronDown size={18} className="tfl-flecha" aria-hidden="true" />
         </button>
-        {abierto && <div className="tfl-medidas">{items.map(m => fila(m, nombre(m)))}</div>}
+        {abierto && <div className={`tfl-medidas${fotoG != null ? ' tfl-medidas-foto' : ''}`}>
+          {items.map(m => fila(m, nombre(m), fotoG != null ? (fotoCatalogo(m) && fotoCatalogo(m) !== fotoG ? fotoCatalogo(m) : '') : undefined))}
+        </div>}
       </div>
     );
   };
@@ -894,6 +913,7 @@ export function TarifaFichaPage() {
       <Foto src={fotoArticulo(d.familia.nombre, d.descripcion, d.foto)} alt={conPor(d.descripcion)} respaldo={pegatina(claveFamilia(d.familia.nombre))} />
       {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">
         {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex'
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iny') ? 'Foto del catálogo de Inyectometal'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' 
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/lad') ? 'Foto de Cerámica Campo'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pi/fotos/') ? 'Foto del saco'

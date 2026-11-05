@@ -217,7 +217,16 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   («CODO LATON H-H 1/2» → «Codo latón H-H» · «½″», «CONTRA-ROSCA» → «Machón», variantes cromado/EVO/ECO/R/paso reducido al
   tipo, serie del cobre «(serie 270)», latiguillos «⅜″ × ⅜″ · 75 cm»); en latón, válvulas, riego, flotadores y juntas la medida
   del filtro es la rosca (`_principal`). `pvp_fab` solo en lo del catálogo (descuento grande). La evolución: lo pagado y el coste M26
-  (`hist_extra`, que `_ficha_lineas` añade). Pegatinas: las de Zabaleta de lo mismo (`INYECTOMETAL` en `lib/tarifas.ts`).
+  (`hist_extra`, que `_ficha_lineas` añade).
+  **Fotos del catálogo (5/11/2026, Andrés: «muy visual, como en el catálogo»)**: del catálogo general de su web
+  (CATALOGO-GENERAL-MAYO-2023.pdf; cada producto = título + foto + tabla Ref./EAN) con `tools/inyectometal-fotos.py` →
+  `frontend/public/catalogo/iny/i<xref>.webp` y `backend/app/data/inyectometal_fotos.json` (por referencia —«3001 C» = 3001C— y
+  por EAN, más el título y la página de cada foto). `inyectometal.foto()`; lo que no sale en el catálogo (netos, EVO, nuevas) coge
+  la foto más repetida de su tipo de pieza y, si no, de su grupo (`_fotos_por_tipo`, `foto_de_tipo`). En la lista de la familia
+  cada línea lleva la foto a la izquierda (`fotoCatalogo` / `fotoComun` en `TarifasPage.tsx`, `tfn-con-foto`; al abrir las medidas
+  no se repite), en la tableta al lado del nombre de cada pieza (`mo-grupo-foto`) y en la ficha «Foto del catálogo de
+  Inyectometal». Las familias y el proveedor, una foto del catálogo en vez de pegatina (`iny-<archivo>` en `INYECTOMETAL` de
+  `lib/tarifas.ts`, `pegatina()` la resuelve). Si llega un catálogo nuevo: volver a pasar el script (las fotos van por xref).
   Si llega una tarifa nueva de Inyectometal: mismo formato (CodigoArticulo;CodigoAlternativo;Descripcion;Precio;dto…): rehacer
   las filas de datos de la hoja y mantener las fórmulas de la fila 18.
 - `eur()` enseña el tercer decimal por debajo de 1 € si lo tiene (0,242 € con IVA); los importes (cantidad × precio) con `eurC`.

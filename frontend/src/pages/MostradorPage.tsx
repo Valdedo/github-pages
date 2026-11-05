@@ -15,7 +15,7 @@ import {
 } from '../lib/tarifas';
 import {
   cache, leerTarifa, Foto, buscar, conPor, codigoVisible, etiquetaMedida, porMetro, seccionesDe, medidasDe,
-  enlaceFicha, type Bloque,
+  enlaceFicha, fotoCatalogo, fotoComun, type Bloque,
 } from './TarifasPage';
 import { CuadriculaTarifa } from '../components/CuadriculaTarifa';
 import { ParaQueSirve } from '../components/ParaQueSirve';
@@ -378,13 +378,14 @@ function Familia({ t, f, medida, sel, onMedida, onElegir }: {
   const secciones = useMemo(() => seccionesDe(f), [f]);
   const medidas = useMemo(() => medidasDe(secciones), [secciones]);
   const med = medida && medidas.some(x => x.mp === medida) ? medida : null;
-  const fila = (m: TarifaMedida, nombre: string) => <FilaArticulo key={m.ref} e={{ t, f, m }} nombre={nombre} sel={sel} onElegir={onElegir} />;
+  const fila = (m: TarifaMedida, nombre: string, foto?: string) => <FilaArticulo key={m.ref} e={{ t, f, m }} nombre={nombre} sel={sel} onElegir={onElegir} foto={foto} />;
   const bloque = (b: Bloque, i: number) => {
-    if ('sueltos' in b) return <div key={i} className="mo-filas">{b.sueltos.map(m => fila(m, m.descripcion))}</div>;
+    if ('sueltos' in b) return <div key={i} className="mo-filas">{b.sueltos.map(m => fila(m, m.descripcion, fotoCatalogo(m)))}</div>;
+    const fotoG = fotoComun(b.items);  // Inyectometal: la foto del catálogo al lado del nombre de la pieza
     const repetidas = new Set(b.items.filter((m, j) => b.items.findIndex(x => x.valor === m.valor) !== j).map(m => m.valor));
     return (
       <section key={i} className="mo-grupo">
-        <h3>{conPor(b.g.titulo!)}</h3>
+        <h3 className={fotoG ? 'mo-grupo-con-foto' : undefined}>{fotoG && <span className="mo-grupo-foto"><img src={fotoG} alt="" loading="lazy" /></span>}{conPor(b.g.titulo!)}</h3>
         {b.filas
           ? <div className="mo-filas">{b.items.map(m => fila(m, !m.valor || repetidas.has(m.valor) ? m.descripcion : etiquetaMedida(m)))}</div>
           : (
@@ -416,7 +417,7 @@ function Familia({ t, f, medida, sel, onMedida, onElegir }: {
       {med ? filtradas.map(sc => (
         <section key={sc.t ?? '-'} className="mo-sub">
           {sc.t && <h2 className="mo-sub-tit">{sc.t}</h2>}
-          <div className="mo-filas">{sc.items.map(m => fila(m, m.descripcion))}</div>
+          <div className="mo-filas">{sc.items.map(m => fila(m, m.descripcion, fotoCatalogo(m)))}</div>
         </section>
       )) : secciones.map((sc, i) => (
         <section key={sc.t ?? i} className="mo-sub">
@@ -429,13 +430,16 @@ function Familia({ t, f, medida, sel, onMedida, onElegir }: {
 }
 
 /** Fila grande: nombre, código y precio de venta sin IVA. */
-function FilaArticulo({ e, nombre, sel, onElegir, conFamilia }: {
+function FilaArticulo({ e, nombre, sel, onElegir, conFamilia, foto }: {
   e: Elegido; nombre: string; sel: string; onElegir: (e: Elegido) => void; conFamilia?: boolean;
+  /** Foto del catálogo a la izquierda (Inyectometal: piezas sueltas y lo filtrado por medida) */
+  foto?: string;
 }) {
   const { t, f, m } = e;
   return (
     <button type="button" className={`mo-fila${conIva(m) == null ? ' mo-sin' : ''}`} aria-pressed={sel === `${t.id}|${m.ref}`} onClick={() => onElegir(e)}>
-      {conFamilia && <img src={pegatina(claveFamilia(f.nombre))} alt="" className="mo-fila-peg" />}
+      {foto ? <span className="mo-fila-foto"><img src={foto} alt="" loading="lazy" /></span>
+        : conFamilia && <img src={fotoCatalogo(m) || pegatina(claveFamilia(f.nombre))} alt="" className="mo-fila-peg" />}
       <span className="mo-fila-txt">
         <strong>{conPor(nombre)}</strong>
         <small>

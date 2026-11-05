@@ -109,12 +109,13 @@ export const PEGATINA_PROVEEDOR: Record<string, string> = {
   hierros: 'prov-hierros', zabaleta: 'prov-zabaleta', isoltubex: 'prov-isoltubex', silva: 'malla', pladur: 'prov-pladur', dinak: 'prov-dinak',
   ladrillos: 'prov-ladrillos',
   gas: 'prov-gas', morteros: 'prov-morteros', piensos: 'prov-piensos',
-  inyectometal: 'zab-laton',
+  inyectometal: 'iny-i1320',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
 export const pegatina = (nombre: string) =>
-  nombre.startsWith('silva-') ? `/catalogo/silva/${nombre.slice(6)}.webp` : `/catalogo/st-${nombre}.png`;
+  nombre.startsWith('silva-') ? `/catalogo/silva/${nombre.slice(6)}.webp`
+    : nombre.startsWith('iny-') ? `/catalogo/iny/${nombre.slice(4)}.webp` : `/catalogo/st-${nombre}.png`;
 
 // Familia de la tarifa → dibujo (pegatina, para navegar) y foto (en la ficha y las medidas).
 // Las fotos son de referencia, de tiendas (Obramat / Leroy Merlin): se enlazan, no se copian.
@@ -190,11 +191,13 @@ const LAD_FAMILIA: Record<string, string> = {
   'lad-hueco': '/catalogo/lad/bloque.webp', 'lad-semimacizo': '/catalogo/lad/semimacizo.webp',
   'lad-rasillon': '/catalogo/lad/rasillon.webp', 'lad-refractario': '/catalogo/lad/refractario.webp', 'lad-alar': ADEO('4415710'),
 };
-// Familias de Inyectometal (21/10/2026): las pegatinas de Zabaleta de lo mismo (latón roscado y cobre ya casan con las suyas)
+// Familias de Inyectometal: desde el 5/11/2026 una foto de su catálogo (frontend/public/catalogo/iny, tools/inyectometal-fotos.py)
+// en vez de las pegatinas de Zabaleta. Nombres exactos de la hoja: «Latón roscado» y «Cobre a soldar» solo están en esta tarifa.
 const INYECTOMETAL: [RegExp, string][] = [
-  [/^racores para polietileno/, 'zab-abastecimiento'], [/^valvulas y llaves/, 'zab-llaves'], [/^flotadores y boyas/, 'zab-sanitario'],
-  [/^riego y manguera/, 'zab-abastecimiento'], [/^conexiones flexibles/, 'zab-fontaneria'], [/^griferia y bano/, 'zab-sanitario'],
-  [/^juntas y pequeno material/, 'zab-ferreteria'],
+  [/^laton roscado$/, 'iny-i1320'], [/^cobre a soldar$/, 'iny-i1538'],
+  [/^racores para polietileno/, 'iny-i2049'], [/^valvulas y llaves/, 'iny-i2165'], [/^flotadores y boyas/, 'iny-i1715'],
+  [/^riego y manguera/, 'iny-i2253'], [/^conexiones flexibles/, 'iny-i3642'], [/^griferia y bano/, 'iny-i2538'],
+  [/^juntas y pequeno material/, 'iny-i3325'],
 ];
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
@@ -231,6 +234,7 @@ export function fotoArticulo(familia: string, descripcion?: string, foto?: strin
   if (foto && foto.startsWith('https://media.adeo.com/')) return foto;  // foto de referencia ya elegida (ladrillos)
   if (clave.startsWith('lad-')) return descripcion ? '' : LAD_FAMILIA[clave] ?? '';
   if (clave.startsWith('iso-')) return descripcion ? '' : ISO_FAMILIA[clave] ? `/catalogo/iso/${ISO_FAMILIA[clave]}.webp` : '';
+  if (clave.startsWith('iny-')) return descripcion ? '' : pegatina(clave);  // sin foto propia: la de la familia
   if (foto && FOTOS_ZAB[foto]) return FOTOS_ZAB[foto];  // la foto ya viene elegida en la clasificación
   const d = normaliza(descripcion || '');
   const zab = claveFamilia(familia);

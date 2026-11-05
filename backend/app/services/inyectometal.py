@@ -12,12 +12,51 @@ Lo del catálogo (tarifa 0, descuento grande) trae un PVP de tarifa; lo de netos
 Las columnas se buscan por su título y el tipo de pieza y la medida se sacan de la descripción («CODO LATON H-H 1/2» →
 «Codo latón H-H» · «½″»), así una referencia nueva cae sola en su sitio.
 """
+import collections
+import json
+import os
 import re
 import unicodedata
 from typing import Optional
 
 HOJA = "1i4IytTO95mEHzdcE8-ShNQ7oSPIL8ZXDnlEeZCNdAdo"
 VIGOR = "2026-08-03"  # la tarifa M26 entra en vigor el 03/08/2026
+
+# Fotos del catálogo general de Inyectometal (5/11/2026): por referencia y por EAN, en app/data/inyectometal_fotos.json,
+# generado con tools/inyectometal-fotos.py; las imágenes en frontend/public/catalogo/iny/. Lo que no sale en el catálogo
+# (lo del «librito» de netos, referencias nuevas) coge la foto de su tipo de pieza y, si no, la de su grupo.
+_FOTOS = os.path.join(os.path.dirname(__file__), "..", "data", "inyectometal_fotos.json")
+try:
+    with open(_FOTOS, encoding="utf-8") as _f:
+        FOTOS = json.load(_f)
+except (OSError, ValueError):
+    FOTOS = {"refs": {}, "eans": {}}
+
+
+def foto(cod: str, ean: Optional[str]) -> Optional[str]:
+    """Foto del catálogo por la referencia («3001 C» y «3001C» son la misma) o por el EAN."""
+    f = FOTOS["refs"].get(re.sub(r"\s+", "", str(cod or "")).upper()) or (FOTOS["eans"].get(str(ean)) if ean else None)
+    return f"/catalogo/iny/{f}" if f else None
+
+
+def _fotos_por_tipo(arts: list) -> None:
+    """Las que no tienen foto propia cogen la que más se repite en su tipo de pieza (misma familia y grupo) y, si el tipo
+    no tiene ninguna, la de su grupo; así una referencia nueva o de netos sale con la foto de lo que es."""
+    por_tipo: dict = collections.defaultdict(collections.Counter)
+    por_grupo: dict = collections.defaultdict(collections.Counter)
+    for a in arts:
+        if a["foto"]:
+            por_tipo[(a["categoria"], a["subcategoria"], a["tipo"] or a["nombre"])][a["foto"]] += 1
+            por_grupo[(a["categoria"], a["subcategoria"])][a["foto"]] += 1
+    for a in arts:
+        if a["foto"]:
+            continue
+        c = por_tipo.get((a["categoria"], a["subcategoria"], a["tipo"] or a["nombre"])) or (
+            por_grupo.get((a["categoria"], a["subcategoria"])) if a["tipo"] else None)
+        if c:
+            a["foto"] = c.most_common(1)[0][0]
+            a["foto_de_tipo"] = True
+
 
 # Orden de las familias y de sus grupos (el de la hoja)
 FAMILIAS = ["Latón roscado", "Cobre a soldar", "Racores para polietileno", "Válvulas y llaves", "Flotadores y boyas",
@@ -273,7 +312,7 @@ def leer(hojas: dict) -> dict:
         arts.append({
             "ref": cod, "codigo": cod, "ean": v(f, "ean").lstrip("'") or None, "categoria": fam, "subcategoria": grupo,
             "descripcion": desc, "nombre": c["n"], "tipo": c["t"], "medida_c": c["m"], "orden": c["o"],
-            "foto": None, "unidad": ud, "ud_venta": ud, "ud_compra": ud, **_principal(c["m"], fam),
+            "foto": foto(cod, v(f, "ean").lstrip("'")), "unidad": ud, "ud_venta": ud, "ud_compra": ud, **_principal(c["m"], fam),
             "precio": coste, "fecha": VIGOR if coste else None,
             "precio_ant": pagado, "fecha_ant": fecha_compra if pagado else None, "evol": evol,
             "coste": coste, "pvp": pvp, "pvp_iva": pvp_iva, "margen": margen,
@@ -293,6 +332,7 @@ def leer(hojas: dict) -> dict:
             lineas[cod] = [{"fecha": fecha_compra, "factura": num.group(1) if num else "", "precio": pagado,
                             "cantidad": None, "bruto": None, "dto1": None, "dto2": None,
                             **({"tipo": tipo} if tipo else {})}] if pagado else []
+    _fotos_por_tipo(arts)
     orden_fam = [x for x in FAMILIAS if x in grupos] + [x for x in grupos if x not in FAMILIAS]
     return {"articulos": arts, "log": [], "margen": None, "lineas": lineas,
             "orden_familias": orden_fam, "orden_grupos": grupos,

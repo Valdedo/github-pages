@@ -266,3 +266,12 @@
 .mo-gc-pie-i { vertical-align: -3px; }
 @keyframes mo-fundido { from { opacity: 0; } to { opacity: 1; } }
 @keyframes mo-entra { from { transform: translateX(40px); opacity: .5; } to { transform: none; opacity: 1; } }
+
+/* Inyectometal (5/11/2026): la foto del catálogo al lado de cada pieza, grande para verla de un vistazo */
+.mo-grupo h3.mo-grupo-con-foto { display: flex; align-items: center; gap: 14px; }
+.mo-grupo-foto, .mo-fila-foto { flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
+.mo-grupo-foto { width: 84px; height: 84px; }
+.mo-fila-foto { width: 64px; height: 64px; margin: -6px 0 -6px -6px; }
+.mo-grupo-foto img, .mo-fila-foto img { max-width: 92%; max-height: 92%; object-fit: contain; }
+.mo-familia img[src^="/catalogo/iny/"], .mo-titulo-peg[src^="/catalogo/iny/"] { object-fit: contain; background: #fff; border-radius: 14px; box-shadow: 0 2px 6px rgb(0 0 0 / .15); padding: 4px; box-sizing: border-box; }

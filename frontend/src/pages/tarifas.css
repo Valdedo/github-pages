@@ -426,3 +426,30 @@ img[src^="/catalogo/silva/"].tf-fila-peg { width: 44px; height: 44px; border-rad
 .tfl-todas { display: flex; justify-content: flex-end; margin: -2px 0 -6px; }
 .tfl-todas .tfn-quitar svg { transition: transform .15s; }
 .tfl-todas .tfn-quitar .tfl-girada { transform: rotate(180deg); }
+
+/* ── Inyectometal (5/11/2026, Andrés: «muy visual, como en el catálogo»): foto del catálogo en cada línea ── */
+.tfn-fila.tfn-con-foto { grid-template-columns: 58px minmax(0, 1fr) auto; column-gap: 12px; padding-top: 6px; padding-bottom: 6px; min-height: 72px; }
+.tfn-foto { width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #fff;
+  box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
+.tfn-foto img { max-width: 92%; max-height: 92%; object-fit: contain; display: block; }
+.tfn-foto:empty { background: none; box-shadow: none; }
+.tfn-con-foto .tfn-fila-nom { font-size: 14.5px; }
+/* Dentro de un tipo abierto todas las medidas son la misma pieza: la foto no se repite (hueco pequeño; si alguna es otra, sale) */
+.tfl-medidas-foto .tfn-fila.tfn-con-foto { grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 46px; padding-left: 40px; }
+.tfl-medidas-foto .tfn-foto { width: 40px; height: 40px; border-radius: 8px; }
+@media (min-width: 769px) {
+  .tfn-fila.tfn-con-foto { grid-template-columns: 72px minmax(0, 1fr) 132px 118px; min-height: 84px; }
+  .tfn-con-foto .tfn-foto { width: 72px; height: 72px; grid-column: 1; }
+  .tfn-con-foto .tfn-fila-nom { grid-column: 2; font-size: 15px; }
+  .tfn-fila.tfn-con-foto .tfn-cod { grid-column: 3; }
+  .tfn-con-foto .tfn-fila-precio { grid-column: 4; }
+  .tfl-medidas-foto .tfn-fila.tfn-con-foto { grid-template-columns: 40px minmax(0, 1fr) 132px 118px; min-height: 44px; padding-left: 48px; }
+  .tfl-medidas-foto .tfn-con-foto .tfn-foto { width: 40px; height: 40px; }
+}
+/* Familias y cabecera de Inyectometal: la foto del catálogo en un recuadro blanco, como las pegatinas */
+img[src^="/catalogo/iny/"].tf-cab-peg, .tf-familia img[src^="/catalogo/iny/"], img[src^="/catalogo/iny/"].tf-fila-peg {
+  object-fit: contain; background: #fff; border-radius: 14px; border: 3px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / .18); box-sizing: border-box; padding: 4px;
+}
+img[src^="/catalogo/iny/"].tf-cab-peg { width: 60px; height: 60px; margin: 0 4px 0 0; }
+img[src^="/catalogo/iny/"].tf-fila-peg { width: 44px; height: 44px; border-radius: 10px; border-width: 2px; padding: 2px; }
+.tf-panel-foto img[src^="/catalogo/iny/"], .tf-ficha-foto img[src^="/catalogo/iny/"] { object-fit: contain; background: #fff; }
