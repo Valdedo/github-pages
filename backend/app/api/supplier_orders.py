@@ -87,6 +87,16 @@ def _avisar_llegada(order: SupplierOrder) -> None:
         logger.warning("No se pudo avisar de la llegada del pedido %s: %s", order.id, e)
 
 
+def _resumen(lines) -> str:
+    """«2 × Llave bola 1", Racor 32…» para la lista y la búsqueda (sin pedir cada pedido)."""
+    partes = []
+    for ln in lines:
+        c = ln.cantidad or 0
+        n = (f"{c:g}".replace(".", ",") + " × ") if c and c != 1 else ""
+        partes.append(f"{n}{(ln.descripcion or '').strip()}")
+    return " · ".join(p for p in partes if p.strip())[:400]
+
+
 @router.get("", response_model=List[SupplierOrderListItem])
 def list_orders(
     status: Optional[str] = None,
@@ -112,8 +122,11 @@ def list_orders(
             supplier_name=o.supplier_name,
             order_date=o.order_date,
             expected_date=o.expected_date,
+            received_date=o.received_date,
             status=o.status,
             reference=o.reference,
+            resumen=_resumen(o.lines),
+            notes=o.notes,
             line_count=len(o.lines),
             lines_received=lines_received,
             aviso_at=o.aviso_at,

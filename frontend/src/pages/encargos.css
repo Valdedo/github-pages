@@ -1,0 +1,85 @@
+/* Pedidos y Reparaciones, versión nueva (nov. 2026). Ver lib/encargosNuevo.ts */
+
+.enc-page { max-width: 1500px; }
+.enc-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.enc-cab h1 { margin: 0; font-size: 24px; line-height: 1.2; overflow-wrap: break-word; min-width: 0; }
+.enc-cab .btn { flex-shrink: 0; }
+.enc-corto { display: none; }
+@media (max-width: 480px) { .enc-largo { display: none; } .enc-corto { display: inline; } }
+
+.enc-busca { position: relative; margin-bottom: 18px; max-width: 520px; }
+.enc-busca > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+.enc-busca .form-input { margin: 0; padding-left: 42px; padding-right: 40px; border-radius: 999px; }
+.enc-busca-x { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--text-3); padding: 6px; cursor: pointer; }
+
+.enc-cargando { text-align: center; padding: 40px; color: var(--text-3); }
+.enc-vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px dashed var(--border-strong); border-radius: var(--r); color: var(--text-2); margin-bottom: 16px; }
+.enc-vacio b { font-size: 16px; color: var(--text-1); }
+
+/* ── Secciones ── */
+.enc-tablero { display: flex; flex-direction: column; gap: 22px; }
+.enc-sec h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 15px; font-weight: 700; color: var(--text-2); text-transform: none; letter-spacing: 0; }
+.enc-n { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--grey-200); color: var(--text-2); font-size: 13px; text-align: center; }
+.enc-sec.aviso h2 { color: var(--warning); }
+.enc-sec.aviso .enc-n { background: #FBEBC8; color: var(--warning); }
+.enc-ayuda { margin: -4px 0 8px; font-size: 13px; color: var(--text-3); }
+.enc-nada { margin: 0; padding: 14px; font-size: 14px; color: var(--text-3); border: 1px dashed var(--border); border-radius: var(--r); }
+.enc-sec.vacia { display: none; }            /* en el móvil, las vacías no ocupan */
+
+.enc-filas { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.enc-filas.hechos { opacity: .85; margin-top: 8px; }
+.enc-fila { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 60px; cursor: pointer; border-top: 1px solid var(--border); }
+.enc-filas > .enc-fila:first-child, .enc-grupo > .enc-fila:nth-child(2) { border-top: 0; }
+.enc-fila:hover { background: var(--surface-2); }
+.enc-fila:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.enc-fila-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.enc-fila-txt b { font-size: 15px; font-weight: 700; color: var(--text-1); overflow-wrap: break-word; }
+.enc-det { font-size: 14px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.enc-est { font-size: 13px; color: var(--text-3); }
+.enc-est.mal { color: var(--danger); font-weight: 600; }
+.enc-est.pend { color: var(--warning); font-weight: 600; }
+.enc-acc { flex-shrink: 0; display: flex; }
+.enc-acc .btn { min-height: 40px; white-space: nowrap; }
+.enc-flecha { color: var(--text-3); flex-shrink: 0; }
+
+.enc-grupo + .enc-grupo { border-top: 1px solid var(--border-strong); }
+.enc-grupo-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; background: var(--surface-2); font-size: 13px; font-weight: 700; color: var(--text-2); min-height: 44px; }
+.enc-grupo-cab .btn { min-height: 36px; }
+
+.enc-hechos { margin-top: 26px; border-top: 1px solid var(--border); padding-top: 4px; }
+.enc-hechos-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 0; background: none; border: 0; cursor: pointer; color: var(--text-2); font: 600 14px var(--font); }
+.enc-mas { margin: 8px auto; }
+
+/* ── Alta ── */
+.enc-modal { max-width: 560px; }
+.enc-modal-cuerpo { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 72vh; overflow-y: auto; }
+.enc-modal-cuerpo .form-input { margin: 0; }
+.enc-modal-cuerpo .form-label small { font-weight: 400; color: var(--text-3); }
+.enc-modal-pie { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.enc-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.enc-lee { display: block; margin-top: 4px; color: var(--text-3); }
+.enc-check { display: flex; align-items: center; gap: 10px; font-size: 15px; min-height: 40px; cursor: pointer; }
+.enc-check input { width: 20px; height: 20px; accent-color: var(--brand); }
+.enc-mas-datos summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text-2); padding: 6px 0; }
+.enc-mas-datos[open] { display: flex; flex-direction: column; gap: 12px; }
+.enc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.enc-chip { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px; padding: 8px 12px; font: 500 14px var(--font); cursor: pointer; }
+.enc-chip:hover { background: var(--brand-pale); }
+
+@media (max-width: 420px) {
+  .enc-cab h1 { font-size: 21px; }
+  .enc-fila { padding: 12px; gap: 10px; }
+  .enc-acc .btn { padding: 0 10px; font-size: 13px; }
+}
+
+/* ── Ordenador: las 4 secciones en columnas, de izquierda a derecha como va el trabajo ── */
+@media (min-width: 1100px) {
+  .enc-tablero { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .enc-sec.vacia { display: block; }
+  .enc-fila { flex-wrap: wrap; align-items: flex-start; }
+  .enc-fila-txt { flex-basis: 100%; }
+  .enc-acc { width: 100%; }
+  .enc-acc .btn { width: 100%; justify-content: center; min-height: 36px; }
+  .enc-flecha { display: none; }
+  .enc-grupo-cab { flex-wrap: wrap; }
+}

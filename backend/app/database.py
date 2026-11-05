@@ -130,6 +130,8 @@ def _run_migrations():
         ("entregas_carga", "whatsapp_at",    "DATETIME"),
         ("entregas_carga", "whatsapp_error", "TEXT"),
         ("client_delivery_notes", "sin_firma", "VARCHAR(200)"),
+        # Pedidos y reparaciones nuevos (nov. 2026): a qué taller va la máquina
+        ("repairs", "taller",             "VARCHAR(120)"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

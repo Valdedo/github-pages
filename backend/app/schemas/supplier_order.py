@@ -94,8 +94,11 @@ class SupplierOrderListItem(BaseModel):
     supplier_name: Optional[str] = None
     order_date: datetime.date
     expected_date: Optional[datetime.date] = None
+    received_date: Optional[datetime.date] = None
     status: str
     reference: Optional[str] = None
+    resumen: str = ""
+    notes: Optional[str] = None
     aviso_at: Optional[datetime.datetime] = None
     line_count: int = 0
     lines_received: int = 0

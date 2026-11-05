@@ -11,6 +11,8 @@ import { coincide, fechaES } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import type { SupplierOrderListItem, Supplier, OrderStatus } from '../types';
 import { disenoNuevo } from '../lib/diseno';
+import { encargosNuevo } from '../lib/encargosNuevo';
+import { PedidosNueva } from './PedidosNueva';
 
 // Status flow: pendiente → pedido → recibido → entregado
 // entregado + cancelado are "done" → go to history
@@ -324,7 +326,12 @@ function OrderCard({ order, overdue, onNavigate, onAvisado, muted = false }: {
   );
 }
 
+/** Versión nueva «En pruebas» (nov. 2026) para Andrés; el resto ve la de siempre. */
 export function OrdersPage() {
+  return encargosNuevo() ? <PedidosNueva /> : <OrdersPageVieja />;
+}
+
+function OrdersPageVieja() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast, show } = useCfToast();

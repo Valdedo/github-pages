@@ -473,6 +473,17 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
 - Antes de publicar: `npx tsc --noEmit -p frontend` y `npm run build` sin errores, y prueba en local.
 - Cambios grandes o dudosos: enseñar antes a Andrés (vídeo o capturas) y publicar con su ok.
 
+## Pedidos y Reparaciones nuevos (5/11/2026, «En pruebas», solo Andrés)
+- Opción B elegida por Andrés: dos pantallas separadas con la misma forma. `lib/encargosNuevo.ts` (`ENCARGOS_NUEVO_PARA_TODOS = false`),
+  piezas comunes en `components/Encargos.tsx`, páginas `PedidosNueva.tsx` / `ReparacionesNueva.tsx`, estilos `pages/encargos.css` (`enc-*`).
+  `OrdersPage`/`RepairsPage` eligen versión. Sin pestañas: secciones por lo que toca (Avisar al cliente · Por pedir / Por llevar al taller ·
+  Esperando / En el taller · Para recoger) y lo terminado plegado (5 + «Ver más»). En el ordenador (≥1100 px) las 4 en columnas.
+  Una acción por fila con «Deshacer». Por pedir se agrupa por proveedor («Pedidos los N»); en el taller, por taller.
+- Alta rápida: cliente con autocompletado (rellena el teléfono), «qué hay que pedir» uno por línea con la cantidad delante
+  (`leerLinea`), proveedor, «Ya lo he pedido»; lo demás en «Más datos». Reparación: cliente, máquina, marca/modelo, qué le pasa, taller.
+- Backend: `repairs.taller` (nuevo) y la lista de pedidos trae `received_date`, `resumen` (artículos) y `notes`.
+- Pendiente: fichas nuevas (línea de tiempo + «Editar»), siguen las de siempre.
+
 ## Probar en local
 - Backend: `DATABASE_URL=sqlite:///ruta/app.db uvicorn app.main:app --port 8000` (desde `backend/`).
   Sin clave de IA en local: simular `carga_service.leer` / extracción si hace falta.

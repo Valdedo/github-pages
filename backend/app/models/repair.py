@@ -22,6 +22,8 @@ class Repair(Base):
 
     # Problem
     problem_description: Mapped[str] = mapped_column(Text)
+    # A qué servicio técnico se mandó (nov. 2026)
+    taller: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
     # Status: recibida | en_taller | reparada | entregada
     status: Mapped[str] = mapped_column(String(20), default="recibida", index=True)

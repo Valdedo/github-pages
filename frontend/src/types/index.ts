@@ -204,6 +204,8 @@ export interface Repair {
   date_returned?: string;
   aviso_at?: string | null;
   notes?: string;
+  /** A qué servicio técnico se mandó */
+  taller?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -249,8 +251,12 @@ export interface SupplierOrderListItem {
   supplier_name?: string;
   order_date: string;
   expected_date?: string;
+  received_date?: string | null;
   status: OrderStatus;
   reference?: string;
+  /** «2 × Llave bola 1" · Racor 32» */
+  resumen?: string;
+  notes?: string | null;
   aviso_at?: string | null;
   line_count: number;
   lines_received: number;

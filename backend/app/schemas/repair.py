@@ -17,6 +17,7 @@ class RepairBase(BaseModel):
     final_price: Optional[float] = None
     date_estimated_return: Optional[datetime.datetime] = None
     notes: Optional[str] = None
+    taller: Optional[str] = None
 
 
 class RepairCreate(RepairBase):
@@ -40,6 +41,7 @@ class RepairUpdate(BaseModel):
     date_returned: Optional[datetime.datetime] = None
     aviso_at: Optional[datetime.datetime] = None
     notes: Optional[str] = None
+    taller: Optional[str] = None
 
 
 class RepairResponse(RepairBase):

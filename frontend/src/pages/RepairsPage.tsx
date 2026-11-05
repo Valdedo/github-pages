@@ -11,6 +11,8 @@ import { mensajeError } from '../lib/descargas';
 import { REPARACION_ESTADO, REPARACION_SIGUIENTE } from '../lib/estados';
 import type { Repair, RepairStatus } from '../types';
 import { disenoNuevo } from '../lib/diseno';
+import { encargosNuevo } from '../lib/encargosNuevo';
+import { ReparacionesNueva } from './ReparacionesNueva';
 
 const STATUSES: { value: RepairStatus | ''; label: string }[] = [
   { value: '', label: 'Todas' },
@@ -352,7 +354,12 @@ function RepairCard({
   );
 }
 
+/** Versión nueva «En pruebas» (nov. 2026) para Andrés; el resto ve la de siempre. */
 export function RepairsPage() {
+  return encargosNuevo() ? <ReparacionesNueva /> : <RepairsPageVieja />;
+}
+
+function RepairsPageVieja() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [repairs, setRepairs] = useState<Repair[]>([]);
