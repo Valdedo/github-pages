@@ -10,6 +10,8 @@ import { fechaES } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { ES_MANUAL } from '../lib/proveedor';
 import type { SupplierOrder, SupplierOrderLine, DocumentListItem, OrderStatus } from '../types';
+import { encargosNuevo } from '../lib/encargosNuevo';
+import { PedidoFicha } from './PedidoFicha';
 
 const STATUS_LABELS: Record<string, string> = PEDIDO_ESTADO;
 const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -53,7 +55,7 @@ function Pasos({ status, recibidas, total }: { status: string; recibidas: number
 
 // ─── Editar datos del pedido ─────────────────────────────────────────────────
 
-function EditarPedidoModal({ order, onClose, onSaved }: { order: SupplierOrder; onClose: () => void; onSaved: (o: SupplierOrder) => void }) {
+export function EditarPedidoModal({ order, onClose, onSaved }: { order: SupplierOrder; onClose: () => void; onSaved: (o: SupplierOrder) => void }) {
   const [f, setF] = useState({
     client_name: order.client_name ?? '',
     client_phone: order.client_phone ?? '',
@@ -141,7 +143,7 @@ function EditarPedidoModal({ order, onClose, onSaved }: { order: SupplierOrder; 
 
 // ─── Editar / añadir artículo ────────────────────────────────────────────────
 
-function LineaModal({ orderId, line, orderSupplierName, onClose, onSaved, onDelete }: {
+export function LineaModal({ orderId, line, orderSupplierName, onClose, onSaved, onDelete }: {
   orderId: number;
   line: SupplierOrderLine | null;
   orderSupplierName?: string;
@@ -247,7 +249,12 @@ function LineaModal({ orderId, line, orderSupplierName, onClose, onSaved, onDele
 }
 
 // ─── Página ──────────────────────────────────────────────────────────────────
+/** Ficha nueva «En pruebas» (nov. 2026) para Andrés; el resto ve la de siempre. */
 export function OrderDetailPage() {
+  return encargosNuevo() ? <PedidoFicha /> : <OrderDetailPageVieja />;
+}
+
+function OrderDetailPageVieja() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { confirm, ConfirmDialog } = useConfirm();

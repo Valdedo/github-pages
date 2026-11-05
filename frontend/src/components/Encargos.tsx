@@ -225,3 +225,71 @@ export function clientesConocidos(items: { client_name?: string | null; client_p
   }
   return m;
 }
+
+// ─── Fichas (nov. 2026) ──────────────────────────────────────────────────────
+
+export interface Hito {
+  /** «Apuntado», «Pedido a Zabaleta», «Llegó»… */
+  texto: string;
+  /** Fecha o detalle cuando ya pasó («hoy», «el 28/10»); vacío si no hay fecha guardada */
+  cuando?: string;
+  hecho: boolean;
+  /** Es el paso en el que está ahora (lo siguiente por hacer) */
+  ahora?: boolean;
+}
+
+/** Línea de tiempo: lo hecho con su fecha, lo que toca resaltado, lo que falta en gris. */
+export function EncLinea({ hitos }: { hitos: Hito[] }) {
+  return (
+    <ol className="enc-linea">
+      {hitos.map((h, i) => (
+        <li key={i} className={h.hecho ? 'hecho' : h.ahora ? 'ahora' : ''}>
+          <span className="enc-linea-bola" aria-hidden="true">{h.hecho ? '✓' : ''}</span>
+          <span className="enc-linea-txt">{h.texto}{h.cuando && <small>{h.cuando}</small>}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** Cabecera de ficha: volver, cliente, teléfono y estado. */
+export function EncFichaCab({ volver, onVolver, cliente, telefono, estado, tono, onEditar }: {
+  volver: string; onVolver: () => void; cliente: string; telefono?: string | null;
+  estado: string; tono?: 'bien' | 'pend' | 'mal' | 'gris'; onEditar?: () => void;
+}) {
+  return (
+    <div className="enc-ficha-cab">
+      <button className="doc-volver" onClick={onVolver}>‹ {volver}</button>
+      <div className="enc-ficha-tit">
+        <h1>{cliente || '—'}</h1>
+        <span className={`enc-estado ${tono || 'gris'}`}>{estado}</span>
+      </div>
+      <div className="enc-ficha-sub">
+        {telefono ? <a href={`tel:${telefono}`} className="enc-tel">{telefono}</a> : <span className="enc-sin-tel">Sin teléfono</span>}
+        {onEditar && <button className="btn btn-ghost btn-sm" onClick={onEditar}>Editar</button>}
+      </div>
+    </div>
+  );
+}
+
+/** Tarjeta «Lo que toca ahora»: un texto corto y el botón grande del siguiente paso. */
+export function EncAhora({ texto, children, atras }: { texto: ReactNode; children?: ReactNode; atras?: ReactNode }) {
+  return (
+    <div className="card enc-ahora">
+      <p>{texto}</p>
+      {children && <div className="enc-ahora-btns">{children}</div>}
+      {atras && <div className="enc-ahora-atras">{atras}</div>}
+    </div>
+  );
+}
+
+/** Datos para leer: etiqueta a la izquierda (arriba en el móvil), valor a la derecha. */
+export function EncDatos({ filas }: { filas: [string, ReactNode][] }) {
+  const con = filas.filter(([, v]) => v !== null && v !== undefined && v !== '' && v !== false);
+  if (!con.length) return null;
+  return (
+    <dl className="enc-datos">
+      {con.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+    </dl>
+  );
+}

@@ -482,7 +482,9 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
 - Alta rápida: cliente con autocompletado (rellena el teléfono), «qué hay que pedir» uno por línea con la cantidad delante
   (`leerLinea`), proveedor, «Ya lo he pedido»; lo demás en «Más datos». Reparación: cliente, máquina, marca/modelo, qué le pasa, taller.
 - Backend: `repairs.taller` (nuevo) y la lista de pedidos trae `received_date`, `resumen` (artículos) y `notes`.
-- Pendiente: fichas nuevas (línea de tiempo + «Editar»), siguen las de siempre.
+- Fichas nuevas (`PedidoFicha.tsx`, `ReparacionFicha.tsx`; `OrderDetailPage`/`RepairDetailPage` eligen versión): cabecera (cliente, teléfono, estado),
+  tarjeta «lo que toca ahora» con un botón grande y «volver un paso atrás», línea de tiempo con fechas (a la izquierda en el ordenador),
+  datos para leer y «Editar» en ventana (todas las fechas de la reparación en «Fechas»). «Ya le avisé de otra forma» apunta el aviso sin WhatsApp.
 
 ## Probar en local
 - Backend: `DATABASE_URL=sqlite:///ruta/app.db uvicorn app.main:app --port 8000` (desde `backend/`).

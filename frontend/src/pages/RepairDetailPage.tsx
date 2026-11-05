@@ -8,6 +8,8 @@ import { BotonWhatsApp, ImporteModal, textoReparacion, numES, leerImporte, fmtEu
 import { REPARACION_ESTADO, REPARACION_SIGUIENTE } from '../lib/estados';
 import { mensajeError } from '../lib/descargas';
 import type { Repair, RepairStatus } from '../types';
+import { encargosNuevo } from '../lib/encargosNuevo';
+import { ReparacionFicha } from './ReparacionFicha';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -117,7 +119,12 @@ function repairToForm(r: Repair): FormState {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+/** Ficha nueva «En pruebas» (nov. 2026) para Andrés; el resto ve la de siempre. */
 export function RepairDetailPage() {
+  return encargosNuevo() ? <ReparacionFicha /> : <RepairDetailPageVieja />;
+}
+
+function RepairDetailPageVieja() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
