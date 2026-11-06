@@ -201,7 +201,7 @@ export function CampoCliente({ cliente, telefono, setCliente, setTelefono, conoc
   return (
     <div className="enc-2">
       <div>
-        <label className="form-label" htmlFor="enc-cli">Cliente *</label>
+        <label className="form-label" htmlFor="enc-cli">Nombre *</label>
         <input id="enc-cli" className="form-input" list="enc-cli-lista" value={cliente} autoComplete="off" autoFocus
           onChange={e => elegir(e.target.value)} placeholder="Nombre del cliente" />
         <datalist id="enc-cli-lista">{nombres.map(n => <option key={n} value={n} />)}</datalist>
@@ -273,11 +273,12 @@ export function EncFichaCab({ volver, onVolver, cliente, telefono, estado, tono,
 }
 
 /** Tarjeta «Lo que toca ahora»: un texto corto y el botón grande del siguiente paso. */
-export function EncAhora({ texto, children, atras }: { texto: ReactNode; children?: ReactNode; atras?: ReactNode }) {
+export function EncAhora({ texto, children, mas, atras }: { texto: ReactNode; children?: ReactNode; mas?: ReactNode; atras?: ReactNode }) {
   return (
     <div className="card enc-ahora">
       <p>{texto}</p>
       {children && <div className="enc-ahora-btns">{children}</div>}
+      {mas && <div className="enc-ahora-mas">{mas}</div>}
       {atras && <div className="enc-ahora-atras">{atras}</div>}
     </div>
   );
@@ -291,5 +292,91 @@ export function EncDatos({ filas }: { filas: [string, ReactNode][] }) {
     <dl className="enc-datos">
       {con.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
     </dl>
+  );
+}
+
+// ─── Formularios por bloques (6/11/2026) ─────────────────────────────────────
+// Al apuntar solo se pide quién, qué y a dónde. Las fechas se ponen solas y el presupuesto
+// o cuándo llega se apuntan en la ficha cuando se saben (EncCuando, ImporteModal).
+
+/** Bloque numerado de un formulario: «1 Cliente», «2 Qué hay que pedir»… */
+export function EncBloque({ n, titulo, nota, children }: { n?: number; titulo: string; nota?: string; children: ReactNode }) {
+  return (
+    <fieldset className="enc-fb">
+      <legend>{n != null && <span className="enc-fb-n" aria-hidden="true">{n}</span>}{titulo}{nota && <small>{nota}</small>}</legend>
+      <div className="enc-fb-campos">{children}</div>
+    </fieldset>
+  );
+}
+
+/** Elegir de los más usados con un toque, o escribir otro. */
+export function EncElegir({ id, valor, onChange, opciones, placeholder }: {
+  id: string; valor: string; onChange: (v: string) => void; opciones: string[]; placeholder: string;
+}) {
+  const top = opciones.slice(0, 5);
+  const igual = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const enTop = top.some(o => igual(o, valor));   // elegido con un botón: el campo de «otro» queda vacío
+  return (
+    <>
+      {top.length > 0 && (
+        <div className="enc-chips" role="group">
+          {top.map(o => (
+            <button type="button" key={o} className={`enc-chip${igual(o, valor) ? ' si' : ''}`} aria-pressed={igual(o, valor)}
+              onClick={() => onChange(igual(o, valor) ? '' : o)}>{o}</button>
+          ))}
+        </div>
+      )}
+      <input id={id} className="form-input" list={`${id}-lista`} value={enTop ? '' : valor} autoComplete="off"
+        onChange={e => onChange(e.target.value)} placeholder={top.length ? 'U otro: escríbelo aquí' : placeholder} />
+      <datalist id={`${id}-lista`}>{opciones.map(o => <option key={o} value={o} />)}</datalist>
+    </>
+  );
+}
+
+/** «+ Añadir una nota»: el campo solo aparece si hace falta. */
+export function EncNota({ id, valor, onChange, placeholder }: { id: string; valor: string; onChange: (v: string) => void; placeholder: string }) {
+  const [abierta, setAbierta] = useState(!!valor);
+  if (!abierta) return <button type="button" className="enc-link enc-nota-btn" onClick={() => setAbierta(true)}><Plus size={15} /> Añadir una nota</button>;
+  return (
+    <div>
+      <label className="form-label" htmlFor={id}>Nota</label>
+      <textarea id={id} className="form-input" rows={2} value={valor} autoFocus onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+const isoMas = (dias: number) => {
+  const d = new Date(); d.setDate(d.getDate() + dias);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** «¿Cuándo llega?» con un toque: mañana, en 2-3 días, en una semana… o una fecha. */
+export function EncCuando({ titulo, actual, onCancel, onOk }: {
+  titulo: string; actual?: string | null; onCancel: () => void; onOk: (iso: string | null) => void;
+}) {
+  const [otra, setOtra] = useState('');
+  const ops: [string, number][] = [['Mañana', 1], ['En 2 o 3 días', 3], ['En una semana', 7], ['En dos semanas', 14]];
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={titulo}>
+        <div className="modal-header">
+          <span style={{ fontWeight: 700, fontSize: 17 }}>{titulo}</span>
+          <button className="modal-close" onClick={onCancel} aria-label="Cerrar"><X size={18} /></button>
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="enc-cuando">
+            {ops.map(([t, n]) => <button key={t} type="button" className="enc-chip grande" onClick={() => onOk(isoMas(n))}>{t}</button>)}
+          </div>
+          <form className="enc-cuando-otra" onSubmit={e => { e.preventDefault(); if (otra) onOk(otra); }}>
+            <label className="form-label" htmlFor="enc-cuando-f">U otro día</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input id="enc-cuando-f" className="form-input" type="date" min={isoMas(0)} value={otra} onChange={e => setOtra(e.target.value)} style={{ margin: 0 }} />
+              <button type="submit" className="btn btn-primary" disabled={!otra}>Poner</button>
+            </div>
+          </form>
+          {actual && <button type="button" className="enc-link" style={{ alignSelf: 'flex-start' }} onClick={() => onOk(null)}>Quitar la fecha</button>}
+        </div>
+      </div>
+    </div>
   );
 }

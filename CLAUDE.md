@@ -481,6 +481,10 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   Una acción por fila con «Deshacer». Por pedir se agrupa por proveedor («Pedidos los N»); en el taller, por taller.
 - Alta rápida: cliente con autocompletado (rellena el teléfono), «qué hay que pedir» uno por línea con la cantidad delante
   (`leerLinea`), proveedor, «Ya lo he pedido»; lo demás en «Más datos». Reparación: cliente, máquina, marca/modelo, qué le pasa, taller.
+- Formularios por bloques numerados (6/11/2026, Andrés: «demasiadas cosas, mucho barullo»): al apuntar SOLO quién, qué y a dónde
+  (`EncBloque`, `EncElegir` = botones con los más usados + «otro», `EncNota` = «+ Añadir una nota»). Sin fechas ni presupuesto:
+  la fecha se pone sola y lo demás se pide en la ficha en el paso en que se sabe (pedido esperando → «¿Cuándo llega?» con `EncCuando`;
+  reparación en el taller → «¿Te dieron presupuesto?» y «¿Cuándo estará?»). «Editar» también por bloques, con las fechas plegadas.
 - Backend: `repairs.taller` (nuevo) y la lista de pedidos trae `received_date`, `resumen` (artículos) y `notes`.
 - Fichas nuevas (`PedidoFicha.tsx`, `ReparacionFicha.tsx`; `OrderDetailPage`/`RepairDetailPage` eligen versión): cabecera (cliente, teléfono, estado),
   tarjeta «lo que toca ahora» con un botón grande y «volver un paso atrás», línea de tiempo con fechas (a la izquierda en el ordenador),

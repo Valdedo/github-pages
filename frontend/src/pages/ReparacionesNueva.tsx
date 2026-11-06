@@ -5,8 +5,8 @@ import { MessageCircle, Phone } from 'lucide-react';
 import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
-import { ImporteModal, fmtEur, leerImporte, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
-import { CampoCliente, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncPregunta, EncSeccion, clientesConocidos, sugerir } from '../components/Encargos';
+import { ImporteModal, fmtEur, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
+import { CampoCliente, EncBloque, EncElegir, EncNota, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncPregunta, EncSeccion, clientesConocidos, sugerir } from '../components/Encargos';
 import { coincide } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { cuando, desde, diasDesde, hoyISO } from '../lib/encargosNuevo';
@@ -204,19 +204,14 @@ function NuevaReparacion({ conocidos, talleres, onCerrar, onGuardada }: {
   const [marca, setMarca] = useState('');
   const [problema, setProblema] = useState('');
   const [taller, setTaller] = useState('');
-  const [presup, setPresup] = useState('');
-  const [prevista, setPrevista] = useState('');
   const [notas, setNotas] = useState('');
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
-  const p = leerImporte(presup);
-  const escrito = !!(cliente.trim() || telefono.trim() || maq.trim() || marca.trim() || problema.trim() || taller.trim() || presup.trim() || notas.trim());
+  const escrito = !!(cliente.trim() || telefono.trim() || maq.trim() || marca.trim() || problema.trim() || taller.trim() || notas.trim());
 
   const guardar = async () => {
     if (!cliente.trim()) { setError('Falta el cliente'); return; }
     if (!maq.trim()) { setError('Falta qué máquina es'); return; }
-    if (!p.ok) { setError(`Presupuesto: ${p.error}`); return; }
-    if (prevista && prevista < hoyISO()) { setError('La fecha prevista ya ha pasado'); return; }
     setGuardando(true); setError('');
     try {
       const { data } = await createRepair({
@@ -226,8 +221,6 @@ function NuevaReparacion({ conocidos, talleres, onCerrar, onGuardada }: {
         tool_brand: marca.trim() || undefined,
         problem_description: problema.trim(),
         taller: taller.trim() || undefined,
-        estimated_price: p.ok ? p.n ?? undefined : undefined,
-        date_estimated_return: prevista ? `${prevista}T12:00:00` : undefined,
         notes: notas.trim() || undefined,
         status: 'recibida',
       });
@@ -240,43 +233,30 @@ function NuevaReparacion({ conocidos, talleres, onCerrar, onGuardada }: {
   return (
     <EncModal titulo="Nueva reparación" escrito={escrito} error={error} guardando={guardando} boton="Apuntar reparación"
       onCerrar={onCerrar} onGuardar={guardar}>
-      <CampoCliente cliente={cliente} telefono={telefono} setCliente={setCliente} setTelefono={setTelefono} conocidos={conocidos} />
-      <div className="enc-2">
-        <div>
-          <label className="form-label" htmlFor="enc-maq">Qué máquina *</label>
-          <input id="enc-maq" className="form-input" value={maq} onChange={e => setMaq(e.target.value)} placeholder="Taladro, motosierra…" />
-        </div>
-        <div>
-          <label className="form-label" htmlFor="enc-marca">Marca y modelo</label>
-          <input id="enc-marca" className="form-input" value={marca} onChange={e => setMarca(e.target.value)} placeholder="Bosch GSB 13" />
-        </div>
-      </div>
-      <div>
-        <label className="form-label" htmlFor="enc-prob">Qué le pasa</label>
-        <input id="enc-prob" className="form-input" value={problema} onChange={e => setProblema(e.target.value)} placeholder="No arranca, pierde aceite…" />
-      </div>
-      <div>
-        <label className="form-label" htmlFor="enc-taller">A qué taller va <small>(si ya se sabe)</small></label>
-        <input id="enc-taller" className="form-input" list="enc-taller-lista" value={taller} autoComplete="off" onChange={e => setTaller(e.target.value)} />
-        <datalist id="enc-taller-lista">{talleres.map(t => <option key={t} value={t} />)}</datalist>
-      </div>
-      <details className="enc-mas-datos">
-        <summary>Más datos (si hace falta)</summary>
+      <EncBloque n={1} titulo="Cliente">
+        <CampoCliente cliente={cliente} telefono={telefono} setCliente={setCliente} setTelefono={setTelefono} conocidos={conocidos} />
+      </EncBloque>
+      <EncBloque n={2} titulo="La máquina">
         <div className="enc-2">
           <div>
-            <label className="form-label" htmlFor="enc-presup">Presupuesto (€)</label>
-            <input id="enc-presup" className="form-input" inputMode="decimal" value={presup} onChange={e => setPresup(e.target.value)} placeholder="0,00" />
+            <label className="form-label" htmlFor="enc-maq">Qué es *</label>
+            <input id="enc-maq" className="form-input" value={maq} onChange={e => setMaq(e.target.value)} placeholder="Taladro, motosierra…" />
           </div>
           <div>
-            <label className="form-label" htmlFor="enc-prev">Fecha prevista</label>
-            <input id="enc-prev" className="form-input" type="date" min={hoyISO()} value={prevista} onChange={e => setPrevista(e.target.value)} />
+            <label className="form-label" htmlFor="enc-marca">Marca y modelo</label>
+            <input id="enc-marca" className="form-input" value={marca} onChange={e => setMarca(e.target.value)} placeholder="Bosch GSB 13" />
           </div>
         </div>
         <div>
-          <label className="form-label" htmlFor="enc-notas">Notas</label>
-          <textarea id="enc-notas" className="form-input" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Trae la batería, viene sin cargador…" />
+          <label className="form-label" htmlFor="enc-prob">Qué le pasa</label>
+          <input id="enc-prob" className="form-input" value={problema} onChange={e => setProblema(e.target.value)} placeholder="No arranca, pierde aceite…" />
         </div>
-      </details>
+        <EncNota id="enc-notas" valor={notas} onChange={setNotas} placeholder="Trae la batería, viene sin cargador…" />
+      </EncBloque>
+      <EncBloque n={3} titulo="A qué taller" nota="si ya se sabe">
+        <EncElegir id="enc-taller" valor={taller} onChange={setTaller} opciones={talleres} placeholder="Nombre del taller" />
+      </EncBloque>
+      <p className="enc-pie-nota">La fecha de entrada se pone sola. El presupuesto y cuándo estará se apuntan en la ficha, cuando te lo diga el taller.</p>
     </EncModal>
   );
 }

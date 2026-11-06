@@ -6,8 +6,8 @@ import { getOrder, updateOrder, updateOrderLine, deleteOrderLine, deleteOrder, l
 import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
 import { fmtEur, telWhatsApp, textoPedido } from '../components/AvisoCliente';
-import { EncAhora, EncDatos, EncFichaCab, EncLinea, type Hito } from '../components/Encargos';
-import { EditarPedidoModal, LineaModal } from './OrderDetailPage';
+import { EncAhora, EncBloque, EncCuando, EncDatos, EncFichaCab, EncLinea, EncModal, type Hito } from '../components/Encargos';
+import { LineaModal } from './OrderDetailPage';
 import { cuando, diasDesde, hoyISO } from '../lib/encargosNuevo';
 import { fechaES } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
@@ -38,6 +38,7 @@ export function PedidoFicha() {
   const [editando, setEditando] = useState(false);
   const [linea, setLinea] = useState<SupplierOrderLine | 'nueva' | null>(null);
   const [docs, setDocs] = useState<DocumentListItem[] | null>(null);
+  const [preguntaFecha, setPreguntaFecha] = useState(false);
 
   const cargar = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -128,6 +129,8 @@ export function PedidoFicha() {
   } else if (o.status === 'pedido' || o.status === 'parcial') {
     ahora = (
       <EncAhora texto={o.status === 'parcial' ? `Han llegado ${llegadas} de ${total}. Marca abajo lo que llegue.` : 'Esperando a que llegue. Si llega por partes, marca abajo cada artículo.'}
+        mas={<button className="enc-link" onClick={() => setPreguntaFecha(true)}>
+          {o.expected_date ? `Llega ${cuando(o.expected_date)} · cambiar` : '¿Cuándo llega? Apúntalo'}</button>}
         atras={<button className="btn btn-ghost btn-sm" onClick={volverAtras}><RotateCcw size={14} /> {atras?.[1]}</button>}>
         <button className="btn btn-primary btn-lg" disabled={ocupado} onClick={() => cambiar('recibido', 'Ha llegado todo')}>
           {o.status === 'parcial' ? 'Ha llegado el resto' : 'Ha llegado todo'}
@@ -260,7 +263,15 @@ export function PedidoFicha() {
         </div>
       </div>
 
-      {editando && <EditarPedidoModal order={o} onClose={() => setEditando(false)} onSaved={x => { setO(x); setEditando(false); show('Datos guardados'); }} />}
+      {editando && <EditarPedido o={o} onCerrar={() => setEditando(false)} onGuardado={x => { setO(x); setEditando(false); show('Cambios guardados'); }} />}
+      {preguntaFecha && (
+        <EncCuando titulo="¿Cuándo llega?" actual={o.expected_date} onCancel={() => setPreguntaFecha(false)}
+          onOk={async f => {
+            setPreguntaFecha(false);
+            try { setO((await updateOrder(o.id, { expected_date: f })).data); show(f ? `Llega ${cuando(f)}` : 'Fecha quitada'); }
+            catch (e) { show(`No se pudo guardar: ${describeApiError(e)}`, { error: true }); }
+          }} />
+      )}
       {linea && (
         <LineaModal orderId={o.id} line={linea === 'nueva' ? null : linea} orderSupplierName={o.supplier_name}
           onClose={() => setLinea(null)} onSaved={() => { setLinea(null); cargar(); }}
@@ -289,5 +300,60 @@ export function PedidoFicha() {
         </div>
       )}
     </div>
+  );
+}
+
+function EditarPedido({ o, onCerrar, onGuardado }: { o: SupplierOrder; onCerrar: () => void; onGuardado: (o: SupplierOrder) => void }) {
+  const dia = (x?: string | null) => (x ? x.split('T')[0] : '');
+  const inicial = {
+    cliente: o.client_name ?? '', telefono: o.client_phone ?? '',
+    prov: o.supplier_name && !ES_MANUAL(o.supplier_name) ? o.supplier_name : '', ref: o.reference ?? '', notas: o.notes ?? '',
+    pedido: dia(o.order_date), llega: dia(o.expected_date),
+  };
+  const [f, setF] = useState(inicial);
+  const [error, setError] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF(v => ({ ...v, [k]: e.target.value }));
+
+  const guardar = async () => {
+    if (!f.cliente.trim()) { setError('Falta el cliente'); return; }
+    if (f.llega && f.pedido && f.llega < f.pedido) { setError('La llegada no puede ser antes de pedirlo'); return; }
+    setGuardando(true); setError('');
+    try {
+      const { data } = await updateOrder(o.id, {
+        client_name: f.cliente.trim(), client_phone: f.telefono.trim() || null,
+        supplier_name: f.prov.trim() || null, reference: f.ref.trim() || null, notes: f.notas.trim() || null,
+        order_date: f.pedido || undefined, expected_date: f.llega || null,
+      });
+      onGuardado(data);
+    } catch (e) {
+      setError(`No se pudo guardar: ${mensajeError(e, describeApiError(e))}`);
+    } finally { setGuardando(false); }
+  };
+
+  return (
+    <EncModal titulo="Editar pedido" escrito={JSON.stringify(f) !== JSON.stringify(inicial)} error={error} guardando={guardando}
+      boton="Guardar" onCerrar={onCerrar} onGuardar={guardar}>
+      <EncBloque titulo="Cliente">
+        <div className="enc-2">
+          <div><label className="form-label" htmlFor="ep-cli">Nombre *</label><input id="ep-cli" className="form-input" value={f.cliente} onChange={set('cliente')} /></div>
+          <div><label className="form-label" htmlFor="ep-tel">Teléfono</label><input id="ep-tel" className="form-input" type="tel" value={f.telefono} onChange={set('telefono')} placeholder="666 123 456" /></div>
+        </div>
+      </EncBloque>
+      <EncBloque titulo="Proveedor">
+        <div className="enc-2">
+          <div><label className="form-label" htmlFor="ep-prov">Proveedor</label><input id="ep-prov" className="form-input" value={f.prov} onChange={set('prov')} /></div>
+          <div><label className="form-label" htmlFor="ep-ref">N.º de pedido</label><input id="ep-ref" className="form-input" value={f.ref} onChange={set('ref')} /></div>
+        </div>
+        <div><label className="form-label" htmlFor="ep-notas">Nota</label><textarea id="ep-notas" className="form-input" rows={2} value={f.notas} onChange={set('notas')} /></div>
+      </EncBloque>
+      <details className="enc-fb enc-fb-plegado">
+        <summary>Fechas</summary>
+        <div className="enc-2">
+          <div><label className="form-label" htmlFor="ep-f1">Se pidió</label><input id="ep-f1" className="form-input" type="date" value={f.pedido} onChange={set('pedido')} /></div>
+          <div><label className="form-label" htmlFor="ep-f2">Llega</label><input id="ep-f2" className="form-input" type="date" value={f.llega} min={f.pedido || undefined} onChange={set('llega')} /></div>
+        </div>
+      </details>
+    </EncModal>
   );
 }

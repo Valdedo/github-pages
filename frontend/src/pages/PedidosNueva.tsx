@@ -6,7 +6,7 @@ import { listOrders, listSuppliers, createOrder, updateOrder, getOrder, updateOr
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { telWhatsApp, textoPedido } from '../components/AvisoCliente';
-import { CampoCliente, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncSeccion, clientesConocidos, sugerir } from '../components/Encargos';
+import { CampoCliente, EncBloque, EncElegir, EncNota, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncSeccion, clientesConocidos, sugerir } from '../components/Encargos';
 import { coincide } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { cuando, diasDesde, hoyISO, leerLinea } from '../lib/encargosNuevo';
@@ -214,18 +214,15 @@ function NuevoPedido({ conocidos, proveedores, suppliers, onCerrar, onGuardado }
   const [que, setQue] = useState('');
   const [prov, setProv] = useState('');
   const [yaPedido, setYaPedido] = useState(false);
-  const [ref, setRef] = useState('');
-  const [llega, setLlega] = useState('');
   const [notas, setNotas] = useState('');
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
   const lineas = que.split('\n').map(leerLinea).filter(Boolean) as { cantidad: number; descripcion: string }[];
-  const escrito = !!(cliente.trim() || telefono.trim() || que.trim() || prov.trim() || ref.trim() || notas.trim());
+  const escrito = !!(cliente.trim() || telefono.trim() || que.trim() || prov.trim() || notas.trim());
 
   const guardar = async () => {
     if (!cliente.trim()) { setError('Falta el cliente'); return; }
     if (!lineas.length) { setError('Falta qué hay que pedir'); return; }
-    if (llega && llega < hoyISO()) { setError('La llegada prevista ya ha pasado'); return; }
     const p = prov.trim();
     const sup = suppliers.find(s => s.name.trim().toLowerCase() === p.toLowerCase());
     setGuardando(true); setError('');
@@ -236,8 +233,6 @@ function NuevoPedido({ conocidos, proveedores, suppliers, onCerrar, onGuardado }
         supplier_name: (sup?.name ?? p) || undefined,
         supplier_id: sup?.id,
         order_date: hoyISO(),
-        expected_date: llega || undefined,
-        reference: ref.trim() || undefined,
         notes: notas.trim() || undefined,
         status: yaPedido ? 'pedido' : 'pendiente',
         lines: lineas,
@@ -251,43 +246,22 @@ function NuevoPedido({ conocidos, proveedores, suppliers, onCerrar, onGuardado }
   return (
     <EncModal titulo="Nuevo pedido" escrito={escrito} error={error} guardando={guardando} boton="Apuntar pedido"
       onCerrar={onCerrar} onGuardar={guardar}>
-      <CampoCliente cliente={cliente} telefono={telefono} setCliente={setCliente} setTelefono={setTelefono} conocidos={conocidos} />
-      <div>
-        <label className="form-label" htmlFor="enc-que">Qué hay que pedir *</label>
-        <textarea id="enc-que" className="form-input" rows={3} value={que} onChange={e => setQue(e.target.value)}
+      <EncBloque n={1} titulo="Cliente">
+        <CampoCliente cliente={cliente} telefono={telefono} setCliente={setCliente} setTelefono={setTelefono} conocidos={conocidos} />
+      </EncBloque>
+      <EncBloque n={2} titulo="Qué hay que pedir">
+        <textarea id="enc-que" className="form-input" rows={3} value={que} onChange={e => setQue(e.target.value)} aria-label="Qué hay que pedir"
           placeholder={'Uno por línea, con la cantidad delante:\n3 llave bola 1"\n2 racor latón 32'} />
-        {lineas.length > 0 && (
-          <small className="enc-lee">{lineas.map(l => `${String(l.cantidad).replace('.', ',')} × ${l.descripcion}`).join(' · ')}</small>
-        )}
-      </div>
-      <div>
-        <label className="form-label" htmlFor="enc-prov">A qué proveedor</label>
-        <input id="enc-prov" className="form-input" list="enc-prov-lista" value={prov} autoComplete="off"
-          onChange={e => setProv(e.target.value)} placeholder="Escribe o elige" />
-        <datalist id="enc-prov-lista">{proveedores.map(p => <option key={p} value={p} />)}</datalist>
-      </div>
-      <label className="enc-check">
-        <input type="checkbox" checked={yaPedido} onChange={e => setYaPedido(e.target.checked)} />
-        Ya lo he pedido
-      </label>
-      <details className="enc-mas-datos">
-        <summary>Más datos (si hace falta)</summary>
-        <div className="enc-2">
-          <div>
-            <label className="form-label" htmlFor="enc-ref">N.º de pedido del proveedor</label>
-            <input id="enc-ref" className="form-input" value={ref} onChange={e => setRef(e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label" htmlFor="enc-llega">Llegada prevista</label>
-            <input id="enc-llega" className="form-input" type="date" min={hoyISO()} value={llega} onChange={e => setLlega(e.target.value)} />
-          </div>
-        </div>
-        <div>
-          <label className="form-label" htmlFor="enc-notas">Notas</label>
-          <textarea id="enc-notas" className="form-input" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Color, medida, si paga a cuenta…" />
-        </div>
-      </details>
+        <EncNota id="enc-notas" valor={notas} onChange={setNotas} placeholder="Color, medida, si deja algo a cuenta…" />
+      </EncBloque>
+      <EncBloque n={3} titulo="A qué proveedor" nota="si ya se sabe">
+        <EncElegir id="enc-prov" valor={prov} onChange={setProv} opciones={proveedores} placeholder="Nombre del proveedor" />
+        <label className="enc-check">
+          <input type="checkbox" checked={yaPedido} onChange={e => setYaPedido(e.target.checked)} />
+          Ya lo he pedido
+        </label>
+      </EncBloque>
+      <p className="enc-pie-nota">La fecha se pone sola. Cuándo llega y el n.º de pedido se apuntan en la ficha, cuando lo sepas.</p>
     </EncModal>
   );
 }
-

@@ -6,7 +6,7 @@ import { getRepair, listRepairs, updateRepair, deleteRepair, describeApiError } 
 import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
 import { ImporteModal, fmtEur, leerImporte, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
-import { EncAhora, EncDatos, EncFichaCab, EncLinea, EncModal, EncPregunta, sugerir, type Hito } from '../components/Encargos';
+import { EncAhora, EncBloque, EncCuando, EncDatos, EncFichaCab, EncLinea, EncModal, EncPregunta, sugerir, type Hito } from '../components/Encargos';
 import { cuando, diasDesde } from '../lib/encargosNuevo';
 import { fechaES } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
@@ -36,6 +36,8 @@ export function ReparacionFicha() {
   const [editando, setEditando] = useState(false);
   const [preguntaTaller, setPreguntaTaller] = useState(false);
   const [cobrar, setCobrar] = useState(false);
+  const [preguntaFecha, setPreguntaFecha] = useState(false);
+  const [preguntaPresup, setPreguntaPresup] = useState(false);
 
   const cargar = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -113,7 +115,13 @@ export function ReparacionFicha() {
     );
   } else if (r.status === 'en_taller') {
     ahora = (
-      <EncAhora texto={`En ${r.taller || 'el taller'} ${cuando(r.date_sent_to_repair) ? `desde ${cuando(r.date_sent_to_repair)}` : ''}. Cuando vuelva arreglada:`} atras={botonAtras}>
+      <EncAhora texto={`En ${r.taller || 'el taller'} ${cuando(r.date_sent_to_repair) ? `desde ${cuando(r.date_sent_to_repair)}` : ''}. Cuando vuelva arreglada:`} atras={botonAtras}
+        mas={<>
+          <button className="enc-link" onClick={() => setPreguntaPresup(true)}>
+            {r.estimated_price != null ? `Presupuesto ${fmtEur(r.estimated_price)} · cambiar` : '¿Te dieron presupuesto? Apúntalo'}</button>
+          <button className="enc-link" onClick={() => setPreguntaFecha(true)}>
+            {r.date_estimated_return ? `Estará ${cuando(r.date_estimated_return)} · cambiar` : '¿Cuándo estará? Apúntalo'}</button>
+        </>}>
         <button className="btn btn-primary btn-lg" disabled={ocupado} onClick={() => avanzar('reparada')}><Check size={18} /> Ya está lista</button>
       </EncAhora>
     );
@@ -191,6 +199,23 @@ export function ReparacionFicha() {
           onCancel={() => setPreguntaTaller(false)}
           onOk={t => { setPreguntaTaller(false); avanzar('en_taller', t ? { taller: t } : {}); }} />
       )}
+      {preguntaFecha && (
+        <EncCuando titulo="¿Cuándo estará?" actual={r.date_estimated_return} onCancel={() => setPreguntaFecha(false)}
+          onOk={async f => {
+            setPreguntaFecha(false);
+            try { setR((await updateRepair(r.id, { date_estimated_return: f ? `${f}T12:00:00` : null })).data); show(f ? `Estará ${cuando(f)}` : 'Fecha quitada'); }
+            catch (e) { show(`No se pudo guardar: ${describeApiError(e)}`, { error: true }); }
+          }} />
+      )}
+      {preguntaPresup && (
+        <ImporteModal titulo="Presupuesto" texto={`¿Cuánto dijo ${r.taller || 'el taller'} que cuesta arreglarla?`} inicial={r.estimated_price} boton="Apuntar"
+          onCancel={() => setPreguntaPresup(false)}
+          onOk={async importe => {
+            setPreguntaPresup(false);
+            try { setR((await updateRepair(r.id, { estimated_price: importe })).data); show(importe != null ? `Presupuesto: ${fmtEur(importe)}` : 'Presupuesto quitado'); }
+            catch (e) { show(`No se pudo guardar: ${describeApiError(e)}`, { error: true }); }
+          }} />
+      )}
       {cobrar && (
         <ImporteModal titulo="Se la llevó" texto={`¿Cuánto se le cobra a ${r.client_name}?`} inicial={r.final_price ?? r.estimated_price} boton="Entregada"
           onCancel={() => setCobrar(false)}
@@ -245,28 +270,36 @@ function EditarReparacion({ r, talleres, onCerrar, onGuardada }: { r: Rep; talle
   return (
     <EncModal titulo="Editar reparación" escrito={JSON.stringify(f) !== JSON.stringify(inicial)} error={error} guardando={guardando}
       boton="Guardar" onCerrar={onCerrar} onGuardar={guardar}>
-      <div className="enc-2">
-        <div><label className="form-label" htmlFor="er-cli">Cliente *</label><input id="er-cli" className="form-input" value={f.cliente} onChange={set('cliente')} /></div>
-        <div><label className="form-label" htmlFor="er-tel">Teléfono</label><input id="er-tel" className="form-input" type="tel" value={f.telefono} onChange={set('telefono')} placeholder="666 123 456" /></div>
-        <div><label className="form-label" htmlFor="er-maq">Qué máquina *</label><input id="er-maq" className="form-input" value={f.maq} onChange={set('maq')} /></div>
-        <div><label className="form-label" htmlFor="er-marca">Marca y modelo</label><input id="er-marca" className="form-input" value={f.marca} onChange={set('marca')} /></div>
-      </div>
-      <div><label className="form-label" htmlFor="er-prob">Qué le pasa</label><input id="er-prob" className="form-input" value={f.problema} onChange={set('problema')} /></div>
-      <div>
-        <label className="form-label" htmlFor="er-taller">Taller</label>
-        <input id="er-taller" className="form-input" list="er-taller-lista" value={f.taller} onChange={set('taller')} autoComplete="off" />
-        <datalist id="er-taller-lista">{talleres.map(t => <option key={t} value={t} />)}</datalist>
-      </div>
-      <div className="enc-2">
-        <div><label className="form-label" htmlFor="er-presup">Presupuesto (€)</label><input id="er-presup" className="form-input" inputMode="decimal" value={f.presup} onChange={set('presup')} placeholder="0,00" /></div>
-        <div><label className="form-label" htmlFor="er-cobrado">Cobrado (€)</label><input id="er-cobrado" className="form-input" inputMode="decimal" value={f.cobrado} onChange={set('cobrado')} placeholder="0,00" /></div>
-      </div>
-      <div><label className="form-label" htmlFor="er-notas">Notas</label><textarea id="er-notas" className="form-input" rows={2} value={f.notas} onChange={set('notas')} /></div>
-      <details className="enc-mas-datos">
+      <EncBloque titulo="Cliente">
+        <div className="enc-2">
+          <div><label className="form-label" htmlFor="er-cli">Nombre *</label><input id="er-cli" className="form-input" value={f.cliente} onChange={set('cliente')} /></div>
+          <div><label className="form-label" htmlFor="er-tel">Teléfono</label><input id="er-tel" className="form-input" type="tel" value={f.telefono} onChange={set('telefono')} placeholder="666 123 456" /></div>
+        </div>
+      </EncBloque>
+      <EncBloque titulo="La máquina">
+        <div className="enc-2">
+          <div><label className="form-label" htmlFor="er-maq">Qué es *</label><input id="er-maq" className="form-input" value={f.maq} onChange={set('maq')} /></div>
+          <div><label className="form-label" htmlFor="er-marca">Marca y modelo</label><input id="er-marca" className="form-input" value={f.marca} onChange={set('marca')} /></div>
+        </div>
+        <div><label className="form-label" htmlFor="er-prob">Qué le pasa</label><input id="er-prob" className="form-input" value={f.problema} onChange={set('problema')} /></div>
+        <div><label className="form-label" htmlFor="er-notas">Nota</label><textarea id="er-notas" className="form-input" rows={2} value={f.notas} onChange={set('notas')} /></div>
+      </EncBloque>
+      <EncBloque titulo="Taller y dinero">
+        <div>
+          <label className="form-label" htmlFor="er-taller">Taller</label>
+          <input id="er-taller" className="form-input" list="er-taller-lista" value={f.taller} onChange={set('taller')} autoComplete="off" />
+          <datalist id="er-taller-lista">{talleres.map(t => <option key={t} value={t} />)}</datalist>
+        </div>
+        <div className="enc-2">
+          <div><label className="form-label" htmlFor="er-presup">Presupuesto (€)</label><input id="er-presup" className="form-input" inputMode="decimal" value={f.presup} onChange={set('presup')} placeholder="0,00" /></div>
+          <div><label className="form-label" htmlFor="er-cobrado">Cobrado (€)</label><input id="er-cobrado" className="form-input" inputMode="decimal" value={f.cobrado} onChange={set('cobrado')} placeholder="0,00" /></div>
+        </div>
+      </EncBloque>
+      <details className="enc-fb enc-fb-plegado">
         <summary>Fechas</summary>
         <div className="enc-2">
           <div><label className="form-label" htmlFor="er-f1">Entró</label><input id="er-f1" className="form-input" type="date" value={f.recibida} onChange={set('recibida')} /></div>
-          <div><label className="form-label" htmlFor="er-f2">Fecha prevista</label><input id="er-f2" className="form-input" type="date" value={f.prevista} onChange={set('prevista')} /></div>
+          <div><label className="form-label" htmlFor="er-f2">Estará (prevista)</label><input id="er-f2" className="form-input" type="date" value={f.prevista} onChange={set('prevista')} /></div>
           <div><label className="form-label" htmlFor="er-f3">Al taller</label><input id="er-f3" className="form-input" type="date" value={f.alTaller} onChange={set('alTaller')} /></div>
           <div><label className="form-label" htmlFor="er-f4">Lista</label><input id="er-f4" className="form-input" type="date" value={f.lista} onChange={set('lista')} /></div>
           <div><label className="form-label" htmlFor="er-f5">Se la llevó</label><input id="er-f5" className="form-input" type="date" value={f.entregada} onChange={set('entregada')} /></div>

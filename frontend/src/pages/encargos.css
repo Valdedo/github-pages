@@ -57,7 +57,8 @@
 .enc-modal-cuerpo .form-label small { font-weight: 400; color: var(--text-3); }
 .enc-modal-pie { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .enc-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-.enc-lee { display: block; margin-top: 4px; color: var(--text-3); }
+.enc-lee { list-style: none; margin: 0; padding: 8px 12px; background: var(--brand-pale); border-radius: var(--r); font-size: 14px; color: var(--text-1); display: flex; flex-direction: column; gap: 2px; }
+.enc-lee b { display: inline-block; min-width: 26px; color: var(--brand); }
 .enc-check { display: flex; align-items: center; gap: 10px; font-size: 15px; min-height: 40px; cursor: pointer; }
 .enc-check input { width: 20px; height: 20px; accent-color: var(--brand); }
 .enc-mas-datos summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text-2); padding: 6px 0; }
@@ -157,3 +158,30 @@
   .enc-ficha-cuerpo { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
   .enc-ficha-cuerpo .enc-linea { position: sticky; top: 16px; }
 }
+
+/* ── Formularios por bloques ── */
+.enc-modal form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.enc-modal .enc-modal-cuerpo { background: var(--surface-2); gap: 12px; max-height: none; flex: 1; min-height: 0; }
+.enc-fb { margin: 0; padding: 14px 16px 16px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); min-width: 0; }
+.enc-fb legend { float: left; width: 100%; padding: 0; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; color: var(--text-1); }
+.enc-fb legend small { margin-left: auto; font-size: 13px; font-weight: 400; color: var(--text-3); }
+.enc-fb legend + * { clear: both; }
+.enc-fb-n { width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.enc-fb-campos { display: flex; flex-direction: column; gap: 12px; clear: both; }
+.enc-fb .form-input { margin: 0; }
+.enc-chip.si { background: var(--brand); border-color: var(--brand); color: #fff; }
+.enc-chip.grande { padding: 12px 14px; font-size: 15px; text-align: center; border-radius: var(--r); }
+.enc-cuando { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.enc-nota-btn { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; text-decoration: none; color: var(--brand); font-weight: 600; }
+.enc-pie-nota { margin: 0; font-size: 13px; color: var(--text-3); }
+.enc-ahora-mas { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+.enc-ahora-mas .enc-link { padding: 6px 0; }
+@media (max-width: 560px) {
+  .enc-fb { padding: 12px 12px 14px; }
+  .enc-modal .enc-modal-cuerpo { padding: 12px; }
+  .modal-overlay:has(.enc-modal) { padding: 8px; }
+  .enc-modal { max-height: 100%; }
+}
+.enc-fb-plegado { padding: 0 16px; }
+.enc-fb-plegado > summary { cursor: pointer; padding: 14px 0; font-size: 16px; font-weight: 700; color: var(--text-2); }
+.enc-fb-plegado[open] { padding-bottom: 16px; }
