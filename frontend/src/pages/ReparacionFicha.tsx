@@ -52,11 +52,11 @@ export function ReparacionFicha() {
 
   const maquina = [r.tool_description, r.tool_brand, r.tool_model].filter(Boolean).join(' ');
   const retraso = r.date_estimated_return && (r.status === 'recibida' || r.status === 'en_taller') ? diasDesde(r.date_estimated_return) : 0;
-  const [estado, tono] = r.status === 'reparada' && !r.aviso_at ? ['Avisar al cliente', 'pend' as const]
-    : r.status === 'reparada' ? ['Para recoger', 'bien' as const]
+  const [estado, tono] = r.status === 'reparada' && !r.aviso_at ? ['Avisar al cliente', 'naranja' as const]
+    : r.status === 'reparada' ? ['Para recoger', 'verde' as const]
     : retraso > 0 ? [`Retrasada ${retraso} día${retraso !== 1 ? 's' : ''}`, 'mal' as const]
-    : r.status === 'recibida' ? ['Por llevar al taller', 'pend' as const]
-    : r.status === 'en_taller' ? ['En el taller', 'gris' as const] : ['Entregada', 'bien' as const];
+    : r.status === 'recibida' ? ['Por llevar al taller', 'azul' as const]
+    : r.status === 'en_taller' ? ['En el taller', 'morado' as const] : ['Entregada ✓', 'gris' as const];
 
   const avanzar = async (status: RepairStatus, extra: Partial<Rep> = {}) => {
     if (ocupado) return;
@@ -120,7 +120,7 @@ export function ReparacionFicha() {
           <button className="enc-link" onClick={() => setPreguntaPresup(true)}>
             {r.estimated_price != null ? `Presupuesto ${fmtEur(r.estimated_price)} · cambiar` : '¿Te dieron presupuesto? Apúntalo'}</button>
           <button className="enc-link" onClick={() => setPreguntaFecha(true)}>
-            {r.date_estimated_return ? `Estará ${cuando(r.date_estimated_return)} · cambiar` : '¿Cuándo estará? Apúntalo'}</button>
+            {r.date_estimated_return ? `${retraso > 0 ? 'Tenía que estar' : 'Estará'} ${cuando(r.date_estimated_return)} · cambiar` : '¿Cuándo estará? Apúntalo'}</button>
         </>}>
         <button className="btn btn-primary btn-lg" disabled={ocupado} onClick={() => avanzar('reparada')}><Check size={18} /> Ya está lista</button>
       </EncAhora>
@@ -151,10 +151,10 @@ export function ReparacionFicha() {
   const ord = ['recibida', 'en_taller', 'reparada', 'entregada'].indexOf(r.status);
   const hitos: Hito[] = [
     { texto: 'Entró en la tienda', cuando: cuando(r.date_received), hecho: true },
-    { texto: `${ord >= 1 ? 'Al taller' : 'Llevar al taller'}${r.taller ? ` (${r.taller})` : ''}`, cuando: ord >= 1 ? cuando(r.date_sent_to_repair) : '', hecho: ord >= 1, ahora: ord === 0 },
-    { texto: ord >= 2 ? 'Lista' : 'Que esté lista', cuando: ord >= 2 ? cuando(r.date_repaired) : r.date_estimated_return ? `prevista ${cuando(r.date_estimated_return)}` : '', hecho: ord >= 2, ahora: ord === 1 },
-    { texto: r.aviso_at || ord === 3 ? 'Avisado el cliente' : 'Avisar al cliente', cuando: r.aviso_at ? cuando(r.aviso_at) : '', hecho: !!r.aviso_at || ord === 3, ahora: ord === 2 && !r.aviso_at },
-    { texto: ord === 3 ? 'Se la llevó' : 'Que la recoja', cuando: ord === 3 ? [cuando(r.date_returned), r.final_price != null && `cobrado ${fmtEur(r.final_price)}`].filter(Boolean).join(' · ') : '', hecho: ord === 3, ahora: ord === 2 && !!r.aviso_at },
+    { color: 'azul', texto: `${ord >= 1 ? 'Al taller' : 'Llevar al taller'}${r.taller ? ` (${r.taller})` : ''}`, cuando: ord >= 1 ? cuando(r.date_sent_to_repair) : '', hecho: ord >= 1, ahora: ord === 0 },
+    { color: 'morado', texto: ord >= 2 ? 'Lista' : 'Que esté lista', cuando: ord >= 2 ? cuando(r.date_repaired) : r.date_estimated_return ? `${retraso > 0 ? 'tenía que estar' : 'prevista'} ${cuando(r.date_estimated_return)}` : '', hecho: ord >= 2, ahora: ord === 1 },
+    { color: 'naranja', texto: r.aviso_at || ord === 3 ? 'Avisado el cliente' : 'Avisar al cliente', cuando: r.aviso_at ? cuando(r.aviso_at) : '', hecho: !!r.aviso_at || ord === 3, ahora: ord === 2 && !r.aviso_at },
+    { color: 'verde', texto: ord === 3 ? 'Se la llevó' : 'Que la recoja', cuando: ord === 3 ? [cuando(r.date_returned), r.final_price != null && `cobrado ${fmtEur(r.final_price)}`].filter(Boolean).join(' · ') : '', hecho: ord === 3, ahora: ord === 2 && !!r.aviso_at },
   ];
 
   const borrar = async () => {

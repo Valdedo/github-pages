@@ -486,10 +486,15 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   la fecha se pone sola y lo demás se pide en la ficha en el paso en que se sabe (pedido esperando → «¿Cuándo llega?» con `EncCuando`;
   reparación en el taller → «¿Te dieron presupuesto?» y «¿Cuándo estará?»). «Editar» también por bloques, con las fechas plegadas.
 - Apartados más visibles (6/11/2026, Andrés: «se ve muy poco el título de cada sección, resalta más el pedido»): cada apartado es un
-  bloque (`enc-sec`) con cabecera de color, icono y número grande; tono `accion` (ámbar: te toca), `espera` (gris), `listo` (verde).
+  bloque (`enc-sec`) con cabecera, icono y número grande (los tonos ámbar/gris/verde de ese día se cambiaron por un color por apartado, abajo).
   Arriba, en móvil y tableta, cuatro casillas con el número (`EncResumen`; al tocar baja al apartado). En el ordenador no salen: las
   cabeceras de las columnas hacen de casillas. 5 por apartado y «Ver 5 más · quedan N» (`EncSeccion` con `children(limite)`;
   `recortarGrupos` para los agrupados por proveedor/taller; con búsqueda, todos).
+- **Un color por apartado (opción B, 6/11/2026, Andrés: «que varios tengan el mismo amarillo no me convence»)**: naranja = avisar al
+  cliente, azul = por pedir / por llevar al taller, morado = esperando / en el taller, verde = para recoger; rojo solo «retrasado».
+  Solo en el círculo del icono (`enc-ci`) de casillas y cabeceras, fondo blanco; el mismo color en la etiqueta de estado de la ficha
+  y en los pasos de la línea de tiempo (`EncColor`, `enc-c-<color>` define `--c`, `--c-claro`, `--c-osc`). Es una excepción
+  aceptada por Andrés a la regla de colores del diseño nuevo (sin azules ni morados): aquí el color dice el apartado, no si va bien o mal.
 - Backend: `repairs.taller` (nuevo) y la lista de pedidos trae `received_date`, `resumen` (artículos) y `notes`.
 - Fichas nuevas (`PedidoFicha.tsx`, `ReparacionFicha.tsx`; `OrderDetailPage`/`RepairDetailPage` eligen versión): cabecera (cliente, teléfono, estado),
   tarjeta «lo que toca ahora» con un botón grande y «volver un paso atrás», línea de tiempo con fechas (a la izquierda en el ordenador),

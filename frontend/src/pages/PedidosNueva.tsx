@@ -60,10 +60,10 @@ export function PedidosNueva() {
   }, [porPedir]);
 
   const secs: EncInfo[] = [
-    { id: 'avisar', titulo: 'Avisar al cliente', corto: 'Avisar', n: avisar.length, tono: 'accion', icono: MessageCircle },
-    { id: 'pedir', titulo: 'Por pedir', corto: 'Por pedir', n: porPedir.length, tono: 'accion', icono: ClipboardList },
-    { id: 'esperando', titulo: 'Esperando al proveedor', corto: 'Esperando', n: esperando.length, tono: 'espera', icono: Truck },
-    { id: 'recoger', titulo: 'Para recoger', corto: 'Para recoger', n: recoger.length, tono: 'listo', icono: PackageCheck },
+    { id: 'avisar', titulo: 'Avisar al cliente', corto: 'Avisar', n: avisar.length, color: 'naranja', icono: MessageCircle },
+    { id: 'pedir', titulo: 'Por pedir', corto: 'Por pedir', n: porPedir.length, color: 'azul', icono: ClipboardList },
+    { id: 'esperando', titulo: 'Esperando al proveedor', corto: 'Esperando', n: esperando.length, color: 'morado', icono: Truck },
+    { id: 'recoger', titulo: 'Para recoger', corto: 'Para recoger', n: recoger.length, color: 'verde', icono: PackageCheck },
   ];
   const nombresProv = useMemo(() => sugerir([...pedidos.map(o => o.supplier_name), ...proveedores.map(p => p.name)]), [pedidos, proveedores]);
   const conocidos = useMemo(() => clientesConocidos(pedidos), [pedidos]);

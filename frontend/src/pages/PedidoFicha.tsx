@@ -6,7 +6,7 @@ import { getOrder, updateOrder, updateOrderLine, deleteOrderLine, deleteOrder, l
 import { useConfirm } from '../components/ConfirmModal';
 import { useCfToast } from '../components/CfToast';
 import { fmtEur, telWhatsApp, textoPedido } from '../components/AvisoCliente';
-import { EncAhora, EncBloque, EncCuando, EncDatos, EncFichaCab, EncLinea, EncModal, type Hito } from '../components/Encargos';
+import { EncAhora, EncBloque, EncCuando, EncDatos, EncFichaCab, EncLinea, EncModal, type EncColor, type Hito } from '../components/Encargos';
 import { LineaModal } from './OrderDetailPage';
 import { cuando, diasDesde, hoyISO } from '../lib/encargosNuevo';
 import { fechaES } from '../lib/texto';
@@ -15,9 +15,9 @@ import { ES_MANUAL } from '../lib/proveedor';
 import type { DocumentListItem, OrderStatus, SupplierOrder, SupplierOrderLine } from '../types';
 
 const cant = (n: number) => String(n).replace('.', ',');
-const ESTADO: Record<OrderStatus, [string, 'bien' | 'pend' | 'mal' | 'gris']> = {
-  pendiente: ['Por pedir', 'pend'], pedido: ['Esperando al proveedor', 'gris'], parcial: ['Llegando', 'gris'],
-  recibido: ['Ha llegado', 'bien'], entregado: ['Entregado', 'bien'], cancelado: ['Cancelado', 'mal'],
+const ESTADO: Record<OrderStatus, [string, EncColor | 'mal' | 'gris']> = {
+  pendiente: ['Por pedir', 'azul'], pedido: ['Esperando al proveedor', 'morado'], parcial: ['Llegando', 'morado'],
+  recibido: ['Ha llegado', 'naranja'], entregado: ['Entregado ✓', 'gris'], cancelado: ['Cancelado', 'gris'],
 };
 const ATRAS: Partial<Record<OrderStatus, [OrderStatus, string]>> = {
   pedido: ['pendiente', 'No, aún no está pedido'],
@@ -57,8 +57,8 @@ export function PedidoFicha() {
   const editable = o.status !== 'cancelado';
   const puedeRecibir = editable && o.status !== 'entregado' && o.status !== 'pendiente';
   const importe = o.lines.reduce((s, l) => s + (l.precio_unitario ?? 0) * l.cantidad, 0);
-  const [estado, tono] = o.status === 'recibido' && !o.aviso_at ? ['Avisar al cliente', 'pend' as const]
-    : o.status === 'recibido' ? ['Para recoger', 'bien' as const]
+  const [estado, tono] = o.status === 'recibido' && !o.aviso_at ? ['Avisar al cliente', 'naranja' as const]
+    : o.status === 'recibido' ? ['Para recoger', 'verde' as const]
     : retraso > 0 ? [`Retrasado ${retraso} día${retraso !== 1 ? 's' : ''}`, 'mal' as const] : ESTADO[o.status];
 
   /** Cambia el estado con «Deshacer» (devuelve también lo recibido de cada artículo). */
@@ -130,7 +130,7 @@ export function PedidoFicha() {
     ahora = (
       <EncAhora texto={o.status === 'parcial' ? `Han llegado ${llegadas} de ${total}. Marca abajo lo que llegue.` : 'Esperando a que llegue. Si llega por partes, marca abajo cada artículo.'}
         mas={<button className="enc-link" onClick={() => setPreguntaFecha(true)}>
-          {o.expected_date ? `Llega ${cuando(o.expected_date)} · cambiar` : '¿Cuándo llega? Apúntalo'}</button>}
+          {o.expected_date ? `${retraso > 0 ? 'Tenía que llegar' : 'Llega'} ${cuando(o.expected_date)} · cambiar` : '¿Cuándo llega? Apúntalo'}</button>}
         atras={<button className="btn btn-ghost btn-sm" onClick={volverAtras}><RotateCcw size={14} /> {atras?.[1]}</button>}>
         <button className="btn btn-primary btn-lg" disabled={ocupado} onClick={() => cambiar('recibido', 'Ha llegado todo')}>
           {o.status === 'parcial' ? 'Ha llegado el resto' : 'Ha llegado todo'}
@@ -173,12 +173,12 @@ export function PedidoFicha() {
   const pasado = (s: OrderStatus) => ['pedido', 'parcial', 'recibido', 'entregado'].indexOf(o.status) >= ['pedido', 'parcial', 'recibido', 'entregado'].indexOf(s);
   const hitos: Hito[] = o.status === 'cancelado' ? [{ texto: 'Apuntado', cuando: cuando(o.created_at), hecho: true }, { texto: 'Cancelado', hecho: true }] : [
     { texto: 'Apuntado', cuando: cuando(o.created_at), hecho: true },
-    { texto: o.status !== 'pendiente' ? (prov ? `Pedido a ${prov}` : 'Pedido al proveedor') : (prov ? `Pedir a ${prov}` : 'Pedir al proveedor'), cuando: o.status !== 'pendiente' ? cuando(o.order_date) : '', hecho: o.status !== 'pendiente', ahora: o.status === 'pendiente' },
-    { texto: o.status === 'parcial' ? `Llegando (${llegadas} de ${total})` : pasado('recibido') ? 'Llegó' : 'Que llegue',
-      cuando: o.received_date ? cuando(o.received_date) : o.expected_date && !pasado('recibido') ? `previsto ${cuando(o.expected_date)}` : '',
+    { color: 'azul', texto: o.status !== 'pendiente' ? (prov ? `Pedido a ${prov}` : 'Pedido al proveedor') : (prov ? `Pedir a ${prov}` : 'Pedir al proveedor'), cuando: o.status !== 'pendiente' ? cuando(o.order_date) : '', hecho: o.status !== 'pendiente', ahora: o.status === 'pendiente' },
+    { color: 'morado', texto: o.status === 'parcial' ? `Llegando (${llegadas} de ${total})` : pasado('recibido') ? 'Llegó' : 'Que llegue',
+      cuando: o.received_date ? cuando(o.received_date) : o.expected_date && !pasado('recibido') ? `${retraso > 0 ? 'tenía que llegar' : 'previsto'} ${cuando(o.expected_date)}` : '',
       hecho: pasado('recibido'), ahora: o.status === 'pedido' || o.status === 'parcial' },
-    { texto: o.aviso_at || o.status === 'entregado' ? 'Avisado el cliente' : 'Avisar al cliente', cuando: o.aviso_at ? cuando(o.aviso_at) : '', hecho: !!o.aviso_at || o.status === 'entregado', ahora: o.status === 'recibido' && !o.aviso_at },
-    { texto: o.status === 'entregado' ? 'Se lo llevó' : 'Que lo recoja', hecho: o.status === 'entregado', ahora: o.status === 'recibido' && !!o.aviso_at },
+    { color: 'naranja', texto: o.aviso_at || o.status === 'entregado' ? 'Avisado el cliente' : 'Avisar al cliente', cuando: o.aviso_at ? cuando(o.aviso_at) : '', hecho: !!o.aviso_at || o.status === 'entregado', ahora: o.status === 'recibido' && !o.aviso_at },
+    { color: 'verde', texto: o.status === 'entregado' ? 'Se lo llevó' : 'Que lo recoja', hecho: o.status === 'entregado', ahora: o.status === 'recibido' && !!o.aviso_at },
   ];
 
   const abrirDocs = async () => {

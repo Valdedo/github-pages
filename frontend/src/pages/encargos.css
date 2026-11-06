@@ -16,29 +16,33 @@
 .enc-vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px dashed var(--border-strong); border-radius: var(--r); color: var(--text-2); margin-bottom: 16px; }
 .enc-vacio b { font-size: 16px; color: var(--text-1); }
 
+/* ── Color de cada apartado (opción B, 6/11/2026): solo en el círculo del icono; fondo blanco ── */
+.enc-c-naranja { --c: #E0662B; --c-claro: #FDEBE1; --c-osc: #9A3D12; }
+.enc-c-azul    { --c: #2F7BD8; --c-claro: #E3EEFB; --c-osc: #1D4F8F; }
+.enc-c-morado  { --c: #7A63D1; --c-claro: #EEEAFB; --c-osc: #4B3A93; }
+.enc-c-verde   { --c: #2FAE66; --c-claro: #DDF1E5; --c-osc: #1F5A3A; }
+.enc-ci { width: 30px; height: 30px; border-radius: 50%; background: var(--c, #9a9a9a); color: #fff; display: inline-flex;
+  align-items: center; justify-content: center; flex-shrink: 0; }
+
 /* ── Casillas de arriba (móvil y tableta) ── */
 .enc-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
-.enc-caja { display: flex; align-items: center; gap: 8px; min-height: 54px; padding: 8px 12px; border-radius: var(--r);
+.enc-caja { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px; border-radius: var(--r);
   border: 1px solid var(--border); background: var(--surface); cursor: pointer; font: inherit; text-align: left; color: var(--text-1); }
 .enc-caja-t { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.2; }
 .enc-caja-n { font-family: var(--font-display, 'Oswald', sans-serif); font-size: 26px; font-weight: 600; line-height: 1; }
-.enc-caja.accion { background: #FDF3DF; border-color: #F1D28F; color: #7A4B00; }
-.enc-caja.espera { background: var(--surface-2); color: var(--text-1); }
-.enc-caja.listo { background: var(--brand-light); border-color: #B9DEC8; color: var(--brand-dark, #1F5A3A); }
-.enc-caja.cero { background: var(--surface); border-color: var(--border); color: var(--text-3); cursor: default; }
+.enc-caja.cero { color: var(--text-3); cursor: default; }
+.enc-caja.cero .enc-ci { background: var(--grey-200, #e4e4e4); color: var(--text-3); }
+.enc-caja:not(.cero):hover { border-color: var(--c); }
 .enc-caja:not(.cero):active { transform: scale(.98); }
 
-/* ── Apartados: un bloque con su cabecera de color ── */
+/* ── Apartados: un bloque blanco con su cabecera ── */
 .enc-tablero { display: flex; flex-direction: column; gap: 20px; }
 .enc-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; scroll-margin-top: 72px; }
 .enc-sec-cab { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; font-family: var(--font-display, 'Oswald', sans-serif);
-  font-size: 19px; font-weight: 600; letter-spacing: .01em; text-transform: none; border-bottom: 1px solid var(--border); }
+  font-size: 19px; font-weight: 600; letter-spacing: .01em; text-transform: none; color: var(--text-1); border-bottom: 1px solid var(--border); }
 .enc-sec-t { flex: 1; min-width: 0; }
 .enc-sec-n { min-width: 34px; height: 30px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
-  font-size: 18px; background: rgba(255,255,255,.75); }
-.enc-sec.accion .enc-sec-cab { background: #FDF3DF; color: #7A4B00; border-bottom-color: #F1D28F; }
-.enc-sec.espera .enc-sec-cab { background: var(--surface-2); color: var(--text-1); }
-.enc-sec.listo .enc-sec-cab { background: var(--brand-light); color: var(--brand-dark, #1F5A3A); border-bottom-color: #B9DEC8; }
+  font-size: 18px; background: var(--surface-2); color: var(--text-1); }
 .enc-nada { margin: 0; padding: 16px 14px; font-size: 14px; color: var(--text-3); }
 .enc-sec.vacia { display: none; }            /* en el móvil, las vacías no ocupan (la casilla de arriba dice 0) */
 .enc-ver-mas { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid var(--border); background: var(--surface);
@@ -90,7 +94,7 @@
 
 @media (max-width: 360px) {
   .enc-caja { padding: 8px 10px; gap: 6px; min-height: 50px; }
-  .enc-caja svg { display: none; }
+  .enc-caja .enc-ci { width: 26px; height: 26px; }
   .enc-caja-t { font-size: 13px; }
   .enc-caja-n { font-size: 22px; }
   .enc-sec-cab { font-size: 17px; padding: 11px 12px; }
@@ -128,8 +132,7 @@
 .enc-ficha-sub .btn { margin-left: auto; }
 
 .enc-estado { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--grey-200); color: var(--text-2); }
-.enc-estado.bien { background: var(--brand-light); color: var(--success); }
-.enc-estado.pend { background: #FBEBC8; color: var(--warning); }
+.enc-estado[class*="enc-c-"] { background: var(--c-claro); color: var(--c-osc); }
 .enc-estado.mal { background: #FBE3E3; color: var(--danger); }
 
 .enc-ahora { padding: 16px; margin-bottom: 14px; }
@@ -144,13 +147,13 @@
 .enc-linea li { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 0 0 14px; color: var(--text-3); }
 .enc-linea li:last-child { padding-bottom: 0; }
 .enc-linea li:not(:last-child)::before { content: ''; position: absolute; left: 10px; top: 22px; bottom: 0; width: 2px; background: var(--border); }
-.enc-linea li.hecho:not(:last-child)::before { background: var(--brand); }
+.enc-linea li.hecho:not(:last-child)::before { background: var(--c, #9a9a9a); }
 .enc-linea-bola { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong); background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
-.enc-linea li.hecho .enc-linea-bola { background: var(--brand); border-color: var(--brand); color: #fff; }
-.enc-linea li.ahora .enc-linea-bola { border-color: var(--warning); box-shadow: 0 0 0 3px #FBEBC8; }
+.enc-linea li.hecho .enc-linea-bola { background: var(--c, #9a9a9a); border-color: var(--c, #9a9a9a); color: #fff; }
+.enc-linea li.ahora .enc-linea-bola { border-color: var(--c, var(--warning)); box-shadow: 0 0 0 3px var(--c-claro, #FBEBC8); }
 .enc-linea-txt { display: flex; flex-direction: column; font-size: 15px; line-height: 1.3; padding-top: 1px; }
 .enc-linea li.hecho .enc-linea-txt { color: var(--text-1); }
-.enc-linea li.ahora .enc-linea-txt { color: var(--warning); font-weight: 700; }
+.enc-linea li.ahora .enc-linea-txt { color: var(--c-osc, var(--warning)); font-weight: 700; }
 .enc-linea-txt small { font-size: 13px; color: var(--text-3); font-weight: 400; }
 
 .enc-bloque { margin-bottom: 14px; }

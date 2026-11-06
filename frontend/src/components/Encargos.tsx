@@ -29,9 +29,14 @@ export function EncCabecera({ titulo, nuevo, onNuevo, busca, setBusca, placehold
   );
 }
 
-/** Tono de un apartado: ámbar = te toca hacer algo · gris = esperando a otro · verde = ya está, falta que lo recoja. */
-export type EncTono = 'accion' | 'espera' | 'listo';
-export interface EncInfo { id: string; titulo: string; corto: string; n: number; tono: EncTono; icono: LucideIcon }
+/**
+ * Color de cada apartado (opción B elegida por Andrés, 6/11/2026): el mismo en Pedidos y Reparaciones, en la casilla,
+ * la cabecera, la etiqueta de estado de la ficha y la línea de tiempo. Solo en el círculo del icono; el fondo, blanco.
+ * naranja = avisar al cliente · azul = por pedir / por llevar al taller · morado = esperando / en el taller · verde = para recoger.
+ * El rojo queda solo para «retrasado».
+ */
+export type EncColor = 'naranja' | 'azul' | 'morado' | 'verde';
+export interface EncInfo { id: string; titulo: string; corto: string; n: number; color: EncColor; icono: LucideIcon }
 
 const irA = (id: string) => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -39,10 +44,10 @@ const irA = (id: string) => document.getElementById(`sec-${id}`)?.scrollIntoView
 export function EncResumen({ secciones }: { secciones: EncInfo[] }) {
   return (
     <nav className="enc-resumen" aria-label="Apartados">
-      {secciones.map(({ id, corto, n, tono, icono: Icono }) => (
-        <button key={id} type="button" className={`enc-caja ${tono}${n === 0 ? ' cero' : ''}`}
+      {secciones.map(({ id, corto, n, color, icono: Icono }) => (
+        <button key={id} type="button" className={`enc-caja enc-c-${color}${n === 0 ? ' cero' : ''}`}
           onClick={() => n > 0 && irA(id)} aria-disabled={n === 0} aria-label={`${corto}: ${n}`}>
-          <Icono size={18} aria-hidden="true" />
+          <span className="enc-ci" aria-hidden="true"><Icono size={16} /></span>
           <span className="enc-caja-t">{corto}</span>
           <span className="enc-caja-n">{n}</span>
         </button>
@@ -60,12 +65,12 @@ export function EncSeccion({ info, vacio = 'Nada', todo, children }: {
   info: EncInfo; vacio?: string; todo?: boolean; children: (limite: number) => ReactNode;
 }) {
   const [limite, setLimite] = useState(5);
-  const { id, titulo, n, tono, icono: Icono } = info;
+  const { id, titulo, n, color, icono: Icono } = info;
   const lim = todo ? Infinity : limite;
   return (
-    <section id={`sec-${id}`} className={`enc-sec ${tono}${n === 0 ? ' vacia' : ''}`} aria-label={titulo}>
+    <section id={`sec-${id}`} className={`enc-sec enc-c-${color}${n === 0 ? ' vacia' : ''}`} aria-label={titulo}>
       <h2 className="enc-sec-cab">
-        <Icono size={20} aria-hidden="true" />
+        <span className="enc-ci" aria-hidden="true"><Icono size={17} /></span>
         <span className="enc-sec-t">{titulo}</span>
         <span className="enc-sec-n">{n}</span>
       </h2>
@@ -285,6 +290,8 @@ export interface Hito {
   hecho: boolean;
   /** Es el paso en el que está ahora (lo siguiente por hacer) */
   ahora?: boolean;
+  /** Color del apartado al que corresponde este paso (sin color: gris) */
+  color?: EncColor;
 }
 
 /** Línea de tiempo: lo hecho con su fecha, lo que toca resaltado, lo que falta en gris. */
@@ -292,7 +299,7 @@ export function EncLinea({ hitos }: { hitos: Hito[] }) {
   return (
     <ol className="enc-linea">
       {hitos.map((h, i) => (
-        <li key={i} className={h.hecho ? 'hecho' : h.ahora ? 'ahora' : ''}>
+        <li key={i} className={`${h.hecho ? 'hecho' : h.ahora ? 'ahora' : ''}${h.color ? ` enc-c-${h.color}` : ''}`}>
           <span className="enc-linea-bola" aria-hidden="true">{h.hecho ? '✓' : ''}</span>
           <span className="enc-linea-txt">{h.texto}{h.cuando && <small>{h.cuando}</small>}</span>
         </li>
@@ -304,14 +311,14 @@ export function EncLinea({ hitos }: { hitos: Hito[] }) {
 /** Cabecera de ficha: volver, cliente, teléfono y estado. */
 export function EncFichaCab({ volver, onVolver, cliente, telefono, estado, tono, onEditar }: {
   volver: string; onVolver: () => void; cliente: string; telefono?: string | null;
-  estado: string; tono?: 'bien' | 'pend' | 'mal' | 'gris'; onEditar?: () => void;
+  estado: string; tono?: EncColor | 'mal' | 'gris'; onEditar?: () => void;
 }) {
   return (
     <div className="enc-ficha-cab">
       <button className="doc-volver" onClick={onVolver}>‹ {volver}</button>
       <div className="enc-ficha-tit">
         <h1>{cliente || '—'}</h1>
-        <span className={`enc-estado ${tono || 'gris'}`}>{estado}</span>
+        <span className={`enc-estado ${tono && tono !== 'mal' && tono !== 'gris' ? `enc-c-${tono}` : tono || 'gris'}`}>{estado}</span>
       </div>
       <div className="enc-ficha-sub">
         {telefono ? <a href={`tel:${telefono}`} className="enc-tel">{telefono}</a> : <span className="enc-sin-tel">Sin teléfono</span>}

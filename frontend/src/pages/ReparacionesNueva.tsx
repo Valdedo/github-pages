@@ -55,10 +55,10 @@ export function ReparacionesNueva() {
     return [...m.entries()].sort(([a], [b]) => (a ? 0 : 1) - (b ? 0 : 1) || a.localeCompare(b, 'es'));
   }, [enTaller]);
   const secs: EncInfo[] = [
-    { id: 'avisar', titulo: 'Avisar al cliente', corto: 'Avisar', n: avisar.length, tono: 'accion', icono: MessageCircle },
-    { id: 'llevar', titulo: 'Por llevar al taller', corto: 'Por llevar', n: porLlevar.length, tono: 'accion', icono: Inbox },
-    { id: 'taller', titulo: 'En el taller', corto: 'En el taller', n: enTaller.length, tono: 'espera', icono: Wrench },
-    { id: 'recoger', titulo: 'Para recoger', corto: 'Para recoger', n: recoger.length, tono: 'listo', icono: PackageCheck },
+    { id: 'avisar', titulo: 'Avisar al cliente', corto: 'Avisar', n: avisar.length, color: 'naranja', icono: MessageCircle },
+    { id: 'llevar', titulo: 'Por llevar al taller', corto: 'Por llevar', n: porLlevar.length, color: 'azul', icono: Inbox },
+    { id: 'taller', titulo: 'En el taller', corto: 'En el taller', n: enTaller.length, color: 'morado', icono: Wrench },
+    { id: 'recoger', titulo: 'Para recoger', corto: 'Para recoger', n: recoger.length, color: 'verde', icono: PackageCheck },
   ];
   const talleres = useMemo(() => sugerir(reps.map(r => r.taller)), [reps]);
   const conocidos = useMemo(() => clientesConocidos(reps), [reps]);
