@@ -1,12 +1,12 @@
 /** Pedidos de clientes, versión nueva (nov. 2026, «En pruebas»). Ver `lib/encargosNuevo.ts`. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MessageCircle, Phone } from 'lucide-react';
+import { ClipboardList, MessageCircle, PackageCheck, Phone, Truck } from 'lucide-react';
 import { listOrders, listSuppliers, createOrder, updateOrder, getOrder, updateOrderLine, describeApiError } from '../api/client';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { telWhatsApp, textoPedido } from '../components/AvisoCliente';
-import { CampoCliente, EncBloque, EncElegir, EncNota, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncSeccion, clientesConocidos, sugerir } from '../components/Encargos';
+import { CampoCliente, EncBloque, EncElegir, EncNota, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncResumen, EncSeccion, clientesConocidos, recortarGrupos, sugerir, type EncInfo } from '../components/Encargos';
 import { coincide } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { cuando, diasDesde, hoyISO, leerLinea } from '../lib/encargosNuevo';
@@ -59,6 +59,12 @@ export function PedidosNueva() {
     return [...m.entries()].sort(([a], [b]) => (a ? 0 : 1) - (b ? 0 : 1) || a.localeCompare(b, 'es'));
   }, [porPedir]);
 
+  const secs: EncInfo[] = [
+    { id: 'avisar', titulo: 'Avisar al cliente', corto: 'Avisar', n: avisar.length, tono: 'accion', icono: MessageCircle },
+    { id: 'pedir', titulo: 'Por pedir', corto: 'Por pedir', n: porPedir.length, tono: 'accion', icono: ClipboardList },
+    { id: 'esperando', titulo: 'Esperando al proveedor', corto: 'Esperando', n: esperando.length, tono: 'espera', icono: Truck },
+    { id: 'recoger', titulo: 'Para recoger', corto: 'Para recoger', n: recoger.length, tono: 'listo', icono: PackageCheck },
+  ];
   const nombresProv = useMemo(() => sugerir([...pedidos.map(o => o.supplier_name), ...proveedores.map(p => p.name)]), [pedidos, proveedores]);
   const conocidos = useMemo(() => clientesConocidos(pedidos), [pedidos]);
   const abrir = (o: Ped) => navigate(`/pedidos/${o.id}`);
@@ -100,7 +106,7 @@ export function PedidosNueva() {
 
   const botonAvisar = (o: Ped) => {
     const wa = telWhatsApp(o.client_phone);
-    if (!wa) return <button className="btn btn-ghost btn-sm" onClick={() => abrir(o)}><Phone size={15} /> Falta el teléfono</button>;
+    if (!wa) return <button className="btn btn-ghost btn-sm" onClick={() => abrir(o)}><Phone size={15} /> Poner teléfono</button>;
     return (
       <a className="btn wa-btn btn-sm" target="_blank" rel="noopener noreferrer"
         href={`https://wa.me/${wa}?text=${encodeURIComponent(textoPedido(o.client_name, o.resumen ? o.resumen.split(' · ') : []))}`}
@@ -135,17 +141,18 @@ export function PedidosNueva() {
           {q && !avisar.length && !porPedir.length && !esperando.length && !recoger.length && !hechos.length && (
             <div className="enc-vacio"><span>Nada con «{q}»</span></div>
           )}
+          <EncResumen secciones={secs} />
           <div className="enc-tablero">
-            <EncSeccion titulo="Avisar al cliente" n={avisar.length} aviso ayuda="Ha llegado: avísale por WhatsApp.">
-              {avisar.map(o => (
+            <EncSeccion info={secs[0]} todo={!!q}>
+              {lim => avisar.slice(0, lim).map(o => (
                 <EncFila key={o.id} titulo={o.client_name || '—'} detalle={articulos(o)} onAbrir={() => abrir(o)}
                   estado={`Llegó ${cuando(o.received_date) || ''}${o.supplier_name && !sinProv(o.supplier_name) ? ` · ${o.supplier_name}` : ''}`}
                   accion={botonAvisar(o)} />
               ))}
             </EncSeccion>
 
-            <EncSeccion titulo="Por pedir" n={porPedir.length}>
-              {grupos.map(([prov, items]) => (
+            <EncSeccion info={secs[1]} todo={!!q}>
+              {lim => recortarGrupos(grupos, lim).map(([prov, items, vistos]) => (
                 <EncGrupo key={prov || '-'} titulo={prov || 'Sin proveedor'}
                   accion={prov ? (
                     <button className="btn btn-ghost btn-sm" disabled={ocupado === `g${prov}`}
@@ -153,7 +160,7 @@ export function PedidosNueva() {
                       {items.length > 1 ? `Pedidos los ${items.length}` : 'Ya pedido'}
                     </button>
                   ) : undefined}>
-                  {items.map(o => (
+                  {vistos.map(o => (
                     <EncFila key={o.id} titulo={o.client_name || '—'} detalle={articulos(o)} onAbrir={() => abrir(o)}
                       estado={`Apuntado ${cuando(o.created_at)}`}
                       accion={!prov ? <button className="btn btn-ghost btn-sm" onClick={() => abrir(o)}>Poner proveedor</button> : undefined} />
@@ -162,8 +169,8 @@ export function PedidosNueva() {
               ))}
             </EncSeccion>
 
-            <EncSeccion titulo="Esperando al proveedor" n={esperando.length}>
-              {esperando.map(o => {
+            <EncSeccion info={secs[2]} todo={!!q}>
+              {lim => esperando.slice(0, lim).map(o => {
                 const r = retraso(o);
                 const prov = sinProv(o.supplier_name) ? '' : `${o.supplier_name} · `;
                 const parcial = o.status === 'parcial' || (o.lines_received > 0 && o.lines_received < o.line_count);
@@ -181,8 +188,8 @@ export function PedidosNueva() {
               })}
             </EncSeccion>
 
-            <EncSeccion titulo="Para recoger" n={recoger.length} vacio="Nadie tiene nada por recoger">
-              {recoger.map(o => (
+            <EncSeccion info={secs[3]} todo={!!q} vacio="Nadie tiene nada por recoger">
+              {lim => recoger.slice(0, lim).map(o => (
                 <EncFila key={o.id} titulo={o.client_name || '—'} detalle={articulos(o)} onAbrir={() => abrir(o)}
                   estado={`Avisado ${cuando(o.aviso_at)}${diasDesde(o.aviso_at) >= 7 ? ' · lleva una semana' : ''}`}
                   tono={diasDesde(o.aviso_at) >= 7 ? 'pend' : undefined}

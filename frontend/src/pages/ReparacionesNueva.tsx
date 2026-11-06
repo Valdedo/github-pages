@@ -1,12 +1,12 @@
 /** Reparaciones, versión nueva (nov. 2026, «En pruebas»). Misma forma que Pedidos; ver `lib/encargosNuevo.ts`. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MessageCircle, Phone } from 'lucide-react';
+import { Inbox, MessageCircle, PackageCheck, Phone, Wrench } from 'lucide-react';
 import { listRepairs, createRepair, updateRepair, describeApiError } from '../api/client';
 import { useCfToast } from '../components/CfToast';
 import { ConnectionError } from '../components/ConnectionError';
 import { ImporteModal, fmtEur, telWhatsApp, textoReparacion } from '../components/AvisoCliente';
-import { CampoCliente, EncBloque, EncElegir, EncNota, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncPregunta, EncSeccion, clientesConocidos, sugerir } from '../components/Encargos';
+import { CampoCliente, EncBloque, EncElegir, EncNota, EncCabecera, EncFila, EncGrupo, EncHechos, EncModal, EncPregunta, EncResumen, EncSeccion, clientesConocidos, recortarGrupos, sugerir, type EncInfo } from '../components/Encargos';
 import { coincide } from '../lib/texto';
 import { mensajeError } from '../lib/descargas';
 import { cuando, desde, diasDesde, hoyISO } from '../lib/encargosNuevo';
@@ -54,6 +54,12 @@ export function ReparacionesNueva() {
     for (const r of enTaller) { const k = (r.taller || '').trim(); m.set(k, [...(m.get(k) || []), r]); }
     return [...m.entries()].sort(([a], [b]) => (a ? 0 : 1) - (b ? 0 : 1) || a.localeCompare(b, 'es'));
   }, [enTaller]);
+  const secs: EncInfo[] = [
+    { id: 'avisar', titulo: 'Avisar al cliente', corto: 'Avisar', n: avisar.length, tono: 'accion', icono: MessageCircle },
+    { id: 'llevar', titulo: 'Por llevar al taller', corto: 'Por llevar', n: porLlevar.length, tono: 'accion', icono: Inbox },
+    { id: 'taller', titulo: 'En el taller', corto: 'En el taller', n: enTaller.length, tono: 'espera', icono: Wrench },
+    { id: 'recoger', titulo: 'Para recoger', corto: 'Para recoger', n: recoger.length, tono: 'listo', icono: PackageCheck },
+  ];
   const talleres = useMemo(() => sugerir(reps.map(r => r.taller)), [reps]);
   const conocidos = useMemo(() => clientesConocidos(reps), [reps]);
   const abrir = (r: Rep) => navigate(`/reparaciones/${r.id}`);
@@ -90,7 +96,7 @@ export function ReparacionesNueva() {
 
   const botonAvisar = (r: Rep) => {
     const wa = telWhatsApp(r.client_phone);
-    if (!wa) return <button className="btn btn-ghost btn-sm" onClick={() => abrir(r)}><Phone size={15} /> Falta el teléfono</button>;
+    if (!wa) return <button className="btn btn-ghost btn-sm" onClick={() => abrir(r)}><Phone size={15} /> Poner teléfono</button>;
     return (
       <a className="btn wa-btn btn-sm" target="_blank" rel="noopener noreferrer"
         href={`https://wa.me/${wa}?text=${encodeURIComponent(textoReparacion(r.client_name, r.tool_description, r.final_price ?? r.estimated_price))}`}
@@ -127,17 +133,18 @@ export function ReparacionesNueva() {
       ) : (
         <>
           {q && !lista.length && <div className="enc-vacio"><span>Nada con «{q}»</span></div>}
+          <EncResumen secciones={secs} />
           <div className="enc-tablero">
-            <EncSeccion titulo="Avisar al cliente" n={avisar.length} aviso ayuda="Ya está lista: avísale por WhatsApp.">
-              {avisar.map(r => (
+            <EncSeccion info={secs[0]} todo={!!q}>
+              {lim => avisar.slice(0, lim).map(r => (
                 <EncFila key={r.id} titulo={r.client_name} detalle={maquina(r)} onAbrir={() => abrir(r)}
                   estado={[`Lista ${cuando(r.date_repaired)}`, precio(r)].filter(Boolean).join(' · ')}
                   accion={botonAvisar(r)} />
               ))}
             </EncSeccion>
 
-            <EncSeccion titulo="Por llevar al taller" n={porLlevar.length}>
-              {porLlevar.map(r => (
+            <EncSeccion info={secs[1]} todo={!!q}>
+              {lim => porLlevar.slice(0, lim).map(r => (
                 <EncFila key={r.id} titulo={r.client_name} detalle={maquina(r)} onAbrir={() => abrir(r)}
                   estado={[`Entró ${cuando(r.date_received)}`, r.problem_description].filter(Boolean).join(' · ')}
                   tono={diasDesde(r.date_received) >= 3 ? 'pend' : undefined}
@@ -146,18 +153,18 @@ export function ReparacionesNueva() {
               ))}
             </EncSeccion>
 
-            <EncSeccion titulo="En el taller" n={enTaller.length}>
-              {grupos.length === 1 && !grupos[0][0]
-                ? grupos[0][1].map(r => filaEnTaller(r, false))
-                : grupos.map(([taller, items]) => (
+            <EncSeccion info={secs[2]} todo={!!q}>
+              {lim => grupos.length === 1 && !grupos[0][0]
+                ? grupos[0][1].slice(0, lim).map(r => filaEnTaller(r, false))
+                : recortarGrupos(grupos, lim).map(([taller, , vistos]) => (
                   <EncGrupo key={taller || '-'} titulo={taller || 'Sin decir el taller'}>
-                    {items.map(r => filaEnTaller(r, false))}
+                    {vistos.map(r => filaEnTaller(r, false))}
                   </EncGrupo>
                 ))}
             </EncSeccion>
 
-            <EncSeccion titulo="Para recoger" n={recoger.length} vacio="Nadie tiene nada por recoger">
-              {recoger.map(r => (
+            <EncSeccion info={secs[3]} todo={!!q} vacio="Nadie tiene nada por recoger">
+              {lim => recoger.slice(0, lim).map(r => (
                 <EncFila key={r.id} titulo={r.client_name} detalle={maquina(r)} onAbrir={() => abrir(r)}
                   estado={[`Avisado ${cuando(r.aviso_at)}`, precio(r)].filter(Boolean).join(' · ')}
                   tono={diasDesde(r.aviso_at) >= 7 ? 'pend' : undefined}

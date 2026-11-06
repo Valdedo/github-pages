@@ -4,7 +4,7 @@
  * Cada fila: quién · qué, una línea de estado y como mucho UN botón (el siguiente paso).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronRight, Plus, Search, X } from 'lucide-react';
+import { ChevronRight, Plus, Search, X, type LucideIcon } from 'lucide-react';
 import '../pages/encargos.css';
 
 export function EncCabecera({ titulo, nuevo, onNuevo, busca, setBusca, placeholder }: {
@@ -29,17 +29,66 @@ export function EncCabecera({ titulo, nuevo, onNuevo, busca, setBusca, placehold
   );
 }
 
-/** Una sección («Avisar al cliente», «Por pedir»…). Vacía: en el móvil no sale; en el ordenador queda la columna con «Nada». */
-export function EncSeccion({ titulo, n, aviso, ayuda, vacio = 'Nada', children }: {
-  titulo: string; n: number; aviso?: boolean; ayuda?: string; vacio?: string; children?: ReactNode;
-}) {
+/** Tono de un apartado: ámbar = te toca hacer algo · gris = esperando a otro · verde = ya está, falta que lo recoja. */
+export type EncTono = 'accion' | 'espera' | 'listo';
+export interface EncInfo { id: string; titulo: string; corto: string; n: number; tono: EncTono; icono: LucideIcon }
+
+const irA = (id: string) => document.getElementById(`sec-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+/** Casillas de arriba (móvil y tableta): cuántos hay en cada apartado; al tocar, baja a ese apartado. */
+export function EncResumen({ secciones }: { secciones: EncInfo[] }) {
   return (
-    <section className={`enc-sec${n === 0 ? ' vacia' : ''}${aviso && n > 0 ? ' aviso' : ''}`} aria-label={titulo}>
-      <h2><span>{titulo}</span><span className="enc-n">{n}</span></h2>
-      {ayuda && n > 0 && <p className="enc-ayuda">{ayuda}</p>}
-      {n === 0 ? <p className="enc-nada">{vacio}</p> : <div className="enc-filas">{children}</div>}
+    <nav className="enc-resumen" aria-label="Apartados">
+      {secciones.map(({ id, corto, n, tono, icono: Icono }) => (
+        <button key={id} type="button" className={`enc-caja ${tono}${n === 0 ? ' cero' : ''}`}
+          onClick={() => n > 0 && irA(id)} aria-disabled={n === 0} aria-label={`${corto}: ${n}`}>
+          <Icono size={18} aria-hidden="true" />
+          <span className="enc-caja-t">{corto}</span>
+          <span className="enc-caja-n">{n}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/**
+ * Un apartado («Avisar al cliente», «Por pedir»…): bloque con cabecera de color, icono y número grande.
+ * Enseña 5 y «Ver 5 más». Vacío: en el móvil no sale (la casilla de arriba dice 0); en el ordenador queda la columna con «Nada».
+ * `children(limite)` pinta como mucho `limite` filas.
+ */
+export function EncSeccion({ info, vacio = 'Nada', todo, children }: {
+  info: EncInfo; vacio?: string; todo?: boolean; children: (limite: number) => ReactNode;
+}) {
+  const [limite, setLimite] = useState(5);
+  const { id, titulo, n, tono, icono: Icono } = info;
+  const lim = todo ? Infinity : limite;
+  return (
+    <section id={`sec-${id}`} className={`enc-sec ${tono}${n === 0 ? ' vacia' : ''}`} aria-label={titulo}>
+      <h2 className="enc-sec-cab">
+        <Icono size={20} aria-hidden="true" />
+        <span className="enc-sec-t">{titulo}</span>
+        <span className="enc-sec-n">{n}</span>
+      </h2>
+      {n === 0 ? <p className="enc-nada">{vacio}</p> : <div className="enc-filas">{children(lim)}</div>}
+      {n > lim && (
+        <button type="button" className="enc-ver-mas" onClick={() => setLimite(l => l + 5)}>
+          Ver {Math.min(5, n - lim)} más <small>· quedan {n - lim}</small>
+        </button>
+      )}
     </section>
   );
+}
+
+/** Recorta grupos (por proveedor, por taller) para que entre todos no pasen de `limite` filas. Los grupos guardan todos sus elementos. */
+export function recortarGrupos<T>(grupos: [string, T[]][], limite: number): [string, T[], T[]][] {
+  const out: [string, T[], T[]][] = [];
+  let quedan = limite;
+  for (const [k, items] of grupos) {
+    if (quedan <= 0) break;
+    out.push([k, items, items.slice(0, quedan)]);
+    quedan -= items.length;
+  }
+  return out;
 }
 
 export function EncFila({ titulo, detalle, estado, tono, accion, onAbrir }: {

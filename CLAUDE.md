@@ -485,6 +485,11 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   (`EncBloque`, `EncElegir` = botones con los más usados + «otro», `EncNota` = «+ Añadir una nota»). Sin fechas ni presupuesto:
   la fecha se pone sola y lo demás se pide en la ficha en el paso en que se sabe (pedido esperando → «¿Cuándo llega?» con `EncCuando`;
   reparación en el taller → «¿Te dieron presupuesto?» y «¿Cuándo estará?»). «Editar» también por bloques, con las fechas plegadas.
+- Apartados más visibles (6/11/2026, Andrés: «se ve muy poco el título de cada sección, resalta más el pedido»): cada apartado es un
+  bloque (`enc-sec`) con cabecera de color, icono y número grande; tono `accion` (ámbar: te toca), `espera` (gris), `listo` (verde).
+  Arriba, en móvil y tableta, cuatro casillas con el número (`EncResumen`; al tocar baja al apartado). En el ordenador no salen: las
+  cabeceras de las columnas hacen de casillas. 5 por apartado y «Ver 5 más · quedan N» (`EncSeccion` con `children(limite)`;
+  `recortarGrupos` para los agrupados por proveedor/taller; con búsqueda, todos).
 - Backend: `repairs.taller` (nuevo) y la lista de pedidos trae `received_date`, `resumen` (artículos) y `notes`.
 - Fichas nuevas (`PedidoFicha.tsx`, `ReparacionFicha.tsx`; `OrderDetailPage`/`RepairDetailPage` eligen versión): cabecera (cliente, teléfono, estado),
   tarjeta «lo que toca ahora» con un botón grande y «volver un paso atrás», línea de tiempo con fechas (a la izquierda en el ordenador),

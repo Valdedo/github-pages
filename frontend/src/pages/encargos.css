@@ -16,17 +16,38 @@
 .enc-vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px dashed var(--border-strong); border-radius: var(--r); color: var(--text-2); margin-bottom: 16px; }
 .enc-vacio b { font-size: 16px; color: var(--text-1); }
 
-/* ── Secciones ── */
-.enc-tablero { display: flex; flex-direction: column; gap: 22px; }
-.enc-sec h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 15px; font-weight: 700; color: var(--text-2); text-transform: none; letter-spacing: 0; }
-.enc-n { min-width: 24px; padding: 1px 8px; border-radius: 999px; background: var(--grey-200); color: var(--text-2); font-size: 13px; text-align: center; }
-.enc-sec.aviso h2 { color: var(--warning); }
-.enc-sec.aviso .enc-n { background: #FBEBC8; color: var(--warning); }
-.enc-ayuda { margin: -4px 0 8px; font-size: 13px; color: var(--text-3); }
-.enc-nada { margin: 0; padding: 14px; font-size: 14px; color: var(--text-3); border: 1px dashed var(--border); border-radius: var(--r); }
-.enc-sec.vacia { display: none; }            /* en el móvil, las vacías no ocupan */
+/* ── Casillas de arriba (móvil y tableta) ── */
+.enc-resumen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
+.enc-caja { display: flex; align-items: center; gap: 8px; min-height: 54px; padding: 8px 12px; border-radius: var(--r);
+  border: 1px solid var(--border); background: var(--surface); cursor: pointer; font: inherit; text-align: left; color: var(--text-1); }
+.enc-caja-t { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.2; }
+.enc-caja-n { font-family: var(--font-display, 'Oswald', sans-serif); font-size: 26px; font-weight: 600; line-height: 1; }
+.enc-caja.accion { background: #FDF3DF; border-color: #F1D28F; color: #7A4B00; }
+.enc-caja.espera { background: var(--surface-2); color: var(--text-1); }
+.enc-caja.listo { background: var(--brand-light); border-color: #B9DEC8; color: var(--brand-dark, #1F5A3A); }
+.enc-caja.cero { background: var(--surface); border-color: var(--border); color: var(--text-3); cursor: default; }
+.enc-caja:not(.cero):active { transform: scale(.98); }
 
-.enc-filas { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+/* ── Apartados: un bloque con su cabecera de color ── */
+.enc-tablero { display: flex; flex-direction: column; gap: 20px; }
+.enc-sec { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; scroll-margin-top: 72px; }
+.enc-sec-cab { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; font-family: var(--font-display, 'Oswald', sans-serif);
+  font-size: 19px; font-weight: 600; letter-spacing: .01em; text-transform: none; border-bottom: 1px solid var(--border); }
+.enc-sec-t { flex: 1; min-width: 0; }
+.enc-sec-n { min-width: 34px; height: 30px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px; background: rgba(255,255,255,.75); }
+.enc-sec.accion .enc-sec-cab { background: #FDF3DF; color: #7A4B00; border-bottom-color: #F1D28F; }
+.enc-sec.espera .enc-sec-cab { background: var(--surface-2); color: var(--text-1); }
+.enc-sec.listo .enc-sec-cab { background: var(--brand-light); color: var(--brand-dark, #1F5A3A); border-bottom-color: #B9DEC8; }
+.enc-nada { margin: 0; padding: 16px 14px; font-size: 14px; color: var(--text-3); }
+.enc-sec.vacia { display: none; }            /* en el móvil, las vacías no ocupan (la casilla de arriba dice 0) */
+.enc-ver-mas { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid var(--border); background: var(--surface);
+  font: 600 15px var(--font); color: var(--brand); cursor: pointer; }
+.enc-ver-mas small { font-weight: 400; color: var(--text-3); font-size: 13px; }
+.enc-ver-mas:hover { background: var(--surface-2); }
+
+.enc-filas { display: flex; flex-direction: column; background: var(--surface); }
+.enc-hechos .enc-filas, .enc-ficha .enc-filas { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
 .enc-filas.hechos { opacity: .85; margin-top: 8px; }
 .enc-fila { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 60px; cursor: pointer; border-top: 1px solid var(--border); }
 .enc-filas > .enc-fila:first-child, .enc-grupo > .enc-fila:nth-child(2) { border-top: 0; }
@@ -67,6 +88,13 @@
 .enc-chip { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px; padding: 8px 12px; font: 500 14px var(--font); cursor: pointer; }
 .enc-chip:hover { background: var(--brand-pale); }
 
+@media (max-width: 360px) {
+  .enc-caja { padding: 8px 10px; gap: 6px; min-height: 50px; }
+  .enc-caja svg { display: none; }
+  .enc-caja-t { font-size: 13px; }
+  .enc-caja-n { font-size: 22px; }
+  .enc-sec-cab { font-size: 17px; padding: 11px 12px; }
+}
 @media (max-width: 420px) {
   .enc-cab h1 { font-size: 21px; }
   .enc-fila { padding: 12px; gap: 10px; }
@@ -75,8 +103,11 @@
 
 /* ── Ordenador: las 4 secciones en columnas, de izquierda a derecha como va el trabajo ── */
 @media (min-width: 1100px) {
+  .enc-resumen { display: none; }           /* en el ordenador, las cabeceras de las columnas hacen de casillas */
   .enc-tablero { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
   .enc-sec.vacia { display: block; }
+  .enc-sec-cab { padding: 14px; font-size: 18px; }
+  .enc-sec-n { font-size: 20px; height: 32px; }
   .enc-fila { flex-wrap: wrap; align-items: flex-start; }
   .enc-fila-txt { flex-basis: 100%; }
   .enc-acc { width: 100%; }
