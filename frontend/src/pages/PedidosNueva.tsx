@@ -172,15 +172,15 @@ export function PedidosNueva() {
             <EncSeccion info={secs[2]} todo={!!q}>
               {lim => esperando.slice(0, lim).map(o => {
                 const r = retraso(o);
-                const prov = sinProv(o.supplier_name) ? '' : `${o.supplier_name} · `;
+                const prov = sinProv(o.supplier_name) ? '' : ` · ${o.supplier_name}`;   // detrás: lo importante (retraso) no se corta
                 const parcial = o.status === 'parcial' || (o.lines_received > 0 && o.lines_received < o.line_count);
                 return (
                   <EncFila key={o.id} titulo={o.client_name || '—'} detalle={articulos(o)} onAbrir={() => abrir(o)}
                     tono={r > 0 ? 'mal' : undefined}
-                    estado={r > 0 ? `${prov}Retrasado ${r} día${r !== 1 ? 's' : ''}`
-                      : parcial ? `${prov}Llegaron ${o.lines_received} de ${o.line_count}`
-                      : o.expected_date ? `${prov}Llega ${cuando(o.expected_date)}`
-                      : `${prov}Pedido ${cuando(o.order_date)}`}
+                    estado={r > 0 ? `Retrasado ${r} día${r !== 1 ? 's' : ''}${prov}`
+                      : parcial ? `Llegaron ${o.lines_received} de ${o.line_count}${prov}`
+                      : o.expected_date ? `Llega ${cuando(o.expected_date)}${prov}`
+                      : `Pedido ${cuando(o.order_date)}${prov}`}
                     accion={<button className="btn btn-ghost btn-sm" disabled={ocupado === `l${o.id}`}
                       onClick={() => cambiar(`l${o.id}`, [o], 'recibido', `Pedido de ${o.client_name}: ha llegado`)}>
                       {parcial ? 'Llegó el resto' : 'Ha llegado'}</button>} />
@@ -191,7 +191,7 @@ export function PedidosNueva() {
             <EncSeccion info={secs[3]} todo={!!q} vacio="Nadie tiene nada por recoger">
               {lim => recoger.slice(0, lim).map(o => (
                 <EncFila key={o.id} titulo={o.client_name || '—'} detalle={articulos(o)} onAbrir={() => abrir(o)}
-                  estado={`Avisado ${cuando(o.aviso_at)}${diasDesde(o.aviso_at) >= 7 ? ' · lleva una semana' : ''}`}
+                  estado={diasDesde(o.aviso_at) >= 7 ? `Avisado hace ${diasDesde(o.aviso_at)} días` : `Avisado ${cuando(o.aviso_at)}`}
                   tono={diasDesde(o.aviso_at) >= 7 ? 'pend' : undefined}
                   accion={<button className="btn btn-ghost btn-sm" disabled={ocupado === `e${o.id}`}
                     onClick={() => cambiar(`e${o.id}`, [o], 'entregado', `${o.client_name} se lo llevó`)}>Se lo llevó</button>} />

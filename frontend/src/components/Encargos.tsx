@@ -111,8 +111,9 @@ export function EncFila({ titulo, detalle, estado, tono, accion, onAbrir }: {
       onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) onAbrir(); }}>
       <div className="enc-fila-txt">
         <b>{titulo}</b>
-        {detalle && <span className="enc-det">{detalle}</span>}
-        {estado && <span className={`enc-est${tono ? ' ' + tono : ''}`}>{estado}</span>}
+        {/* Siempre las dos: en el ordenador cada una es una columna de la línea (vacías no ocupan en el móvil) */}
+        <span className="enc-det">{detalle}</span>
+        <span className={`enc-est${tono ? ' ' + tono : ''}`}>{estado}</span>
       </div>
       {accion
         ? <div className="enc-acc" onClick={e => e.stopPropagation()}>{accion}</div>

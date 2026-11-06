@@ -105,19 +105,26 @@
   .enc-acc .btn { padding: 0 10px; font-size: 13px; }
 }
 
-/* ── Ordenador: las 4 secciones en columnas, de izquierda a derecha como va el trabajo ── */
-@media (min-width: 1100px) {
-  .enc-resumen { display: none; }           /* en el ordenador, las cabeceras de las columnas hacen de casillas */
-  .enc-tablero { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
-  .enc-sec.vacia { display: block; }
-  .enc-sec-cab { padding: 14px; font-size: 18px; }
-  .enc-sec-n { font-size: 20px; height: 32px; }
-  .enc-fila { flex-wrap: wrap; align-items: flex-start; }
-  .enc-fila-txt { flex-basis: 100%; }
-  .enc-acc { width: 100%; }
-  .enc-acc .btn { width: 100%; justify-content: center; min-height: 36px; }
-  .enc-flecha { display: none; }
-  .enc-grupo-cab { flex-wrap: wrap; }
+/* ── Ordenador (opción A, 6/11/2026; antes 4 columnas, Andrés: «una tiene muchos y las otras uno»): lo mismo que el móvil,
+   apartados uno debajo de otro, y cada pedido o reparación en UNA línea: quién · qué · cómo va · botón ── */
+.enc-det:empty, .enc-est:empty { display: none; }
+@media (min-width: 700px) {
+  .enc-resumen { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) {
+  .enc-page { max-width: 1180px; }
+  .enc-tablero { gap: 16px; }
+  .enc-sec-cab { padding: 11px 16px; font-size: 18px; }
+  .enc-fila { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 1.8fr) minmax(0, 1.2fr) 160px;
+    gap: 16px; align-items: center; min-height: 52px; padding: 8px 16px; }
+  .enc-fila-txt { display: contents; }
+  .enc-fila-txt b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .enc-det, .enc-est { display: block !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+  .enc-acc { justify-content: flex-end; }
+  .enc-acc .btn { min-height: 36px; width: 100%; justify-content: center; }
+  .enc-flecha { justify-self: end; }
+  .enc-grupo-cab { padding: 6px 16px; min-height: 40px; }
+  .enc-ver-mas { padding: 10px; }
 }
 
 /* ── Fichas ── */

@@ -477,7 +477,10 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
 - Opción B elegida por Andrés: dos pantallas separadas con la misma forma. `lib/encargosNuevo.ts` (`ENCARGOS_NUEVO_PARA_TODOS = false`),
   piezas comunes en `components/Encargos.tsx`, páginas `PedidosNueva.tsx` / `ReparacionesNueva.tsx`, estilos `pages/encargos.css` (`enc-*`).
   `OrdersPage`/`RepairsPage` eligen versión. Sin pestañas: secciones por lo que toca (Avisar al cliente · Por pedir / Por llevar al taller ·
-  Esperando / En el taller · Para recoger) y lo terminado plegado (5 + «Ver más»). En el ordenador (≥1100 px) las 4 en columnas.
+  Esperando / En el taller · Para recoger) y lo terminado plegado (5 + «Ver más»). En el ordenador, apartados uno debajo de otro
+  (6/11/2026, opción A: las 4 columnas quedaban desiguales) y desde 900 px cada pedido/reparación en UNA línea con columnas fijas
+  quién · qué · cómo va · botón (`.enc-fila` en grid, `.enc-fila-txt` `display: contents`); las casillas en una fila de 4 desde 700 px.
+  En «cómo va», lo importante delante («Retrasado 4 días · Hierros Santander»), así no se corta.
   Una acción por fila con «Deshacer». Por pedir se agrupa por proveedor («Pedidos los N»); en el taller, por taller.
 - Alta rápida: cliente con autocompletado (rellena el teléfono), «qué hay que pedir» uno por línea con la cantidad delante
   (`leerLinea`), proveedor, «Ya lo he pedido»; lo demás en «Más datos». Reparación: cliente, máquina, marca/modelo, qué le pasa, taller.
@@ -487,8 +490,7 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   reparación en el taller → «¿Te dieron presupuesto?» y «¿Cuándo estará?»). «Editar» también por bloques, con las fechas plegadas.
 - Apartados más visibles (6/11/2026, Andrés: «se ve muy poco el título de cada sección, resalta más el pedido»): cada apartado es un
   bloque (`enc-sec`) con cabecera, icono y número grande (los tonos ámbar/gris/verde de ese día se cambiaron por un color por apartado, abajo).
-  Arriba, en móvil y tableta, cuatro casillas con el número (`EncResumen`; al tocar baja al apartado). En el ordenador no salen: las
-  cabeceras de las columnas hacen de casillas. 5 por apartado y «Ver 5 más · quedan N» (`EncSeccion` con `children(limite)`;
+  Arriba, cuatro casillas con el número (`EncResumen`; al tocar baja al apartado), también en el ordenador. 5 por apartado y «Ver 5 más · quedan N» (`EncSeccion` con `children(limite)`;
   `recortarGrupos` para los agrupados por proveedor/taller; con búsqueda, todos).
 - **Un color por apartado (opción B, 6/11/2026, Andrés: «que varios tengan el mismo amarillo no me convence»)**: naranja = avisar al
   cliente, azul = por pedir / por llevar al taller, morado = esperando / en el taller, verde = para recoger; rojo solo «retrasado».

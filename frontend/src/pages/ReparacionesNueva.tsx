@@ -166,7 +166,7 @@ export function ReparacionesNueva() {
             <EncSeccion info={secs[3]} todo={!!q} vacio="Nadie tiene nada por recoger">
               {lim => recoger.slice(0, lim).map(r => (
                 <EncFila key={r.id} titulo={r.client_name} detalle={maquina(r)} onAbrir={() => abrir(r)}
-                  estado={[`Avisado ${cuando(r.aviso_at)}`, precio(r)].filter(Boolean).join(' · ')}
+                  estado={[diasDesde(r.aviso_at) >= 7 ? `Avisado hace ${diasDesde(r.aviso_at)} días` : `Avisado ${cuando(r.aviso_at)}`, precio(r)].filter(Boolean).join(' · ')}
                   tono={diasDesde(r.aviso_at) >= 7 ? 'pend' : undefined}
                   accion={<button className="btn btn-ghost btn-sm" disabled={ocupado === r.id} onClick={() => setEntregar(r)}>Se la llevó</button>} />
               ))}
