@@ -289,20 +289,26 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   de perros del saco azul y Mezcla 50 % (no se sabe qué lleva); «Nutricun Único» solo con lo que dice el nombre (¿Cunitec Único?).
   Al añadir un producto a la hoja, añadir su ficha al JSON.
 - **Mallas y alambres de El Sabio (13/11/2026, «En pruebas», solo Andrés: `"en_pruebas": True` en `TARIFAS["sabio"]`; quitarlo cuando
-  la apruebe)**: hoja «TARIFA_MALLAS_ALAMBRES» `18_j0…` en Mi unidad de Andrés (compartida con casafonsomc como lector), una pestaña
-  (se llama «Untitled»; `pestanas: None`). Sale de las hojas plastificadas de la tienda (PVP con IVA, por rollo y «Por metro» al corte)
-  y el coste es el **neto de la extranet de El Sabio** (tarifa − dto. − 3 %, mirado el 13/11/2026; columnas «Tarifa El Sabio» y
-  «Dto. El Sabio» solo para mirar). Lector `services/sabio.py` sobre `hoja_tienda.leer`: familias Mallas metálicas · Mallas plásticas
-  y telas · Alambre · Cable de acero, en cuadrícula (lista en el ordenador). Columna nueva del lector común **«Por metro»**: va como
-  escala «Por metro» (con su margen sobre coste ÷ metros del rollo; los metros salen del formato «Rollo 50 m») y la tabla de la ficha
-  se llama «Rollo entero o al corte» (`escalas_suelto`, `escalas_nota`). Formato «Por kilo» = unidad kg (alambre a granel); «Rollo» y
-  «Paca» son unidades. Alambre: la tabla de equivalencias de la tienda (n.º de París, diámetro, m/kg, kg de 100 m) va en «Para qué
-  sirve» de cada alambre con los metros de su rollo (`sabio.EQUIV`, `equivalencia`). Fotos de la extranet en
-  `frontend/public/catalogo/sab/` (una por tipo; `sabio.FOTOS`; la familia y el proveedor usan `sab-*` en `lib/tarifas.ts`).
-  Erratas de la hoja de la tienda: 390833 es un poste (la malla verde 25×25 es 390933); 290115 (25 kg n.º 18) no existe en El Sabio
-  y no se pasó; 364302 (mosquitera de fibra) ya no sale en la extranet.
+  la apruebe)**: hoja «TARIFA_MALLAS_ALAMBRES» `1Uic…` en Mi unidad de Andrés (compartida con casafonsomc como lector; la primera,
+  `18_j0…`, en la papelera), una pestaña («Untitled»; `pestanas: None`). Coste = **neto de la extranet de El Sabio** (tarifa − dto. − 3 %,
+  13/11/2026; en los albaranes de 2024–25 venían a menudo con 30+6(+2) %, o sea algo más baratos). Columnas: Familia | Grupo | Artículo |
+  **Medida** | Formato | PVP con IVA | **Rollo entero (con IVA)** | **Rollo de** | IVA | Código | Coste sin IVA (por metro/kilo) | Coste del
+  rollo | Fecha coste | Factura | Proveedor | Tarifa El Sabio | Dto. El Sabio | Nota. **Lo principal es el metro o el kilo**
+  (Andrés: «se suele vender por metros»; Formato «Por metro» → unidad m, «Por kilo» → kg; mallas, cable y alambre de 25/40 kg) y el
+  rollo entero va como escala con `cantidad`/`total` (como el palé de los ladrillos: «rollo 50 m 84 €» en la línea, tabla «Rollo
+  entero o al corte» en la ficha con `escalas_suelto`/`escalas_nota`; en la tableta se apunta el rollo como el palé, `udEscala`).
+  Lo que solo va en rollo (barrera, alambre de 5 kg): Formato «Rollo 5 kg», sin escala. Márgenes sobre coste (Andrés, 13/11/2026):
+  **por metro/kilo 40 %, rollo entero 30 %, solo rollo 35 %**; con IVA al alza a 0,05 € (metro/kilo) y al euro (rollo).
+  **Vista en familias, no en cuadrícula** (Andrés: «el mismo con distintas medidas, no una imagen grande para cada medida»): «Medida»
+  en el lector común → `tipo` = Artículo y `medida_c` = Medida, y la familia junta cada pieza en una línea que se abre en sus medidas
+  (`_grupos_sub`), con la foto a la izquierda (`fotoCatalogo` acepta `/catalogo/sab/`). Lector `services/sabio.py` sobre
+  `hoja_tienda.leer`: familias Mallas metálicas · Mallas plásticas y telas · Alambre · Cable de acero. Alambre: la tabla de
+  equivalencias de la tienda (n.º de París, diámetro, m/kg, kg de 100 m) va en «Para qué sirve» con los metros de su rollo
+  (`sabio.EQUIV`, `equivalencia`). Fotos de la extranet en `frontend/public/catalogo/sab/` (una por tipo; `sabio.FOTOS`; la familia y
+  el proveedor usan `sab-*` en `lib/tarifas.ts`). Erratas de la hoja de la tienda: 390833 es un poste (la malla verde 25×25 es 390933);
+  290115 (25 kg n.º 19) ya no está en El Sabio y no se pasó; 364302 (mosquitera de fibra) ya no sale en la extranet (precio de la hoja).
 - **Forrajes (13/11/2026)**: familia «Forrajes» al final de TARIFA_PIENSOS (filas 42–48, IVA 10 %): pacas pequeñas de paja y forraje,
-  grandes de 4 cuerdas (paja, forraje, veza en rama) y de 6 (forraje/veza, avena). Fotos de Wikimedia Commons (`tools/forrajes-fotos.txt`)
+  grandes de 4 cuerdas (paja 50 €, forraje, veza en rama) y de 6 (forraje/veza, avena). Fotos de Wikimedia Commons (`tools/forrajes-fotos.txt`)
   en `pi/fotos/paca-*.webp`, elegidas en `piensos.PACAS` por nombre, grupo y formato.
 - **Precio con IVA por defecto en todas las tarifas (15/10/2026, decisión de Andrés)**: familias (las dos vistas), ficha,
   búsqueda, panel del ordenador, barra del móvil, Manolo y la tableta enseñan primero el precio con IVA; el sin IVA va al lado.

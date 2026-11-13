@@ -147,7 +147,7 @@ export const porMetro = (m: TarifaMedida, modo: ModoPrecio) => {
 
 /** Una escala en pocas palabras: «palé 106,48 €» (palé entero) o «5+ rollos 15,15 €» (precio por unidad). */
 export const escalaCorta = (e: Escala, iva: boolean) => {
-  const n = e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé');
+  const n = e.nombre.replace(/^Desde 5 rollos/, '5+ rollos').replace(/ \(.*\)$/, '').replace('Palé completo', 'palé').replace(/^Rollo /, 'rollo ');
   const tot = totalEscala(e, iva);
   return `${n} ${tot != null ? eur(tot) : eur(iva ? conIva(e) : e.pvp)}`;
 };
@@ -553,7 +553,8 @@ export function medidasDe(secciones: Seccion[]): { mp: string; op: number | null
 }
 
 /** Foto del catálogo del fabricante que trae la pieza (de momento, Inyectometal). */
-export const fotoCatalogo = (m: TarifaMedida) => (m.foto?.startsWith('/catalogo/iny/') ? m.foto : '');
+// Inyectometal y mallas de El Sabio: la foto del catálogo a la izquierda de cada línea de la familia
+export const fotoCatalogo = (m: TarifaMedida) => (m.foto?.startsWith('/catalogo/iny/') || m.foto?.startsWith('/catalogo/sab/') ? m.foto : '');
 /** La foto que más se repite entre las medidas de un tipo de pieza. */
 export function fotoComun(items: TarifaMedida[]): string {
   const c = new Map<string, number>();

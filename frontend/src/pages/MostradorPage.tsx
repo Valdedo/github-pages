@@ -36,9 +36,11 @@ type Linea = Omit<Apunte, 'cant' | 'hecho'>;
 /** Lo que se apunta de un artículo, o de su palé completo (ref «…#pale», precio del palé entero). */
 const lineaDe = (e: Elegido): Linea => ({ prov: e.t.id, fam: e.f.id, ref: e.m.ref, codigo: e.m.codigo ?? '', descripcion: e.m.descripcion, ud: e.m.ud_venta, pvp: e.m.pvp, pvp_iva: e.m.pvp_iva });
 const lineaEscala = (e: Elegido, es: Escala): Linea => ({
-  ...lineaDe(e), ref: `${e.m.ref}#pale`, descripcion: `${e.m.descripcion} — ${es.nombre.toLowerCase()}`, ud: 'palé',
+  ...lineaDe(e), ref: `${e.m.ref}#pale`, descripcion: `${e.m.descripcion} — ${es.nombre.toLowerCase()}`, ud: udEscala(es),
   pvp: es.total ?? null, pvp_iva: totalEscala(es, true),
 });
+/** «palé» (ladrillos) o «rollo» (mallas y alambres al corte: el rollo entero va aparte). */
+const udEscala = (es: Escala) => (/^rollo/i.test(es.nombre) ? 'rollo' : 'palé');
 /** Un toquecito en la tableta al sumar (donde el navegador lo permite). */
 const vibrar = () => { try { navigator.vibrate?.(12); } catch { /* nada */ } };
 type Reciente = { prov: string; fam: string; ref: string };
@@ -444,7 +446,7 @@ function FilaArticulo({ e, nombre, sel, onElegir, conFamilia, foto }: {
         <strong>{conPor(nombre)}</strong>
         <small>
           {m.codigo && <span className="mo-cod">{codigoVisible(m)}</span>}
-          {m.escalas?.filter(es => es.total != null).map(es => <span key={es.nombre} className="mo-fila-pale">palé {eur(totalEscala(es, true))}</span>)}
+          {m.escalas?.filter(es => es.total != null).map(es => <span key={es.nombre} className="mo-fila-pale">{udEscala(es)} {eur(totalEscala(es, true))}</span>)}
           {conFamilia && <span>{t.nombre} · {f.nombre}</span>}
         </small>
       </span>
@@ -548,7 +550,7 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, cuenta, cuentaPale, o
             {cuentaPale > 0 ? <span key={cuentaPale} className="mo-cuenta mo-cuenta-p" aria-hidden="true">{num(cuentaPale)}</span>
               : <span className="mo-escala-mas" aria-hidden="true"><Plus size={26} /></span>}
           </button>
-          {cuentaPale > 0 && <button type="button" className="mo-escala-menos" onClick={() => onQuitar(t.id, `${m.ref}#pale`)} aria-label="Quitar un palé"><Minus size={24} /></button>}
+          {cuentaPale > 0 && <button type="button" className="mo-escala-menos" onClick={() => onQuitar(t.id, `${m.ref}#pale`)} aria-label={`Quitar un ${udEscala(es)}`}><Minus size={24} /></button>}
         </div>
       ))}
       {datos.length > 0 && (

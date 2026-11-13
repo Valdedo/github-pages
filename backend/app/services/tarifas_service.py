@@ -147,17 +147,16 @@ TARIFAS = {
         "fabricante": "Inyectometal M26",
         "origen_corto": "tarifa M26",
     },
-    # Mallas y alambres de El Sabio (13/11/2026, en pruebas): de las hojas plastificadas de la tienda, en cuadrícula como
-    # morteros y piensos; coste = neto de la extranet de El Sabio; rollos con precio «Por metro» (al corte). Ver sabio.py.
+    # Mallas y alambres de El Sabio (13/11/2026, en pruebas): de las hojas plastificadas de la tienda; coste = neto de la
+    # extranet de El Sabio; lo principal es el metro o el kilo y el rollo entero va aparte. En familias con líneas que se
+    # abren en medidas (no en cuadrícula: Andrés, cada medida con su foto grande no se leía bien). Ver sabio.py.
     "sabio": {
         "nombre": "Mallas y alambres",
         "sub": "El Sabio · mallas, alambre y cable de acero",
         "proveedor": "El Sabio",
-        "hoja": "18_j0VV9aZP4Ui0QS2adE5AJsutX8DIslzAel2LVendg",  # TARIFA_MALLAS_ALAMBRES (Mi unidad de Andrés)
+        "hoja": "1UicWc7864gdz6owbNOaHeFjWC44UUow_q_C80UFSdhk",  # TARIFA_MALLAS_ALAMBRES (Mi unidad de Andrés; la primera, 18_j0…, en la papelera)
         "pestanas": None,
-        "redondeo": "precio de la hoja de la tienda",
-        "vista": "cuadricula",
-        "vista_ordenador": "lista",
+        "redondeo": "por metro o kilo al alza a 0,05 €; el rollo, al euro (con IVA)",
         "en_pruebas": True,
     },
 }

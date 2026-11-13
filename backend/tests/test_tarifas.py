@@ -477,33 +477,45 @@ from app.services import sabio
 def _hoja_sabio():
     return {"Hoja 1": [
         ["Mallas y alambres · El Sabio"], [""],
-        ["Familia", "Grupo", "Artículo", "Formato", "PVP con IVA", "Por metro (con IVA)", "IVA", "Código", "Coste sin IVA",
-         "Fecha coste", "Factura", "Proveedor", "Tarifa El Sabio", "Dto. El Sabio", "Nota"],
-        ["Mallas metálicas", "Gallinero (triple torsión)", "Gallinero 51 mm · 100 cm alto", "Rollo 50 m", "60,50", "1,21", "21",
-         "100001", "25", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", "40", "30 % + 3 %", ""],
-        ["Alambre", "Alambre galvanizado", "Alambre galvanizado n.º 12 · 1,8 mm", "Rollo 5 kg", "12,10", "", "21", "100002",
-         "5", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", "", "", ""],
-        ["Alambre", "Alambre galvanizado", "Alambre galvanizado a granel", "Por kilo", "2,42", "", "21", "", "", "", "", "", "", "", ""],
+        ["Familia", "Grupo", "Artículo", "Medida", "Formato", "PVP con IVA", "Rollo entero (con IVA)", "Rollo de", "IVA", "Código",
+         "Coste sin IVA", "Coste del rollo", "Fecha coste", "Factura", "Proveedor", "Nota"],
+        ["Mallas metálicas", "Gallinero (triple torsión)", "Gallinero 51 mm", "50 cm alto", "Por metro", "1,21", "60,50", "50 m", "21",
+         "100001", "0,5", "25", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", ""],
+        ["Mallas metálicas", "Gallinero (triple torsión)", "Gallinero 51 mm", "100 cm alto", "Por metro", "2,42", "121", "50 m", "21",
+         "100002", "1", "50", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", ""],
+        ["Alambre", "Alambre galvanizado", "Rollo de 40 kg", "N.º 12 · 1,8 mm", "Por kilo", "3,63", "", "", "21", "100003",
+         "2", "80", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", ""],
+        ["Alambre", "Alambre galvanizado", "Rollo de 5 kg", "N.º 12 · 1,8 mm", "Rollo 5 kg", "12,10", "", "", "21", "100004",
+         "5", "5", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", ""],
     ]}
 
 
-def test_sabio_rollo_y_por_metro():
+def test_sabio_por_metro_y_rollo_entero():
     a = sabio.leer(_hoja_sabio())["articulos"]
-    gal, ala, gra = a
-    assert gal["pvp"] == 50.0 and gal["coste"] == 25.0 and gal["margen"] == 100.0 and gal["metros"] == 50.0
-    assert gal["foto"] == "/catalogo/sab/triple-torsion.webp" and gal["ud_venta"] == "rollo"
-    m = gal["escalas"][0]
-    assert m["nombre"] == "Por metro" and m["pvp_iva"] == 1.21 and m["pvp"] == 1.0 and m["margen"] == 100.0  # 25 € / 50 m = 0,50 €/m
-    assert gal["escalas_suelto"] == "Rollo 50 m" and "El Sabio" in gal["origen"]
-    assert gra["ud_venta"] == "kg" and gra["solo_pvp"] is True and not gra.get("escalas")
+    g50, g100, kilo, rollo5 = a
+    assert g50["ud_venta"] == "m" and g50["pvp"] == 1.0 and g50["coste"] == 0.5 and g50["margen"] == 100.0
+    assert g50["tipo"] == "Gallinero 51 mm" and g50["medida_c"] == "50 cm alto" and g50["ref"] != g100["ref"]
+    r = g50["escalas"][0]
+    assert r["nombre"] == "Rollo 50 m" and r["cantidad"] == 50 and r["total_iva"] == 60.5 and r["total"] == 50.0 and r["margen"] == 100.0
+    assert g50["escalas_suelto"] == "Por metro" and "al corte" in g50["escalas_nota"]
+    assert g50["foto"] == "/catalogo/sab/triple-torsion.webp"
+    assert kilo["ud_venta"] == "kg" and not kilo.get("escalas")
+    assert rollo5["ud_venta"] == "rollo" and rollo5["pvp"] == 10.0
+
+
+def test_sabio_misma_pieza_en_varias_medidas_va_en_una_linea():
+    d = sabio.leer(_hoja_sabio())
+    from app.services import tarifas_service as ts
+    gr = ts._grupos_sub([x for x in d["articulos"] if x["categoria"] == "Mallas metálicas"], None, False)
+    assert gr[0]["titulo"] == "Gallinero 51 mm" and len(gr[0]["medidas"]) == 2
 
 
 def test_sabio_equivalencia_del_alambre():
-    ala = sabio.leer(_hoja_sabio())["articulos"][1]
-    datos = dict(ala["producto"]["datos"])
+    kilo = sabio.leer(_hoja_sabio())["articulos"][2]
+    datos = dict(kilo["producto"]["datos"])
     assert datos["N.º de París"] == "12" and datos["Diámetro"] == "1,8 mm" and datos["Metros por kilo"] == "50,4 m"
-    assert datos["Metros del rollo de 5 kg"] == "unos 252 m"
-    assert ala["foto"] == "/catalogo/sab/alambre-galvanizado.webp"
+    assert datos["Metros del rollo de 40 kg"] == "unos 2.016 m"
+    assert kilo["foto"] == "/catalogo/sab/alambre-galvanizado.webp"
     assert sabio.equivalencia("Malla plástica 12×12", "Rollo 30 m") is None
 
 
