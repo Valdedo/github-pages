@@ -6,7 +6,7 @@ import { esEncargado } from '../auth';
  * Cuando lo apruebe: `DISENO_NUEVO_PARA_TODOS = true` (y se puede quitar el interruptor).
  * Estilos en `diseno.css`, todos bajo `html.dz`.
  */
-export const DISENO_NUEVO_PARA_TODOS = false;
+export const DISENO_NUEVO_PARA_TODOS = true;
 const CLAVE = 'cfDiseno';
 
 const preferencia = (): boolean => { try { return localStorage.getItem(CLAVE) !== 'no'; } catch { return true; } };

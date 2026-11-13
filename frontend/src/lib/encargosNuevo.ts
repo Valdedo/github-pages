@@ -6,7 +6,7 @@ import { esEncargado } from '../auth';
  * Primero solo para Andrés («En pruebas»). Cuando las apruebe: `ENCARGOS_NUEVO_PARA_TODOS = true`.
  * Componentes en `components/Encargos.tsx`, estilos en `pages/encargos.css` (clases `enc-*`).
  */
-export const ENCARGOS_NUEVO_PARA_TODOS = false;
+export const ENCARGOS_NUEVO_PARA_TODOS = true;
 export const encargosNuevo = () => ENCARGOS_NUEVO_PARA_TODOS || esEncargado();
 
 const dia = (s?: string | null) => (s ? s.split('T')[0] : '');

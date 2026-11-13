@@ -4,7 +4,7 @@ import { esEncargado } from '../auth';
  * Albaranes de venta, versión simplificada (4/11/2026): primero solo para Andrés («En pruebas»).
  * Cuando la apruebe, poner esto a `true` y la ve toda la tienda.
  */
-export const VENTAS_NUEVA_PARA_TODOS = false;
+export const VENTAS_NUEVA_PARA_TODOS = true;
 export const ventasNueva = () => VENTAS_NUEVA_PARA_TODOS || esEncargado();
 
 /** Orden de la lista que se estaba viendo, para «Siguiente albarán» en la ficha. */

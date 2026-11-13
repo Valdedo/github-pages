@@ -487,6 +487,9 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   sin ventanas abiertas, sin escribir, sin pantalla completa y sin nada en las colas; si no, sale la barra como antes.
 - Rutas desconocidas llevan a Inicio.
 
+## Para todos (13/11/2026, decisión de Andrés)
+- Pasados a toda la tienda: diseño nuevo (`DISENO_NUEVO_PARA_TODOS = true`, ya sin interruptor en el círculo), albaranes de venta nuevos (`VENTAS_NUEVA_PARA_TODOS = true`) y Pedidos/Reparaciones nuevos (`ENCARGOS_NUEVO_PARA_TODOS = true`). Vencimientos sigue solo para Andrés. Pendiente: borrar las pantallas viejas (auditoría I6).
+
 ## Publicar
 - Railway despliega desde la rama **`claude/invoice-ocr-processing-app-1LgBH`**.
   Publicar = `git push origin HEAD:claude/invoice-ocr-processing-app-1LgBH`.
