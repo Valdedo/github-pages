@@ -288,8 +288,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   la derecha (`PanelInfo`, `?i=prov|ref`, atrás lo cierra). Sin ficha aún: V. Energía, Cerdos crecimiento, Kilate gatos, pienso
   de perros del saco azul y Mezcla 50 % (no se sabe qué lleva); «Nutricun Único» solo con lo que dice el nombre (¿Cunitec Único?).
   Al añadir un producto a la hoja, añadir su ficha al JSON.
-- **Mallas y alambres de El Sabio (13/11/2026, «En pruebas», solo Andrés: `"en_pruebas": True` en `TARIFAS["sabio"]`; quitarlo cuando
-  la apruebe)**: hoja «TARIFA_MALLAS_ALAMBRES» `1Uic…` en Mi unidad de Andrés (compartida con casafonsomc como lector; la primera,
+- **Mallas y alambres de El Sabio (13/11/2026; para todos desde ese mismo día, decisión de Andrés)**: hoja «TARIFA_MALLAS_ALAMBRES» `1Uic…` en Mi unidad de Andrés (compartida con casafonsomc como lector; la primera,
   `18_j0…`, en la papelera), una pestaña («Untitled»; `pestanas: None`). Coste = **neto de la extranet de El Sabio** (tarifa − dto. − 3 %,
   13/11/2026; en los albaranes de 2024–25 venían a menudo con 30+6(+2) %, o sea algo más baratos). Columnas: Familia | Grupo | Artículo |
   **Medida** | Formato | PVP con IVA | **Rollo entero (con IVA)** | **Rollo de** | IVA | Código | Coste sin IVA (por metro/kilo) | Coste del
