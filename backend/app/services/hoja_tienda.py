@@ -75,7 +75,8 @@ def _dia(v) -> Optional[str]:
     return f"{m.group(3)}/{m.group(2)}/{m.group(1)}" if m else None
 
 
-UDS = {"saco": "saco", "sacos": "saco", "bolsa": "bolsa", "bote": "bote", "cubo": "cubo", "caja": "caja", "paquete": "paquete"}
+UDS = {"saco": "saco", "sacos": "saco", "bolsa": "bolsa", "bote": "bote", "cubo": "cubo", "caja": "caja", "paquete": "paquete",
+       "paca": "paca", "rollo": "rollo"}
 
 
 def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str], Optional[str]]] = None,
@@ -108,6 +109,8 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
     c_apa = col("iva aparte", "mas iva", "+ iva", "+iva")
     c_fec, c_fac, c_pdf, c_nota, c_prov = col("fecha"), col("factura", "albaran"), col("pdf", "id pdf"), col("nota"), col("proveedor")
     c_uso = col("para que sirve", "uso")
+    # Mallas y alambres (13/11/2026): rollos que también se venden al corte; «Por metro» = PVP con IVA de un metro
+    c_ml = col("por metro", "precio por metro", "€/m", "eur/m")
     ancho = len(cab) + 2
     arts, familias, grupos, vistos, lineas = [], [], {}, set(), {}
     for f in filas[ini + 1:]:
@@ -138,7 +141,7 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         else:
             pvp = round(pvp_iva / (1 + tipo_iva / 100), 4) if pvp_iva else None
         primera = n(formato).split(" ")[0] if formato else ""
-        ud = UDS.get(primera, "ud")
+        ud = "kg" if n(formato) in ("por kilo", "kilo", "kg") else UDS.get(primera, "ud")  # alambre a granel, al peso
         cod = v(c_cod).lstrip("'") or None
         fecha, factura = _iso(v(c_fec)), v(c_fac)
         # «Pedido 358», «Albarán B2538»: tipo y número (la ficha dice «Último pedido», «Abrir albarán»); «Tarifa …» no es
@@ -170,6 +173,18 @@ def leer(hojas: dict, prefijo: str, foto: Optional[Callable[[str, str, str, str]
         }
         if c_prov is not None and v(c_prov):
             a["proveedor"] = v(c_prov)
+        ml = num(v(c_ml))
+        mrollo = re.search(r"(\d+(?:[.,]\d+)?)\s*m\b", formato or "")
+        metros = num(mrollo.group(1)) if mrollo else None
+        if metros and metros > 1:
+            a["metros"] = metros
+        if ml:
+            ml_sin = round(ml / (1 + tipo_iva / 100), 4)
+            coste_m = coste / metros if coste and metros and metros > 1 else None
+            a["escalas"] = [{"nombre": "Por metro", "pvp": ml_sin, "pvp_iva": ml,
+                             "margen": round((ml_sin / coste_m - 1) * 100, 1) if coste_m else None}]
+            a["escalas_suelto"] = f"{formato}" if formato else "Rollo entero"
+            a["escalas_nota"] = "El rollo entero, a su precio; al corte, el precio de cada metro."
         prod = fichas_producto.buscar(fichas, f"{art} {formato}") if fichas else None
         if v(c_uso):
             prod = {**(prod or {"datos": [], "consejo": None, "fuente": None}), "uso": v(c_uso)}

@@ -26,6 +26,8 @@ export interface TarifaMedida {
   ud_m2?: number | null; kg_ud?: number | null; ud_pale?: number | null; uso?: string | null;
   /** Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA si no es el 21 % (piensos al 10 %) */
   formato?: string | null; iva?: number | null;
+  /** Mallas y alambres: rollo entero y al corte; el nombre de la fila del rollo («Rollo 50 m») y la nota de la tabla */
+  escalas_suelto?: string | null; escalas_nota?: string | null;
   /** Para qué sirve y lo que suele preguntar el cliente (morteros, piensos) */
   producto?: Producto | null;
 }
@@ -89,6 +91,7 @@ export interface FichaTarifa {
   solo_pvp?: boolean;
   /** Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA de la fila */
   formato?: string | null; iva?: number | null;
+  escalas_suelto?: string | null; escalas_nota?: string | null;
   /** Para qué sirve y lo que suele preguntar el cliente (morteros, piensos) */
   producto?: Producto | null;
 }
@@ -110,11 +113,13 @@ export const PEGATINA_PROVEEDOR: Record<string, string> = {
   ladrillos: 'prov-ladrillos',
   gas: 'prov-gas', morteros: 'prov-morteros', piensos: 'prov-piensos',
   inyectometal: 'iny-i1320',
+  sabio: 'sab-triple-torsion',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
 export const pegatina = (nombre: string) =>
   nombre.startsWith('silva-') ? `/catalogo/silva/${nombre.slice(6)}.webp`
+    : nombre.startsWith('sab-') ? `/catalogo/sab/${nombre.slice(4)}.webp`
     : nombre.startsWith('iny-') ? `/catalogo/iny/${nombre.slice(4)}.webp` : `/catalogo/st-${nombre}.png`;
 
 // Familia de la tarifa → dibujo (pegatina, para navegar) y foto (en la ficha y las medidas).
@@ -207,7 +212,12 @@ export function claveFamilia(nombre: string): string {
   if (/^bombonas camping/.test(n)) return 'gas-camping';
   // Morteros y piensos (17/10/2026): cada artículo trae su foto o dibujo; la familia, la pegatina de la tarifa
   if (/^cementos? y morteros|^cemento cola|^morteros/.test(n)) return 'prov-morteros';
-  if (/^piensos?\b|^grano y harinas|^huerta/.test(n)) return 'prov-piensos';
+  if (/^piensos?\b|^grano y harinas|^huerta|^forrajes/.test(n)) return 'prov-piensos';
+  // Mallas y alambres de El Sabio (13/11/2026): la foto de la extranet de cada familia (frontend/public/catalogo/sab)
+  if (/^mallas metalicas/.test(n)) return 'sab-triple-torsion';
+  if (/^mallas plasticas/.test(n)) return 'sab-malla-plastica';
+  if (/^alambre$/.test(n)) return 'sab-alambre-galvanizado';
+  if (/^cable de acero/.test(n)) return 'sab-cable-acero';
   // Mallas ganaderas de Silva Moreira: foto real por familia (frontend/public/catalogo/silva)
   if (/^malla nudo fijo/.test(n)) return 'silva-nudo-fijo';
   if (/^malla anudada/.test(n)) return /fuerte/.test(n) ? 'silva-fuerte' : 'silva-ligera';

@@ -468,3 +468,50 @@ def test_inyectometal_tipo_medida_y_compra():
     assert a["1003"]["pvp_fab"] is None                                            # netos: no es un PVP
     assert a["1004"]["tipo"] == "Conexión acero inoxidable M-H" and a["1004"]["medida_c"] == "⅜″ × ⅜″ · 75 cm"
     assert d["orden_familias"] == ["Latón roscado", "Conexiones flexibles"]
+
+
+# ── Mallas y alambres de El Sabio y forrajes (13/11/2026; datos inventados) ──
+from app.services import sabio
+
+
+def _hoja_sabio():
+    return {"Hoja 1": [
+        ["Mallas y alambres · El Sabio"], [""],
+        ["Familia", "Grupo", "Artículo", "Formato", "PVP con IVA", "Por metro (con IVA)", "IVA", "Código", "Coste sin IVA",
+         "Fecha coste", "Factura", "Proveedor", "Tarifa El Sabio", "Dto. El Sabio", "Nota"],
+        ["Mallas metálicas", "Gallinero (triple torsión)", "Gallinero 51 mm · 100 cm alto", "Rollo 50 m", "60,50", "1,21", "21",
+         "100001", "25", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", "40", "30 % + 3 %", ""],
+        ["Alambre", "Alambre galvanizado", "Alambre galvanizado n.º 12 · 1,8 mm", "Rollo 5 kg", "12,10", "", "21", "100002",
+         "5", "13/11/2026", "Tarifa El Sabio (extranet)", "El Sabio", "", "", ""],
+        ["Alambre", "Alambre galvanizado", "Alambre galvanizado a granel", "Por kilo", "2,42", "", "21", "", "", "", "", "", "", "", ""],
+    ]}
+
+
+def test_sabio_rollo_y_por_metro():
+    a = sabio.leer(_hoja_sabio())["articulos"]
+    gal, ala, gra = a
+    assert gal["pvp"] == 50.0 and gal["coste"] == 25.0 and gal["margen"] == 100.0 and gal["metros"] == 50.0
+    assert gal["foto"] == "/catalogo/sab/triple-torsion.webp" and gal["ud_venta"] == "rollo"
+    m = gal["escalas"][0]
+    assert m["nombre"] == "Por metro" and m["pvp_iva"] == 1.21 and m["pvp"] == 1.0 and m["margen"] == 100.0  # 25 € / 50 m = 0,50 €/m
+    assert gal["escalas_suelto"] == "Rollo 50 m" and "El Sabio" in gal["origen"]
+    assert gra["ud_venta"] == "kg" and gra["solo_pvp"] is True and not gra.get("escalas")
+
+
+def test_sabio_equivalencia_del_alambre():
+    ala = sabio.leer(_hoja_sabio())["articulos"][1]
+    datos = dict(ala["producto"]["datos"])
+    assert datos["N.º de París"] == "12" and datos["Diámetro"] == "1,8 mm" and datos["Metros por kilo"] == "50,4 m"
+    assert datos["Metros del rollo de 5 kg"] == "unos 252 m"
+    assert ala["foto"] == "/catalogo/sab/alambre-galvanizado.webp"
+    assert sabio.equivalencia("Malla plástica 12×12", "Rollo 30 m") is None
+
+
+def test_forrajes_en_piensos():
+    f = lambda gru, art, fmt: piensos.foto("Forrajes", gru, art, fmt)
+    assert f("Paca pequeña", "Paca pequeña de paja", "Paca pequeña") == "/catalogo/pi/fotos/paca-pequena-paja.webp"
+    assert f("Paca pequeña", "Paca pequeña de forraje", "Paca pequeña") == "/catalogo/pi/fotos/paca-pequena-forraje.webp"
+    assert f("Paca grande · 4 cuerdas", "Paca grande de paja", "Paca grande (4 cuerdas)") == "/catalogo/pi/fotos/paca-grande-paja.webp"
+    assert f("Paca grande · 4 cuerdas", "Paca de veza en rama", "") == "/catalogo/pi/fotos/paca-grande-forraje.webp"
+    assert f("Paca grande · 6 cuerdas", "Paca grande de forraje / veza", "") == "/catalogo/pi/fotos/paca-grande-6.webp"
+    assert f("Paca grande · 6 cuerdas", "Paca de avena", "") == "/catalogo/pi/fotos/paca-avena.webp"

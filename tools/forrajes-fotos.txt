@@ -1,0 +1,16 @@
+Fotos de los forrajes (tarifa de piensos, 13/11/2026), en frontend/public/catalogo/pi/fotos/paca-*.webp (480×480, recorte
+cuadrado del centro). Son de Wikimedia Commons (licencias libres CC BY / CC BY-SA / dominio público, ver la página de cada
+archivo). Si la tienda saca fotos suyas de las pacas, sustituir los .webp con el mismo nombre.
+
+paca-pequena-paja.webp     File:Straw bale.JPG
+paca-pequena-forraje.webp  File:Hooibaal.jpg
+paca-grande-paja.webp      File:Storballe I.JPG
+paca-grande-forraje.webp   File:Hay bales Hoskin Corner.JPG
+paca-grande-6.webp         File:Hay bales more outside stack showing stack size near Yass Australia photo taken November 2015 03.JPG
+paca-avena.webp            File:PermaLiv halmballe firkant 10-09-20.jpg
+
+Mallas y alambres de El Sabio (frontend/public/catalogo/sab/*.webp): fotos de la extranet de El Sabio
+(ws02.internaco.com/pim/media/cache/preview/…, 550 px), recortadas y centradas en 480×480 con fondo blanco:
+triple-torsion 390635 · soldada-galvanizada 390692 · soldada-plastificada 390723 · malla-plastica 364313 · barrera 370749 ·
+mosquitera 390689 · ocultacion 364647 · antihierba 264123 · alambre-galvanizado 390929 · alambre-plastificado 290007 ·
+cable-acero 370204.

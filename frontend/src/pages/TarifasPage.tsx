@@ -942,11 +942,11 @@ export function TarifaFichaPage() {
   );
   const escalas = d?.escalas?.length ? (
     <section className="tf-caja tf-escalas">
-      <h2>Precio por cantidad</h2>
+      <h2>{d.escalas_suelto ? 'Rollo entero o al corte' : 'Precio por cantidad'}</h2>
       <table>
         <thead><tr><th>Cantidad</th><th>Con IVA</th><th>Sin IVA</th><th>Margen</th></tr></thead>
         <tbody>
-          <tr><td>Suelto</td><td>{eur(conIva(d))}</td><td>{eur(d.pvp)}</td><td>{d.margen != null ? `${String(d.margen).replace('.', ',')} %` : '—'}</td></tr>
+          <tr><td>{d.escalas_suelto ?? 'Suelto'}</td><td>{eur(conIva(d))}</td><td>{eur(d.pvp)}</td><td>{d.margen != null ? `${String(d.margen).replace('.', ',')} %` : '—'}</td></tr>
           {d.escalas.map(e => (
             <tr key={e.nombre}><td>{e.nombre}</td>
               {e.total != null
@@ -957,7 +957,7 @@ export function TarifaFichaPage() {
           ))}
         </tbody>
       </table>
-      <p className="tf-nota">{d.escalas.some(e => e.total != null)
+      <p className="tf-nota">{d.escalas_nota ? d.escalas_nota : d.escalas.some(e => e.total != null)
         ? `Suelto, precio por ${udLarga(d.ud_venta)}; el palé completo, lo que vale el palé (debajo, lo que sale cada ${udLarga(d.ud_venta)}).`
         : `Precio por ${d.ud_venta}. Desde 5 rollos vale mezclando medidas.`}</p>
     </section>

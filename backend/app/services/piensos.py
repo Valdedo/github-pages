@@ -45,8 +45,21 @@ POR_GRUPO = [
 ]
 
 
+# Forrajes (13/11/2026): pacas de paja y de forraje; fotos de Wikimedia Commons (tools/forrajes-fotos.txt)
+PACAS = [
+    (r"pequena.*paja", "paca-pequena-paja"), (r"pequena", "paca-pequena-forraje"), (r"avena", "paca-avena"),
+    (r"grande.*paja", "paca-grande-paja"), (r"6 cuerdas.*(forraje|veza)|(forraje|veza).*6 cuerdas", "paca-grande-6"),
+    (r"forraje|veza|hierba|heno", "paca-grande-forraje"),
+]
+
+
 def foto(fam: str, gru: str, art: str, formato: str) -> Optional[str]:
     t = hoja_tienda.n(art)
+    if "paca" in t or hoja_tienda.n(fam).startswith("forraje"):
+        todo = hoja_tienda.n(f"{art} {gru} {formato}")
+        for rx, nombre in PACAS:
+            if re.search(rx, todo):
+                return f"/catalogo/pi/fotos/{nombre}.webp"
     for rx, nombre in FOTOS:
         if re.search(rx, t):
             return f"/catalogo/pi/fotos/{nombre}.webp"

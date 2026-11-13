@@ -20,7 +20,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import construdeco, gas, inyectometal, isoltubex, mail_service, morteros, piensos
+from app.services import construdeco, gas, inyectometal, isoltubex, mail_service, morteros, piensos, sabio
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,19 @@ TARIFAS = {
         "redondeo": "con IVA, al alza a 0,05 € (0,10 € desde 5 €); sin IVA = con IVA ÷ 1,21",
         "fabricante": "Inyectometal M26",
         "origen_corto": "tarifa M26",
+    },
+    # Mallas y alambres de El Sabio (13/11/2026, en pruebas): de las hojas plastificadas de la tienda, en cuadrícula como
+    # morteros y piensos; coste = neto de la extranet de El Sabio; rollos con precio «Por metro» (al corte). Ver sabio.py.
+    "sabio": {
+        "nombre": "Mallas y alambres",
+        "sub": "El Sabio · mallas, alambre y cable de acero",
+        "proveedor": "El Sabio",
+        "hoja": "18_j0VV9aZP4Ui0QS2adE5AJsutX8DIslzAel2LVendg",  # TARIFA_MALLAS_ALAMBRES (Mi unidad de Andrés)
+        "pestanas": None,
+        "redondeo": "precio de la hoja de la tienda",
+        "vista": "cuadricula",
+        "vista_ordenador": "lista",
+        "en_pruebas": True,
     },
 }
 
@@ -724,7 +737,8 @@ def leer_ladrillos(hojas: dict) -> dict:
 
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
             "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos, "gas": gas.leer,
-            "morteros": morteros.leer, "piensos": piensos.leer, "inyectometal": inyectometal.leer}
+            "morteros": morteros.leer, "piensos": piensos.leer, "inyectometal": inyectometal.leer,
+            "sabio": sabio.leer}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
@@ -1249,6 +1263,8 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         # Vista nueva (oct. 2026): otros códigos del mismo artículo, código comodín y metros del rollo o barra
         "antes": a.get("antes"), "tambien": a.get("tambien"), "comodin": bool(a.get("comodin")), "metros": a.get("metros"),
         "escalas": a.get("escalas"),
+        # Mallas y alambres: el rollo entero y al corte (la tabla dice «Rollo 50 m» en vez de «Suelto» y su propia nota)
+        **{k: a[k] for k in ("escalas_suelto", "escalas_nota") if a.get(k)},
         **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
         # Bombonas de gas: solo precio de venta (sin coste, margen ni compras)
         "solo_pvp": bool(a.get("solo_pvp")),
