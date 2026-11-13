@@ -157,6 +157,8 @@ TARIFAS = {
         "hoja": "1UicWc7864gdz6owbNOaHeFjWC44UUow_q_C80UFSdhk",  # TARIFA_MALLAS_ALAMBRES (Mi unidad de Andrés; la primera, 18_j0…, en la papelera)
         "pestanas": None,
         "redondeo": "por metro o kilo al alza a 0,05 €; el rollo, al euro (con IVA)",
+        # Copias leídas antes de esto son de la primera hoja (sin precio por metro ni medidas): se vuelve a leer
+        "desde": datetime(2026, 11, 13, 11, 50),
         # Para todos desde el 13/11/2026 (Andrés)
     },
 }
