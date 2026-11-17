@@ -82,11 +82,12 @@ def extract_text_and_tables(file_path: str) -> dict:
     return result
 
 
-def pdf_to_images(file_path: str, dpi: int = 200) -> list:
-    """Convert PDF pages to PIL images for OCR fallback."""
+def pdf_to_images(file_path: str, dpi: int = 200, max_paginas: int | None = None) -> list:
+    """Páginas del PDF como imágenes. `max_paginas`: solo las primeras (una factura de 30 páginas a 200 ppp
+    ocupa cientos de MB en memoria)."""
     try:
         from pdf2image import convert_from_path
-        images = convert_from_path(file_path, dpi=dpi)
+        images = convert_from_path(file_path, dpi=dpi, last_page=max_paginas) if max_paginas else convert_from_path(file_path, dpi=dpi)
         return images
     except Exception as e:
         logger.error(f"Error converting PDF to images: {e}")

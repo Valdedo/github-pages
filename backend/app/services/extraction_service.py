@@ -556,7 +556,8 @@ async def extract_document(
 
     raw_data = await asyncio.to_thread(pdf_service.extract_text_and_tables, file_path)
     texto = raw_data.get("full_text", "") or ""
-    images = await asyncio.to_thread(pdf_service.pdf_to_images, file_path)
+    n_paginas = len(raw_data.get("pages") or [])
+    images = await asyncio.to_thread(pdf_service.pdf_to_images, file_path, 200, MAX_PAGINAS_IMAGEN)
 
     supplier_detected = None
     if suppliers:
@@ -571,8 +572,8 @@ async def extract_document(
     plantilla = _plantilla(supplier_detected)
 
     if images:
-        if len(images) > MAX_PAGINAS_IMAGEN:
-            texto = (f"(El documento tiene {len(images)} páginas; como imagen solo van las {MAX_PAGINAS_IMAGEN} primeras. "
+        if n_paginas > MAX_PAGINAS_IMAGEN:
+            texto = (f"(El documento tiene {n_paginas} páginas; como imagen solo van las {MAX_PAGINAS_IMAGEN} primeras. "
                      "Las demás léelas de este texto.)\n" + texto)
         out = await _leer_imagenes(images[:MAX_PAGINAS_IMAGEN], plantilla, texto)
         return {**out, "supplier_detected": supplier_detected, "raw_text": texto, "raw_tables": raw_data.get("tables", [])}
