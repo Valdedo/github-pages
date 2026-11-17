@@ -408,6 +408,23 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
 # 8 mm a cada lado; 6 × 42,3 = 253,8 mm → 21,6 mm arriba y abajo.
 BALDA = {"ancho": 97.0, "alto": 42.3, "cols": 2, "filas": 6, "izq": 8.0, "arriba": 21.6}
 BALDA_POR_HOJA = BALDA["cols"] * BALDA["filas"]
+# Logotipo de la marca (con «Materiales de construcción») arriba de cada etiqueta (Andrés, 17/11/2026)
+_LOGO_BALDA = __import__("pathlib").Path(__file__).resolve().parent.parent / "assets" / "logo-horizontal.png"
+_logo_balda_cache: dict = {}
+
+
+def _logo_balda():
+    """(imagen, ancho/alto) del logotipo, o None si falta el archivo."""
+    if "img" not in _logo_balda_cache:
+        try:
+            from reportlab.lib.utils import ImageReader
+            img = ImageReader(str(_LOGO_BALDA))
+            w, h = img.getSize()
+            _logo_balda_cache["img"] = (img, w / h)
+        except Exception as e:
+            logger.warning("Etiquetas de balda sin logotipo: %s", e)
+            _logo_balda_cache["img"] = None
+    return _logo_balda_cache["img"]
 
 
 def _eur(v: float) -> str:
@@ -453,7 +470,8 @@ def _barras(codigo: str, ancho_max: float, alto: float):
 
 
 def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None:
-    """Una etiqueta de balda: nombre arriba, precio grande a la derecha, código de barras a la izquierda."""
+    """Una etiqueta de balda: logotipo y raya verde arriba, nombre, precio grande a la derecha y código de
+    barras a la izquierda. Todo queda a 4,5 mm del borde: si la impresora se va un poco, nada se sale."""
     from reportlab.lib import colors
     from reportlab.graphics import renderPDF
 
@@ -463,7 +481,7 @@ def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None
     # Nombre: hasta dos renglones, la letra más grande que quepa
     desc = " ".join(str(it.get("descripcion") or "").split())
     lineas, tam = [desc], 8.0
-    for tam in (13, 12, 11, 10, 9, 8):
+    for tam in (11.5, 11, 10, 9, 8):
         lineas = _wrap_words(desc, "Helvetica-Bold", tam, w - 2 * pad)
         if len(lineas) <= 2:
             break
@@ -472,9 +490,20 @@ def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None
         while lineas[1] and c.stringWidth(lineas[1] + "…", "Helvetica-Bold", tam) > w - 2 * pad:
             lineas[1] = lineas[1][:-1]
         lineas[1] = lineas[1].rstrip() + "…"
+    # Marca: logotipo arriba a la izquierda y una raya verde hasta el otro lado
+    arriba = y + h - pad
+    logo = _logo_balda()
+    if logo:
+        alto_logo = mm_to_points(5.6)
+        ancho_logo = alto_logo * logo[1]
+        c.drawImage(logo[0], x + pad, arriba - alto_logo, ancho_logo, alto_logo, mask="auto")
+        c.setStrokeColor(colors.HexColor("#2FAE66"))
+        c.setLineWidth(1.1)
+        c.line(x + pad + ancho_logo + 7, arriba - alto_logo / 2, x + w - pad, arriba - alto_logo / 2)
+        arriba -= alto_logo + 5
     c.setFillColor(colors.black)
     c.setFont("Helvetica-Bold", tam)
-    ty = y + h - pad - tam * 0.78
+    ty = arriba - tam * 0.78
     for ln in lineas:
         c.drawString(x + pad, ty, ln)
         ty -= tam * 1.16
@@ -482,7 +511,7 @@ def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None
     # Precio: a la derecha, lo que más se ve
     precio = _eur(float(it.get("pvp_con_iva") or 0))
     zona = w * 0.50
-    ptam = 34.0
+    ptam = 31.0
     while ptam > 16 and c.stringWidth(precio, "Helvetica-Bold", ptam) > zona:
         ptam -= 1
     base = y + pad + 13
