@@ -408,8 +408,8 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
 # 8 mm a cada lado; 6 × 42,3 = 253,8 mm → 21,6 mm arriba y abajo.
 BALDA = {"ancho": 97.0, "alto": 42.3, "cols": 2, "filas": 6, "izq": 8.0, "arriba": 21.6}
 BALDA_POR_HOJA = BALDA["cols"] * BALDA["filas"]
-# Logotipo de la marca (con «Materiales de construcción») arriba de cada etiqueta (Andrés, 17/11/2026)
-_LOGO_BALDA = __import__("pathlib").Path(__file__).resolve().parent.parent / "assets" / "logo-horizontal.png"
+# El tejado verde del logotipo, pequeño, en cada etiqueta (Andrés, 17/11/2026: «solo el triángulo, integrado»)
+_LOGO_BALDA = __import__("pathlib").Path(__file__).resolve().parent.parent / "assets" / "logo-tejado.png"
 _logo_balda_cache: dict = {}
 
 
@@ -469,8 +469,8 @@ def _barras(codigo: str, ancho_max: float, alto: float):
         return None
 
 
-def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None:
-    """Una etiqueta de balda: logotipo y raya verde arriba, nombre, precio grande a la derecha y código de
+def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float, marca: str = "esquina") -> None:
+    """Una etiqueta de balda: logotipo arriba, nombre, precio grande a la derecha y código de
     barras a la izquierda. Todo queda a 4,5 mm del borde: si la impresora se va un poco, nada se sale."""
     from reportlab.lib import colors
     from reportlab.graphics import renderPDF
@@ -478,40 +478,42 @@ def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None
     pad = mm_to_points(4.5)
     gris = colors.HexColor("#555B54")
 
+    # Marca: el tejado del logotipo. «esquina» = arriba a la derecha; «titulo» = delante del nombre
+    arriba = y + h - pad
+    logo = _logo_balda()
+    ancho_txt, x_txt = w - 2 * pad, x + pad
+    if logo:
+        alto_logo = mm_to_points(6.2 if marca == "esquina" else 4.2)
+        ancho_logo = alto_logo * logo[1]
+        if marca == "esquina":
+            c.drawImage(logo[0], x + w - pad - ancho_logo, arriba - alto_logo, ancho_logo, alto_logo, mask="auto")
+        else:
+            c.drawImage(logo[0], x + pad, arriba - alto_logo + 0.5, ancho_logo, alto_logo, mask="auto")
+            x_txt += ancho_logo + 5
+        ancho_txt -= ancho_logo + 6
     # Nombre: hasta dos renglones, la letra más grande que quepa
     desc = " ".join(str(it.get("descripcion") or "").split())
     lineas, tam = [desc], 8.0
-    for tam in (11.5, 11, 10, 9, 8):
-        lineas = _wrap_words(desc, "Helvetica-Bold", tam, w - 2 * pad)
+    for tam in (13, 12, 11, 10, 9, 8):
+        lineas = _wrap_words(desc, "Helvetica-Bold", tam, ancho_txt)
         if len(lineas) <= 2:
             break
     if len(lineas) > 2:
         lineas = lineas[:2]
-        while lineas[1] and c.stringWidth(lineas[1] + "…", "Helvetica-Bold", tam) > w - 2 * pad:
+        while lineas[1] and c.stringWidth(lineas[1] + "…", "Helvetica-Bold", tam) > ancho_txt:
             lineas[1] = lineas[1][:-1]
         lineas[1] = lineas[1].rstrip() + "…"
-    # Marca: logotipo arriba a la izquierda y una raya verde hasta el otro lado
-    arriba = y + h - pad
-    logo = _logo_balda()
-    if logo:
-        alto_logo = mm_to_points(5.6)
-        ancho_logo = alto_logo * logo[1]
-        c.drawImage(logo[0], x + pad, arriba - alto_logo, ancho_logo, alto_logo, mask="auto")
-        c.setStrokeColor(colors.HexColor("#2FAE66"))
-        c.setLineWidth(1.1)
-        c.line(x + pad + ancho_logo + 7, arriba - alto_logo / 2, x + w - pad, arriba - alto_logo / 2)
-        arriba -= alto_logo + 5
     c.setFillColor(colors.black)
     c.setFont("Helvetica-Bold", tam)
     ty = arriba - tam * 0.78
     for ln in lineas:
-        c.drawString(x + pad, ty, ln)
+        c.drawString(x_txt, ty, ln)
         ty -= tam * 1.16
 
     # Precio: a la derecha, lo que más se ve
     precio = _eur(float(it.get("pvp_con_iva") or 0))
     zona = w * 0.50
-    ptam = 31.0
+    ptam = 34.0
     while ptam > 16 and c.stringWidth(precio, "Helvetica-Bold", ptam) > zona:
         ptam -= 1
     base = y + pad + 13
@@ -552,7 +554,7 @@ def _balda_pos(i: int, dx: float, dy: float) -> tuple:
 
 
 def generate_shelf_labels_pdf(items: list, inicio: int = 1, dx: float = 0.0, dy: float = 0.0,
-                              marco: bool = False) -> bytes:
+                              marco: bool = False, marca: str = "esquina") -> bytes:
     """PDF A4 con las etiquetas de balda. `inicio` (1–12): por qué pegatina empezar, para aprovechar un
     folio a medio usar. dx/dy: ajuste de la impresora en mm. `marco`: dibuja el borde de cada pegatina."""
     from reportlab.pdfgen import canvas
@@ -572,7 +574,7 @@ def generate_shelf_labels_pdf(items: list, inicio: int = 1, dx: float = 0.0, dy:
             c.setStrokeColor(colors.HexColor("#BBBBBB"))
             c.setLineWidth(0.4)
             c.rect(x, y, w, h)
-        _etiqueta_balda(c, it, x, y, w, h)
+        _etiqueta_balda(c, it, x, y, w, h, marca)
         pos = (pos + 1) % BALDA_POR_HOJA
     if not items:
         c.setFont("Helvetica", 12)

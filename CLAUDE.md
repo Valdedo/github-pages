@@ -574,7 +574,7 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   también» para el mismo producto en dos líneas (`recienGuardado`, `ponerCodigo` en `RecibirPage`).
 - **Etiquetas de balda** (`label_service.generate_shelf_labels_pdf`, `GET /api/compras/etiquetas?ids=&inicio=`): folios Printation
   1367564 de 12 pegatinas de **97 × 42,3 mm** (2 × 6, sin separación; 8 mm a los lados y 21,6 mm arriba y abajo; medida de la caja,
-  márgenes calculados, no medidos sobre el folio). Logotipo con raya verde arriba (`assets/logo-horizontal.png`, Andrés: «que ponga lo de Casa Fonso»), nombre, precio grande, código de barras vectorial (EAN o Code128 del
+  márgenes calculados, no medidos sobre el folio). El tejado verde del logotipo arriba a la derecha (`assets/logo-tejado.png`; opción A elegida por Andrés el 17/11/2026 frente al logotipo entero y al tejado delante del nombre, que sigue en el código como `marca="titulo"`), nombre, precio grande, código de barras vectorial (EAN o Code128 del
   código), pie con Ref., coste en clave y mes. `inicio` = primera pegatina libre (se recuerda en `cfEtiquetaSiguiente`). Hoja de
   prueba `GET /api/compras/etiquetas/prueba` y ajuste en mm (`app_settings.etq_dx/etq_dy`, `PUT /api/compras/ajuste-etiquetas`,
   solo Andrés). Por defecto salen marcados para etiqueta los nuevos y los que cambian de PVP. La pantalla «Etiquetas» antigua
