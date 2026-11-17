@@ -138,6 +138,11 @@
 .esc-error { background: rgb(0 0 0 / .55); line-height: 1.45; }
 .esc-aviso { position: absolute; left: 10px; right: 10px; bottom: 10px; padding: 10px 12px; border-radius: var(--r); background: var(--success); color: #fff; font-weight: 600; font-size: 14.5px; text-align: center; }
 .esc-aviso.mal { background: var(--danger); }
+.esc-aviso-btn { display: block; width: 100%; margin-top: 8px; padding: 9px 10px; border: 0; border-radius: var(--r-sm); background: #fff; color: var(--text-1); font: 700 14px var(--font); cursor: pointer; }
+/* Al cambiar de artículo, el nombre parpadea en verde para que se note que ya es otro */
+.esc-titulo { border-radius: 6px; animation: esc-cambio 1.4s var(--ease-out); }
+@keyframes esc-cambio { 0%, 35% { background: var(--brand-light); box-shadow: 0 0 0 6px var(--brand-light); } 100% { background: transparent; box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) { .esc-titulo { animation: none; } }
 .esc-mano { display: flex; align-items: center; gap: 8px; color: var(--text-3); }
 .esc-mano input { flex: 1; min-width: 0; padding: 10px 12px; border: 1.5px solid var(--border-strong); border-radius: var(--r-sm); font: 500 16px var(--font); }
 .esc-pie { display: flex; gap: 8px; flex-wrap: wrap; }

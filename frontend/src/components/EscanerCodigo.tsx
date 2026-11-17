@@ -7,7 +7,7 @@ interface Props {
   titulo: string;
   sub?: string;
   /** Mensaje del último código leído («Guardado», «Ese código ya es de…»). */
-  aviso?: { texto: string; mal?: boolean } | null;
+  aviso?: { texto: string; mal?: boolean; accion?: { texto: string; alPulsar: () => void } } | null;
   onCodigo: (codigo: string) => void;
   onSaltar?: () => void;
   onCerrar: () => void;
@@ -31,8 +31,11 @@ export function EscanerCodigo({ titulo, sub, aviso, onCodigo, onSaltar, onCerrar
   const leido = (codigo: string) => {
     const c = codigo.trim();
     const ahora = Date.now();
-    // la cámara lee el mismo código muchas veces seguidas: una sola cuenta
-    if (!c || (c === ultimo.current.codigo && ahora - ultimo.current.t < 2500)) return;
+    if (!c) return;
+    // La cámara lee el mismo código muchas veces seguidas: cuenta una sola vez mientras lo siga viendo.
+    // Solo vuelve a contar si deja de verlo 2,5 s (17/11/2026: tras guardar un código pasaba al artículo
+    // siguiente, seguía viendo el mismo y avisaba «ese código ya lo tiene…» sin que nadie hubiera hecho nada).
+    if (c === ultimo.current.codigo && ahora - ultimo.current.t < 2500) { ultimo.current.t = ahora; return; }
     ultimo.current = { codigo: c, t: ahora };
     if (navigator.vibrate) navigator.vibrate(60);
     alLeer.current(c);
@@ -97,7 +100,7 @@ export function EscanerCodigo({ titulo, sub, aviso, onCodigo, onSaltar, onCerrar
         <div className="esc-cab">
           <div className="esc-cab-txt">
             <span className="esc-cab-sup">Apunta al código de barras de</span>
-            <b>{titulo}</b>
+            <b key={titulo} className="esc-titulo">{titulo}</b>
             {sub && <span className="esc-cab-sub">{sub}</span>}
           </div>
           <button className="esc-cerrar" onClick={onCerrar} aria-label="Cerrar"><X size={22} /></button>
@@ -108,7 +111,12 @@ export function EscanerCodigo({ titulo, sub, aviso, onCodigo, onSaltar, onCerrar
           {encendida && <span className="esc-linea" aria-hidden="true" />}
           {!encendida && !error && <span className="esc-espera"><span className="spinner" /> Abriendo la cámara…</span>}
           {error && <span className="esc-espera esc-error">{error}</span>}
-          {aviso && <span className={`esc-aviso${aviso.mal ? ' mal' : ''}`} role="status">{aviso.texto}</span>}
+          {aviso && (
+            <span className={`esc-aviso${aviso.mal ? ' mal' : ''}`} role="status">
+              {aviso.texto}
+              {aviso.accion && <button type="button" className="esc-aviso-btn" onClick={aviso.accion.alPulsar}>{aviso.accion.texto}</button>}
+            </span>
+          )}
         </div>
 
         <form className="esc-mano" onSubmit={e => { e.preventDefault(); if (aMano.trim()) { leido(aMano); setAMano(''); } }}>

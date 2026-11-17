@@ -49,7 +49,8 @@ export function RecibirPage() {
   const [pvp, setPvp] = useState<{ id: number; valor: string } | null>(null);
   const [guardando, setGuardando] = useState<number | null>(null);
   const [escId, setEscId] = useState<number | null>(null);
-  const [avisoEsc, setAvisoEsc] = useState<{ texto: string; mal?: boolean } | null>(null);
+  const [avisoEsc, setAvisoEsc] = useState<{ texto: string; mal?: boolean; accion?: { texto: string; alPulsar: () => void } } | null>(null);
+  const recienGuardado = useRef<{ codigo: string; en: string } | null>(null);
   const [verOriginal, setVerOriginal] = useState(false);
   const [hoja, setHoja] = useState<'etiquetas' | 'datos' | null>(null);
   const [borrar, setBorrar] = useState(false);
@@ -132,6 +133,16 @@ export function RecibirPage() {
     const resto = [...articulos.slice(i + 1), ...articulos.slice(0, Math.max(i, 0))];
     return resto.find(a => !eanValido(a.ean) && a.id !== desde)?.id ?? null;
   };
+  const corto = (t: string) => (t.length > 38 ? `${t.slice(0, 36).trimEnd()}…` : t);
+  /** Pone el código al artículo que toca y pasa al siguiente sin código. */
+  const ponerCodigo = async (art: Article, limpio: string) => {
+    if (!(await guardar(art, { ean: limpio }))) return;
+    recienGuardado.current = { codigo: limpio, en: art.descripcion };
+    const sig = siguienteSinCodigo(art.id);
+    if (sig == null) { setEscId(null); setAvisoEsc(null); show('Todos los artículos tienen ya su código de barras'); return; }
+    setAvisoEsc({ texto: `Guardado en «${corto(art.descripcion)}». Ahora toca el siguiente: su nombre está arriba.` });
+    setEscId(sig);
+  };
   const codigoLeido = async (codigo: string) => {
     const art = articulos.find(a => a.id === escId);
     if (!art) return;
@@ -141,12 +152,19 @@ export function RecibirPage() {
       return;
     }
     const otro = articulos.find(a => a.id !== art.id && (a.ean || '').replace(/\D/g, '') === limpio);
-    if (otro) { setAvisoEsc({ texto: `Ese código ya lo tiene «${otro.descripcion.slice(0, 40)}»`, mal: true }); return; }
-    if (await guardar(art, { ean: limpio })) {
-      const sig = siguienteSinCodigo(art.id);
-      setAvisoEsc({ texto: `Guardado · ${art.descripcion.slice(0, 34)}` });
-      if (sig == null) { setEscId(null); setAvisoEsc(null); show('Todos los artículos tienen ya su código de barras'); } else setEscId(sig);
+    if (otro) {
+      // Sigue delante el producto que se acaba de guardar: no es un fallo, falta apuntar al siguiente
+      const elDeAntes = recienGuardado.current?.codigo === limpio;
+      setAvisoEsc({
+        texto: elDeAntes
+          ? `Ese es el que acabas de guardar («${corto(otro.descripcion)}»). Ahora toca el producto que pone arriba.`
+          : `Ese código ya está puesto en otra línea de este albarán: «${corto(otro.descripcion)}».`,
+        mal: !elDeAntes,
+        accion: { texto: 'Es el mismo producto: ponérselo también', alPulsar: () => { ponerCodigo(art, limpio); } },
+      });
+      return;
     }
+    await ponerCodigo(art, limpio);
   };
 
   if (noExiste) return (
@@ -284,7 +302,7 @@ export function RecibirPage() {
                   <div className="rc-pie">
                     {tieneCodigo
                       ? <span className="rc-codigo"><ScanBarcode size={16} /> {a.ean}</span>
-                      : <button className="btn btn-ghost btn-sm" onClick={() => { setAvisoEsc(null); setEscId(a.id); }}><ScanBarcode size={16} /> Leer código de barras</button>}
+                      : <button className="btn btn-ghost btn-sm" onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(a.id); }}><ScanBarcode size={16} /> Leer código de barras</button>}
                     {(a.codigo_proveedor || a.codigo_fabricante) && <span className="rc-ref">Ref. {a.codigo_proveedor || a.codigo_fabricante}</span>}
                     {l.compras > 0 && (
                       <button className="rc-enlace rc-hist-btn" aria-expanded={historial.has(a.id)} onClick={() => setHistorial(s => { const n = new Set(s); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n; })}>
@@ -327,7 +345,7 @@ export function RecibirPage() {
           )}
 
           <div className="rc-barra">
-            <button className="btn btn-ghost" disabled={sinCodigo.length === 0} onClick={() => { setAvisoEsc(null); setEscId(sinCodigo[0].id); }}>
+            <button className="btn btn-ghost" disabled={sinCodigo.length === 0} onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(sinCodigo[0].id); }}>
               <ScanBarcode size={19} /> {sinCodigo.length ? <><span className="rc-largo">Leer códigos</span><span className="rc-corto">Códigos</span> <span className="rc-n">{sinCodigo.length}</span></> : 'Códigos al día'}
             </button>
             <button className="btn btn-primary" disabled={paraEtiqueta.length === 0} onClick={() => setHoja('etiquetas')}>

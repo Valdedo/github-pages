@@ -567,7 +567,11 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   `aplicar_pvp_fijo` en `recalc_article`. `PUT /api/articles/{id}` con `pvp_fijo: null` vuelve al calculado; cambiar el margen lo quita.
 - **Código de barras con la cámara** (`components/EscanerCodigo.tsx`, zxing, cámara trasera por `facingMode`): se queda abierto y
   va pasando por los artículos sin código; solo acepta EAN/UPC con su dígito de control y avisa si ya lo tiene otro artículo. En el
-  ordenador, el cuadro de abajo (lector de mano o tecleado). **Sin probar con una cámara real** (en local no hay).
+  ordenador, el cuadro de abajo (lector de mano o tecleado). Andrés lo probó con el móvil el 17/11/2026: la cámara lee bien, pero
+  tras guardar pasaba al artículo siguiente, seguía viendo el mismo código y avisaba «ese código ya lo tiene…». Arreglado: un código
+  cuenta una sola vez mientras la cámara lo siga viendo (vuelve a contar si deja de verlo 2,5 s); si es el recién guardado, aviso
+  verde «ese es el que acabas de guardar»; el nombre parpadea al cambiar de artículo; y botón «Es el mismo producto: ponérselo
+  también» para el mismo producto en dos líneas (`recienGuardado`, `ponerCodigo` en `RecibirPage`).
 - **Etiquetas de balda** (`label_service.generate_shelf_labels_pdf`, `GET /api/compras/etiquetas?ids=&inicio=`): folios Printation
   1367564 de 12 pegatinas de **97 × 42,3 mm** (2 × 6, sin separación; 8 mm a los lados y 21,6 mm arriba y abajo; medida de la caja,
   márgenes calculados, no medidos sobre el folio). Nombre arriba, precio grande, código de barras vectorial (EAN o Code128 del
