@@ -25,6 +25,7 @@ import { arrancarColaCargas } from './lib/offlineCargas';
 import { getRol } from './auth';
 import { esTableta } from './lib/dispositivo';
 import { getDashboardStats, getFirmasStats, getCorreo } from './api/client';
+import { comprasNueva } from './lib/comprasNueva';
 import './pages/consulta.css';
 
 /** Carga por partes: cada apartado se descarga al abrirlo. Si tras una actualización
@@ -45,6 +46,7 @@ function porPartes<T extends Record<string, unknown>, K extends keyof T>(cargar:
 }
 const HomePage = porPartes(() => import('./pages/HomePage'), 'HomePage');
 const DocumentPage = porPartes(() => import('./pages/DocumentPage'), 'DocumentPage');
+const RecibirPage = porPartes(() => import('./pages/RecibirPage'), 'RecibirPage');
 const AnalyticsPage = porPartes(() => import('./pages/AnalyticsPage'), 'AnalyticsPage');
 const RepairsPage = porPartes(() => import('./pages/RepairsPage'), 'RepairsPage');
 const RepairDetailPage = porPartes(() => import('./pages/RepairDetailPage'), 'RepairDetailPage');
@@ -513,7 +515,9 @@ function FullShell() {
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/albaranes" element={<HomePage />} />
-              <Route path="/documento/:id" element={<DocumentPage />} />
+              {/* «Recibir mercancía» (en pruebas, solo Andrés): la tabla de siempre queda en /tabla */}
+              <Route path="/documento/:id" element={comprasNueva() ? <RecibirPage /> : <DocumentPage />} />
+              <Route path="/documento/:id/tabla" element={<DocumentPage />} />
               <Route path="/analisis" element={<AnalyticsPage />} />
               <Route path="/venta" element={<Navigate to="/consulta" replace />} />
               <Route path="/reparaciones" element={<RepairsPage />} />

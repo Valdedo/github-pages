@@ -27,6 +27,7 @@ from app.schemas.document import (
 )
 
 from app.services.extraction_service import mensaje_para_persona  # noqa: E402
+from app.services import compras_service, extraction_service  # noqa: E402
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -333,7 +334,15 @@ def update_document(
     if not doc:
         raise HTTPException(404, "Document not found")
 
-    for field, value in update.model_dump(exclude_unset=True).items():
+    datos = update.model_dump(exclude_unset=True)
+    nuevo = (datos.get("supplier_name") or "").strip()
+    if nuevo and nuevo != (doc.supplier_name or ""):
+        if compras_service.es_propio(nuevo):
+            raise HTTPException(422, "Casa Fonso es quien compra. Pon el nombre del proveedor que manda el albarán.")
+        # La próxima vez que la lectura saque el mismo nombre, se guarda ya con el corregido
+        compras_service.aprender(db, doc.supplier_leido or doc.supplier_name, nuevo)
+        datos["supplier_name"] = nuevo
+    for field, value in datos.items():
         setattr(doc, field, value)
     db.commit()
     db.refresh(doc)
@@ -416,6 +425,17 @@ def get_document_file(doc_id: int, db: Session = Depends(get_db)):
     )
 
 
+def _heredar(db: Session, doc: Document) -> None:
+    """Código de barras ya escaneado y precio de venta puesto a mano, de la compra anterior (nunca rompe la lectura)."""
+    try:
+        db.flush()
+        ajustes = db.query(AppSettings).filter(AppSettings.id == 1).first()
+        if ajustes:
+            compras_service.heredar(db, doc, ajustes)
+    except Exception as e:
+        logger.warning("No se pudo heredar de la compra anterior en el albarán %s: %s", doc.id, e)
+
+
 def _apply_validation(doc: Document, result: dict) -> None:
     """Store extracted totals and validation result on the Document object (does NOT commit)."""
     totales = result.get("totales_documento") or {}
@@ -492,6 +512,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
         doc.status = "processing"
         db.commit()
 
+        extraction_service.poner_conocidos(compras_service.conocidos(db))
         suppliers = db.query(Supplier).all()
         for s in suppliers:
             try:
@@ -549,7 +570,10 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             return
 
         documento = result.get("documento", {})
-        doc.supplier_name = documento.get("proveedor") or supplier_name_fallback
+        # Proveedor: nunca Casa Fonso (es el cliente), siempre escrito igual y con lo que la tienda corrigió otras veces
+        doc.supplier_leido = (str(documento.get("proveedor") or "").strip() or None)
+        doc.supplier_name = compras_service.resolver_proveedor(
+            db, doc.supplier_leido, (result.get("supplier_detected") or {}).get("name"), supplier_name_fallback)
         doc.doc_number = documento.get("num_albaran")
         _raw_ppp = documento.get("pronto_pago_pct")
         try:
@@ -584,6 +608,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
             db.add(_build_article(art_data, doc_id, tiers, rounding_mode, rounding_decimals, doc.pronto_pago_pct))
 
         _apply_validation(doc, result)
+        _heredar(db, doc)
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, file_paths)
@@ -630,6 +655,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
         doc.status = "processing"
         db.commit()
 
+        extraction_service.poner_conocidos(compras_service.conocidos(db))
         suppliers = db.query(Supplier).all()
         for s in suppliers:
             try:
@@ -690,7 +716,10 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
 
         # Update document metadata
         documento = result.get("documento", {})
-        doc.supplier_name = documento.get("proveedor") or supplier_name_fallback
+        # Proveedor: nunca Casa Fonso (es el cliente), siempre escrito igual y con lo que la tienda corrigió otras veces
+        doc.supplier_leido = (str(documento.get("proveedor") or "").strip() or None)
+        doc.supplier_name = compras_service.resolver_proveedor(
+            db, doc.supplier_leido, (result.get("supplier_detected") or {}).get("name"), supplier_name_fallback)
         doc.doc_number = documento.get("num_albaran")
         _raw_ppp = documento.get("pronto_pago_pct")
         try:
@@ -730,6 +759,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
         # Validation: store totals and check if they match
         _apply_validation(doc, result)
 
+        _heredar(db, doc)
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, None)

@@ -539,6 +539,46 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   las tarifas en cuadrícula ponía el título letra a letra). En títulos dentro de una fila flex, `overflow-wrap: break-word`, nunca
   `anywhere` (con `anywhere` el título se deja estrechar hasta una letra), y que los botones puedan bajar a otra fila.
 
+## Recibir mercancía · albaranes de compra nuevos (17/11/2026, «En pruebas», solo Andrés)
+Andrés: «no lo usamos; quiero usarlo siempre que llegue mercancía». `lib/comprasNueva.ts`: `COMPRAS_NUEVA_PARA_TODOS = false`
+→ `true` cuando lo apruebe. Con la marca, `/documento/:id` es `pages/RecibirPage.tsx` (estilos `pages/recibir.css`, clases `rc-*`
+y `esc-*`); la tabla de siempre (`DocumentPage`) queda en `/documento/:id/tabla` («Más opciones → Tabla completa») y es lo que
+sigue viendo el resto. Decisiones de Andrés: etiqueta **para la balda**; fuera el aviso al cliente y «falta/roto»; Excel, listín
+y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **mantener el que ya hay en la tienda**.
+- **Lectura (esto sí cambia para todos al publicar)**: la IA ve SIEMPRE la página como imagen (`extraction_service.extract_document`
+  → `_leer_imagenes`; el texto del PDF va solo de apoyo). Motivo, visto en la carpeta ALBARANES de Drive: los PDF del escáner de la
+  oficina (`CCF_*.pdf`) traen un texto reconocido por el escáner con cifras cambiadas («,34» por «8,34», EAN mal, columnas
+  mezcladas) y `is_scanned_pdf` los daba por PDF de texto, así que la IA no miraba la hoja; y el proveedor a veces solo sale en el
+  logotipo (Genebre se guardó como «FERNANDEZ FERNANDEZ, MANUEL - CASA FONSO»). El prompt dice quién es el cliente (nunca
+  proveedor), lleva la lista de proveedores conocidos (`poner_conocidos`), precio por 100/1000, cantidad servida, tasas y portes
+  fuera de los artículos. **El cuadre se hace en código** (`cuadre`: suma de líneas frente a la base impresa; antes se le
+  preguntaba a la IA) y, si no cuadra, se relee una vez diciéndole la diferencia y se queda la lectura que mejor cuadre.
+  Sin probar con la IA de verdad (en local no hay clave): solo con respuestas simuladas (`tests/test_compras.py`).
+- **Proveedor** (`services/compras_service.py`): `es_propio` (Casa Fonso / Manuel Fernández Fernández / su NIF), `conocidos`,
+  `mismo` («CAMINOVAL, S.L.» = «EFECTOS INDUS. CAMINOVAL S.L.»: abreviaturas y palabras genéricas), `resolver_proveedor`.
+  `documents.supplier_leido` guarda lo que leyó la IA; si la tienda cambia el proveedor, `aprender` lo apunta en la tabla
+  `proveedor_alias` y la siguiente lectura sale ya corregida. `PUT /api/documents/{id}` no deja poner Casa Fonso de proveedor.
+- **Compra anterior** (`compras_service.recepcion`, `GET /api/compras/{doc_id}`): cada artículo se empareja por EAN (de cualquier
+  proveedor), por código dentro del mismo proveedor (en cualquiera de sus formas de escribirlo) o, si no trae código, por
+  descripción idéntica; solo con compras de fecha anterior. Estados `nuevo / igual (<0,5 %) / sube / baja`, PVP que tenía,
+  historial (6). `heredar` (al terminar de leer): copia el EAN ya escaneado y, si el coste es igual, el PVP puesto a mano.
+  El aviso viejo `catalog.price-alerts` sigue en la tabla de siempre.
+- **PVP a mano**: `articles.pvp_fijo` (con IVA). Manda sobre margen y redondeo (4,32 € se queda en 4,32 €, antes subía a 4,35);
+  `aplicar_pvp_fijo` en `recalc_article`. `PUT /api/articles/{id}` con `pvp_fijo: null` vuelve al calculado; cambiar el margen lo quita.
+- **Código de barras con la cámara** (`components/EscanerCodigo.tsx`, zxing, cámara trasera por `facingMode`): se queda abierto y
+  va pasando por los artículos sin código; solo acepta EAN/UPC con su dígito de control y avisa si ya lo tiene otro artículo. En el
+  ordenador, el cuadro de abajo (lector de mano o tecleado). **Sin probar con una cámara real** (en local no hay).
+- **Etiquetas de balda** (`label_service.generate_shelf_labels_pdf`, `GET /api/compras/etiquetas?ids=&inicio=`): folios Printation
+  1367564 de 12 pegatinas de **97 × 42,3 mm** (2 × 6, sin separación; 8 mm a los lados y 21,6 mm arriba y abajo; medida de la caja,
+  márgenes calculados, no medidos sobre el folio). Nombre arriba, precio grande, código de barras vectorial (EAN o Code128 del
+  código), pie con Ref., coste en clave y mes. `inicio` = primera pegatina libre (se recuerda en `cfEtiquetaSiguiente`). Hoja de
+  prueba `GET /api/compras/etiquetas/prueba` y ajuste en mm (`app_settings.etq_dx/etq_dy`, `PUT /api/compras/ajuste-etiquetas`,
+  solo Andrés). Por defecto salen marcados para etiqueta los nuevos y los que cambian de PVP. La pantalla «Etiquetas» antigua
+  (100 × 50) no se ha tocado.
+- Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
+  barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
+  subidas viejo cuando esto pase a todos.
+
 ## Pendiente (octubre 2026)
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).
 - Análisis: ordenar por importe gastado (falta `SUM` en `top-products`).

@@ -132,6 +132,11 @@ def _run_migrations():
         ("client_delivery_notes", "sin_firma", "VARCHAR(200)"),
         # Pedidos y reparaciones nuevos (nov. 2026): a qué taller va la máquina
         ("repairs", "taller",             "VARCHAR(120)"),
+        # Recibir mercancía (nov. 2026): proveedor tal como se leyó, PVP puesto a mano y ajuste de etiquetas
+        ("documents", "supplier_leido",   "VARCHAR(255)"),
+        ("articles", "pvp_fijo",          "REAL"),
+        ("app_settings", "etq_dx",        "REAL"),
+        ("app_settings", "etq_dy",        "REAL"),
     ]
     sa = __import__("sqlalchemy")
     with engine.connect() as conn:

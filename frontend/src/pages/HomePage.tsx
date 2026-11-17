@@ -8,6 +8,7 @@ import { useCfToast } from '../components/CfToast';
 import type { Document, DocumentListItem } from '../types';
 import { coincide, fechaES, ORDEN_ALBARANES } from '../lib/texto';
 import { disenoNuevo } from '../lib/diseno';
+import { comprasNueva } from '../lib/comprasNueva';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -101,11 +102,13 @@ export function HomePage() {
               : processing > 0
                 ? `${completed} leídos · ${processing} leyendo`
                 : `${documents.length} albaranes · ${completed} leídos`
-            }. Sube el albarán del proveedor y la app saca los artículos y precios.
+            }. {comprasNueva()
+              ? 'Hazle una foto al albarán cuando llegue la mercancía: te digo qué ha cambiado de precio y qué hay que etiquetar.'
+              : 'Sube el albarán del proveedor y la app saca los artículos y precios.'}
           </p>
         </div>
         <button className="btn btn-primary btn-lg" onClick={() => setShowUpload(true)}>
-          <Upload size={19} /> Subir albarán
+          <Upload size={19} /> {comprasNueva() ? 'Recibir mercancía' : 'Subir albarán'}
         </button>
       </div>
 

@@ -35,6 +35,8 @@ class Article(Base):
     margen_override: Mapped[bool] = mapped_column(Boolean, default=False)
     pvp_sin_iva: Mapped[float] = mapped_column(Float, default=0.0)
     pvp_con_iva: Mapped[float] = mapped_column(Float, default=0.0)
+    # Precio de venta con IVA puesto a mano («el que ya hay en la tienda»): manda sobre margen y redondeo
+    pvp_fijo: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Codes
     codigo_proveedor: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

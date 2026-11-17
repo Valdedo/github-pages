@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
-from sqlalchemy import Integer, String, Text, DateTime, func
+from typing import Optional
+from sqlalchemy import Integer, String, Text, Float, DateTime, func
 from sqlalchemy.orm import mapped_column, Mapped
 
 from app.database import Base
@@ -26,6 +27,9 @@ class AppSettings(Base):
     label_rows_per_page: Mapped[int] = mapped_column(Integer, default=5)
     base_url: Mapped[str] = mapped_column(String(512), default="http://localhost:3000")
     company_name: Mapped[str] = mapped_column(String(256), default="")
+    # Etiquetas de balda: lo que hay que mover la impresión (mm) para que caiga centrada en la pegatina
+    etq_dx: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    etq_dy: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

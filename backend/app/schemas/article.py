@@ -46,6 +46,8 @@ class ArticleUpdate(BaseModel):
     codigo_principal: Optional[str] = None
     otros_codigos: Optional[Any] = None
     familia: Optional[str] = None
+    # PVP con IVA puesto a mano; null lo quita y vuelve al calculado
+    pvp_fijo: Optional[float] = None
 
 
 class ArticleResponse(ArticleBase):
@@ -58,6 +60,7 @@ class ArticleResponse(ArticleBase):
     margen_override: bool
     pvp_sin_iva: float
     pvp_con_iva: float
+    pvp_fijo: Optional[float] = None
     product_info_id: Optional[int] = None
     familia: Optional[str] = None
     created_at: datetime.datetime

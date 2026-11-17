@@ -400,3 +400,187 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
         c.setFont("Helvetica", 7)
         c.setFillColor(colors.HexColor("#999999"))
         c.drawString(x + pad, calz_y, encode_calzetynus(coste))
+
+
+# ══ Etiquetas de balda (nov. 2026) ═════════════════════════════════════════════════════════════
+# Folio A4 de 12 pegatinas de 97 × 42,3 mm (2 columnas × 6 filas, pegadas entre sí): las que usa la
+# tienda (Printation 1367564, la misma plantilla que Avery 3659 / Herma 4669). 2 × 97 = 194 mm → quedan
+# 8 mm a cada lado; 6 × 42,3 = 253,8 mm → 21,6 mm arriba y abajo.
+BALDA = {"ancho": 97.0, "alto": 42.3, "cols": 2, "filas": 6, "izq": 8.0, "arriba": 21.6}
+BALDA_POR_HOJA = BALDA["cols"] * BALDA["filas"]
+
+
+def _eur(v: float) -> str:
+    entero, dec = f"{v:,.2f}".split(".")
+    return f"{entero.replace(',', '.')},{dec} €"
+
+
+def _ean_ok(s: str) -> bool:
+    if not s.isdigit() or len(s) not in (8, 13):
+        return False
+    suma = sum(int(d) * (3 if i % 2 == 0 else 1) for i, d in enumerate(reversed(s[:-1])))
+    return (10 - suma % 10) % 10 == int(s[-1])
+
+
+def _barras(codigo: str, ancho_max: float, alto: float):
+    """Dibujo vectorial del código de barras (sale nítido en cualquier impresora), o None si no cabe legible."""
+    from reportlab.graphics.barcode import createBarcodeDrawing
+    codigo = (codigo or "").strip()
+    if not codigo:
+        return None
+    try:
+        solo = "".join(ch for ch in codigo if ch.isdigit())
+        if solo == codigo.replace(" ", "") and _ean_ok(solo):
+            d = createBarcodeDrawing("EAN13" if len(solo) == 13 else "EAN8", value=solo, barHeight=alto,
+                                     humanReadable=True, fontSize=6.5)
+        else:
+            limpio = "".join(ch for ch in codigo if 32 <= ord(ch) <= 126)[:24]
+            if not limpio:
+                return None
+            # sin los números debajo: se montaban con las barras; el código va escrito en el pie
+            d = createBarcodeDrawing("Code128", value=limpio, barHeight=alto, barWidth=0.72,
+                                     humanReadable=False, quiet=False)
+        if d.width > ancho_max:
+            escala = ancho_max / d.width
+            if escala < 0.62:      # barras demasiado finas: no las leería el lector
+                return None
+            d.scale(escala, 1)
+            d.width *= escala
+        return d
+    except Exception as e:
+        logger.warning("No se pudo dibujar el código de barras «%s»: %s", codigo, e)
+        return None
+
+
+def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float) -> None:
+    """Una etiqueta de balda: nombre arriba, precio grande a la derecha, código de barras a la izquierda."""
+    from reportlab.lib import colors
+    from reportlab.graphics import renderPDF
+
+    pad = mm_to_points(4.5)
+    gris = colors.HexColor("#555B54")
+
+    # Nombre: hasta dos renglones, la letra más grande que quepa
+    desc = " ".join(str(it.get("descripcion") or "").split())
+    lineas, tam = [desc], 8.0
+    for tam in (13, 12, 11, 10, 9, 8):
+        lineas = _wrap_words(desc, "Helvetica-Bold", tam, w - 2 * pad)
+        if len(lineas) <= 2:
+            break
+    if len(lineas) > 2:
+        lineas = lineas[:2]
+        while lineas[1] and c.stringWidth(lineas[1] + "…", "Helvetica-Bold", tam) > w - 2 * pad:
+            lineas[1] = lineas[1][:-1]
+        lineas[1] = lineas[1].rstrip() + "…"
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", tam)
+    ty = y + h - pad - tam * 0.78
+    for ln in lineas:
+        c.drawString(x + pad, ty, ln)
+        ty -= tam * 1.16
+
+    # Precio: a la derecha, lo que más se ve
+    precio = _eur(float(it.get("pvp_con_iva") or 0))
+    zona = w * 0.50
+    ptam = 34.0
+    while ptam > 16 and c.stringWidth(precio, "Helvetica-Bold", ptam) > zona:
+        ptam -= 1
+    base = y + pad + 13
+    c.setFont("Helvetica-Bold", ptam)
+    c.drawRightString(x + w - pad, base, precio)
+    c.setFont("Helvetica", 6.5)
+    c.setFillColor(gris)
+    c.drawRightString(x + w - pad, y + pad + 4.5, "IVA incluido")
+
+    # Código de barras (el del producto; si no tiene, su código, para poder pasarlo por «Consultar precio»)
+    codigo = str(it.get("ean") or it.get("codigo") or "").strip()
+    d = _barras(codigo, w - zona - pad - mm_to_points(3), mm_to_points(8.5))
+    pie_y = y + pad - 1.5
+    if d is not None:
+        renderPDF.draw(d, c, x + pad - 2, pie_y + 8)
+    # Pie: referencia del proveedor, coste en clave y mes de la etiqueta
+    partes = []
+    if it.get("ref"):
+        partes.append(f"Ref. {str(it['ref'])[:18]}")
+    elif codigo and not it.get("ean"):
+        partes.append(codigo[:18])
+    if it.get("coste"):
+        partes.append(encode_calzetynus(float(it["coste"])))
+    if it.get("fecha"):
+        partes.append(str(it["fecha"]))
+    c.setFont("Helvetica", 5.5)
+    c.setFillColor(gris)
+    c.drawString(x + pad, pie_y, "  ·  ".join(partes))
+    c.setFillColor(colors.black)
+
+
+def _balda_pos(i: int, dx: float, dy: float) -> tuple:
+    """Esquina inferior izquierda (puntos) de la pegatina i (0–11) del folio. dx a la derecha, dy hacia abajo."""
+    col, fila = i % BALDA["cols"], i // BALDA["cols"]
+    x = BALDA["izq"] + col * BALDA["ancho"] + dx
+    y_arriba = BALDA["arriba"] + fila * BALDA["alto"] + dy
+    return mm_to_points(x), mm_to_points(A4_H_MM - y_arriba - BALDA["alto"])
+
+
+def generate_shelf_labels_pdf(items: list, inicio: int = 1, dx: float = 0.0, dy: float = 0.0,
+                              marco: bool = False) -> bytes:
+    """PDF A4 con las etiquetas de balda. `inicio` (1–12): por qué pegatina empezar, para aprovechar un
+    folio a medio usar. dx/dy: ajuste de la impresora en mm. `marco`: dibuja el borde de cada pegatina."""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle("Etiquetas de balda · Casa Fonso")
+    w, h = mm_to_points(BALDA["ancho"]), mm_to_points(BALDA["alto"])
+    pos = max(0, min(BALDA_POR_HOJA - 1, int(inicio or 1) - 1))
+    for n, it in enumerate(items):
+        if n and pos == 0:
+            c.showPage()
+        x, y = _balda_pos(pos, dx, dy)
+        if marco:
+            c.setStrokeColor(colors.HexColor("#BBBBBB"))
+            c.setLineWidth(0.4)
+            c.rect(x, y, w, h)
+        _etiqueta_balda(c, it, x, y, w, h)
+        pos = (pos + 1) % BALDA_POR_HOJA
+    if not items:
+        c.setFont("Helvetica", 12)
+        c.drawString(mm_to_points(20), mm_to_points(270), "No hay etiquetas que imprimir.")
+    c.save()
+    return buf.getvalue()
+
+
+def generate_shelf_test_pdf(dx: float = 0.0, dy: float = 0.0) -> bytes:
+    """Hoja de prueba: el contorno de las 12 pegatinas. Se imprime en un folio normal y se pone encima de
+    un folio de pegatinas al trasluz; si no coincide, se corrige con el ajuste."""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle("Prueba de etiquetas · Casa Fonso")
+    w, h = mm_to_points(BALDA["ancho"]), mm_to_points(BALDA["alto"])
+    for i in range(BALDA_POR_HOJA):
+        x, y = _balda_pos(i, dx, dy)
+        c.setStrokeColor(colors.black)
+        c.setLineWidth(0.5)
+        c.rect(x, y, w, h)
+        cx, cy = x + w / 2, y + h / 2
+        c.line(cx - 8, cy, cx + 8, cy)
+        c.line(cx, cy - 8, cx, cy + 8)
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(x + 10, y + h - 18, f"Pegatina {i + 1}")
+        c.setFont("Helvetica", 7.5)
+        if i == 0:
+            c.drawString(x + 10, y + 24, "Imprime a TAMAÑO REAL (100 %), sin «ajustar a la página».")
+            c.drawString(x + 10, y + 14, "Pon esta hoja sobre un folio de pegatinas, al trasluz.")
+        elif i == 1:
+            c.drawString(x + 10, y + 24, "Si el recuadro no coincide con la pegatina, mide cuánto")
+            c.drawString(x + 10, y + 14, "se va (mm) y ponlo en «Ajustar impresora».")
+    c.setFont("Helvetica", 7)
+    c.drawString(mm_to_points(8), mm_to_points(8), f"Casa Fonso · prueba de etiquetas 97 × 42,3 mm · ajuste: {dx:+.1f} mm a la derecha, {dy:+.1f} mm hacia abajo")
+    c.save()
+    return buf.getvalue()

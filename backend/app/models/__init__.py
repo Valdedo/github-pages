@@ -3,5 +3,6 @@ from app.models.article import Article
 from app.models.supplier import Supplier
 from app.models.product_info import ProductInfo
 from app.models.app_settings import AppSettings
+from app.models.proveedor_alias import ProveedorAlias
 
-__all__ = ["Document", "Article", "Supplier", "ProductInfo", "AppSettings"]
+__all__ = ["Document", "Article", "Supplier", "ProductInfo", "AppSettings", "ProveedorAlias"]

@@ -20,6 +20,7 @@ class Document(Base):
     # Status: uploaded | processing | completed | error
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     supplier_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    supplier_leido: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # tal como lo leyó la IA
     supplier_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True
     )

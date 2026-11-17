@@ -64,6 +64,8 @@ export interface Article {
   margen_override: boolean;
   pvp_sin_iva: number;
   pvp_con_iva: number;
+  /** Precio de venta con IVA puesto a mano («el que ya hay en la tienda»); null = el calculado */
+  pvp_fijo?: number | null;
   codigo_proveedor?: string;
   codigo_fabricante?: string;
   ean?: string;
@@ -305,4 +307,28 @@ export interface ClientDeliveryNote {
   /** Quién firmó otras veces por este cliente (solo en la ficha del albarán). */
   firmantes?: string[];
   created_at: string;
+}
+
+/* ── Recibir mercancía (albaranes de compra, nov. 2026) ── */
+export type EstadoCompra = 'nuevo' | 'igual' | 'sube' | 'baja' | 'sin_coste';
+export interface CompraAnterior {
+  fecha: string; coste: number; pvp: number; cantidad: number;
+  doc_id: number; doc_number?: string | null; proveedor?: string | null;
+}
+export interface LineaRecepcion {
+  id: number;
+  estado: EstadoCompra;
+  pct: number | null;
+  coste_anterior: number | null;
+  pvp_anterior: number | null;
+  pvp_cambia: boolean;
+  fecha_anterior: string | null;
+  proveedor_anterior: string | null;
+  compras: number;
+  historial: CompraAnterior[];
+}
+export interface Recepcion {
+  resumen: { total: number; nuevo: number; igual: number; sube: number; baja: number; sin_codigo_barras: number; para_etiquetar: number };
+  etiquetar: number[];
+  lineas: LineaRecepcion[];
 }

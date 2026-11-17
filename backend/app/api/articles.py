@@ -59,7 +59,21 @@ def recalc_article(
     article.margen_override = pricing["margen_override"]
     article.pvp_sin_iva = pricing["pvp_sin_iva"]
     article.pvp_con_iva = pricing["pvp_con_iva"]
+    aplicar_pvp_fijo(article)
     return article
+
+
+def aplicar_pvp_fijo(article: Article) -> None:
+    """Si la tienda puso el precio de venta a mano, ese es el precio (sin redondearlo); el margen es el que resulte."""
+    fijo = getattr(article, "pvp_fijo", None)
+    if not fijo or fijo <= 0:
+        return
+    iva = article.iva_pct if article.iva_pct is not None else 21.0
+    article.pvp_con_iva = round(fijo, 2)
+    article.pvp_sin_iva = round(article.pvp_con_iva / (1 + iva / 100), 4)
+    if article.coste_neto_unitario and article.coste_neto_unitario > 0:
+        article.margen_pct = round((article.pvp_sin_iva / article.coste_neto_unitario - 1) * 100, 2)
+        article.margen_override = True
 
 
 @router.get("", response_model=List[ArticleResponse])
@@ -143,6 +157,7 @@ def bulk_update_margin(
     for art in articles:
         art.margen_pct = margen_pct
         art.margen_override = True
+        art.pvp_fijo = None
         recalc_article(art, settings)
     db.commit()
     return {"ok": True, "updated": len(articles)}
@@ -184,6 +199,16 @@ def update_article(
     if "margen_pct" in update_data and update_data["margen_pct"] is not None:
         if not (0 <= update_data["margen_pct"] <= 500):
             raise HTTPException(400, "El margen debe estar entre 0% y 500%")
+
+    if "pvp_fijo" in update_data:
+        fijo = update_data.pop("pvp_fijo")
+        if fijo is not None and not (0 < fijo < 1_000_000):
+            raise HTTPException(422, "El precio de venta tiene que ser mayor que 0")
+        if fijo is None and article.pvp_fijo:
+            article.margen_override = False  # se quita el precio a mano: vuelve al calculado
+        article.pvp_fijo = round(fijo, 2) if fijo is not None else None
+    elif "margen_pct" in update_data or "margen_override" in update_data:
+        article.pvp_fijo = None  # se cambia el margen: deja de mandar el precio puesto a mano
 
     # If margen_pct is explicitly set, mark as override
     if "margen_pct" in update_data and update_data["margen_pct"] is not None:

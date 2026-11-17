@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { getToken, withToken, cerrarSesion, type Rol } from '../auth';
 import type { Tarifa, TarifaResumen, FichaTarifa } from '../lib/tarifas';
-import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert, ClientDeliveryNote } from '../types';
+import type { Article, AppSettings, DocumentListItem, Document, Supplier, ProductInfo, PriceHistoryEntry, SupplierComparisonEntry, TopProduct, Repair, SupplierOrder, SupplierOrderListItem, SupplierOrderLine, DashboardStats, CatalogArticle, PriceAlert, ClientDeliveryNote, Recepcion } from '../types';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 
@@ -502,3 +502,14 @@ export const actualizarTarifa = (prov: string) =>
   api.post<Tarifa>(`/api/tarifas/${encodeURIComponent(prov)}/actualizar`, null, { timeout: 120000 });
 export const getFichaTarifa = (prov: string, ref: string) =>
   api.get<FichaTarifa>(`/api/tarifas/${encodeURIComponent(prov)}/articulo`, { params: { ref }, timeout: 120000 });
+
+// ── Recibir mercancía (albaranes de compra, nov. 2026) ──
+export const getRecepcion = (documentId: number) => api.get<Recepcion>(`/api/compras/${documentId}`);
+export const getProveedoresConocidos = () => api.get<string[]>('/api/compras/proveedores');
+/** PDF de etiquetas de balda (97 × 42,3 mm, 12 por folio). `inicio`: por qué pegatina del folio empezar. */
+export const etiquetasBaldaUrl = (ids: number[], inicio = 1) =>
+  withToken(`${BASE}/api/compras/etiquetas?ids=${ids.join(',')}&inicio=${inicio}`);
+export const etiquetasPruebaUrl = () => withToken(`${BASE}/api/compras/etiquetas/prueba`);
+export const getAjusteEtiquetas = () => api.get<{ dx: number; dy: number }>('/api/compras/ajuste-etiquetas');
+export const putAjusteEtiquetas = (dx: number, dy: number) =>
+  api.put<{ dx: number; dy: number }>('/api/compras/ajuste-etiquetas', { dx, dy });

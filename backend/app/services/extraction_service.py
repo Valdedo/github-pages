@@ -28,6 +28,21 @@ REGLAS DE EXTRACCIÓN:
 7. Ignora filas que NO sean artículos: cabeceras, referencias internas (PEDIDO:, ALBARÁN:), portes, líneas de IVA, totales.
 8. Extrae TODOS los artículos de TODAS las páginas sin excepción.
 9. Si un campo no está, ponlo null.
+10. PROVEEDOR: es quien EMITE el documento (su nombre suele estar en el logotipo o en la cabecera, junto a su CIF).
+    El CLIENTE es siempre Casa Fonso = Manuel Fernández Fernández, NIF 10770071E, de Boal / Villayón (Asturias):
+    NUNCA lo pongas como proveedor, aunque sea el primer nombre que aparezca. Si no consigues ver quién emite, pon null.
+    Si se te da una lista de PROVEEDORES HABITUALES y el emisor es uno de ellos, escribe el nombre EXACTAMENTE como en la lista.
+11. IMAGEN Y TEXTO: si recibes las páginas como imagen y además un texto, MANDA LA IMAGEN. El texto puede venir de un
+    escáner y traer cifras cambiadas, comas perdidas («,34» por «8,34»), columnas mezcladas o líneas desordenadas;
+    úsalo solo como ayuda. Los códigos de barras (EAN) cópialos dígito a dígito de la imagen.
+12. CANTIDAD: las unidades SERVIDAS en este documento (no las pedidas ni las pendientes).
+13. PRECIO POR CIEN O POR MIL: si el precio va por 100 o por 1000 unidades (columna «Por», «x100», «%», «‰», «C», «M»),
+    da precio_unitario_bruto POR UNIDAD (divídelo) para que cantidad × precio dé el importe de la línea.
+14. COMPRUEBA CADA LÍNEA: cantidad × precio neto tiene que dar el IMPORTE impreso en esa línea. Si no da, vuelve a
+    mirar cantidad, precio y descuentos de esa línea antes de responder.
+15. Líneas que NO son mercancía (portes, embalajes, palés retornables, tasas RAEE o SIGAUS, «contribución financiera»,
+    descuentos sueltos): no las pongas como artículos; súmalas en totales_documento.portes.
+16. Si el documento es una factura que agrupa varios albaranes, extrae todas sus líneas y usa el número de la factura.
 
 ═══ PARTE 2 — TOTALES Y VALIDACIÓN ═══
 
@@ -101,12 +116,27 @@ C) Compara tu base calculada con la base imponible del documento.
 Devuelve ÚNICAMENTE el JSON, sin texto adicional, sin markdown, sin bloques de código."""
 
 
+_conocidos: list = []   # proveedores habituales (los pone documents.py antes de leer)
+
+
+def poner_conocidos(nombres: list) -> None:
+    global _conocidos
+    _conocidos = [n for n in (nombres or []) if n][:150]
+
+
+def _lista_conocidos() -> str:
+    return ("PROVEEDORES HABITUALES (si el emisor es uno de estos, escribe su nombre exactamente así): "
+            + " · ".join(_conocidos) + "\n") if _conocidos else ""
+
+
 def build_extraction_prompt(raw_data: dict, supplier_template: Optional[dict] = None) -> str:
     """Build the user prompt for Claude extraction."""
     parts = ["Extrae todos los artículos del siguiente albarán:\n"]
 
     if supplier_template and supplier_template.get("hints"):
         parts.append(f"HINTS DEL PROVEEDOR: {supplier_template['hints']}\n")
+    if _conocidos:
+        parts.append(_lista_conocidos())
 
     if raw_data.get("tables"):
         parts.append("=== TABLAS DETECTADAS ===")
@@ -312,6 +342,8 @@ def _image_to_base64_block(source) -> dict:
 async def extract_with_claude_vision(
     image_sources: list,
     supplier_template: Optional[dict] = None,
+    texto_apoyo: str = "",
+    aviso: str = "",
 ) -> dict:
     """Use Claude Vision to extract structured data directly from document images.
 
@@ -351,6 +383,12 @@ async def extract_with_claude_vision(
     hint = ""
     if supplier_template and supplier_template.get("hints"):
         hint = f"\nHINTS DEL PROVEEDOR: {supplier_template['hints']}\n"
+    hint += ("\n" + _lista_conocidos()) if _conocidos else ""
+    if texto_apoyo.strip():
+        hint += ("\n=== TEXTO DEL PDF (solo como ayuda; si no coincide con la imagen, manda la imagen) ===\n"
+                 + texto_apoyo[:40000] + "\n")
+    if aviso:
+        hint += "\n" + aviso + "\n"
     content.append({"type": "text", "text": f"Extrae todos los artículos del albarán que aparece en {'esta imagen' if len(content) == 1 else 'estas imágenes'}:{hint}"})
 
     retry_content = None
@@ -380,41 +418,111 @@ async def extract_with_claude_vision(
             raise LecturaError("La IA no devolvió bien los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
 
 
+MAX_PAGINAS_IMAGEN = 12   # páginas que se mandan como imagen (las demás, solo su texto)
+
+
+def _neto_linea(a: dict) -> float:
+    """Coste neto de una línea ya normalizada: el que trae o el bruto con sus descuentos."""
+    neto = a.get("coste_neto_unitario")
+    if neto is None:
+        neto = a.get("precio_unitario_bruto") or 0.0
+        for k in ("descuento_1", "descuento_2", "descuento_3", "descuento_4"):
+            d = a.get(k)
+            if d:
+                neto *= 1 - d / 100
+    return neto or 0.0
+
+
+def cuadre(articulos: list, totales: dict) -> Optional[dict]:
+    """Suma de las líneas leídas frente a la base imponible impresa. None si el documento no trae base
+    (muchos albaranes van sin valorar). Se hace aquí, con números, y no se le pregunta a la IA."""
+    def _f(v):
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+    base = _f((totales or {}).get("base_imponible"))
+    if base is None or base <= 0:
+        return None
+    portes = _f((totales or {}).get("portes")) or 0.0
+    suma = round(sum(_neto_linea(a) * (a.get("cantidad") or 1) for a in articulos), 2)
+    tolerancia = max(0.5, base * 0.005)
+    # la base del documento puede llevar dentro los portes y las tasas
+    dif = min((suma - base, suma + portes - base), key=abs)
+    return {"suma": suma, "base": base, "dif": round(dif, 2), "ok": abs(dif) <= tolerancia}
+
+
+def _plantilla(supplier: Optional[dict]) -> Optional[dict]:
+    if not supplier:
+        return None
+    t = supplier.get("template_config")
+    if isinstance(t, str):
+        try:
+            return json.loads(t)
+        except (TypeError, ValueError):
+            return {}
+    return t or {}
+
+
+async def _leer_imagenes(imagenes: list, plantilla: Optional[dict], texto: str = "") -> dict:
+    """Lee las páginas como imagen (con el texto del PDF de apoyo, si lo hay). Si las líneas no suman la
+    base del documento, lo vuelve a leer una vez diciéndole a la IA cuánto se descuadra, y se queda con
+    la lectura que mejor cuadre."""
+    res = await extract_with_claude_vision(imagenes, plantilla, texto)
+    arts = normalize_extracted_articles(res.get("articulos", []))
+    c = cuadre(arts, res.get("totales_documento") or {})
+    releido = False
+    if c and not c["ok"]:
+        aviso = (f"ATENCIÓN: en una primera lectura las líneas sumaban {c['suma']:.2f} € y la base imponible impresa es "
+                 f"{c['base']:.2f} € (diferencia {c['dif']:+.2f} €). Vuelve a leerlo despacio, línea a línea: mira si falta "
+                 "o sobra alguna línea, si alguna cantidad o precio está mal copiado, si un precio va por 100 o por 1000 "
+                 "unidades y si algún descuento no se aplicó. Cada línea tiene que dar su importe impreso.")
+        try:
+            res2 = await extract_with_claude_vision(imagenes, plantilla, texto, aviso)
+            arts2 = normalize_extracted_articles(res2.get("articulos", []))
+            c2 = cuadre(arts2, res2.get("totales_documento") or {})
+            releido = True
+            if arts2 and c2 and abs(c2["dif"]) < abs(c["dif"]):
+                res, arts, c = res2, arts2, c2
+        except LecturaError as e:   # la primera lectura vale: se enseña con su aviso de descuadre
+            logger.warning("No se pudo releer el albarán que no cuadraba: %s", e)
+    validacion = dict(res.get("validacion") or {})
+    if c:
+        validacion.update({"base_calculada": c["suma"], "cuadra": c["ok"], "diferencia": c["dif"]})
+        if c["ok"]:
+            validacion["discrepancias"] = []
+            if releido:
+                validacion["notas"] = "No cuadraba a la primera; se volvió a leer y ya cuadra."
+        elif releido:
+            validacion["notas"] = ("Se leyó dos veces y las líneas siguen sin sumar la base del documento. "
+                                   + str(validacion.get("notas") or "")).strip()
+    return {
+        "documento": res.get("documento", {}),
+        "articulos": arts,
+        "totales_documento": res.get("totales_documento") or {},
+        "validacion": validacion,
+        "releido": releido,
+    }
+
+
 async def extract_multi_images(
     file_paths: list,
     supplier_id: Optional[int] = None,
     suppliers: list = None,
     lang: str = "spa+eng",
 ) -> dict:
-    """Extract from multiple image files using Claude Vision (bypasses pytesseract)."""
-    # Detect supplier by reading a quick OCR pass on first image (for keyword matching)
+    """Varias fotos de un mismo albarán: la IA las lee directamente."""
     supplier_detected = None
-    supplier_template = None
     if suppliers:
         try:
             from app.services import ocr_service
             quick_raw = await asyncio.to_thread(ocr_service.extract, file_paths[0], lang)
             supplier_detected = detect_supplier(quick_raw.get("full_text", ""), suppliers)
-            if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
-                supplier_template = json.loads(supplier_detected["template_config"])
-            elif supplier_detected:
-                supplier_template = supplier_detected.get("template_config", {})
         except Exception as e:
             logger.warning(f"Quick OCR for supplier detection failed: {e}")
 
-    claude_result = await extract_with_claude_vision(file_paths, supplier_template)
-    raw_articles = claude_result.get("articulos", [])
-    normalized_articles = normalize_extracted_articles(raw_articles)
-
-    return {
-        "documento": claude_result.get("documento", {}),
-        "articulos": normalized_articles,
-        "totales_documento": claude_result.get("totales_documento") or {},
-        "validacion": claude_result.get("validacion") or {},
-        "supplier_detected": supplier_detected,
-        "raw_text": "",
-        "raw_tables": [],
-    }
+    out = await _leer_imagenes(file_paths, _plantilla(supplier_detected))
+    return {**out, "supplier_detected": supplier_detected, "raw_text": "", "raw_tables": []}
 
 
 async def extract_document(
@@ -424,131 +532,67 @@ async def extract_document(
     suppliers: list = None,
     lang: str = "spa+eng",
 ) -> dict:
-    """Main document extraction pipeline.
+    """Lee un albarán de compra.
 
-    1. Extract raw content (text + tables)
-    2. Detect supplier (optional)
-    3. Use Claude AI to extract structured data
-    4. Normalize and validate
+    Desde nov. 2026 la IA ve SIEMPRE la página como imagen. Antes, un PDF con texto se leía solo por su
+    texto; pero los PDF del escáner de la oficina traen un texto reconocido por el propio escáner, con
+    cifras cambiadas y columnas mezcladas, y el logotipo del proveedor (a menudo el único sitio donde
+    sale su nombre) no está en el texto. El texto se manda igual, como ayuda.
 
-    Returns:
-        {
-            "documento": {supplier, num_albaran, fecha, pronto_pago_pct},
-            "articulos": [...normalized articles...],
-            "supplier_detected": {...} or None,
-            "raw_text": "...",
-        }
+    Returns: {"documento", "articulos", "totales_documento", "validacion", "supplier_detected", "raw_text"}
     """
     from app.services import pdf_service, ocr_service
 
-    # Step 1: Determine extraction strategy
-    if doc_type == "pdf":
-        from app.services.pdf_service import is_scanned_pdf, pdf_to_images
-        if await asyncio.to_thread(is_scanned_pdf, file_path):
-            # Scanned PDF → convert pages to images → Claude Vision
-            logger.info(f"Detected scanned PDF, using Claude Vision for {file_path}")
-            images = await asyncio.to_thread(pdf_to_images, file_path)
-            if not images:
-                raise ValueError("No se pudieron extraer páginas del PDF escaneado.")
-
-            # Detect supplier via quick OCR on first page
-            supplier_detected = None
-            supplier_template = None
-            if suppliers:
-                try:
-                    quick_text = await asyncio.to_thread(ocr_service.extract_text_from_pil_image, images[0], lang)
-                    supplier_detected = detect_supplier(quick_text, suppliers)
-                    if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
-                        supplier_template = json.loads(supplier_detected["template_config"])
-                    elif supplier_detected:
-                        supplier_template = supplier_detected.get("template_config", {})
-                except Exception as e:
-                    logger.warning(f"Quick OCR for supplier detection failed: {e}")
-
-            claude_result = await extract_with_claude_vision(images, supplier_template)
-            raw_articles = claude_result.get("articulos", [])
-            normalized_articles = normalize_extracted_articles(raw_articles)
-            return {
-                "documento": claude_result.get("documento", {}),
-                "articulos": normalized_articles,
-                "totales_documento": claude_result.get("totales_documento") or {},
-                "validacion": claude_result.get("validacion") or {},
-                "supplier_detected": supplier_detected,
-                "raw_text": "",
-                "raw_tables": [],
-            }
-        else:
-            # Digital PDF → pdfplumber text extraction → Claude text
-            logger.info(f"Detected digital PDF, using pdfplumber for {file_path}")
-            raw_data = await asyncio.to_thread(pdf_service.extract_text_and_tables, file_path)
-            # Fallback: if little text was extracted, try Vision
-            if len(raw_data.get("full_text", "")) < 100:
-                logger.info("Low text yield from pdfplumber, falling back to Claude Vision")
-                images = await asyncio.to_thread(pdf_to_images, file_path)
-                if images:
-                    supplier_detected = None
-                    supplier_template = None
-                    claude_result = await extract_with_claude_vision(images, None)
-                    raw_articles = claude_result.get("articulos", [])
-                    return {
-                        "documento": claude_result.get("documento", {}),
-                        "articulos": normalize_extracted_articles(raw_articles),
-                        "totales_documento": claude_result.get("totales_documento") or {},
-                        "validacion": claude_result.get("validacion") or {},
-                        "supplier_detected": None,
-                        "raw_text": "",
-                        "raw_tables": [],
-                    }
-
-            # Detect supplier from extracted text
-            supplier_detected = None
-            supplier_template = None
-            if suppliers:
-                supplier_detected = detect_supplier(raw_data.get("full_text", ""), suppliers)
-                if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
-                    supplier_template = json.loads(supplier_detected["template_config"])
-                elif supplier_detected:
-                    supplier_template = supplier_detected.get("template_config", {})
-
-            claude_result = await extract_with_claude(raw_data, supplier_template)
-            raw_articles = claude_result.get("articulos", [])
-            normalized_articles = normalize_extracted_articles(raw_articles)
-            return {
-                "documento": claude_result.get("documento", {}),
-                "articulos": normalized_articles,
-                "totales_documento": claude_result.get("totales_documento") or {},
-                "validacion": claude_result.get("validacion") or {},
-                "supplier_detected": supplier_detected,
-                "raw_text": raw_data.get("full_text", ""),
-                "raw_tables": raw_data.get("tables", []),
-            }
-    else:
-        # Image file → Claude Vision directly (no pytesseract)
-        logger.info(f"Image file, using Claude Vision for {file_path}")
-
-        # Detect supplier via quick OCR (lightweight, for keyword matching only)
+    if doc_type != "pdf":
         supplier_detected = None
-        supplier_template = None
         if suppliers:
             try:
                 quick_raw = await asyncio.to_thread(ocr_service.extract, file_path, lang)
                 supplier_detected = detect_supplier(quick_raw.get("full_text", ""), suppliers)
-                if supplier_detected and isinstance(supplier_detected.get("template_config"), str):
-                    supplier_template = json.loads(supplier_detected["template_config"])
-                elif supplier_detected:
-                    supplier_template = supplier_detected.get("template_config", {})
             except Exception as e:
                 logger.warning(f"Quick OCR for supplier detection failed: {e}")
+        out = await _leer_imagenes([file_path], _plantilla(supplier_detected))
+        return {**out, "supplier_detected": supplier_detected, "raw_text": "", "raw_tables": []}
 
-        claude_result = await extract_with_claude_vision([file_path], supplier_template)
-        raw_articles = claude_result.get("articulos", [])
-        normalized_articles = normalize_extracted_articles(raw_articles)
-        return {
-            "documento": claude_result.get("documento", {}),
-            "articulos": normalized_articles,
-            "totales_documento": claude_result.get("totales_documento") or {},
-            "validacion": claude_result.get("validacion") or {},
-            "supplier_detected": supplier_detected,
-            "raw_text": "",
-            "raw_tables": [],
-        }
+    raw_data = await asyncio.to_thread(pdf_service.extract_text_and_tables, file_path)
+    texto = raw_data.get("full_text", "") or ""
+    images = await asyncio.to_thread(pdf_service.pdf_to_images, file_path)
+
+    supplier_detected = None
+    if suppliers:
+        if len(texto.strip()) > 50:
+            supplier_detected = detect_supplier(texto, suppliers)
+        elif images:
+            try:
+                quick_text = await asyncio.to_thread(ocr_service.extract_text_from_pil_image, images[0], lang)
+                supplier_detected = detect_supplier(quick_text, suppliers)
+            except Exception as e:
+                logger.warning(f"Quick OCR for supplier detection failed: {e}")
+    plantilla = _plantilla(supplier_detected)
+
+    if images:
+        if len(images) > MAX_PAGINAS_IMAGEN:
+            texto = (f"(El documento tiene {len(images)} páginas; como imagen solo van las {MAX_PAGINAS_IMAGEN} primeras. "
+                     "Las demás léelas de este texto.)\n" + texto)
+        out = await _leer_imagenes(images[:MAX_PAGINAS_IMAGEN], plantilla, texto)
+        return {**out, "supplier_detected": supplier_detected, "raw_text": texto, "raw_tables": raw_data.get("tables", [])}
+
+    # No se pudo pasar a imagen (PDF raro): queda el texto
+    if len(texto.strip()) < 100:
+        raise LecturaError("No se pudo abrir el PDF para leerlo. Prueba a subir una foto del albarán.")
+    logger.warning("PDF sin imágenes (%s): se lee solo por el texto", file_path)
+    claude_result = await extract_with_claude(raw_data, plantilla)
+    arts = normalize_extracted_articles(claude_result.get("articulos", []))
+    validacion = dict(claude_result.get("validacion") or {})
+    c = cuadre(arts, claude_result.get("totales_documento") or {})
+    if c:
+        validacion.update({"base_calculada": c["suma"], "cuadra": c["ok"], "diferencia": c["dif"]})
+    return {
+        "documento": claude_result.get("documento", {}),
+        "articulos": arts,
+        "totales_documento": claude_result.get("totales_documento") or {},
+        "validacion": validacion,
+        "supplier_detected": supplier_detected,
+        "raw_text": texto,
+        "raw_tables": raw_data.get("tables", []),
+    }
