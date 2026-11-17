@@ -579,6 +579,11 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   prueba `GET /api/compras/etiquetas/prueba` y ajuste en mm (`app_settings.etq_dx/etq_dy`, `PUT /api/compras/ajuste-etiquetas`,
   solo Andrés). Por defecto salen marcados para etiqueta los nuevos y los que cambian de PVP. La pantalla «Etiquetas» antigua
   (100 × 50) no se ha tocado.
+- **Corregir una línea mal leída sin salir de la vista sencilla** (17/11/2026; Andrés: cambiar un precio mal leído en el móvil era
+  lioso y desde la tabla no sabía volver): el coste es tocable (lápiz) → `HojaLinea` con lo que dice el papel (artículo, cantidad,
+  precio, descuentos «30+10»), el importe de la línea y el coste en vivo, y «quitar esta línea». El aviso «las cuentas no cuadran»
+  se calcula en vivo (suma de líneas frente a `base_imponible_doc`) y se va solo al corregir. En la tabla completa, el botón de
+  arriba es «Volver a la vista sencilla» (también en el móvil, donde antes no había botón) y `padreDe` lleva allí.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.

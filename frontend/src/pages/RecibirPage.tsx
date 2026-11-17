@@ -5,7 +5,7 @@ import {
   Trash2, ChevronDown, AlertTriangle, X, Printer, History,
 } from 'lucide-react';
 import {
-  getDocument, getRecepcion, updateArticle, updateDocument, marcarTerminado, reprocessDocument, deleteDocument,
+  getDocument, getRecepcion, updateArticle, deleteArticle, updateDocument, marcarTerminado, reprocessDocument, deleteDocument,
   getProveedoresConocidos, etiquetasBaldaUrl, etiquetasPruebaUrl, getAjusteEtiquetas, putAjusteEtiquetas,
   downloadExcel, downloadTreyFact, downloadPriceList, describeApiError,
 } from '../api/client';
@@ -53,6 +53,7 @@ export function RecibirPage() {
   const recienGuardado = useRef<{ codigo: string; en: string } | null>(null);
   const [verOriginal, setVerOriginal] = useState(false);
   const [hoja, setHoja] = useState<'etiquetas' | 'datos' | null>(null);
+  const [corregir, setCorregir] = useState<number | null>(null);
   const [borrar, setBorrar] = useState(false);
   const etiquetasPuestas = useRef(false);
 
@@ -101,7 +102,7 @@ export function RecibirPage() {
       setDoc(d.data); setRec(data);
       // la etiqueta hace falta si es nuevo o si el precio ya no es el que había en la balda
       const l = data.lineas.find(x => x.id === art.id);
-      if (l && ('pvp_fijo' in cambio)) {
+      if (l && ('pvp_fijo' in cambio || 'precio_unitario_bruto' in cambio || 'descuento_1' in cambio)) {
         setEtiquetar(prev => { const s = new Set(prev); if (l.estado === 'nuevo' || l.pvp_cambia) s.add(art.id); else s.delete(art.id); return s; });
       }
       if (hecho) show(hecho, deshacer ? { undo: () => { guardar(art, deshacer); } } : {});
@@ -184,7 +185,11 @@ export function RecibirPage() {
   const r = rec?.resumen;
   const visibles = articulos.filter(a => filtro === 'todos' || linea.get(a.id)?.estado === filtro);
   const paraEtiqueta = articulos.filter(a => etiquetar.has(a.id));
-  const validacion = (() => { try { return doc.validacion_notas ? JSON.parse(doc.validacion_notas) : null; } catch { return null; } })();
+  // Cuadre en vivo: al corregir una línea mal leída, el aviso se va solo cuando ya suma lo del albarán
+  const sumaLeida = Math.round(articulos.reduce((t, a) => t + (a.coste_neto_total || 0), 0) * 100) / 100;
+  const base = doc.base_imponible_doc ?? null;
+  const descuadre = base != null && base > 0 ? Math.round((sumaLeida - base) * 100) / 100 : null;
+  const noCuadra = doc.validacion_ok === false && descuadre != null && Math.abs(descuadre) > Math.max(0.5, (base as number) * 0.005);
   const escArt = articulos.find(a => a.id === escId);
 
   const chip = (f: Filtro, n: number, txt: string) => (
@@ -221,9 +226,9 @@ export function RecibirPage() {
         <div className="rc-aviso"><AlertTriangle size={20} /><div><b>No se ve de qué proveedor es</b><span>Ponlo tú: así la próxima vez se comparan los precios con sus compras anteriores.</span></div>
           <button className="btn btn-primary btn-sm" onClick={() => setHoja('datos')}>Poner proveedor</button></div>
       )}
-      {doc.status === 'completed' && doc.validacion_ok === false && validacion?.diferencia != null && (
+      {doc.status === 'completed' && noCuadra && descuadre != null && (
         <div className="rc-aviso"><AlertTriangle size={20} /><div><b>Las cuentas no cuadran: repásalo con el papel</b>
-          <span>Lo leído suma {euros(validacion.base_calculada)} y el albarán dice {euros(validacion.base_imponible_doc)} ({validacion.diferencia > 0 ? '+' : '−'}{euros(Math.abs(validacion.diferencia))}). Puede faltar una línea o haber una cantidad o un precio mal leídos.</span></div>
+          <span>Lo leído suma {euros(sumaLeida)} y el albarán dice {euros(base)} ({descuadre > 0 ? 'sobran' : 'faltan'} {euros(Math.abs(descuadre))}). Mira si falta una línea o si alguna cantidad o precio está mal: se corrige tocando el lápiz del coste.</span></div>
           <button className="btn btn-ghost btn-sm" onClick={() => setVerOriginal(true)}><FileText size={15} /> Ver el original</button></div>
       )}
 
@@ -267,7 +272,9 @@ export function RecibirPage() {
                   <div className="rc-precios">
                     <div className="rc-dato">
                       <span>Coste</span>
-                      <b>{euros(a.coste_neto_unitario)}</b>
+                      <button className="rc-coste" onClick={() => setCorregir(a.id)} title="Corregir lo que se leyó del albarán">
+                        {euros(a.coste_neto_unitario)} <Pencil size={14} />
+                      </button>
                       <small>{l.coste_anterior != null
                         ? <>{l.estado === 'igual' ? 'igual que' : 'antes'} {l.estado !== 'igual' && <s>{euros(l.coste_anterior)}</s>} el {fechaES(l.fecha_anterior)}{l.proveedor_anterior ? ` · ${l.proveedor_anterior}` : ''}</>
                         : l.estado === 'nuevo' ? 'primera vez que se compra' : 'sin precio en el albarán'}</small>
@@ -365,6 +372,17 @@ export function RecibirPage() {
           onCerrar={() => { setEscId(null); setAvisoEsc(null); }}
         />
       )}
+      {corregir != null && articulos.some(a => a.id === corregir) && (
+        <HojaLinea
+          art={articulos.find(a => a.id === corregir) as Article}
+          prontoPago={doc.pronto_pago_pct || 0}
+          onCerrar={() => setCorregir(null)}
+          onGuardar={async cambio => { const a = articulos.find(x => x.id === corregir) as Article; if (await guardar(a, cambio, 'Línea corregida')) setCorregir(null); }}
+          onQuitar={async () => {
+            try { await deleteArticle(corregir); setCorregir(null); await cargar(); show('Línea quitada del albarán'); } catch (e) { show(describeApiError(e), { error: true }); }
+          }}
+        />
+      )}
       {hoja === 'etiquetas' && <HojaEtiquetas articulos={paraEtiqueta} onCerrar={() => setHoja(null)} />}
       {hoja === 'datos' && <HojaDatos doc={doc} onCerrar={() => setHoja(null)} onGuardado={async () => { setHoja(null); await cargar(); show('Datos del albarán guardados'); }} />}
       {borrar && (
@@ -389,6 +407,69 @@ function Historial({ l }: { l: LineaRecepcion }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** «30+10» → [30, 10]; «25» → [25]; vacío → []. null si no se entiende. */
+const leerDescuentos = (raw: string): number[] | null => {
+  const partes = raw.replace(/%/g, '').split('+').map(t => t.trim()).filter(Boolean);
+  const nums = partes.map(t => leerPrecio(t));
+  if (nums.some(n => n == null || n < 0 || n > 100) || nums.length > 4) return null;
+  return nums as number[];
+};
+
+/** Corregir una línea que se leyó mal: los mismos datos que trae el papel (cantidad, precio, descuento). */
+function HojaLinea({ art, prontoPago, onCerrar, onGuardar, onQuitar }: {
+  art: Article; prontoPago: number; onCerrar: () => void; onGuardar: (c: Partial<Article>) => void; onQuitar: () => void;
+}) {
+  const [nombre, setNombre] = useState(art.descripcion);
+  const [cantidad, setCantidad] = useState(numES(art.cantidad, 0, 3));
+  const [precio, setPrecio] = useState(numES(art.precio_unitario_bruto, 2, 4));
+  const [dto, setDto] = useState([art.descuento_1, art.descuento_2, art.descuento_3, art.descuento_4].filter(d => d != null && d > 0).map(d => numES(d as number, 0, 2)).join('+'));
+  const [quitar, setQuitar] = useState(false);
+  const q = leerPrecio(cantidad), pr = leerPrecio(precio), ds = leerDescuentos(dto);
+  const vale = !!nombre.trim() && q != null && q > 0 && pr != null && pr >= 0 && ds != null;
+  const neto = vale ? (ds as number[]).reduce((v, d) => v * (1 - d / 100), pr as number) : null;
+  const coste = neto != null ? neto * (1 - prontoPago / 100) : null;
+
+  const guardar = () => {
+    if (!vale) return;
+    const d = ds as number[];
+    onGuardar({
+      descripcion: nombre.trim(), cantidad: q as number, precio_unitario_bruto: pr as number,
+      descuento_1: d[0] ?? null, descuento_2: d[1] ?? null, descuento_3: d[2] ?? null, descuento_4: d[3] ?? null,
+    } as Partial<Article>);
+  };
+
+  return (
+    <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget) onCerrar(); }}>
+      <form className="upload-sheet rc-hoja" role="dialog" aria-modal="true" aria-label="Corregir la línea" onSubmit={e => { e.preventDefault(); guardar(); }}>
+        <div className="upload-sheet-handle" />
+        <div className="rc-hoja-cab"><h3>Corregir la línea</h3><button type="button" className="modal-close" onClick={onCerrar} aria-label="Cerrar"><X size={20} /></button></div>
+        <p className="rc-hoja-txt">Pon lo que dice el papel del proveedor (el precio, sin IVA).</p>
+        <label className="rc-campo">Artículo<input value={nombre} onChange={e => setNombre(e.target.value)} /></label>
+        <div className="rc-campos-3">
+          <label className="rc-campo">Cantidad<input inputMode="decimal" value={cantidad} onChange={e => setCantidad(e.target.value)} onFocus={e => e.target.select()} /></label>
+          <label className="rc-campo">Precio<input inputMode="decimal" value={precio} onChange={e => setPrecio(e.target.value)} onFocus={e => e.target.select()} /></label>
+          <label className="rc-campo">Dto. %<input inputMode="text" value={dto} onChange={e => setDto(e.target.value)} placeholder="0" onFocus={e => e.target.select()} /></label>
+        </div>
+        <p className="rc-hoja-nota">Si lleva varios descuentos, sepáralos con «+»: 30+10.</p>
+        <div className={`rc-cuenta${vale ? '' : ' mal'}`}>
+          {vale && neto != null && coste != null ? (
+            <>
+              <span>Importe de la línea <b>{euros(neto * (q as number))}</b></span>
+              <span>Coste por unidad <b>{euros(coste)}</b>{prontoPago > 0 ? ` (con el ${numES(prontoPago, 0, 2)} % de pronto pago)` : ''}</span>
+            </>
+          ) : <span>Revisa los números: cantidad mayor que 0, precio y descuento entre 0 y 100.</span>}
+        </div>
+        <button className="btn btn-primary btn-lg rc-hoja-btn" type="submit" disabled={!vale}>Guardar</button>
+        <div className="rc-hoja-pie">
+          {quitar
+            ? <><span>¿Quitar esta línea del albarán?</span><span><button type="button" className="rc-enlace peligro" onClick={onQuitar}>Sí, quitarla</button>{' · '}<button type="button" className="rc-enlace" onClick={() => setQuitar(false)}>No</button></span></>
+            : <button type="button" className="rc-enlace peligro" onClick={() => setQuitar(true)}><Trash2 size={14} /> Esta línea no es del albarán: quitarla</button>}
+        </div>
+      </form>
+    </div>
   );
 }
 

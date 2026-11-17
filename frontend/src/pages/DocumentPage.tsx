@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { comprasNueva } from '../lib/comprasNueva';
 import { getDocument, listSuppliers, listDocuments, recalculateArticles, updateArticle, getPriceAlerts, deleteDocument, describeApiError } from '../api/client';
 import { ArrowLeft, AlertTriangle, X } from 'lucide-react';
 import { DocAcciones } from '../components/DocAcciones';
@@ -23,6 +24,9 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string }> = {
 export function DocumentPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // «Tabla completa» abierta desde «Recibir mercancía»: el botón de volver lleva allí, no a la lista
+  const ruta = useLocation().pathname;
+  const enTabla = comprasNueva() && ruta.endsWith('/tabla');
   const docId = Number(id);
 
   const [document, setDocument] = useState<Document | null>(null);
@@ -239,7 +243,9 @@ export function DocumentPage() {
         <div className="doc-hero-izq" style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
           {/* Prev / Next + counter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-            <button className="doc-volver" onClick={() => navigate('/albaranes')}><ArrowLeft size={16} /> Albaranes de compra</button>
+            {enTabla
+              ? <button className="doc-volver doc-volver-sencilla" onClick={() => navigate(`/documento/${id}`)}><ArrowLeft size={16} /> Volver a la vista sencilla</button>
+              : <button className="doc-volver" onClick={() => navigate('/albaranes')}><ArrowLeft size={16} /> Albaranes de compra</button>}
             <button
               className="doc-hero-nav-btn"
               onClick={() => prevId && navigate(`/documento/${prevId}`)}

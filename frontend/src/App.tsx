@@ -243,6 +243,8 @@ const hayAtras = () => { try { return ((window.history.state as { idx?: number }
 function padreDe(path: string): string {
   const partes = path.split('/').filter(Boolean);
   if (partes[0] === 'tarifas' && partes.length > 1) return '/' + partes.slice(0, -1).join('/');
+  // «Tabla completa» de un albarán de compra: se vuelve a su vista sencilla, no a la lista
+  if (partes[0] === 'documento' && partes[2] === 'tabla') return `/documento/${partes[1]}`;
   if (partes.length > 1 && partes[0] in PADRE) return PADRE[partes[0]];
   return '/';
 }

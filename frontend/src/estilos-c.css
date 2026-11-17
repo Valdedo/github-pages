@@ -589,3 +589,6 @@ button.tsem:active { transform: scale(.985); }
   .fv2-solo-movil { display: inline; }
 }
 .firmas-page.v2 .firmas-mes-sel { flex: 0 0 180px !important; }
+
+/* En la tabla completa: volver a la vista sencilla, bien a la vista */
+.doc-volver.doc-volver-sencilla { display: inline-flex; background: #fff; color: var(--brand-dark); border-radius: 999px; padding: 9px 16px; font-weight: 700; font-size: 14px; min-height: 44px; white-space: nowrap; }

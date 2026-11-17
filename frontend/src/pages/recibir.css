@@ -55,6 +55,14 @@
 .rc-dato s { color: var(--text-3); }
 .rc-pvp { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 0; margin: -4px 0; background: none; border: 0; border-bottom: 2px dashed var(--border-strong); cursor: pointer; font: 600 26px/1.15 var(--font-display); color: var(--brand); min-height: 40px; }
 .rc-pvp svg { color: var(--text-3); }
+.rc-coste { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px 4px 0; margin: -4px 0; min-height: 40px; background: none; border: 0; border-bottom: 2px dashed var(--border-strong); cursor: pointer; font: 600 22px/1.15 var(--font-display); color: var(--text-1); }
+.rc-coste svg { color: var(--text-3); }
+.rc-coste:hover { border-bottom-color: var(--brand); }
+.rc-campos-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
+.rc-cuenta { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; padding: 10px 12px; border-radius: var(--r); background: var(--brand-pale); font-size: 14px; color: var(--text-2); }
+.rc-cuenta b { color: var(--text-1); font-size: 16px; }
+.rc-cuenta.mal { background: #FDECEC; color: #8A1C1C; }
+.rc-enlace.peligro { color: var(--danger); }
 .rc-pvp:hover { border-bottom-color: var(--brand); }
 .rc-pvp-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .rc-pvp-form input { width: 96px; padding: 7px 10px; border: 2px solid var(--brand); border-radius: var(--r-sm); font: 600 20px var(--font-display); }
@@ -154,7 +162,7 @@
   .rc-chip b { font-size: 22px; }
   .rc-chip span { font-size: 11px; }
   .rc-cab h1 { font-size: 25px !important; }
-  .rc-dato > b { font-size: 20px; }
+  .rc-dato > b, .rc-coste { font-size: 20px; }
   .rc-pvp { font-size: 24px; }
 }
 @media (max-width: 350px) {
@@ -176,3 +184,4 @@
   .esc-fondo { align-items: center; }
   .esc-caja { border-radius: var(--r-xl); }
 }
+
