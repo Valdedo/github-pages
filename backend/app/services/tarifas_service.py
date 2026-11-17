@@ -300,9 +300,10 @@ def _orden_valor(v: str) -> float:
 # Aclaraciones para la ficha («Características»), por descripción de la hoja (sin tildes ni mayúsculas)
 NOTAS_HIERROS = {
     # Andrés, 17/11/2026: estaba a precio por kilo; la chapa de 6 m × 0,89 m cuesta 144 € + IVA → 24 €/m
+    # (pesa 5,333 kg/m: Hierros la factura a 4,50 €/kg → 4,50 × 5,333 = 24 €/m)
     "chapa ple-leva madera 6000x890x0,6 mm":
         "Precio por metro lineal. La chapa entera mide 6 m de largo × 0,89 m de ancho: se compra a 144 € + IVA "
-        "(24 €/m) y entera sale a 187,20 € sin IVA (226,80 € con IVA).",
+        "(24 €/m) y entera sale a 187,20 € sin IVA (226,80 € con IVA). Pesa 5,333 kg/m (32 kg la chapa).",
 }
 
 

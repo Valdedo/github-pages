@@ -155,7 +155,7 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   ordenador; «/» lleva al buscador e Intro abre el primero. La factura abre su PDF (acción `archivos` del Apps Script sobre la carpeta ALBARANES/<proveedor>); si no lo encuentra, busca el nº en Drive.
 - **Hierros: aclaraciones en la ficha (17/11/2026)**: `NOTAS_HIERROS` en `tarifas_service.py` (por descripción en minúsculas) → `apunte`
   en «Características». La chapa Ple-Leva madera 6000×890×0,6 iba por kilo por error: Andrés la puso a 144 € + IVA la chapa de 6 m →
-  fila con U. fact. MT, 24 €/m (PVP 31,20 / 37,80). La evolución de la ficha ya no mezcla precios de otra unidad (`TarifaPrecio.unidad`).
+  fila con U. fact. MT, 24 €/m (PVP 31,20 / 37,80); pesa 5,333 kg/m, así que el €/kg de factura × 5,333 = €/m. La evolución de la ficha ya no mezcla precios de otra unidad (`TarifaPrecio.unidad`).
 - **Mallas J. Silva Moreira (14/10/2026; para todos desde el 16/10/2026)**: hoja «TARIFA_SILVA_MOREIRA_2026» `1ROnV…` en Mi unidad
   de Andrés (compartida con casafonsomc). Pestañas INICIO (nº de pedido) y TARIFA: una fila por rollo (código, familia, gama,
   alto/alambres/separación, metros, rollos/palé, coste del pedido 520.42043 de may-26, margen, PVP, PVP+IVA, €/m, precio desde
