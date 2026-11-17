@@ -297,6 +297,15 @@ def _orden_valor(v: str) -> float:
 
 
 # ── Lector de la tarifa de Hierros y Aceros de Santander ──────────────────
+# Aclaraciones para la ficha («Características»), por descripción de la hoja (sin tildes ni mayúsculas)
+NOTAS_HIERROS = {
+    # Andrés, 17/11/2026: estaba a precio por kilo; la chapa de 6 m × 0,89 m cuesta 144 € + IVA → 24 €/m
+    "chapa ple-leva madera 6000x890x0,6 mm":
+        "Precio por metro lineal. La chapa entera mide 6 m de largo × 0,89 m de ancho: se compra a 144 € + IVA "
+        "(24 €/m) y entera sale a 187,20 € sin IVA (226,80 € con IVA).",
+}
+
+
 def leer_hierros(hojas: dict) -> dict:
     filas = hojas.get("TARIFA") or []
     margen = None
@@ -326,6 +335,7 @@ def leer_hierros(hojas: dict) -> dict:
             "coste": numero(f[9]) if numero(f[9]) is not None else (numero(f[5]) if ud in ("UN", "MT", "M2", "KG") else None),
             "pvp": numero(f[10]), "pvp_iva": numero(f[11]),
             "ud_venta": UD_VENTA.get(ud, "ud"), "ud_compra": UD_COMPRA.get(ud, ud.lower()),
+            "apunte": NOTAS_HIERROS.get(re.sub(r"\s+", " ", desc).lower()),
         })
     log = []
     for f in (hojas.get("LOG") or [])[1:]:
@@ -1191,7 +1201,10 @@ def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
     hist = (db.query(TarifaPrecio)
             .filter(TarifaPrecio.proveedor == prov, TarifaPrecio.articulo == a["descripcion"]).all())
     puntos = {}
+    ud_a = str(a.get("unidad") or "").upper()
     for h in hist:
+        if ud_a and h.unidad and h.unidad.upper() != ud_a:
+            continue  # precio de cuando se compraba en otra unidad (la chapa Ple-Leva iba por kilo): no se compara
         puntos[h.fecha] = h.precio  # si en un mismo mes hubo dos, se queda el último visto
     if a["fecha"] and a["precio"] is not None:
         puntos[a["fecha"]] = a["precio"]
@@ -1209,6 +1222,7 @@ def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
         "evol": a["evol"], "kg_m": a["kg_m"], "coste": a["coste"], "pvp": a["pvp"], "pvp_iva": a["pvp_iva"],
         "margen": datos["margen"], "historial": historial, "factura": factura, "posibles": posibles,
         "medida": f"{bonita_medida(valor)} {ud}".strip() if valor else None,
+        "apunte": a.get("apunte"),
     }
 
 
