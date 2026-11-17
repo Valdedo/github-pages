@@ -238,7 +238,7 @@ export function DashboardPage() {
               <span className="inicio-aviso-ico"><FileText size={20} /></span>
               <span className="inicio-aviso-txt">
                 <b>{porTerminar.length === 1 ? 'Un albarán de proveedor por terminar' : `${porTerminar.length} albaranes de proveedor por terminar`}</b>
-                <small>Revisar precios y pasar a TreyFACT{porTerminar.some(d => d.status === 'error') ? ' · alguno no se pudo leer' : ''}</small>
+                <small>Revisar precios y etiquetar{porTerminar.some(d => d.status === 'error') ? ' · alguno no se pudo leer' : ''}</small>
               </span>
               <span className="btn btn-primary btn-sm">Ver</span>
             </Link>

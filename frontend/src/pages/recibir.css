@@ -1,7 +1,7 @@
 /* ═══ Recibir mercancía · albaranes de compra (nov. 2026) ═══════════════════════════════════
    Una columna, una tarjeta por artículo y un solo botón fuerte. Colores con un solo significado:
    rojo = sube, verde = baja u hecho, ámbar = nuevo o pendiente, gris = igual. */
-.rc { max-width: 880px; margin: 0 auto; padding-bottom: 150px; }
+.rc { max-width: 880px; margin: 0 auto; padding-bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
 .rc-volver { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 6px 0; color: var(--text-2); font: 600 14px var(--font); cursor: pointer; }
 .rc-volver:hover { color: var(--brand); }
 
@@ -88,8 +88,6 @@
 .rc-pl-flecha { color: var(--text-3); flex-shrink: 0; }
 
 .rc-fin { display: flex; justify-content: center; margin: 22px 0 6px; }
-.rc-mas { margin-top: 14px; }
-.rc-mas summary { cursor: pointer; color: var(--text-2); font-weight: 600; font-size: 14px; padding: 10px 2px; }
 .rc-mas-lista { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .rc-mas-lista button { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: none; border: 0; border-top: 1px solid var(--border); text-align: left; font: 500 14.5px var(--font); color: var(--text-1); cursor: pointer; }
 .rc-mas-lista button:first-child { border-top: 0; }
@@ -101,6 +99,8 @@
 .rc-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; gap: 10px; padding: 10px 14px calc(86px + env(safe-area-inset-bottom, 0px)); background: rgb(255 255 255 / .96); border-top: 1px solid var(--border); backdrop-filter: blur(6px); }
 .rc-barra .btn { flex: 1 1 0; min-width: 0; min-height: 50px; padding-left: 10px; padding-right: 10px; white-space: nowrap; }
 .rc-corto { display: none; }
+.rc-barra .rc-mas-btn { flex: 0 0 52px; padding-left: 0; padding-right: 0; }
+.rc-mas-txt { display: none; }
 .rc-n { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px; background: rgb(0 0 0 / .1); font-size: 13px; font-weight: 700; }
 .btn-primary .rc-n { background: rgb(255 255 255 / .22); }
 
@@ -169,7 +169,10 @@
   .rc-largo { display: none; }
   .rc-corto { display: inline; }
   .rc-barra { gap: 6px; padding-left: 8px; padding-right: 8px; }
-  .rc-barra .btn { font-size: 14.5px; gap: 6px; }
+  .rc-barra .btn { font-size: 14.5px; gap: 5px; }
+  .rc-barra .btn > svg:first-child { display: none; }
+  .rc-barra .rc-mas-btn { flex-basis: 46px; }
+  .rc-barra .rc-mas-btn > svg:first-child { display: block; }
   .rc-precios { grid-template-columns: 1fr; }
   .rc-chip span { font-size: 10px; }
 }
@@ -179,9 +182,68 @@
   .rc { padding-bottom: 40px; }
   .rc-barra { position: sticky; bottom: 0; left: auto; right: auto; z-index: 5; margin: 16px -8px 0; padding: 12px 8px; background: rgb(242 244 240 / .96); border-top: 1px solid var(--border); justify-content: flex-end; }
   .rc-barra .btn { flex: 0 0 auto; padding-left: 22px; padding-right: 22px; }
+  .rc-barra .rc-mas-btn { flex: 0 0 auto; padding-left: 18px; padding-right: 20px; }
+  .rc-mas-txt { display: inline; }
   .rc-art { padding: 16px 20px; }
   .rc-precios { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .esc-fondo { align-items: center; }
   .esc-caja { border-radius: var(--r-xl); }
 }
 
+
+/* Añadir una línea, IVA y pronto pago */
+.rc-anadir { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; padding: 13px; border: 1.5px dashed var(--border-strong); border-radius: var(--r-lg); background: none; color: var(--text-2); font: 600 14.5px var(--font); cursor: pointer; }
+.rc-anadir:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-pale); }
+.rc-iva { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--text-2); }
+.rc-iva > span { margin-right: 4px; }
+.rc-iva button { min-width: 54px; min-height: 40px; border: 1.5px solid var(--border-strong); border-radius: 999px; background: var(--surface); font: 600 14px var(--font); color: var(--text-2); cursor: pointer; }
+.rc-iva button.on { background: var(--brand-pale); border-color: var(--brand); color: var(--brand-dark); box-shadow: inset 0 0 0 1px var(--brand); }
+.rc-campo-corto input { max-width: 140px; }
+
+/* ── Ordenador: lista en columnas, una línea por artículo ── */
+@media (min-width: 1000px) {
+  .rc { max-width: 1240px; }
+  .rc-cab { margin-bottom: 12px; align-items: center; }
+  .rc-cab-acc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .rc-cab-acc .btn { min-height: 44px; white-space: nowrap; }
+  .rc-cab-acc .rc-mas-btn { padding-left: 16px; padding-right: 18px; }
+  .rc-cab-acc .rc-mas-txt { display: inline; }
+  .rc { padding-bottom: 40px; }
+  .rc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .rc-chip { flex-direction: row; align-items: baseline; gap: 7px; padding: 7px 14px; border-radius: 999px; }
+  .rc-chip b { font-size: 19px; }
+  .rc-chip span { font-size: 13.5px; }
+}
+.rc-tabla-caja { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.rc-tabla { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rc-tabla th { text-align: left; padding: 8px 10px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.rc-tabla th:nth-child(1) { width: 112px; }
+.rc-tabla th:nth-child(3) { width: 54px; }
+.rc-tabla th:nth-child(4) { width: 126px; }
+.rc-tabla th:nth-child(5) { width: 200px; }
+.rc-tabla th:nth-child(6) { width: 140px; }
+.rc-tabla th:nth-child(7) { width: 52px; }
+.rc-tabla td { padding: 5px 10px; border-top: 1px solid var(--border); vertical-align: middle; font-size: 14px; overflow: hidden; }
+.rc-tabla tbody tr:first-child td { border-top: 0; }
+.rc-tr:hover td { background: var(--surface-2); }
+.rc-tr td:first-child { box-shadow: inset 4px 0 0 transparent; }
+.rc-tr.sube td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
+.rc-tr.baja td:first-child { box-shadow: inset 4px 0 0 var(--success); }
+.rc-tr.nuevo td:first-child { box-shadow: inset 4px 0 0 #D9920A; }
+.rc-tabla small { display: block; font-size: 12px; color: var(--text-3); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-tabla small .rc-enlace { display: inline; font-size: 12px; line-height: inherit; vertical-align: baseline; }
+.rc-td-art b { display: block; font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-td-num { text-align: right !important; font-variant-numeric: tabular-nums; font-weight: 600; }
+.rc-td-etq { text-align: center !important; }
+.rc-td-etq input { width: 19px; height: 19px; accent-color: var(--brand); cursor: pointer; }
+.rc-tabla th.rc-td-etq svg { vertical-align: -2px; }
+.rc-td-cod .rc-codigo { font-size: 13px; }
+.rc-celda-btn { display: inline-flex; align-items: center; gap: 6px; padding: 1px 0; background: none; border: 0; border-bottom: 1.5px dashed transparent; cursor: pointer; font: 600 16px var(--font-display); color: var(--text-1); }
+.rc-celda-btn.pvp { color: var(--brand); font-size: 18px; }
+.rc-celda-btn svg { color: var(--border-strong); }
+.rc-celda-btn:hover { border-bottom-color: var(--brand); }
+.rc-celda-btn:hover svg { color: var(--brand); }
+.rc-tabla .rc-pvp-form { flex-wrap: nowrap; }
+.rc-tabla .rc-pvp-form input { width: 78px; padding: 4px 8px; font-size: 16px; }
+.rc-tr-hist td { background: var(--surface-2); padding-top: 0; }
+.rc-tr-hist .rc-hist { max-width: 520px; margin: 4px 0 8px; }

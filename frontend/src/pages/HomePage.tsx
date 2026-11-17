@@ -174,7 +174,7 @@ export function HomePage() {
               <p style={{ fontSize: '13px', color: 'var(--text-3)', marginTop: '6px' }}>
                 {search
                   ? `No hay albaranes ${vista === 'pendientes' ? 'por terminar ' : ''}que coincidan con «${search}».`
-                  : 'No queda ningún albarán por revisar y pasar a TreyFACT.'}
+                  : 'No queda ningún albarán por revisar.'}
               </p>
               {search && <button className="btn btn-ghost btn-sm" style={{ marginTop: '12px' }} onClick={() => setSearch('')}>
                 Limpiar búsqueda

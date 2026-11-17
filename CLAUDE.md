@@ -584,6 +584,16 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   precio, descuentos «30+10»), el importe de la línea y el coste en vivo, y «quitar esta línea». El aviso «las cuentas no cuadran»
   se calcula en vivo (suma de líneas frente a `base_imponible_doc`) y se va solo al corregir. En la tabla completa, el botón de
   arriba es «Volver a la vista sencilla» (también en el móvil, donde antes no había botón) y `padreDe` lleva allí.
+- **Tercera vuelta de Andrés (17/11/2026, tarde)**: (1) **«Pasar a TreyFACT» quitado para todos** («ya no lo vamos a utilizar»): fuera
+  de `DocAcciones` (tabla de siempre) y de la vista nueva; el endpoint `/api/export/treyfact` sigue, sin botón; el de Catálogo no
+  se ha tocado. (2) **«Más opciones» es un botón «⋯» en la barra de abajo** que abre una hoja (antes era un desplegable al final de
+  la página y en el móvil quedaba tapado por la barra). (3) **La tabla completa ya no se ofrece** en la vista nueva (la ruta
+  `/documento/:id/tabla` sigue viva, sin enlace; es lo que ve el resto hasta que pase a todos): lo que solo estaba allí se pasó a la
+  vista nueva → «Añadir una línea que falta» (`HojaLinea` sin artículo), IVA por línea (21/10/4/0) y pronto pago en «Datos del
+  albarán» (recalcula todas las líneas). Sin pasar: márgenes de varios a la vez y «Comprobar con el lector». (4) **Ordenador
+  (≥1000 px, `useAncho`): lista en columnas**, una línea por artículo (`filaPc`, tabla `rc-tabla`: precio · artículo · cant. · coste ·
+  precio de venta · código de barras · etiqueta), con los botones arriba a la derecha del título en vez de la barra de abajo
+  («con fichas solo cabían 4 o 5»); a 1366×768 entran 9. Por debajo de 1000 px, fichas y barra como en el móvil.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.

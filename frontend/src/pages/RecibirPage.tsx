@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, ArrowUp, ArrowDown, Sparkles, Check, ScanBarcode, Tag, Pencil, FileText, Table2, RotateCw,
-  Trash2, ChevronDown, AlertTriangle, X, Printer, History,
+  ArrowLeft, ArrowUp, ArrowDown, Sparkles, Check, ScanBarcode, Tag, Pencil, FileText, RotateCw,
+  Trash2, ChevronDown, AlertTriangle, X, Printer, History, MoreHorizontal, Plus,
 } from 'lucide-react';
 import {
-  getDocument, getRecepcion, updateArticle, deleteArticle, updateDocument, marcarTerminado, reprocessDocument, deleteDocument,
+  getDocument, getRecepcion, updateArticle, deleteArticle, createArticle, recalculateArticles, updateDocument, marcarTerminado, reprocessDocument, deleteDocument,
   getProveedoresConocidos, etiquetasBaldaUrl, etiquetasPruebaUrl, getAjusteEtiquetas, putAjusteEtiquetas,
-  downloadExcel, downloadTreyFact, downloadPriceList, describeApiError,
+  downloadExcel, downloadPriceList, describeApiError,
 } from '../api/client';
 import type { Article, Document, EstadoCompra, LineaRecepcion, Recepcion } from '../types';
 import { useCfToast } from '../components/CfToast';
@@ -31,6 +31,20 @@ const ESTADO: Record<EstadoCompra, { txt: string; icono: JSX.Element | null }> =
 const pctES = (p: number | null) => (p == null ? '' : `${numES(Math.abs(p), 0, 1)} %`);
 const cant = (n: number) => numES(n, 0, 2);
 
+/** ¿La pantalla mide al menos `px` de ancho? (cambia al girar o al estrechar la ventana) */
+function useAncho(px: number): boolean {
+  const consulta = `(min-width: ${px}px)`;
+  const [vale, setVale] = useState(() => typeof window !== 'undefined' && window.matchMedia(consulta).matches);
+  useEffect(() => {
+    const m = window.matchMedia(consulta);
+    const cambia = () => setVale(m.matches);
+    cambia();
+    m.addEventListener('change', cambia);
+    return () => m.removeEventListener('change', cambia);
+  }, [consulta]);
+  return vale;
+}
+
 /** Albarán de compra visto como «Recibir mercancía»: qué ha cambiado, a qué precio se vende y qué etiquetar. */
 export function RecibirPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,8 +66,10 @@ export function RecibirPage() {
   const [avisoEsc, setAvisoEsc] = useState<{ texto: string; mal?: boolean; accion?: { texto: string; alPulsar: () => void } } | null>(null);
   const recienGuardado = useRef<{ codigo: string; en: string } | null>(null);
   const [verOriginal, setVerOriginal] = useState(false);
-  const [hoja, setHoja] = useState<'etiquetas' | 'datos' | null>(null);
-  const [corregir, setCorregir] = useState<number | null>(null);
+  const [hoja, setHoja] = useState<'etiquetas' | 'datos' | 'mas' | null>(null);
+  const originalRef = useRef<HTMLDivElement>(null);
+  const [corregir, setCorregir] = useState<number | 'nueva' | null>(null);
+  const pc = useAncho(1000);   // en el ordenador, lista en columnas; en el móvil, fichas
   const [borrar, setBorrar] = useState(false);
   const etiquetasPuestas = useRef(false);
 
@@ -198,6 +214,73 @@ export function RecibirPage() {
     </button>
   );
 
+  const acciones = (
+    <>
+            <button className="btn btn-ghost" disabled={sinCodigo.length === 0} onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(sinCodigo[0].id); }}>
+              <ScanBarcode size={19} /> {sinCodigo.length ? <><span className="rc-largo">Leer códigos</span><span className="rc-corto">Códigos</span> <span className="rc-n">{sinCodigo.length}</span></> : 'Códigos al día'}
+            </button>
+            <button className="btn btn-primary" disabled={paraEtiqueta.length === 0} onClick={() => setHoja('etiquetas')}>
+              <Printer size={19} /> Etiquetas <span className="rc-n">{paraEtiqueta.length}</span>
+            </button>
+            <button className="btn btn-ghost rc-mas-btn" onClick={() => setHoja('mas')} aria-label="Más opciones"><MoreHorizontal size={20} /><span className="rc-mas-txt">Más</span></button>
+    </>
+  );
+  const marcaEtiqueta = (a: Article) => (
+    <input type="checkbox" checked={etiquetar.has(a.id)} aria-label={`Etiqueta de ${a.descripcion}`}
+      onChange={ev => setEtiquetar(s => { const n = new Set(s); if (ev.target.checked) n.add(a.id); else n.delete(a.id); return n; })} />
+  );
+  /** Ordenador: una línea por artículo, en columnas (Andrés, 17/11/2026: con fichas solo cabían 4 o 5 en pantalla). */
+  const filaPc = (a: Article) => {
+    const l = linea.get(a.id);
+    if (!l) return null;
+    const e = ESTADO[l.estado];
+    const tieneCodigo = eanValido(a.ean);
+    const ref = a.codigo_proveedor || a.codigo_fabricante;
+    return [
+      <tr key={a.id} className={`rc-tr ${l.estado}`}>
+        <td><span className={`rc-estado ${l.estado}`}>{e.icono}{e.txt}{(l.estado === 'sube' || l.estado === 'baja') && ` ${pctES(l.pct)}`}</span></td>
+        <td className="rc-td-art">
+          <b title={a.descripcion}>{a.descripcion}</b>
+          <small>
+            {l.compras > 0 && <><button className="rc-enlace" aria-expanded={historial.has(a.id)} onClick={() => setHistorial(s => { const n = new Set(s); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n; })}>{plural(l.compras, 'compra anterior', 'compras anteriores')}</button> · </>}
+            {ref ? `Ref. ${ref}` : 'Sin referencia'}
+          </small>
+        </td>
+        <td className="rc-td-num">{cant(a.cantidad)}</td>
+        <td>
+          <button className="rc-celda-btn" onClick={() => setCorregir(a.id)} title="Corregir lo que se leyó del albarán">{euros(a.coste_neto_unitario)} <Pencil size={13} /></button>
+          <small>{l.coste_anterior != null
+            ? (l.estado === 'igual' ? 'igual que antes' : <span title={`El ${fechaES(l.fecha_anterior)}`}>antes <s>{euros(l.coste_anterior)}</s></span>)
+            : l.estado === 'nuevo' ? 'primera compra' : 'sin precio'}</small>
+        </td>
+        <td>
+          {pvp?.id === a.id ? (
+            <form className="rc-pvp-form" onSubmit={ev => { ev.preventDefault(); ponerPvp(a, pvp.valor); }}>
+              <input autoFocus inputMode="decimal" value={pvp.valor} onChange={ev => setPvp({ id: a.id, valor: ev.target.value })} onFocus={ev => ev.target.select()} onKeyDown={ev => { if (ev.key === 'Escape') setPvp(null); }} aria-label="Precio de venta con IVA" />
+              <button className="btn btn-primary btn-sm" type="submit" disabled={guardando === a.id}>Guardar</button>
+            </form>
+          ) : (
+            <button className="rc-celda-btn pvp" onClick={() => setPvp({ id: a.id, valor: numES(a.pvp_con_iva) })} title="Cambiar el precio de venta">{euros(a.pvp_con_iva)} <Pencil size={13} /></button>
+          )}
+          <small>
+            {l.pvp_cambia && l.pvp_anterior != null
+              ? <>antes {euros(l.pvp_anterior)} · <button className="rc-enlace" disabled={guardando === a.id} onClick={() => guardar(a, { pvp_fijo: l.pvp_anterior }, `Se mantiene a ${euros(l.pvp_anterior)}`, { pvp_fijo: a.pvp_fijo ?? null })}>mantenerlo</button></>
+              : a.pvp_fijo
+                ? <>a mano ({numES(a.margen_pct, 0, 0)}&nbsp;%) · <button className="rc-enlace" onClick={() => guardar(a, { pvp_fijo: null }, 'Precio calculado otra vez', { pvp_fijo: a.pvp_fijo })}>calcularlo</button></>
+                : <>margen {numES(a.margen_pct, 0, 1)}&nbsp;%</>}
+          </small>
+        </td>
+        <td className="rc-td-cod">
+          {tieneCodigo
+            ? <span className="rc-codigo">{a.ean}</span>
+            : <button className="btn btn-ghost btn-sm" onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(a.id); }}><ScanBarcode size={15} /> Leer</button>}
+        </td>
+        <td className="rc-td-etq">{marcaEtiqueta(a)}</td>
+      </tr>,
+      historial.has(a.id) && <tr key={`${a.id}-h`} className="rc-tr-hist"><td /><td colSpan={6}><Historial l={l} /></td></tr>,
+    ];
+  };
+
   return (
     <div className="page rc">
       {toast}
@@ -212,7 +295,9 @@ export function RecibirPage() {
             {doc.terminado_at && <span className="rc-hecho"><Check size={13} strokeWidth={3} /> Terminado</span>}
           </p>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => setHoja('datos')}><Pencil size={15} /> Cambiar</button>
+        {pc && doc.status === 'completed' && r
+          ? <div className="rc-cab-acc"><button className="btn btn-ghost" onClick={() => setHoja('datos')}><Pencil size={16} /> Cambiar</button>{acciones}</div>
+          : <button className="btn btn-ghost btn-sm" onClick={() => setHoja('datos')}><Pencil size={15} /> Cambiar</button>}
       </header>
 
       {leyendo && (
@@ -242,6 +327,15 @@ export function RecibirPage() {
             {chip('igual', r.igual, 'igual')}
           </div>
 
+          {pc ? (
+            <div className="rc-tabla-caja">
+              <table className="rc-tabla">
+                <thead><tr><th>Precio</th><th>Artículo</th><th className="rc-td-num">Cant.</th><th>Coste</th><th>Precio de venta</th><th>Código de barras</th><th className="rc-td-etq" title="Sacar etiqueta de balda"><Tag size={15} aria-label="Etiqueta" /></th></tr></thead>
+                <tbody>{visibles.map(filaPc)}</tbody>
+              </table>
+              {visibles.length === 0 && <p className="rc-vacio">No hay artículos {filtro === 'todos' ? 'en este albarán' : 'de ese tipo'}.</p>}
+            </div>
+          ) : (
           <div className="rc-lista">
             {visibles.map(a => {
               const l = linea.get(a.id);
@@ -324,6 +418,9 @@ export function RecibirPage() {
             })}
             {visibles.length === 0 && <p className="rc-vacio">No hay artículos {filtro === 'todos' ? 'en este albarán' : 'de ese tipo'}.</p>}
           </div>
+          )}
+
+          <button className="rc-anadir" onClick={() => setCorregir('nueva')}><Plus size={17} /> Añadir una línea que falta</button>
 
           <div className="rc-fin">
             {doc.terminado_at
@@ -331,34 +428,14 @@ export function RecibirPage() {
               : <button className="btn btn-ghost btn-lg" onClick={async () => { await marcarTerminado(docId, true); await cargar(); show('Albarán terminado', { undo: async () => { await marcarTerminado(docId, false); cargar(); } }); }}><Check size={19} /> Ya está colocado: terminar</button>}
           </div>
 
-          <details className="rc-mas">
-            <summary>Más opciones</summary>
-            <div className="rc-mas-lista">
-              <button onClick={() => setVerOriginal(v => !v)}><FileText size={17} /> {verOriginal ? 'Ocultar el albarán original' : 'Ver el albarán original'}</button>
-              <button onClick={() => navigate(`/documento/${docId}/tabla`)}><Table2 size={17} /> Tabla completa (descuentos, añadir o quitar líneas)</button>
-              <button onClick={async () => { await reprocessDocument(docId); setRec(null); etiquetasPuestas.current = false; cargar(); show('Leyéndolo otra vez…'); }}><RotateCw size={17} /> Volver a leer el albarán</button>
-              <button onClick={() => downloadTreyFact(docId)}>Archivo para TreyFACT</button>
-              <button onClick={() => downloadExcel(docId)}>Excel</button>
-              <button onClick={() => downloadPriceList(docId)}>Listín de precios</button>
-              <button className="peligro" onClick={() => setBorrar(true)}><Trash2 size={17} /> Borrar este albarán</button>
-            </div>
-          </details>
-
           {verOriginal && (
-            <div className="card rc-original">
+            <div className="card rc-original" ref={originalRef}>
               <div className="card-header"><span>Albarán original</span><button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setVerOriginal(false)}>Ocultar</button></div>
               <DocumentPreview document={doc} />
             </div>
           )}
 
-          <div className="rc-barra">
-            <button className="btn btn-ghost" disabled={sinCodigo.length === 0} onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(sinCodigo[0].id); }}>
-              <ScanBarcode size={19} /> {sinCodigo.length ? <><span className="rc-largo">Leer códigos</span><span className="rc-corto">Códigos</span> <span className="rc-n">{sinCodigo.length}</span></> : 'Códigos al día'}
-            </button>
-            <button className="btn btn-primary" disabled={paraEtiqueta.length === 0} onClick={() => setHoja('etiquetas')}>
-              <Printer size={19} /> Etiquetas <span className="rc-n">{paraEtiqueta.length}</span>
-            </button>
-          </div>
+          {!pc && <div className="rc-barra">{acciones}</div>}
         </>
       )}
 
@@ -372,18 +449,44 @@ export function RecibirPage() {
           onCerrar={() => { setEscId(null); setAvisoEsc(null); }}
         />
       )}
-      {corregir != null && articulos.some(a => a.id === corregir) && (
+      {corregir != null && (corregir === 'nueva' || articulos.some(a => a.id === corregir)) && (
         <HojaLinea
-          art={articulos.find(a => a.id === corregir) as Article}
+          art={corregir === 'nueva' ? null : articulos.find(a => a.id === corregir) as Article}
           prontoPago={doc.pronto_pago_pct || 0}
           onCerrar={() => setCorregir(null)}
-          onGuardar={async cambio => { const a = articulos.find(x => x.id === corregir) as Article; if (await guardar(a, cambio, 'Línea corregida')) setCorregir(null); }}
+          onGuardar={async cambio => {
+            if (corregir === 'nueva') {
+              try {
+                const { data } = await createArticle({ ...cambio, document_id: docId, line_number: Math.max(0, ...articulos.map(a => a.line_number || 0)) + 1 });
+                setCorregir(null); setEtiquetar(s => new Set(s).add(data.id)); await cargar(); show('Línea añadida');
+              } catch (e) { show(describeApiError(e), { error: true }); }
+              return;
+            }
+            const a = articulos.find(x => x.id === corregir) as Article;
+            if (await guardar(a, cambio, 'Línea corregida')) setCorregir(null);
+          }}
           onQuitar={async () => {
-            try { await deleteArticle(corregir); setCorregir(null); await cargar(); show('Línea quitada del albarán'); } catch (e) { show(describeApiError(e), { error: true }); }
+            if (corregir === 'nueva') return;
+            try { await deleteArticle(corregir as number); setCorregir(null); await cargar(); show('Línea quitada del albarán'); } catch (e) { show(describeApiError(e), { error: true }); }
           }}
         />
       )}
       {hoja === 'etiquetas' && <HojaEtiquetas articulos={paraEtiqueta} onCerrar={() => setHoja(null)} />}
+      {hoja === 'mas' && (
+        <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget) setHoja(null); }}>
+          <div className="upload-sheet rc-hoja" role="dialog" aria-modal="true" aria-label="Más opciones">
+            <div className="upload-sheet-handle" />
+            <div className="rc-hoja-cab"><h3>Más opciones</h3><button className="modal-close" onClick={() => setHoja(null)} aria-label="Cerrar"><X size={20} /></button></div>
+            <div className="rc-mas-lista">
+              <button onClick={() => { setHoja(null); setVerOriginal(true); setTimeout(() => originalRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120); }}><FileText size={17} /> Ver el albarán original</button>
+              <button onClick={async () => { setHoja(null); await reprocessDocument(docId); setRec(null); etiquetasPuestas.current = false; cargar(); show('Leyéndolo otra vez…'); }}><RotateCw size={17} /> Volver a leer el albarán</button>
+              <button onClick={() => { setHoja(null); downloadExcel(docId); }}>Excel</button>
+              <button onClick={() => { setHoja(null); downloadPriceList(docId); }}>Listín de precios</button>
+              <button className="peligro" onClick={() => { setHoja(null); setBorrar(true); }}><Trash2 size={17} /> Borrar este albarán</button>
+            </div>
+          </div>
+        </div>
+      )}
       {hoja === 'datos' && <HojaDatos doc={doc} onCerrar={() => setHoja(null)} onGuardado={async () => { setHoja(null); await cargar(); show('Datos del albarán guardados'); }} />}
       {borrar && (
         <ConfirmModal
@@ -420,12 +523,13 @@ const leerDescuentos = (raw: string): number[] | null => {
 
 /** Corregir una línea que se leyó mal: los mismos datos que trae el papel (cantidad, precio, descuento). */
 function HojaLinea({ art, prontoPago, onCerrar, onGuardar, onQuitar }: {
-  art: Article; prontoPago: number; onCerrar: () => void; onGuardar: (c: Partial<Article>) => void; onQuitar: () => void;
+  art: Article | null; prontoPago: number; onCerrar: () => void; onGuardar: (c: Partial<Article>) => void; onQuitar: () => void;
 }) {
-  const [nombre, setNombre] = useState(art.descripcion);
-  const [cantidad, setCantidad] = useState(numES(art.cantidad, 0, 3));
-  const [precio, setPrecio] = useState(numES(art.precio_unitario_bruto, 2, 4));
-  const [dto, setDto] = useState([art.descuento_1, art.descuento_2, art.descuento_3, art.descuento_4].filter(d => d != null && d > 0).map(d => numES(d as number, 0, 2)).join('+'));
+  const [nombre, setNombre] = useState(art?.descripcion ?? '');
+  const [cantidad, setCantidad] = useState(art ? numES(art.cantidad, 0, 3) : '1');
+  const [precio, setPrecio] = useState(art ? numES(art.precio_unitario_bruto, 2, 4) : '');
+  const [dto, setDto] = useState(art ? [art.descuento_1, art.descuento_2, art.descuento_3, art.descuento_4].filter(d => d != null && d > 0).map(d => numES(d as number, 0, 2)).join('+') : '');
+  const [iva, setIva] = useState(art?.iva_pct ?? 21);
   const [quitar, setQuitar] = useState(false);
   const q = leerPrecio(cantidad), pr = leerPrecio(precio), ds = leerDescuentos(dto);
   const vale = !!nombre.trim() && q != null && q > 0 && pr != null && pr >= 0 && ds != null;
@@ -437,23 +541,27 @@ function HojaLinea({ art, prontoPago, onCerrar, onGuardar, onQuitar }: {
     const d = ds as number[];
     onGuardar({
       descripcion: nombre.trim(), cantidad: q as number, precio_unitario_bruto: pr as number,
-      descuento_1: d[0] ?? null, descuento_2: d[1] ?? null, descuento_3: d[2] ?? null, descuento_4: d[3] ?? null,
+      descuento_1: d[0] ?? null, descuento_2: d[1] ?? null, descuento_3: d[2] ?? null, descuento_4: d[3] ?? null, iva_pct: iva,
     } as Partial<Article>);
   };
 
   return (
     <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget) onCerrar(); }}>
-      <form className="upload-sheet rc-hoja" role="dialog" aria-modal="true" aria-label="Corregir la línea" onSubmit={e => { e.preventDefault(); guardar(); }}>
+      <form className="upload-sheet rc-hoja" role="dialog" aria-modal="true" aria-label={art ? 'Corregir la línea' : 'Añadir una línea'} onSubmit={e => { e.preventDefault(); guardar(); }}>
         <div className="upload-sheet-handle" />
-        <div className="rc-hoja-cab"><h3>Corregir la línea</h3><button type="button" className="modal-close" onClick={onCerrar} aria-label="Cerrar"><X size={20} /></button></div>
+        <div className="rc-hoja-cab"><h3>{art ? 'Corregir la línea' : 'Añadir una línea'}</h3><button type="button" className="modal-close" onClick={onCerrar} aria-label="Cerrar"><X size={20} /></button></div>
         <p className="rc-hoja-txt">Pon lo que dice el papel del proveedor (el precio, sin IVA).</p>
-        <label className="rc-campo">Artículo<input value={nombre} onChange={e => setNombre(e.target.value)} /></label>
+        <label className="rc-campo">Artículo<input value={nombre} onChange={e => setNombre(e.target.value)} autoFocus={!art} /></label>
         <div className="rc-campos-3">
           <label className="rc-campo">Cantidad<input inputMode="decimal" value={cantidad} onChange={e => setCantidad(e.target.value)} onFocus={e => e.target.select()} /></label>
           <label className="rc-campo">Precio<input inputMode="decimal" value={precio} onChange={e => setPrecio(e.target.value)} onFocus={e => e.target.select()} /></label>
           <label className="rc-campo">Dto. %<input inputMode="text" value={dto} onChange={e => setDto(e.target.value)} placeholder="0" onFocus={e => e.target.select()} /></label>
         </div>
         <p className="rc-hoja-nota">Si lleva varios descuentos, sepáralos con «+»: 30+10.</p>
+        <div className="rc-iva" role="radiogroup" aria-label="IVA del artículo">
+          <span>IVA</span>
+          {[21, 10, 4, 0].map(v => <button key={v} type="button" role="radio" aria-checked={iva === v} className={iva === v ? 'on' : ''} onClick={() => setIva(v)}>{v}&nbsp;%</button>)}
+        </div>
         <div className={`rc-cuenta${vale ? '' : ' mal'}`}>
           {vale && neto != null && coste != null ? (
             <>
@@ -463,11 +571,11 @@ function HojaLinea({ art, prontoPago, onCerrar, onGuardar, onQuitar }: {
           ) : <span>Revisa los números: cantidad mayor que 0, precio y descuento entre 0 y 100.</span>}
         </div>
         <button className="btn btn-primary btn-lg rc-hoja-btn" type="submit" disabled={!vale}>Guardar</button>
-        <div className="rc-hoja-pie">
+        {art && <div className="rc-hoja-pie">
           {quitar
             ? <><span>¿Quitar esta línea del albarán?</span><span><button type="button" className="rc-enlace peligro" onClick={onQuitar}>Sí, quitarla</button>{' · '}<button type="button" className="rc-enlace" onClick={() => setQuitar(false)}>No</button></span></>
             : <button type="button" className="rc-enlace peligro" onClick={() => setQuitar(true)}><Trash2 size={14} /> Esta línea no es del albarán: quitarla</button>}
-        </div>
+        </div>}
       </form>
     </div>
   );
@@ -532,6 +640,7 @@ function HojaDatos({ doc, onCerrar, onGuardado }: { doc: Document; onCerrar: () 
   const [proveedor, setProveedor] = useState(doc.supplier_name || '');
   const [numero, setNumero] = useState(doc.doc_number || '');
   const [fecha, setFecha] = useState(doc.doc_date || '');
+  const [pp, setPp] = useState(doc.pronto_pago_pct ? numES(doc.pronto_pago_pct, 0, 2) : '');
   const [conocidos, setConocidos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -540,7 +649,14 @@ function HojaDatos({ doc, onCerrar, onGuardado }: { doc: Document; onCerrar: () 
   const guardar = async () => {
     setGuardando(true); setError(null);
     try {
-      await updateDocument(doc.id, { supplier_name: proveedor.trim() || undefined, doc_number: numero.trim() || undefined, doc_date: fecha || undefined });
+      const nuevoPp = pp.trim() ? leerPrecio(pp) : null;
+      if (pp.trim() && (nuevoPp == null || nuevoPp < 0 || nuevoPp > 50)) { setError('El pronto pago tiene que ser un porcentaje entre 0 y 50.'); return; }
+      const cambiaPp = (nuevoPp || 0) !== (doc.pronto_pago_pct || 0);
+      await updateDocument(doc.id, {
+        supplier_name: proveedor.trim() || undefined, doc_number: numero.trim() || undefined, doc_date: fecha || undefined,
+        ...(cambiaPp ? { pronto_pago_pct: (nuevoPp || null) as unknown as number } : {}),
+      });
+      if (cambiaPp) await recalculateArticles(doc.id);   // el pronto pago baja el coste de todas las líneas
       onGuardado();
     } catch (e) { setError(describeApiError(e)); } finally { setGuardando(false); }
   };
@@ -559,6 +675,7 @@ function HojaDatos({ doc, onCerrar, onGuardado }: { doc: Document; onCerrar: () 
           <label className="rc-campo">Nº de albarán<input value={numero} onChange={e => setNumero(e.target.value)} /></label>
           <label className="rc-campo">Fecha<input type="date" value={fecha} onChange={e => setFecha(e.target.value)} /></label>
         </div>
+        <label className="rc-campo rc-campo-corto">Descuento por pronto pago (%), si lo lleva<input inputMode="decimal" value={pp} onChange={e => setPp(e.target.value)} placeholder="0" /></label>
         {error && <p className="rc-error">{error}</p>}
         <button className="btn btn-primary btn-lg rc-hoja-btn" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
       </form>

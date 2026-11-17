@@ -381,7 +381,7 @@ export function DocumentPage() {
           <AlertTriangle size={20} />
           <div>
             <b>Ha subido el coste de {priceAlerts.length} artículo{priceAlerts.length !== 1 ? 's' : ''}</b>
-            <span>Revisa su precio de venta antes de pasarlo a TreyFACT.</span>
+            <span>Revisa su precio de venta.</span>
             <ul>
               {priceAlerts.map(a => (
                 <li key={a.article_id}>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FileSpreadsheet, Tag, FileText, MoreHorizontal, Minus, Plus, Check, RefreshCw, Trash2, Calculator } from 'lucide-react';
 import { reprocessDocument, recalculateArticles, marcarTerminado } from '../api/client';
-import { descargar, mensajeError, rutaTreyFact, rutaEtiquetas, rutaListin, rutaExcel, rutaInforme } from '../lib/descargas';
+import { descargar, mensajeError, rutaEtiquetas, rutaListin, rutaExcel, rutaInforme } from '../lib/descargas';
 import type { Document, Supplier } from '../types/index';
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-/** Una sola barra con lo que se hace con un albarán: TreyFACT, etiquetas, listín y «Más». */
+/** Una sola barra con lo que se hace con un albarán: etiquetas, listín y «Más» (17/11/2026: «Pasar a TreyFACT» se quitó, Andrés: «ya no lo vamos a utilizar»). */
 export function DocAcciones({ document: doc, suppliers, selectedArticleIds, articleCount, onChanged, onReload, onReprocessed, onDelete, onToast }: Props) {
   const [copias, setCopias] = useState(1);
   const [mas, setMas] = useState(false);
@@ -38,14 +38,6 @@ export function DocAcciones({ document: doc, suppliers, selectedArticleIds, arti
     finally { setOcupado(null); }
   };
 
-  const treyfact = async () => {
-    const ok = await hacer('tf', rutaTreyFact(doc.id), `treyfact_${doc.id}.xlsx`, 'Preparando el archivo para TreyFACT…');
-    if (ok && !terminado) {
-      // Bajar el archivo de TreyFACT da el albarán por terminado (el servidor ya no lo hace solo en la descarga)
-      try { const { data } = await marcarTerminado(doc.id, true); onChanged({ terminado_at: data.terminado_at }); }
-      catch { onReload(); }
-    }
-  };
   const cambiarTerminado = async () => {
     try {
       const { data } = await marcarTerminado(doc.id, !terminado);
@@ -71,9 +63,6 @@ export function DocAcciones({ document: doc, suppliers, selectedArticleIds, arti
     <section className="card doc-acciones" aria-label="Qué hacer con este albarán">
       <div className="doc-acciones-fila">
         {descargable ? (<>
-        <button className="btn btn-primary" onClick={treyfact} disabled={!!ocupado}>
-          <FileSpreadsheet size={18} /> {ocupado === 'tf' ? 'Preparando…' : 'Pasar a TreyFACT'}
-        </button>
         <div className="doc-etiquetas">
           <button className="btn btn-ghost" disabled={!!ocupado}
             onClick={() => hacer('lb', rutaEtiquetas(doc.id, hay ? selectedArticleIds : undefined, copias), `etiquetas_${doc.id}.pdf`, 'Preparando las etiquetas…')}>
@@ -91,12 +80,12 @@ export function DocAcciones({ document: doc, suppliers, selectedArticleIds, arti
         </>) : (
           <span className="doc-sin-acciones">
             {doc.status === 'error'
-              ? 'Este albarán no se pudo leer: hasta que tenga artículos no se puede pasar a TreyFACT ni sacar etiquetas.'
-              : 'Este albarán no tiene artículos: añádelos abajo o vuelve a leerlo desde «Más» para poder pasarlo a TreyFACT y sacar etiquetas.'}
+              ? 'Este albarán no se pudo leer: hasta que tenga artículos no se pueden sacar etiquetas.'
+              : 'Este albarán no tiene artículos: añádelos abajo o vuelve a leerlo desde «Más» para poder sacar etiquetas.'}
           </span>
         )}
         <button className={`doc-terminado${terminado ? ' on' : ''}`} onClick={cambiarTerminado}
-          title={terminado ? 'Quitar la marca de terminado' : 'Marcar como revisado y pasado a TreyFACT'}>
+          title={terminado ? 'Quitar la marca de terminado' : 'Marcar como revisado y colocado'}>
           <span className="box">{terminado && <Check size={14} strokeWidth={3} />}</span>
           {terminado ? 'Terminado' : 'Marcar terminado'}
         </button>
