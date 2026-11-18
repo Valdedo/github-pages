@@ -624,6 +624,20 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   - Probado en local con IA y Drive de mentira (8 PDF a la vez: tres lecturas a la vez, cada uno a su carpeta, juntar dos hojas).
     Sin probar con el Drive ni el escáner de verdad. Idea siguiente: crear desde la app la carpeta de un proveedor nuevo (hoy hay
     que crearla en Drive y elegirla una vez; haría falta una acción nueva en el Apps Script).
+- **IA de la lectura y aviso de «sin carpeta» (18/11/2026, tarde; Andrés: «al leer imágenes le cuesta leer números»)**:
+  - La app usaba `claude-sonnet-4-6` para todo (`settings.claude_model`, `CLAUDE_MODEL`). Ese modelo ve cada imagen como mucho a
+    **1568 px** de lado (la API la encoge): un A4 se quedaba en unos 135 ppp y los números pequeños bailaban. Los modelos desde el
+    4.7 ven **2576 px**. La lectura de albaranes de compra usa ahora `settings.claude_model_lectura` (`CLAUDE_MODEL_LECTURA`, por
+    defecto `claude-sonnet-5-5`); las imágenes van a `LADO_MAX = 2576` y los PDF se pasan a imagen a `PPP_PDF = 220` (un A4 cabe
+    justo); las fotos del móvil se comprimen a 2600 px (antes 2400). Si la clave no tiene ese modelo (404/403), `_pedir` lee con
+    `claude_model` y no insiste en una hora. `documents.leido_con` apunta el modelo de cada lectura y sale en «⋯ Más opciones»
+    («Leído con Claude Sonnet 5.5»): es la forma de comprobar que el cambio ha entrado. El resto de usos de la IA (materiales del
+    albarán de venta, correo, ficha de producto) siguen con `claude_model`: son de texto. **Sin probar con la IA de verdad** (en
+    local no hay clave): solo con un cliente simulado (`TestModeloDeLectura`). Si sigue fallando con números, probar
+    `claude-opus-5-5` en `CLAUDE_MODEL_LECTURA` (el doble de precio por lectura).
+  - Albarán que se queda en «_Pendientes de clasificar» (proveedor nuevo sin carpeta, o sin leer): **aviso push a Andrés**
+    (`drive_proveedor._avisar_pendiente`, una vez por albarán, etiqueta `compras-drive`, abre el albarán) y renglón en «Para no
+    olvidar» de Inicio para todos («N albaranes de compra sin carpeta en Drive», de `drive_estado === 'sin_carpeta'`).
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.

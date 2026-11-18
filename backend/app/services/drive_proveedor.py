@@ -220,6 +220,7 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
             nombre = nombre_sin_pisar(db, doc)
             res = mail_service.drive_guardar(destino["id"], nombre, _pdf(doc, paginas or [doc.file_path]))
             anterior = doc.drive_file_id
+            ya_avisado = bool(anterior and doc.drive_pendiente)
             doc.drive_file_id, doc.drive_url = res.get("id"), res.get("url")
             doc.drive_carpeta_id, doc.drive_carpeta, doc.drive_pendiente = destino["id"], destino["name"], pendiente
             doc.drive_error, doc.drive_at = None, datetime.now(TZ).replace(tzinfo=None)
@@ -230,6 +231,8 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
                 except Exception:
                     pass
             logger.info("Albarán %s guardado en Drive: %s/%s", doc_id, destino["name"], nombre)
+            if pendiente and not ya_avisado:
+                _avisar_pendiente(db, doc)
         except Exception as e:
             logger.warning("No se pudo guardar el albarán %s en Drive: %s", doc_id, e)
             db.rollback()
@@ -242,6 +245,25 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
                 db.commit()
         finally:
             db.close()
+
+
+def _avisar_pendiente(db, doc) -> None:
+    """Aviso al encargado: un albarán se ha quedado en «_Pendientes de clasificar» (proveedor nuevo sin carpeta, o
+    no se pudo leer). Sin esto no se enteraba y el albarán se quedaba ahí (Andrés, 18/11/2026)."""
+    try:
+        from app.models.document import Document
+        from app.services import push_service
+        if doc.status == "error":
+            titulo = "No se pudo leer un albarán de compra"
+            texto = f"{doc.original_filename}: está guardado en Drive sin leer. Ábrelo y vuelve a leerlo."
+        else:
+            n = db.query(Document).filter(Document.drive_pendiente.is_(True), Document.status == "completed").count()
+            titulo = "Albarán de compra sin carpeta en Drive"
+            texto = (f"{doc.supplier_name or 'Proveedor sin poner'}: no encuentro su carpeta. Ábrelo y elígela "
+                     "(solo la primera vez)." + (f" Hay {n} así." if n > 1 else ""))
+        push_service.avisar(lambda s: s.rol == "admin", titulo, texto, f"/documento/{doc.id}", "compras-drive")
+    except Exception as e:
+        logger.warning("No se pudo mandar el aviso de albarán pendiente: %s", e)
 
 
 def repasar(max_n: int = 5) -> None:

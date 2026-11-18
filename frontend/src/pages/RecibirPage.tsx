@@ -486,6 +486,7 @@ export function RecibirPage() {
               <button onClick={() => { setHoja(null); downloadPriceList(docId); }}>Listín de precios</button>
               <button className="peligro" onClick={() => { setHoja(null); setBorrar(true); }}><Trash2 size={17} /> Borrar este albarán</button>
             </div>
+            {doc.leido_con && <p className="rc-hoja-nota">Leído con {nombreIA(doc.leido_con)}.</p>}
           </div>
         </div>
       )}
@@ -518,6 +519,13 @@ function Historial({ l }: { l: LineaRecepcion }) {
     </table>
   );
 }
+
+/** «claude-sonnet-5-5» → «Claude Sonnet 5.5» */
+const nombreIA = (id: string) => {
+  const [marca, familia, ...version] = id.split('-');
+  const may = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  return [may(marca || ''), may(familia || ''), version.filter(v => /^\d{1,2}$/.test(v)).join('.')].filter(Boolean).join(' ');
+};
 
 /** «30+10» → [30, 10]; «25» → [25]; vacío → []. null si no se entiende. */
 const leerDescuentos = (raw: string): number[] | null => {

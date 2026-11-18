@@ -257,3 +257,54 @@ class TestVariosALaVez:
         assert res.status == "uploaded" and db.query(Article).count() == 0  # se vuelve a leer entero
         assert len(tareas.tasks) == 1
         assert not (tmp_path / "h1.pdf").exists() and not (tmp_path / "h2.pdf").exists()
+
+
+class TestModeloDeLectura:
+    """La lectura usa el modelo nuevo y, si la clave no lo tiene, vuelve sola al de siempre."""
+
+    def _cliente(self, falla_con=None):
+        import anthropic, httpx
+
+        class Mensajes:
+            def __init__(self): self.pedidos = []
+            async def create(self, **k):
+                self.pedidos.append(k["model"])
+                if k["model"] == falla_con:
+                    r = httpx.Response(404, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
+                    raise anthropic.NotFoundError("model: no existe", response=r, body=None)
+                return type("M", (), {"stop_reason": "end_turn", "content": [type("B", (), {"text": ' {"ok": 1} '})()]})()
+
+        return type("C", (), {"messages": Mensajes()})()
+
+    def test_usa_el_modelo_de_lectura(self, monkeypatch):
+        monkeypatch.setattr(ex, "_sin_modelo_nuevo_hasta", 0.0)
+        c = self._cliente()
+
+        async def leer():
+            texto = await ex._pedir(c, "hola")
+            return texto, ex.modelo_usado()
+        texto, usado = asyncio.run(leer())
+        assert texto == '{"ok": 1}' and c.messages.pedidos == [ex.settings.claude_model_lectura] == [usado]
+
+    def test_si_la_clave_no_lo_tiene_lee_con_el_de_siempre(self, monkeypatch):
+        monkeypatch.setattr(ex, "_sin_modelo_nuevo_hasta", 0.0)
+        nuevo, viejo = ex.settings.claude_model_lectura, ex.settings.claude_model
+        assert nuevo != viejo
+        c = self._cliente(falla_con=nuevo)
+
+        async def leer():
+            await ex._pedir(c, "hola")
+            uno = ex.modelo_usado()
+            await ex._pedir(c, "otra")     # ya no insiste con el nuevo durante una hora
+            return uno
+        assert asyncio.run(leer()) == viejo
+        assert c.messages.pedidos == [nuevo, viejo, viejo]
+
+    def test_la_imagen_va_a_la_resolucion_que_ve_el_modelo(self):
+        import base64, io
+        from PIL import Image
+        b = ex._image_to_base64_block(Image.new("RGB", (3000, 4200), "white"))
+        im = Image.open(io.BytesIO(base64.b64decode(b["source"]["data"])))
+        assert max(im.size) == ex.LADO_MAX == 2576
+        chica = ex._image_to_base64_block(Image.new("RGB", (1819, 2573), "white"))   # un A4 a 220 ppp: no se toca
+        assert Image.open(io.BytesIO(base64.b64decode(chica["source"]["data"]))).size == (1819, 2573)

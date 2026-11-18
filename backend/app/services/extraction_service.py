@@ -2,6 +2,8 @@
 Main extraction orchestrator.
 Combines PDF/OCR raw extraction with Claude AI intelligent parsing.
 """
+import contextvars
+import time
 import asyncio
 import json
 import logging
@@ -228,16 +230,45 @@ def mensaje_para_persona(e: Exception) -> str:
             f"avisa a Andrés. (Detalle: {e})")[:500]
 
 
+_modelo_usado: contextvars.ContextVar = contextvars.ContextVar("modelo_usado", default=None)
+_sin_modelo_nuevo_hasta = 0.0   # la clave no tiene el modelo de lectura: se usa el de siempre durante una hora
+
+
+def modelo_lectura() -> str:
+    return settings.claude_model if time.time() < _sin_modelo_nuevo_hasta else (settings.claude_model_lectura or settings.claude_model)
+
+
+def modelo_usado() -> Optional[str]:
+    """El modelo con el que se hizo la última lectura de esta tarea (para apuntarlo en el albarán)."""
+    return _modelo_usado.get()
+
+
 async def _pedir(client, contenido) -> str:
     """Una petición a la IA. Los fallos de la IA salen en español y diciendo qué hacer."""
     import anthropic
-    try:
-        message = await client.messages.create(
-            model=settings.claude_model,
+    global _sin_modelo_nuevo_hasta
+
+    async def crear(modelo: str):
+        m = await client.messages.create(
+            model=modelo,
             max_tokens=MAX_SALIDA,
             system=EXTRACTION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": contenido}],
         )
+        _modelo_usado.set(modelo)
+        return m
+
+    modelo = modelo_lectura()
+    try:
+        try:
+            message = await crear(modelo)
+        except (anthropic.NotFoundError, anthropic.PermissionDeniedError) as e:
+            if modelo == settings.claude_model:
+                raise
+            # La clave no tiene (o no existe) el modelo nuevo: se lee con el de siempre y no se insiste en una hora
+            logger.warning("El modelo de lectura %s no está disponible (%s): se usa %s", modelo, e, settings.claude_model)
+            _sin_modelo_nuevo_hasta = time.time() + 3600
+            message = await crear(settings.claude_model)
     except anthropic.RateLimitError:
         raise LecturaError("La IA está saturada ahora mismo. Espera un par de minutos y vuelve a leerlo («Más» → «Volver a leer»).")
     except anthropic.APIStatusError as e:
@@ -297,10 +328,14 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
             raise LecturaError("La IA no devolvió bien los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
 
 
+LADO_MAX = 2576      # lado largo que ven los modelos de alta resolución
+PPP_PDF = 220        # un A4 a 220 ppp mide 1819 × 2573 px: justo lo que cabe
+
+
 def _image_to_base64_block(source) -> dict:
     """Convert a file path or PIL Image to a Claude Vision image content block.
 
-    Resizes to max 2000px (sufficient for OCR quality), encodes as JPEG.
+    Resizes to max LADO_MAX px, encodes as JPEG.
     """
     import base64
     import io
@@ -319,10 +354,11 @@ def _image_to_base64_block(source) -> dict:
 
     img = img.convert("RGB")
 
-    # Resize: max 2000px on longest side — enough detail for printed text
+    # Como mucho LADO_MAX de lado: es lo que ven los modelos nuevos (desde el 4.7). Antes se mandaba a 2000 px y el
+    # modelo de entonces la bajaba a 1568: un A4 se quedaba en unos 135 puntos por pulgada y los números pequeños bailaban.
     max_dim = max(img.width, img.height)
-    if max_dim > 2000:
-        scale = 2000 / max_dim
+    if max_dim > LADO_MAX:
+        scale = LADO_MAX / max_dim
         img = img.resize((int(img.width * scale), int(img.height * scale)), Image.LANCZOS)
 
     buf = io.BytesIO()
@@ -557,7 +593,7 @@ async def extract_document(
     raw_data = await asyncio.to_thread(pdf_service.extract_text_and_tables, file_path)
     texto = raw_data.get("full_text", "") or ""
     n_paginas = len(raw_data.get("pages") or [])
-    images = await asyncio.to_thread(pdf_service.pdf_to_images, file_path, 200, MAX_PAGINAS_IMAGEN)
+    images = await asyncio.to_thread(pdf_service.pdf_to_images, file_path, PPP_PDF, MAX_PAGINAS_IMAGEN)
 
     supplier_detected = None
     if suppliers:

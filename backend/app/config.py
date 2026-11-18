@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: str = Field(default="", env="ANTHROPIC_API_KEY")
     claude_model: str = Field(default="claude-sonnet-4-6", env="CLAUDE_MODEL")
+    # IA que lee los albaranes de compra (nov. 2026). Los modelos desde el 4.7 ven la imagen con mucho más detalle
+    # (2576 px de lado frente a 1568), que es lo que hacía falta para los números pequeños de las fotos y escaneos.
+    # Si la clave no tiene ese modelo, la lectura vuelve sola al de `claude_model`.
+    claude_model_lectura: str = Field(default="claude-sonnet-5-5", env="CLAUDE_MODEL_LECTURA")
 
     # Database
     database_url: str = Field(default="sqlite:////data/app.db", env="DATABASE_URL")

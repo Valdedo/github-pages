@@ -790,6 +790,7 @@ async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] 
 
         _apply_validation(doc, result)
         _heredar(db, doc)
+        doc.leido_con = extraction_service.modelo_usado()
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, file_paths)
@@ -947,6 +948,7 @@ async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
         _apply_validation(doc, result)
 
         _heredar(db, doc)
+        doc.leido_con = extraction_service.modelo_usado()
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, None)

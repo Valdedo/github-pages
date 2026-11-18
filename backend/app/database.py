@@ -135,6 +135,7 @@ def _run_migrations():
         # Recibir mercancía (nov. 2026): proveedor tal como se leyó, PVP puesto a mano y ajuste de etiquetas
         ("documents", "supplier_leido",   "VARCHAR(255)"),
         ("documents", "distinto_ok",      "BOOLEAN"),
+        ("documents", "leido_con",        "VARCHAR(60)"),
         ("articles", "pvp_fijo",          "REAL"),
         ("app_settings", "etq_dx",        "REAL"),
         ("app_settings", "etq_dy",        "REAL"),

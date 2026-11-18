@@ -27,6 +27,8 @@ export interface Document {
   drive_pendiente?: boolean | null;
   drive_error?: string | null;
   drive_at?: string | null;
+  /** Modelo de IA con el que se leyó la última vez */
+  leido_con?: string | null;
   created_at: string;
   updated_at: string;
   articles?: Article[];

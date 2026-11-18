@@ -53,6 +53,7 @@ class Document(Base):
     huella: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)  # sha256 del archivo
     # La tienda confirmó que no es otra hoja ni un repetido de otro con el mismo número
     distinto_ok: Mapped[Optional[bool]] = mapped_column(nullable=True)
+    leido_con: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)  # modelo de IA de la última lectura
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Upload, PenLine, Check, Mail, Receipt, MessageCircle, FileText, ChevronDown } from 'lucide-react';
+import { ArrowUpRight, Upload, PenLine, Check, Mail, Receipt, MessageCircle, FileText, ChevronDown, FolderInput } from 'lucide-react';
 import { getDashboardStats, listFirmas, listDocuments, uploadFirmas, listarCargas, describeApiError, type OrdenCarga } from '../api/client';
 import { ES_MANUAL } from '../lib/proveedor';
 import { ConnectionError } from '../components/ConnectionError';
@@ -118,6 +118,8 @@ export function DashboardPage() {
     : porFirmar.length === 1 ? `Hace ${viejo} días` : `El más antiguo, hace ${viejo} días`;
   // Albaranes de proveedor leídos que falta revisar y pasar a TreyFACT
   const porTerminar = docs.filter(d => !d.terminado_at && (d.status === 'completed' || d.status === 'error'));
+  // Guardados en Drive pero sin carpeta: el proveedor es nuevo y hay que elegírsela una vez
+  const sinCarpeta = docs.filter(d => d.drive_estado === 'sin_carpeta');
 
   // Lo que se ha hecho hoy, lo más reciente arriba
   const actividad = useMemo<Actividad[]>(() => {
@@ -241,6 +243,16 @@ export function DashboardPage() {
                 <small>Revisar precios y etiquetar{porTerminar.some(d => d.status === 'error') ? ' · alguno no se pudo leer' : ''}</small>
               </span>
               <span className="btn btn-primary btn-sm">Ver</span>
+            </Link>
+          )}
+          {sinCarpeta.length > 0 && (
+            <Link to={sinCarpeta.length === 1 ? `/documento/${sinCarpeta[0].id}` : '/albaranes'} className="inicio-aviso">
+              <span className="inicio-aviso-ico"><FolderInput size={20} /></span>
+              <span className="inicio-aviso-txt">
+                <b>{sinCarpeta.length === 1 ? `El albarán de ${sinCarpeta[0].supplier_name || 'un proveedor'} no tiene carpeta en Drive` : `${sinCarpeta.length} albaranes de compra sin carpeta en Drive`}</b>
+                <small>Están guardados en «Pendientes de clasificar». Elige la carpeta del proveedor (solo la primera vez)</small>
+              </span>
+              <span className="btn btn-primary btn-sm">{sinCarpeta.length === 1 ? 'Elegir' : 'Ver'}</span>
             </Link>
           )}
           <div className="firmas-avisos inicio-avisos"><FirmasAvisos /></div>

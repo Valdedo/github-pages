@@ -36,8 +36,8 @@ export async function compressImage(file: File, maxSizeMB = 3): Promise<File> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      // Scale down so largest dimension ≤ 2400px (sufficient for OCR)
-      const MAX_DIM = 2400;
+      // Lado largo de 2600 px como mucho: es lo que llega a ver la IA (2576 px)
+      const MAX_DIM = 2600;
       let { width, height } = img;
       if (width > MAX_DIM || height > MAX_DIM) {
         const scale = MAX_DIM / Math.max(width, height);
