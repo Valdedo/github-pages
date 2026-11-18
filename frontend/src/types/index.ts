@@ -29,6 +29,8 @@ export interface Document {
   drive_at?: string | null;
   /** Modelo de IA con el que se leyó la última vez */
   leido_con?: string | null;
+  /** Por qué no lo leyó el modelo nuevo (si lo leyó el de siempre) */
+  leido_nota?: string | null;
   created_at: string;
   updated_at: string;
   articles?: Article[];

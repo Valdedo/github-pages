@@ -53,8 +53,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # nunca debe impedir arrancar
         logger.warning(f"No se pudieron rellenar importes de albaranes: {e}")
     try:
-        from app.api.documents import marcar_interrumpidos
-        marcar_interrumpidos()
+        from app.api.documents import marcar_interrumpidos, reanudar
+        reanudar(marcar_interrumpidos())   # los que se cortaron al reiniciar se siguen leyendo solos
     except Exception as e:
         logger.warning(f"No se pudieron revisar los documentos a medias: {e}")
     try:

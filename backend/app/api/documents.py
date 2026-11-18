@@ -147,19 +147,45 @@ def _rutas(doc: Document) -> List[str]:
     return lista or ([doc.file_path] if doc.file_path else [])
 
 
-def marcar_interrumpidos() -> None:
-    """Al arrancar: los albaranes que se estaban leyendo cuando se paró el servidor quedan en error."""
+def marcar_interrumpidos() -> List[int]:
+    """Al arrancar: los albaranes que se estaban leyendo (o esperaban en la cola) cuando se paró el servidor.
+    Se retoman solos **una vez** (devuelve sus ids para `reanudar`); antes quedaban en error y había que volver a
+    leerlos a mano, y cada vez que se publicaba se cortaban los que estuvieran a medias. Si uno se corta por
+    segunda vez, queda en error: no se insiste con un archivo que tumba el servidor."""
     from app.database import SessionLocal
     db = SessionLocal()
     try:
-        n = (db.query(Document).filter(Document.status.in_(("processing", "uploaded")))
-             .update({Document.status: "error", Document.error_message: "Se cortó mientras se leía (se reinició el servidor). Vuelve a leerlo desde «Más» → «Volver a leer»."},
-                     synchronize_session=False))
+        retomar: List[int] = []
+        for d in db.query(Document).filter(Document.status.in_(("processing", "uploaded"))).all():
+            if d.reanudado:
+                d.status = "error"
+                d.error_message = "Se cortó dos veces mientras se leía. Vuelve a leerlo desde «Más» → «Volver a leer»."
+            else:
+                d.reanudado, d.status = True, "uploaded"
+                retomar.append(d.id)
         db.commit()
-        if n:
-            logger.info("%s albarán(es) a medias pasados a error", n)
+        if retomar:
+            logger.info("%s albarán(es) a medias: se retoma su lectura", len(retomar))
+        return retomar
     finally:
         db.close()
+
+
+_retomando: set = set()
+
+
+def reanudar(ids: List[int]) -> None:
+    """Lanza en segundo plano la lectura de esos albaranes (hay que llamarlo con el servidor ya en marcha)."""
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        datos = [(d.id, _rutas(d), d.supplier_id) for d in db.query(Document).filter(Document.id.in_(ids or [-1])).all()]
+    finally:
+        db.close()
+    for doc_id, rutas, prov in datos:
+        t = asyncio.create_task(_process_multi_document(doc_id, rutas, prov) if len(rutas) > 1 else _process_document(doc_id, prov))
+        _retomando.add(t)
+        t.add_done_callback(_retomando.discard)
 
 
 @router.post("/upload", response_model=DocumentResponse)
@@ -563,6 +589,7 @@ async def reprocess_document(
     db.query(Article).filter(Article.document_id == doc_id).delete()
     doc.status = "uploaded"
     doc.error_message = None
+    doc.reanudado = None
     if request.supplier_id:
         doc.supplier_id = request.supplier_id
     db.commit()
@@ -791,6 +818,7 @@ async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] 
         _apply_validation(doc, result)
         _heredar(db, doc)
         doc.leido_con = extraction_service.modelo_usado()
+        doc.leido_nota, doc.reanudado = extraction_service.motivo_fallo(), None
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, file_paths)
@@ -949,6 +977,7 @@ async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
 
         _heredar(db, doc)
         doc.leido_con = extraction_service.modelo_usado()
+        doc.leido_nota, doc.reanudado = extraction_service.motivo_fallo(), None
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, None)

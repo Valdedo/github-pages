@@ -243,32 +243,108 @@ def modelo_usado() -> Optional[str]:
     return _modelo_usado.get()
 
 
-async def _pedir(client, contenido) -> str:
-    """Una petición a la IA. Los fallos de la IA salen en español y diciendo qué hacer."""
+MAX_SALIDA_NUEVO = 20000   # en los modelos 5.x el límite cuenta también lo que piensan antes de contestar
+# Lo que recomienda la guía del modelo para respuestas en JSON que piden varios pasos (aquí, cuadrar las cuentas)
+PENSAR = "\n\nThink the problem through before you answer."
+_motivo_fallo: contextvars.ContextVar = contextvars.ContextVar("motivo_fallo", default=None)
+
+
+def motivo_fallo() -> Optional[str]:
+    """Por qué el modelo nuevo no pudo con la última lectura de esta tarea (None si la hizo él)."""
+    return _motivo_fallo.get()
+
+
+class _SinRespuesta(Exception):
+    """La IA contestó, pero sin datos que valgan (se cortó, no quiso o no vino texto)."""
+    def __init__(self, motivo: str):
+        super().__init__(motivo)
+        self.motivo = motivo
+
+
+def _texto(message) -> str:
+    """El texto de la respuesta, **mirando el tipo de cada bloque**. Los modelos 5.x empiezan la respuesta con un
+    bloque de «pensar» (vacío): coger el primer bloque a ciegas (`content[0].text`) fallaba siempre con ellos
+    (18/11/2026: tras cambiar a Sonnet 5.5 no se leía ningún albarán)."""
+    partes = []
+    for bl in getattr(message, "content", None) or []:
+        tipo = bl.get("type") if isinstance(bl, dict) else getattr(bl, "type", None)
+        txt = bl.get("text") if isinstance(bl, dict) else getattr(bl, "text", None)
+        if tipo == "text" and isinstance(txt, str):
+            partes.append(txt)
+    return "".join(partes).strip()
+
+
+def _json_de(texto: str):
+    """El JSON de la respuesta aunque venga con algo escrito delante o detrás (los modelos que piensan a veces
+    escriben sus cuentas antes). Se prueba en cada «{» y se queda el último objeto entero que valga."""
+    t = (texto or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"```[a-z]*\n?", "", t).strip().rstrip("`").strip()
+    try:
+        return json.loads(t)
+    except json.JSONDecodeError as e:
+        primero = e
+    dec, i, ultimo = json.JSONDecoder(), 0, None
+    while True:
+        i = t.find("{", i)
+        if i < 0:
+            break
+        try:
+            valor, fin = dec.raw_decode(t, i)
+        except json.JSONDecodeError:
+            i += 1
+            continue
+        if isinstance(valor, dict) and valor:
+            ultimo = valor
+        i = fin
+    if ultimo is None:
+        raise primero
+    return ultimo
+
+
+async def _pedir(client, contenido, solo_de_siempre: bool = False) -> str:
+    """Una petición a la IA. Los fallos de la IA salen en español y diciendo qué hacer.
+    Si el modelo nuevo no puede (no existe para esta clave, rechaza la petición, se corta o contesta sin datos),
+    se repite con el de siempre: una lectura nunca debe quedar peor que antes de cambiar de modelo."""
     import anthropic
     global _sin_modelo_nuevo_hasta
 
-    async def crear(modelo: str):
+    async def crear(modelo: str) -> str:
+        es_nuevo = modelo != settings.claude_model
         m = await client.messages.create(
             model=modelo,
-            max_tokens=MAX_SALIDA,
-            system=EXTRACTION_SYSTEM_PROMPT,
+            max_tokens=MAX_SALIDA_NUEVO if es_nuevo else MAX_SALIDA,
+            system=EXTRACTION_SYSTEM_PROMPT + (PENSAR if es_nuevo else ""),
             messages=[{"role": "user", "content": contenido}],
         )
+        parada = getattr(m, "stop_reason", None)
+        if parada == "max_tokens":   # se trata como fallida aunque traiga algo: puede venir a medias
+            raise _SinRespuesta("se cortó por largo")
+        if parada == "refusal":
+            raise _SinRespuesta("no quiso leerlo")
+        texto = _texto(m)
+        if not texto:
+            raise _SinRespuesta("contestó sin texto")
         _modelo_usado.set(modelo)
-        return m
+        return texto
 
-    modelo = modelo_lectura()
+    modelo = settings.claude_model if solo_de_siempre else modelo_lectura()
     try:
         try:
-            message = await crear(modelo)
-        except (anthropic.NotFoundError, anthropic.PermissionDeniedError) as e:
-            if modelo == settings.claude_model:
+            return await crear(modelo)
+        except (anthropic.RateLimitError, anthropic.APIConnectionError):
+            raise
+        except Exception as e:
+            saturada = isinstance(e, anthropic.APIStatusError) and e.status_code >= 500
+            if modelo == settings.claude_model or saturada:
                 raise
-            # La clave no tiene (o no existe) el modelo nuevo: se lee con el de siempre y no se insiste en una hora
-            logger.warning("El modelo de lectura %s no está disponible (%s): se usa %s", modelo, e, settings.claude_model)
-            _sin_modelo_nuevo_hasta = time.time() + 3600
-            message = await crear(settings.claude_model)
+            if isinstance(e, (anthropic.NotFoundError, anthropic.PermissionDeniedError)):
+                _sin_modelo_nuevo_hasta = time.time() + 3600   # la clave no lo tiene: no se insiste en una hora
+            motivo = (e.motivo if isinstance(e, _SinRespuesta)
+                      else f"error {e.status_code}" if isinstance(e, anthropic.APIStatusError) else type(e).__name__)
+            logger.warning("El modelo de lectura %s no pudo (%s: %s): se lee con %s", modelo, motivo, e, settings.claude_model)
+            _motivo_fallo.set(motivo)
+            return await crear(settings.claude_model)
     except anthropic.RateLimitError:
         raise LecturaError("La IA está saturada ahora mismo. Espera un par de minutos y vuelve a leerlo («Más» → «Volver a leer»).")
     except anthropic.APIStatusError as e:
@@ -277,10 +353,11 @@ async def _pedir(client, contenido) -> str:
         raise LecturaError(f"La IA no pudo leer el albarán. Vuelve a probar; si sigue, avisa a Andrés. (Detalle: {e.message})")
     except anthropic.APIConnectionError:
         raise LecturaError("No se pudo conectar con la IA. Vuelve a leerlo en unos minutos («Más» → «Volver a leer»).")
-    if message.stop_reason == "max_tokens":
-        raise LecturaError("El albarán es demasiado largo para leerlo de una vez. Súbelo en dos partes "
-                           "(por ejemplo, una foto por cada página).")
-    return message.content[0].text.strip()
+    except _SinRespuesta as e:
+        if e.motivo == "se cortó por largo":
+            raise LecturaError("El albarán es demasiado largo para leerlo de una vez. Súbelo en dos partes "
+                               "(por ejemplo, una foto por cada página).")
+        raise LecturaError("La IA no devolvió los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
 
 
 def _cliente_ia():
@@ -313,13 +390,8 @@ async def extract_with_claude(raw_data: dict, supplier_template: Optional[dict] 
             )
         response_text = await _pedir(client, prompt)
 
-        # Strip markdown code blocks if present
-        if response_text.startswith("```"):
-            response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
-
         try:
-            result = json.loads(response_text)
-            return result
+            return _json_de(response_text)
         except json.JSONDecodeError as e:
             if attempt == 0:
                 logger.warning(f"Claude returned invalid JSON on attempt 1, retrying: {e}")
@@ -427,31 +499,28 @@ async def extract_with_claude_vision(
         hint += "\n" + aviso + "\n"
     content.append({"type": "text", "text": f"Extrae todos los artículos del albarán que aparece en {'esta imagen' if len(content) == 1 else 'estas imágenes'}:{hint}"})
 
-    retry_content = None
-    for attempt in range(2):
-        msg_content = retry_content if retry_content else content
-        response_text = await _pedir(client, msg_content)
-        if response_text.startswith("```"):
-            response_text = re.sub(r"```[a-z]*\n?", "", response_text).strip().rstrip("`").strip()
-
+    pedir_json = [
+        {"type": "text", "text": (
+            "IMPORTANTE: Tu respuesta anterior no era JSON válido. "
+            "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
+            "sin bloques de código markdown.\n\n"
+            f"Extrae todos los artículos del albarán que aparece en {'esta imagen' if len(content) == 1 else 'estas imágenes'}:{hint}"
+        )}
+    ] + [bl for bl in content if bl["type"] == "image"]
+    # 1) tal cual · 2) insistiendo en el JSON · 3) con el modelo de siempre, si el nuevo no dio JSON ninguna de las dos veces
+    intentos = [(content, False), (pedir_json, False)]
+    if modelo_lectura() != settings.claude_model:
+        intentos.append((content, True))
+    response_text = ""
+    for n, (msg_content, de_siempre) in enumerate(intentos):
+        response_text = await _pedir(client, msg_content, solo_de_siempre=de_siempre)
         try:
-            result = json.loads(response_text)
-            return result
+            return _json_de(response_text)
         except json.JSONDecodeError as e:
-            if attempt == 0:
-                logger.warning(f"Claude Vision returned invalid JSON on attempt 1, retrying: {e}")
-                # Second attempt: add only a text block asking for valid JSON
-                retry_content = [
-                    {"type": "text", "text": (
-                        "IMPORTANTE: Tu respuesta anterior no era JSON válido. "
-                        "Devuelve ÚNICAMENTE el objeto JSON, sin texto previo ni posterior, "
-                        "sin bloques de código markdown.\n\n"
-                        f"Extrae todos los artículos del albarán que aparece en {'esta imagen' if len(content) == 1 else 'estas imágenes'}:{hint}"
-                    )}
-                ] + [b for b in content if b["type"] == "image"]
-                continue
-            logger.warning("La IA (fotos) no devolvió JSON válido tras reintentar: %s · %s", e, response_text[:300])
-            raise LecturaError("La IA no devolvió bien los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
+            logger.warning("La IA (fotos) no devolvió JSON válido (intento %s): %s · %s", n + 1, e, response_text[:300])
+            if de_siempre is False and n == len(intentos) - 2 and len(intentos) == 3:
+                _motivo_fallo.set("no dio los datos bien")
+    raise LecturaError("La IA no devolvió bien los datos del albarán. Vuelve a leerlo («Más» → «Volver a leer»).")
 
 
 MAX_PAGINAS_IMAGEN = 12   # páginas que se mandan como imagen (las demás, solo su texto)
@@ -504,6 +573,8 @@ async def _leer_imagenes(imagenes: list, plantilla: Optional[dict], texto: str =
     """Lee las páginas como imagen (con el texto del PDF de apoyo, si lo hay). Si las líneas no suman la
     base del documento, lo vuelve a leer una vez diciéndole a la IA cuánto se descuadra, y se queda con
     la lectura que mejor cuadre."""
+    _motivo_fallo.set(None)
+    _modelo_usado.set(None)
     res = await extract_with_claude_vision(imagenes, plantilla, texto)
     arts = normalize_extracted_articles(res.get("articulos", []))
     c = cuadre(arts, res.get("totales_documento") or {})

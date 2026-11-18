@@ -260,45 +260,95 @@ class TestVariosALaVez:
 
 
 class TestModeloDeLectura:
-    """La lectura usa el modelo nuevo y, si la clave no lo tiene, vuelve sola al de siempre."""
+    """La lectura usa el modelo nuevo y, si no puede por lo que sea, lee el de siempre: nunca queda peor que antes."""
 
-    def _cliente(self, falla_con=None):
+    def _cliente(self, nuevo=None):
+        """`nuevo`: qué hace el modelo de lectura → None (contesta bien, pensando primero), un número (ese error),
+        «cortado» (se queda sin sitio pensando), «vacio» (solo el bloque de pensar) o un texto (lo que contesta)."""
         import anthropic, httpx
+        lectura = ex.settings.claude_model_lectura
+        B = lambda **k: type("B", (), k)()
 
         class Mensajes:
             def __init__(self): self.pedidos = []
             async def create(self, **k):
-                self.pedidos.append(k["model"])
-                if k["model"] == falla_con:
-                    r = httpx.Response(404, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
-                    raise anthropic.NotFoundError("model: no existe", response=r, body=None)
-                return type("M", (), {"stop_reason": "end_turn", "content": [type("B", (), {"text": ' {"ok": 1} '})()]})()
+                self.pedidos.append((k["model"], k["max_tokens"]))
+                if k["model"] != lectura:   # el de siempre: sin pensar, un solo bloque de texto
+                    return type("M", (), {"stop_reason": "end_turn", "content": [B(type="text", text=' {"ok": "viejo"} ')]})()
+                if isinstance(nuevo, int):
+                    r = httpx.Response(nuevo, request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
+                    clase = {404: anthropic.NotFoundError, 400: anthropic.BadRequestError, 429: anthropic.RateLimitError}[nuevo]
+                    raise clase("no", response=r, body=None)
+                pensar = B(type="thinking", thinking="", signature="x")   # así empiezan las respuestas de los 5.x
+                if nuevo == "cortado":
+                    return type("M", (), {"stop_reason": "max_tokens", "content": [pensar]})()
+                if nuevo == "vacio":
+                    return type("M", (), {"stop_reason": "end_turn", "content": [pensar]})()
+                return type("M", (), {"stop_reason": "end_turn", "content": [pensar, B(type="text", text=nuevo or '{"ok": "nuevo"}')]})()
 
         return type("C", (), {"messages": Mensajes()})()
 
-    def test_usa_el_modelo_de_lectura(self, monkeypatch):
+    def _leer(self, c, monkeypatch):
         monkeypatch.setattr(ex, "_sin_modelo_nuevo_hasta", 0.0)
-        c = self._cliente()
 
         async def leer():
+            ex._motivo_fallo.set(None)
             texto = await ex._pedir(c, "hola")
-            return texto, ex.modelo_usado()
-        texto, usado = asyncio.run(leer())
-        assert texto == '{"ok": 1}' and c.messages.pedidos == [ex.settings.claude_model_lectura] == [usado]
+            return texto, ex.modelo_usado(), ex.motivo_fallo()
+        return asyncio.run(leer())
 
-    def test_si_la_clave_no_lo_tiene_lee_con_el_de_siempre(self, monkeypatch):
+    def test_lee_la_respuesta_aunque_empiece_por_el_bloque_de_pensar(self, monkeypatch):
+        # El fallo del 18/11/2026: se cogía content[0].text y en Sonnet 5.5 el primer bloque es el de pensar
+        c = self._cliente()
+        texto, usado, motivo = self._leer(c, monkeypatch)
+        assert texto == '{"ok": "nuevo"}' and usado == ex.settings.claude_model_lectura and motivo is None
+        assert c.messages.pedidos == [(ex.settings.claude_model_lectura, ex.MAX_SALIDA_NUEVO)]
+
+    def test_si_el_nuevo_no_puede_lee_el_de_siempre(self, monkeypatch):
+        viejo = ex.settings.claude_model
+        for caso, dice in ((404, "error 404"), (400, "error 400"), ("cortado", "se cortó por largo"), ("vacio", "contestó sin texto")):
+            c = self._cliente(caso)
+            texto, usado, motivo = self._leer(c, monkeypatch)
+            assert (texto, usado, motivo) == ('{"ok": "viejo"}', viejo, dice), caso
+            assert [m for m, _ in c.messages.pedidos] == [ex.settings.claude_model_lectura, viejo], caso
+
+    def test_si_la_clave_no_lo_tiene_no_insiste_en_una_hora(self, monkeypatch):
+        c = self._cliente(404)
+        self._leer(c, monkeypatch)
+        asyncio.run(ex._pedir(c, "otra"))
+        assert [m for m, _ in c.messages.pedidos][2:] == [ex.settings.claude_model]
+
+    def test_saturada_no_cambia_de_modelo(self, monkeypatch):
+        import pytest
+        c = self._cliente(429)
+        with pytest.raises(ex.LecturaError, match="saturada"):
+            self._leer(c, monkeypatch)
+        assert len(c.messages.pedidos) == 1
+
+    def test_json_con_texto_alrededor(self):
+        bueno = '{"documento": {"proveedor": "X"}, "articulos": [{"linea": 1}], "totales_documento": {"iva_desglose": [{"pct": 21}]}}'
+        assert ex._json_de(bueno)["articulos"] == [{"linea": 1}]
+        assert ex._json_de("```json\n" + bueno + "\n```")["documento"] == {"proveedor": "X"}
+        # con las cuentas escritas delante (y un objeto suelto por medio): vale el último objeto entero
+        assert ex._json_de('Sumo las líneas: {"suma": 12}. Resultado:\n' + bueno + "\nListo.")["documento"] == {"proveedor": "X"}
+        import pytest
+        with pytest.raises(Exception):
+            ex._json_de("no hay datos")
+
+    def test_con_fotos_si_el_nuevo_no_da_json_lo_lee_el_de_siempre(self, monkeypatch, tmp_path):
+        from PIL import Image
         monkeypatch.setattr(ex, "_sin_modelo_nuevo_hasta", 0.0)
-        nuevo, viejo = ex.settings.claude_model_lectura, ex.settings.claude_model
-        assert nuevo != viejo
-        c = self._cliente(falla_con=nuevo)
+        monkeypatch.setattr(ex.settings, "anthropic_api_key", "x")
+        c = self._cliente("Lo siento, no veo bien la hoja.")
+        monkeypatch.setattr(ex, "_cliente_ia", lambda: c)
+        foto = tmp_path / "a.jpg"
+        Image.new("RGB", (400, 600), "white").save(foto)
 
         async def leer():
-            await ex._pedir(c, "hola")
-            uno = ex.modelo_usado()
-            await ex._pedir(c, "otra")     # ya no insiste con el nuevo durante una hora
-            return uno
-        assert asyncio.run(leer()) == viejo
-        assert c.messages.pedidos == [nuevo, viejo, viejo]
+            return await ex.extract_with_claude_vision([str(foto)]), ex.modelo_usado(), ex.motivo_fallo()
+        res, usado, motivo = asyncio.run(leer())
+        assert res == {"ok": "viejo"} and usado == ex.settings.claude_model and motivo == "no dio los datos bien"
+        assert [m for m, _ in c.messages.pedidos] == [ex.settings.claude_model_lectura] * 2 + [ex.settings.claude_model]
 
     def test_la_imagen_va_a_la_resolucion_que_ve_el_modelo(self):
         import base64, io
@@ -308,3 +358,23 @@ class TestModeloDeLectura:
         assert max(im.size) == ex.LADO_MAX == 2576
         chica = ex._image_to_base64_block(Image.new("RGB", (1819, 2573), "white"))   # un A4 a 220 ppp: no se toca
         assert Image.open(io.BytesIO(base64.b64decode(chica["source"]["data"]))).size == (1819, 2573)
+
+
+class TestLecturaCortada:
+    """Publicar reinicia el servidor: lo que se estaba leyendo se retoma solo, una vez."""
+
+    def test_se_retoma_una_vez_y_a_la_segunda_queda_en_error(self, db, monkeypatch):
+        import app.database as basedatos
+        from app.api import documents as api
+        monkeypatch.setattr(basedatos, "SessionLocal", lambda: db)
+        monkeypatch.setattr(db, "close", lambda: None)
+        a = _doc(db, "X", dt.date(2026, 11, 18), [], numero="1")
+        b = _doc(db, "X", dt.date(2026, 11, 18), [], numero="2")
+        hecho = _doc(db, "X", dt.date(2026, 11, 18), [], numero="3")
+        a.status, b.status, b.reanudado = "processing", "uploaded", True
+        db.commit()
+        assert api.marcar_interrumpidos() == [a.id]
+        db.refresh(a); db.refresh(b); db.refresh(hecho)
+        assert (a.status, a.reanudado) == ("uploaded", True)
+        assert b.status == "error" and "dos veces" in b.error_message
+        assert hecho.status == "completed"

@@ -638,6 +638,20 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   - Albarán que se queda en «_Pendientes de clasificar» (proveedor nuevo sin carpeta, o sin leer): **aviso push a Andrés**
     (`drive_proveedor._avisar_pendiente`, una vez por albarán, etiqueta `compras-drive`, abre el albarán) y renglón en «Para no
     olvidar» de Inicio para todos («N albaranes de compra sin carpeta en Drive», de `drive_estado === 'sin_carpeta'`).
+- **Fallo del cambio de modelo y su arreglo (18/11/2026, 18:00)**: al pasar a Sonnet 5.5 **dejó de leerse todo**. En los modelos
+  5.x pensar va activado por defecto y la respuesta **empieza por un bloque `thinking` (vacío)**; `_pedir` cogía
+  `message.content[0].text`. Lección: antes de cambiar de modelo, leer su guía de migración (platform.claude.com/docs →
+  models/…/migration-guide); un cliente simulado que contesta como el modelo viejo no prueba nada. Arreglo:
+  `_texto()` lee los bloques **por tipo**; `MAX_SALIDA_NUEVO = 20000` (el límite cuenta lo pensado; no pasar de ~21 000 sin
+  streaming) y al final del prompt la línea que recomienda su guía para JSON con varios pasos (`PENSAR`); `stop_reason`
+  `max_tokens` o `refusal` y respuesta sin texto cuentan como fallo; `_json_de()` saca el JSON aunque venga con texto delante
+  (último objeto entero, probando en cada «{»). **Si el modelo nuevo no puede por lo que sea** (4xx, se corta, sin texto, dos veces
+  sin JSON) **lee el de siempre**, y el motivo queda en `documents.leido_nota` (sale en «⋯ Más opciones»: «La IA nueva no pudo
+  (…) y lo leyó la de antes»). Saturada (429/5xx) o sin conexión no cambian de modelo. No se manda `thinking`, `temperature` ni
+  `effort` (el SDK es `anthropic==0.40.0`, anterior a todo eso; lo que no conoce lo deja pasar). Sin probar con la IA de verdad.
+  - **Publicar ya no corta las lecturas**: al arrancar, lo que estaba leyéndose o en cola **se retoma solo una vez**
+    (`marcar_interrumpidos` → `reanudar`, `documents.reanudado`; a la segunda queda en error). Arreglo puntual `relectura_ia_v1`:
+    los que fallaron desde las 17:45 del 18/11 se releen solos al publicar.
 - **Repaso del ordenador de la lista nueva (18/11/2026, Andrés: «no vaya a ser que el ordenador quede sin modificar»)**: mirado a
   1280×800, 1366×768, 1366×650, 1920×1080 y 860 px (lista, subir, fotos, avance, «otra hoja», archivar, sin carpeta, sin leer,
   historial, Inicio). Añadido: **se pueden soltar los PDF encima de la lista** sin abrir «Subir albaranes» (`useDropzone` en la

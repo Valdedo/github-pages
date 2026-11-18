@@ -486,7 +486,7 @@ export function RecibirPage() {
               <button onClick={() => { setHoja(null); downloadPriceList(docId); }}>Listín de precios</button>
               <button className="peligro" onClick={() => { setHoja(null); setBorrar(true); }}><Trash2 size={17} /> Borrar este albarán</button>
             </div>
-            {doc.leido_con && <p className="rc-hoja-nota">Leído con {nombreIA(doc.leido_con)}.</p>}
+            {doc.leido_con && <p className="rc-hoja-nota">Leído con {nombreIA(doc.leido_con)}.{doc.leido_nota && ` La IA nueva no pudo (${doc.leido_nota}) y lo leyó la de antes.`}</p>}
           </div>
         </div>
       )}

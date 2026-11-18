@@ -44,6 +44,7 @@ class DocumentResponse(DocumentBase):
     drive_error: Optional[str] = None
     drive_at: Optional[datetime.datetime] = None
     leido_con: Optional[str] = None
+    leido_nota: Optional[str] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     # Al subir: ese mismo archivo ya estaba subido y se devuelve el que había (no se vuelve a leer)

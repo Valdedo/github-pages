@@ -136,6 +136,8 @@ def _run_migrations():
         ("documents", "supplier_leido",   "VARCHAR(255)"),
         ("documents", "distinto_ok",      "BOOLEAN"),
         ("documents", "leido_con",        "VARCHAR(60)"),
+        ("documents", "leido_nota",       "TEXT"),
+        ("documents", "reanudado",        "BOOLEAN"),
         ("articles", "pvp_fijo",          "REAL"),
         ("app_settings", "etq_dx",        "REAL"),
         ("app_settings", "etq_dy",        "REAL"),
@@ -220,6 +222,18 @@ def _run_migrations():
 
         # Arreglo puntual (15/10/2026): las líneas sin código eran ART-0001, ART-0002… en cada albarán y se
         # repetían entre albaranes. Pasan a ART-<albarán>-<línea> (únicos).
+        # Arreglo puntual (18/11/2026): el cambio a Sonnet 5.5 se publicó a las 17:50 con un fallo (se leía el primer
+        # bloque de la respuesta, que en ese modelo es el de «pensar») y no se leyó ningún albarán hasta el arreglo.
+        # Los que fallaron en ese rato se vuelven a leer solos al arrancar (`marcar_interrumpidos` los recoge).
+        if una_vez("documents", "relectura_ia_v1"):
+            try:
+                conn.execute(sa.text(
+                    "UPDATE documents SET status = 'uploaded', error_message = NULL, reanudado = NULL "
+                    "WHERE status = 'error' AND updated_at >= '2026-11-18 16:45:00'"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
         if una_vez("articles", "codigo_v2"):
             try:
                 conn.execute(sa.text(

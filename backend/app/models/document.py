@@ -54,6 +54,8 @@ class Document(Base):
     # La tienda confirmó que no es otra hoja ni un repetido de otro con el mismo número
     distinto_ok: Mapped[Optional[bool]] = mapped_column(nullable=True)
     leido_con: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)  # modelo de IA de la última lectura
+    leido_nota: Mapped[Optional[str]] = mapped_column(Text, nullable=True)        # por qué no lo leyó el modelo nuevo
+    reanudado: Mapped[Optional[bool]] = mapped_column(nullable=True)              # su lectura se cortó y ya se retomó una vez
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
