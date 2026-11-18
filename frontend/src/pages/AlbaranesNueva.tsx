@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Archive, Check, ChevronRight, Copy, FileText, FolderCheck, FolderInput, RefreshCw, Search, Upload, X } from 'lucide-react';
-import { SubirVarios } from '../components/SubirVarios';
+import { useDropzone } from 'react-dropzone';
+import { ACCEPTED, MAX, SubirVarios } from '../components/SubirVarios';
 import { albaranesDistintos, deleteDocument, describeApiError, juntarAlbaranes, listDocuments, marcarTerminado } from '../api/client';
 import { ConnectionError } from '../components/ConnectionError';
 import { useCfToast } from '../components/CfToast';
@@ -28,6 +29,27 @@ export function AlbaranesNueva() {
   const [marcados, setMarcados] = useState<Set<number>>(new Set());
   const [gemelo, setGemelo] = useState<DocumentListItem | null>(null);
   const { toast, show } = useCfToast();
+
+  // Ordenador: se pueden soltar los PDF encima de la lista, sin abrir antes «Subir albaranes»
+  const [soltados, setSoltados] = useState<File[] | null>(null);
+  const zona = useDropzone({
+    noClick: true, noKeyboard: true, accept: ACCEPTED, maxFiles: MAX, maxSize: 20 * 1024 * 1024, disabled: showUpload || !!gemelo,
+    onDrop: files => { if (files.length) { setSoltados(files); setShowUpload(true); } },
+    onDropRejected: r => {
+      const c = r.flatMap(x => x.errors.map(e => e.code));
+      show(c.includes('too-many-files') ? `Demasiados archivos: como mucho ${MAX} de una vez` : c.includes('file-too-large') ? 'Alguno pesa más de 20 MB' : 'Solo valen PDF o fotos (JPG o PNG)', { error: true });
+    },
+  });
+  const cerrarSubir = () => { setShowUpload(false); setSoltados(null); };
+  // Esc cierra las ventanas (si no se está subiendo nada)
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || ocupado) return;
+      if (gemelo) setGemelo(null); else if (showUpload) cerrarSubir(); else if (eligiendo) { setEligiendo(false); setMarcados(new Set()); }
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [ocupado, gemelo, showUpload, eligiendo]);
 
   const cargar = async () => {
     try {
@@ -81,12 +103,12 @@ export function AlbaranesNueva() {
   };
 
   const subidoUno = (doc: Document) => {
-    setShowUpload(false);
+    cerrarSubir();
     if (doc.repetido) window.dispatchEvent(new CustomEvent('cf-cola-aviso', { detail: 'Ese albarán ya estaba subido: te abro el que hay' }));
     navigate(`/documento/${doc.id}`);
   };
   const subidosVarios = (docs: Document[]) => {
-    setShowUpload(false);
+    cerrarSubir();
     setVista('pendientes');
     cargar();
     const repes = docs.filter(d => d.repetido).length, nuevos = docs.length - repes;
@@ -114,7 +136,9 @@ export function AlbaranesNueva() {
   const otro = gemelo ? documents.find(d => d.id === gemelo.gemelo_id) ?? null : null;
 
   return (
-    <div className={`page dn${eligiendo ? ' dn-eligiendo' : ''}`}>
+    <div {...zona.getRootProps({ className: `page dn${eligiendo ? ' dn-eligiendo' : ''}` })}>
+      <input {...zona.getInputProps()} />
+      {zona.isDragActive && <div className="dn-soltar"><div><Upload size={34} /><b>Suelta aquí los albaranes</b><span>Cada PDF es un albarán: se leen y se guardan solos en la carpeta de su proveedor</span></div></div>}
       {toast}
       {loadError && <ConnectionError message={loadError} onRetry={cargar} />}
 
@@ -202,14 +226,14 @@ export function AlbaranesNueva() {
       )}
 
       {showUpload && (
-        <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget && !ocupado) setShowUpload(false); }}>
+        <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget && !ocupado) cerrarSubir(); }}>
           <div className="upload-sheet">
             <div className="upload-sheet-handle" />
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
               <h3 style={{ fontSize: 22, margin: 0 }}>Subir albaranes de proveedor</h3>
-              {!ocupado && <button className="modal-close" style={{ marginLeft: 'auto' }} onClick={() => setShowUpload(false)} aria-label="Cerrar"><X size={20} /></button>}
+              {!ocupado && <button className="modal-close" style={{ marginLeft: 'auto' }} onClick={cerrarSubir} aria-label="Cerrar"><X size={20} /></button>}
             </div>
-            <SubirVarios onUno={subidoUno} onVarios={subidosVarios} onOcupado={setOcupado} />
+            <SubirVarios onUno={subidoUno} onVarios={subidosVarios} onOcupado={setOcupado} iniciales={soltados} />
           </div>
         </div>
       )}
@@ -239,8 +263,8 @@ function Fila({ doc, eligiendo, marcado, sePuede, onAbrir, onGemelo }: {
   const titulo = doc.supplier_name || (enCurso ? doc.original_filename : doc.status === 'error' ? `Sin leer · ${doc.original_filename}` : 'Proveedor sin poner');
   const sub = [doc.doc_number && `Nº ${doc.doc_number}`, fechaES(doc.doc_date || doc.created_at), doc.status === 'completed' && plural(doc.article_count, 'artículo')].filter(Boolean).join(' · ');
   const drive = doc.drive_estado === 'ok' ? { cls: 'ok', ico: <FolderCheck size={15} />, texto: <>En Drive · <b>{doc.drive_carpeta}</b></> }
-    : doc.drive_estado === 'sin_carpeta' ? { cls: 'aviso', ico: <FolderInput size={15} />, texto: <>En Drive, <b>falta elegir la carpeta</b></> }
-    : doc.drive_estado === 'sin_leer' ? { cls: 'aviso', ico: <FolderInput size={15} />, texto: <>En Drive sin leer (pendientes)</> }
+    : doc.drive_estado === 'sin_carpeta' ? { cls: 'aviso', ico: <FolderInput size={15} />, texto: <>En Drive, <b>falta la carpeta</b></> }
+    : doc.drive_estado === 'sin_leer' ? { cls: 'aviso', ico: <FolderInput size={15} />, texto: <>En Drive, sin leer</> }
     : doc.drive_estado === 'guardando' ? { cls: 'gris', ico: <RefreshCw size={14} className="girando" />, texto: <>{enCurso ? 'Se guarda en Drive al leerlo' : 'Guardándose en Drive…'}</> }
     : doc.drive_estado === 'falta' ? { cls: 'mal', ico: <AlertTriangle size={15} />, texto: <><b>Sin guardar en Drive</b> todavía</> }
     : null;

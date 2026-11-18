@@ -1,13 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Camera, Check, Copy, FileText, Images, UploadCloud } from 'lucide-react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import { uploadDocument, uploadMultiImages } from '../api/client';
 import type { Document } from '../types';
 import { compressImage, errorSubida } from './FileUpload';
 
-const MAX = 40;            // albaranes de una vez
+export const MAX = 40;            // albaranes de una vez
 const MAX_HOJAS = 10;      // fotos de un mismo albarán
-const ACCEPTED = { 'application/pdf': ['.pdf'], 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'] };
+export const ACCEPTED = { 'application/pdf': ['.pdf'], 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'] };
 const esFoto = (f: File) => f.type.startsWith('image/');
 
 type Estado = 'cola' | 'subiendo' | 'ok' | 'repe' | 'mal';
@@ -20,13 +20,15 @@ interface Props {
   onVarios: (docs: Document[]) => void;
   /** Mientras sube no se debe cerrar la ventana. */
   onOcupado?: (ocupado: boolean) => void;
+  /** Archivos que ya se soltaron encima de la lista (ordenador): se empieza con ellos sin volver a elegir. */
+  iniciales?: File[] | null;
 }
 
 /**
  * Subir albaranes de proveedor, uno o un montón a la vez (nov. 2026).
  * Cada PDF es un albarán. Con varias fotos se pregunta si son hojas del mismo o albaranes distintos.
  */
-export function SubirVarios({ onUno, onVarios, onOcupado }: Props) {
+export function SubirVarios({ onUno, onVarios, onOcupado, iniciales }: Props) {
   const [tareas, setTareas] = useState<Tarea[] | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [dudaFotos, setDudaFotos] = useState<{ fotos: File[]; pdfs: File[] } | null>(null);
@@ -78,6 +80,11 @@ export function SubirVarios({ onUno, onVarios, onOcupado }: Props) {
     if (fotos.length > 1) { setError(null); setDudaFotos({ fotos, pdfs }); return; }
     subir(tareasDe(pdfs, fotos, false));
   }, [subir]);
+
+  const empezado = useRef(false);
+  useEffect(() => {
+    if (iniciales?.length && !empezado.current) { empezado.current = true; elegidos(iniciales); }
+  }, [iniciales, elegidos]);
 
   const rechazados = useCallback((r: FileRejection[]) => {
     const codes = r.flatMap(x => x.errors.map(e => e.code));
@@ -152,7 +159,7 @@ export function SubirVarios({ onUno, onVarios, onOcupado }: Props) {
   // ── Elegir ──
   return (
     <div className="sv">
-      <div className="camera-capture-btn" style={{ display: 'flex', gap: 8 }}>
+      <div className="sv-movil">
         <button className="btn-camera" type="button" style={{ flex: 1 }} onClick={() => camara.current?.click()}><Camera size={19} /> Hacer foto</button>
         <button className="btn-camera" type="button" style={{ flex: 1 }} onClick={() => galeria.current?.click()}><Images size={19} /> Elegir fotos</button>
         <input ref={camara} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}

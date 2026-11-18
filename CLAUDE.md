@@ -638,6 +638,13 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   - Albarán que se queda en «_Pendientes de clasificar» (proveedor nuevo sin carpeta, o sin leer): **aviso push a Andrés**
     (`drive_proveedor._avisar_pendiente`, una vez por albarán, etiqueta `compras-drive`, abre el albarán) y renglón en «Para no
     olvidar» de Inicio para todos («N albaranes de compra sin carpeta en Drive», de `drive_estado === 'sin_carpeta'`).
+- **Repaso del ordenador de la lista nueva (18/11/2026, Andrés: «no vaya a ser que el ordenador quede sin modificar»)**: mirado a
+  1280×800, 1366×768, 1366×650, 1920×1080 y 860 px (lista, subir, fotos, avance, «otra hoja», archivar, sin carpeta, sin leer,
+  historial, Inicio). Añadido: **se pueden soltar los PDF encima de la lista** sin abrir «Subir albaranes» (`useDropzone` en la
+  página con `noClick`; cartel «Suelta aquí los albaranes»; pasan a `SubirVarios` por `iniciales`); «Hacer foto / Elegir fotos»
+  solo en móvil y tableta (`sv-movil`: ≤768 px o puntero táctil; en el ordenador abrían el explorador de archivos); **Esc** cierra
+  las ventanas y sale de «Solo archivar»; textos de Drive más cortos («En Drive, falta la carpeta», «En Drive, sin leer») porque a
+  1280 px se cortaban.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.
