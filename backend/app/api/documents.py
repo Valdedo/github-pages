@@ -1,6 +1,7 @@
 """
 Document upload and management endpoints.
 """
+import asyncio
 import hashlib
 import json
 import logging
@@ -121,6 +122,19 @@ def _ya_subido(db: Session, huella: str) -> Optional[Document]:
     if doc:
         doc.repetido = True
     return doc
+
+
+# Al subir un montón de albaranes a la vez se leen de tres en tres (los demás esperan «en cola»):
+# todos de golpe chocaban con el límite de la IA y se quedaban sin leer.
+_LECTURAS_A_LA_VEZ = 3
+_turno: Optional[asyncio.Semaphore] = None
+
+
+def _cola() -> asyncio.Semaphore:
+    global _turno
+    if _turno is None:
+        _turno = asyncio.Semaphore(_LECTURAS_A_LA_VEZ)
+    return _turno
 
 
 def _rutas(doc: Document) -> List[str]:
@@ -281,6 +295,10 @@ def list_documents(
         .limit(limit)
         .all()
     )
+    gemelos = _gemelos([doc for doc, _ in rows])
+    from app.services import drive_proveedor, mail_service
+    desde = drive_proveedor._desde(db) if mail_service.configured() else None
+    ahora = datetime.utcnow()
     return [
         DocumentListItem(
             id=doc.id,
@@ -292,10 +310,159 @@ def list_documents(
             article_count=count,
             terminado_at=doc.terminado_at,
             drive_pendiente=doc.drive_pendiente,
+            drive_estado=_drive_estado(doc, desde, ahora),
+            drive_carpeta=doc.drive_carpeta,
+            gemelo_id=gemelos.get(doc.id),
             created_at=doc.created_at,
         )
         for doc, count in rows
     ]
+
+
+def _drive_estado(doc: Document, desde: Optional[int], ahora: datetime) -> Optional[str]:
+    """Cómo va la copia en Drive, para verlo en la lista sin abrir cada albarán:
+    «ok», «sin_carpeta» (guardado, falta elegir carpeta), «sin_leer» (guardado sin leer), «guardando» o «falta».
+    None = no aplica (albaranes de antes de que existiera la copia, o Drive sin configurar)."""
+    if doc.drive_file_id:
+        if doc.status == "error":
+            return "sin_leer"
+        return "sin_carpeta" if doc.drive_pendiente else "ok"
+    if desde is None or doc.id <= desde:
+        return None
+    if doc.status in ("uploaded", "processing"):
+        return "guardando"
+    if doc.drive_error:
+        return "falta"
+    reciente = doc.updated_at and (ahora - doc.updated_at).total_seconds() < 600
+    return "guardando" if reciente else "falta"
+
+
+def _clave_numero(doc: Document) -> Optional[tuple]:
+    """Proveedor y número sin puntos, espacios ni ceros delante («0.489278» = «0489278»)."""
+    num = re.sub(r"[^A-Z0-9]", "", (doc.doc_number or "").upper()).lstrip("0")
+    prov = re.sub(r"[^A-Z0-9]", "", (doc.supplier_name or "").upper())
+    return (prov, num) if prov and len(num) >= 3 else None
+
+
+def _gemelos(docs: List[Document]) -> dict:
+    """Albaranes del mismo proveedor con el mismo número: el escáner saca un PDF por hoja, así que la hoja 2
+    llega como otro albarán (o es el mismo escaneado dos veces). {id: id del primero que se subió}.
+    No cuentan los que la tienda ya dijo que son distintos, ni los que no se leyeron."""
+    grupos: dict = {}
+    for d in docs:
+        k = _clave_numero(d) if d.status == "completed" and not d.distinto_ok else None
+        if k:
+            grupos.setdefault(k, []).append(d)
+    out: dict = {}
+    for g in grupos.values():
+        # mismo número en fechas distintas no es el mismo albarán (los proveedores repiten numeración con los años)
+        por_fecha: dict = {}
+        for d in g:
+            por_fecha.setdefault(d.doc_date, []).append(d)
+        for mismos in por_fecha.values():
+            if len(mismos) < 2:
+                continue
+            mismos.sort(key=lambda d: d.id)
+            for d in mismos[1:]:
+                out[d.id] = mismos[0].id
+            out[mismos[0].id] = mismos[1].id
+    return out
+
+
+class Juntar(BaseModel):
+    con: int
+
+
+def _a_pdf(ruta: str):
+    """Las páginas de un archivo del albarán (PDF o foto) como páginas de PDF."""
+    import io
+    from pypdf import PdfReader
+    if ruta.lower().endswith(".pdf"):
+        return list(PdfReader(ruta).pages)
+    from PIL import Image, ImageOps
+    im = ImageOps.exif_transpose(Image.open(ruta)).convert("RGB")
+    im.thumbnail((2600, 2600))
+    buf = io.BytesIO()
+    im.save(buf, "PDF", resolution=200)
+    return list(PdfReader(io.BytesIO(buf.getvalue())).pages)
+
+
+@router.post("/{doc_id}/juntar", response_model=DocumentResponse)
+async def juntar(doc_id: int, data: Juntar, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Dos albaranes que son hojas del mismo (el escáner saca un PDF por hoja): quedan en uno solo, con todas las
+    hojas en un PDF, y se vuelve a leer entero para que las cuentas cuadren con el total de la última hoja."""
+    from pypdf import PdfWriter
+    a = db.query(Document).filter(Document.id == doc_id).first()
+    b = db.query(Document).filter(Document.id == data.con).first()
+    if not a or not b or a.id == b.id:
+        raise HTTPException(404, "No encuentro esos dos albaranes.")
+    if "processing" in (a.status, b.status) or "uploaded" in (a.status, b.status):
+        raise HTTPException(409, "Uno de los dos se está leyendo todavía. Espera a que termine.")
+    # Se queda el que se subió primero; las hojas, en el orden en que salieron del escáner
+    a, b = sorted((a, b), key=lambda d: d.id)
+    orden = sorted((a, b), key=lambda d: (d.original_filename or "", d.id))
+    w = PdfWriter()
+    try:
+        for d in orden:
+            for ruta in _rutas(d):
+                for pg in _a_pdf(ruta):
+                    w.add_page(pg)
+    except Exception as e:
+        logger.warning("No se pudieron juntar %s y %s: %s", a.id, b.id, e)
+        raise HTTPException(422, "No se pudieron juntar las hojas (alguno de los archivos está dañado). Sube el albarán entero otra vez.")
+    stored = f"{uuid.uuid4().hex}.pdf"
+    destino = Path(settings.upload_dir) / stored
+    with open(destino, "wb") as f:
+        w.write(f)
+    viejas = _rutas(a) + _rutas(b)
+    drive_b = b.drive_file_id
+    nombres = " + ".join(x for x in ((orden[0].original_filename or ""), (orden[1].original_filename or "")) if x)
+    a.filename, a.file_path, a.file_paths, a.doc_type = stored, str(destino), None, "pdf"
+    a.original_filename = nombres[:250] or a.original_filename
+    a.huella = hashlib.sha256(destino.read_bytes()).hexdigest()
+    a.status, a.error_message, a.terminado_at = "uploaded", None, None
+    db.query(Article).filter(Article.document_id == a.id).delete()
+    db.delete(b)
+    db.commit()
+    db.refresh(a)
+    for p in viejas:
+        try:
+            Path(p).unlink(missing_ok=True)
+        except Exception:
+            pass
+    if drive_b:  # la copia suelta de la otra hoja sobra: el albarán entero se guarda al terminar de leerse
+        _borrar_de_drive(drive_b)
+    background_tasks.add_task(_process_document, a.id, a.supplier_id)
+    return a
+
+
+class Distintos(BaseModel):
+    con: int
+
+
+@router.put("/{doc_id}/distintos", response_model=DocumentResponse)
+def son_distintos(doc_id: int, data: Distintos, db: Session = Depends(get_db)):
+    """La tienda confirma que dos albaranes con el mismo número son distintos: ya no se pregunta más."""
+    docs = db.query(Document).filter(Document.id.in_((doc_id, data.con))).all()
+    if len(docs) < 2:
+        raise HTTPException(404, "No encuentro esos dos albaranes.")
+    for d in docs:
+        d.distinto_ok = True
+    db.commit()
+    return next(d for d in docs if d.id == doc_id)
+
+
+def _borrar_de_drive(file_id: str) -> None:
+    import threading
+    from app.services import mail_service
+
+    def _fuera():
+        try:
+            mail_service.drive_borrar(file_id)
+        except Exception as e:
+            logger.warning("No se pudo quitar de Drive %s: %s", file_id, e)
+    if mail_service.configured():
+        threading.Thread(target=_fuera, daemon=True).start()
 
 
 class Terminado(BaseModel):
@@ -342,19 +509,27 @@ def update_document(
         # La próxima vez que la lectura saque el mismo nombre, se guarda ya con el corregido
         compras_service.aprender(db, doc.supplier_leido or doc.supplier_name, nuevo)
         datos["supplier_name"] = nuevo
+    antes = (doc.supplier_name, doc.doc_number, doc.doc_date)
     for field, value in datos.items():
         setattr(doc, field, value)
     db.commit()
     db.refresh(doc)
+    if antes != (doc.supplier_name, doc.doc_number, doc.doc_date):
+        # La copia de Drive lleva proveedor, fecha y número en el nombre y va en la carpeta del proveedor:
+        # si se corrigen a mano, se vuelve a guardar en su sitio (antes se quedaba donde la puso la lectura)
+        rutas = _rutas(doc)
+        _guardar_en_drive(doc.id, rutas if len(rutas) > 1 else None)
     return doc
 
 
 @router.delete("/{doc_id}")
-def delete_document(doc_id: int, db: Session = Depends(get_db)):
-    """Delete document and all articles."""
+def delete_document(doc_id: int, drive: bool = False, db: Session = Depends(get_db)):
+    """Delete document and all articles. Con `drive`, también su copia de Drive (un albarán subido dos veces)."""
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "Document not found")
+    if drive and doc.drive_file_id:
+        _borrar_de_drive(doc.drive_file_id)
 
     # Borrar del disco todas las fotos/páginas del albarán
     for p in _rutas(doc):
@@ -381,8 +556,8 @@ async def reprocess_document(
         raise HTTPException(404, "Document not found")
 
     # Prevent double-processing
-    if doc.status == "processing":
-        raise HTTPException(409, "El documento ya está siendo procesado. Espera a que termine.")
+    if doc.status in ("processing", "uploaded"):
+        raise HTTPException(409, "Este albarán ya se está leyendo (o está en cola). Espera a que termine.")
 
     # Delete existing articles
     db.query(Article).filter(Article.document_id == doc_id).delete()
@@ -493,6 +668,11 @@ def _guardar_en_drive(doc_id: int, paginas):
 
 
 async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Optional[int] = None):
+    async with _cola():
+        await _leer_multi(doc_id, file_paths, supplier_id)
+
+
+async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] = None):
     """Background task: extract multiple image pages as a single document."""
     from app.database import SessionLocal
     from app.services.extraction_service import extract_multi_images
@@ -560,6 +740,7 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
                 db2.commit()
         finally:
             db2.close()
+        _guardar_en_drive(doc_id, file_paths)  # sin leer, pero guardado (en «_Pendientes de clasificar»)
         return
 
     # Phase 3: quick write of results
@@ -629,6 +810,11 @@ async def _process_multi_document(doc_id: int, file_paths: list, supplier_id: Op
 
 
 async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
+    async with _cola():
+        await _leer_uno(doc_id, supplier_id)
+
+
+async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
     """Background task: extract document content and save articles.
 
     Split into three short DB phases so SQLite is never locked during the
@@ -705,6 +891,7 @@ async def _process_document(doc_id: int, supplier_id: Optional[int] = None):
                 db2.commit()
         finally:
             db2.close()
+        _guardar_en_drive(doc_id, None)  # sin leer, pero guardado (en «_Pendientes de clasificar»)
         return
 
     # ── Phase 3: quick write of results ─────────────────────────────────

@@ -42,6 +42,11 @@ export interface DocumentListItem {
   article_count: number;
   terminado_at?: string | null;
   drive_pendiente?: boolean | null;
+  /** Cómo va su copia en Drive (null = no aplica: albaranes de antes de que existiera la copia) */
+  drive_estado?: 'ok' | 'sin_carpeta' | 'sin_leer' | 'guardando' | 'falta' | null;
+  drive_carpeta?: string | null;
+  /** Otro albarán del mismo proveedor con el mismo número y fecha (otra hoja o repetido) */
+  gemelo_id?: number | null;
   created_at: string;
 }
 
@@ -314,6 +319,8 @@ export type EstadoCompra = 'nuevo' | 'igual' | 'sube' | 'baja' | 'sin_coste';
 export interface CompraAnterior {
   fecha: string; coste: number; pvp: number; cantidad: number;
   doc_id: number; doc_number?: string | null; proveedor?: string | null;
+  /** La compró a otro proveedor, no al de este albarán */
+  otro_proveedor?: boolean;
 }
 export interface LineaRecepcion {
   id: number;

@@ -277,6 +277,7 @@ def recepcion(db: Session, doc: Document) -> dict:
             "historial": [{
                 "fecha": str(_fecha(d)), "coste": art.coste_neto_unitario, "pvp": art.pvp_con_iva,
                 "cantidad": art.cantidad, "doc_id": d.id, "doc_number": d.doc_number, "proveedor": d.supplier_name,
+                "otro_proveedor": bool(d.supplier_name) and clave(d.supplier_name) not in prov,
             } for art, d in antes[:6]],
         })
     etiquetar = [l["id"] for l in lineas if l["estado"] == "nuevo" or l["pvp_cambia"]]

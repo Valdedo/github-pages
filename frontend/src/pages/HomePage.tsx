@@ -9,8 +9,14 @@ import type { Document, DocumentListItem } from '../types';
 import { coincide, fechaES, ORDEN_ALBARANES } from '../lib/texto';
 import { disenoNuevo } from '../lib/diseno';
 import { comprasNueva } from '../lib/comprasNueva';
+import { AlbaranesNueva } from './AlbaranesNueva';
 
+/** Con la versión nueva «En pruebas» (solo Andrés), la lista nueva; el resto, la de siempre. */
 export function HomePage() {
+  return comprasNueva() ? <AlbaranesNueva /> : <HomePageDeSiempre />;
+}
+
+function HomePageDeSiempre() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +245,7 @@ function DocCard({ doc, onOpen }: { doc: DocumentListItem; onOpen: () => void })
       <span className="doc-fila-main">
         <span className="doc-fila-tit">{doc.supplier_name || doc.original_filename}</span>
         <span className="doc-fila-sub">
-          {[doc.doc_number && `Nº ${doc.doc_number}`, dateStr, `${doc.article_count} artículo${doc.article_count !== 1 ? 's' : ''}`, doc.drive_pendiente && 'Falta elegir carpeta de Drive'].filter(Boolean).join(' · ')}
+          {[doc.doc_number && `Nº ${doc.doc_number}`, dateStr, `${doc.article_count} artículo${doc.article_count !== 1 ? 's' : ''}`, doc.drive_pendiente && doc.status === 'completed' && 'Falta elegir carpeta de Drive'].filter(Boolean).join(' · ')}
         </span>
       </span>
       <span className={st.cls} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>

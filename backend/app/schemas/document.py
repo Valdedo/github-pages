@@ -69,6 +69,9 @@ class DocumentListItem(BaseModel):
     article_count: int = 0
     terminado_at: Optional[datetime.datetime] = None
     drive_pendiente: Optional[bool] = None
+    drive_estado: Optional[str] = None        # ok | sin_carpeta | sin_leer | guardando | falta (None = no aplica)
+    drive_carpeta: Optional[str] = None
+    gemelo_id: Optional[int] = None           # otro albarán del mismo proveedor con el mismo número y fecha
     created_at: datetime.datetime
 
     class Config:

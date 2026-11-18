@@ -20,8 +20,10 @@ export function DriveEstado({ doc }: { doc: Document }) {
   // created_at viene en UTC sin zona: sin la «Z» se leía como hora de Madrid y en las dos primeras horas no parecía reciente
   const iso = (doc.created_at || '').replace(' ', 'T');
   const reciente = Date.now() - new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`).getTime() < 15 * 60000;
+  // Los que no se pudieron leer también se guardan (sin leer), para que ninguno se quede sin copia
+  const leido = doc.status === 'completed' || doc.status === 'error';
   useEffect(() => {
-    if (doc.status !== 'completed' || d.drive_at || d.drive_error || !reciente) return;
+    if (!leido || d.drive_at || d.drive_error || !reciente) return;
     let n = 0;
     const t = setInterval(async () => {
       n++;
@@ -29,7 +31,7 @@ export function DriveEstado({ doc }: { doc: Document }) {
       catch { if (n > 15) clearInterval(t); }
     }, 4000);
     return () => clearInterval(t);
-  }, [doc.id, doc.status, d.drive_at, d.drive_error, reciente]);
+  }, [doc.id, leido, d.drive_at, d.drive_error, reciente]);
 
   useEffect(() => {
     if (!d.drive_pendiente || carpetas) return;
@@ -50,7 +52,7 @@ export function DriveEstado({ doc }: { doc: Document }) {
   };
 
   if (!d.drive_at && !d.drive_error) {
-    if (doc.status === 'completed' && reciente) return <div className="drive-estado"><RefreshCw size={16} className="girando" /> Guardando en Drive…</div>;
+    if (leido && reciente) return <div className="drive-estado"><RefreshCw size={16} className="girando" /> Guardando en Drive…</div>;
     return null;
   }
 
@@ -60,6 +62,16 @@ export function DriveEstado({ doc }: { doc: Document }) {
         <AlertTriangle size={17} />
         <span>No se pudo guardar en Drive: {d.drive_error}</span>
         <button className="btn btn-ghost btn-sm" onClick={reintentar} disabled={ocupado}>{ocupado ? 'Guardando…' : 'Reintentar'}</button>
+      </div>
+    );
+  }
+
+  if (d.drive_pendiente && doc.status === 'error') {
+    return (
+      <div className="drive-estado pendiente">
+        <FolderInput size={18} />
+        <span><b>Guardado en Drive sin leer</b> (carpeta «_Pendientes de clasificar»). Cuando se lea, pasa solo a la carpeta de su proveedor.</span>
+        {d.drive_url && <a href={d.drive_url} target="_blank" rel="noopener" className="drive-abrir">Abrir <ExternalLink size={13} /></a>}
       </div>
     );
   }

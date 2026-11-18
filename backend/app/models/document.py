@@ -51,6 +51,8 @@ class Document(Base):
     drive_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     drive_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     huella: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)  # sha256 del archivo
+    # La tienda confirmó que no es otra hoja ni un repetido de otro con el mismo número
+    distinto_ok: Mapped[Optional[bool]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

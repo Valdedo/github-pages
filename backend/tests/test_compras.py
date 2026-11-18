@@ -189,3 +189,71 @@ class TestEtiquetasBalda:
             assert "Artículo 0" in pdf.pages[0].extract_text() and "Artículo 13" in pdf.pages[1].extract_text()
         assert client.get("/api/compras/etiquetas/prueba").content[:4] == b"%PDF"
         assert client.get("/api/compras/etiquetas?ids=").status_code == 422
+
+
+class TestVariosALaVez:
+    """Subir un montón de albaranes: nada se pisa en Drive y las hojas sueltas se juntan."""
+
+    def test_el_segundo_con_el_mismo_nombre_no_pisa_al_primero(self, db):
+        from app.services import drive_proveedor as dp
+        f = dt.date(2026, 11, 9)
+        a = _doc(db, "EFECTOS INDUSTRIALES CAMINOVAL", f, [{"d": "Disco", "c": 2}], numero="0489278")
+        b = _doc(db, "EFECTOS INDUSTRIALES CAMINOVAL", f, [{"d": "Broca", "c": 3}], numero="0489278")
+        c = _doc(db, "EFECTOS INDUSTRIALES CAMINOVAL", f, [{"d": "Llave", "c": 4}], numero="0489279")
+        assert dp.nombre_sin_pisar(db, a) == "2026-11-09_EFECTOS INDUSTRIALES CAMINOVAL_Albarán 0489278.pdf"
+        assert dp.nombre_sin_pisar(db, b) == "2026-11-09_EFECTOS INDUSTRIALES CAMINOVAL_Albarán 0489278 (2).pdf"
+        assert dp.nombre_sin_pisar(db, c).endswith("Albarán 0489279.pdf")
+        assert dp.nombre_sin_pisar(db, a) == dp.nombre_archivo(a)  # volver a guardarlo no le cambia el nombre
+
+    def test_el_que_no_se_leyo_se_guarda_como_sin_leer(self, db):
+        from app.services import drive_proveedor as dp
+        d = Document(filename="x.pdf", original_filename="CCF_000313.pdf", file_path="/tmp/x.pdf", doc_type="pdf",
+                     status="error")
+        db.add(d)
+        db.commit()
+        assert dp.nombre_sin_pisar(db, d).endswith(f"_Sin leer_CCF_000313 ({d.id}).pdf")
+
+    def test_mismo_numero_escrito_distinto_son_gemelos(self, db):
+        from app.api.documents import _gemelos
+        f = dt.date(2026, 11, 9)
+        a = _doc(db, "EFECTOS INDUSTRIALES CAMINOVAL", f, [{"d": "Disco", "c": 2}], numero="0.489278")
+        b = _doc(db, "EFECTOS INDUSTRIALES CAMINOVAL", f, [{"d": "Broca", "c": 3}], numero="0489278")
+        otro_dia = _doc(db, "EFECTOS INDUSTRIALES CAMINOVAL", dt.date(2025, 1, 2), [{"d": "X", "c": 1}], numero="489278")
+        otro_prov = _doc(db, "GENEBRE, S.A.", f, [{"d": "X", "c": 1}], numero="0489278")
+        g = _gemelos([a, b, otro_dia, otro_prov])
+        assert g == {a.id: b.id, b.id: a.id}
+        b.distinto_ok = True  # la tienda dijo que son distintos: no se vuelve a preguntar
+        assert _gemelos([a, b]) == {}
+
+    def test_juntar_dos_hojas_deja_un_albaran_con_las_dos(self, db, tmp_path, monkeypatch):
+        from fastapi import BackgroundTasks
+        from pypdf import PdfReader, PdfWriter
+        from app.api import documents as api
+        from app.config import settings
+        monkeypatch.setattr(settings, "upload_dir", str(tmp_path))
+
+        def hoja(nombre, paginas):
+            w = PdfWriter()
+            for _ in range(paginas):
+                w.add_blank_page(width=595, height=842)
+            ruta = tmp_path / nombre
+            with open(ruta, "wb") as fh:
+                w.write(fh)
+            return str(ruta)
+
+        f = dt.date(2026, 11, 9)
+        # se subió primero la hoja 2 (pasa cuando se arrastran todas a la vez)
+        b = _doc(db, "CAMINOVAL", f, [{"d": "Broca", "c": 3}], numero="0489278")
+        a = _doc(db, "CAMINOVAL", f, [{"d": "Disco", "c": 2}], numero="0.489278")
+        b.original_filename, b.file_path = "CCF_000314.pdf", hoja("h2.pdf", 1)
+        a.original_filename, a.file_path = "CCF_000313.pdf", hoja("h1.pdf", 2)
+        db.commit()
+        ids = (a.id, b.id)
+        tareas = BackgroundTasks()
+        res = asyncio.run(api.juntar(a.id, api.Juntar(con=b.id), tareas, db))
+        assert res.id == min(ids) and db.query(Document).count() == 1
+        assert res.original_filename == "CCF_000313.pdf + CCF_000314.pdf"  # en el orden del escáner
+        assert len(PdfReader(res.file_path).pages) == 3
+        assert res.status == "uploaded" and db.query(Article).count() == 0  # se vuelve a leer entero
+        assert len(tareas.tasks) == 1
+        assert not (tmp_path / "h1.pdf").exists() and not (tmp_path / "h2.pdf").exists()

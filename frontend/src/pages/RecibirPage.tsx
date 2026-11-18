@@ -13,6 +13,7 @@ import type { Article, Document, EstadoCompra, LineaRecepcion, Recepcion } from 
 import { useCfToast } from '../components/CfToast';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { DocumentPreview } from '../components/DocumentPreview';
+import { DriveEstado } from '../components/DriveEstado';
 import { EscanerCodigo } from '../components/EscanerCodigo';
 import { esEncargado } from '../auth';
 import { euros, fechaES, numES, plural } from '../lib/texto';
@@ -307,6 +308,7 @@ export function RecibirPage() {
         <div className="rc-aviso mal"><AlertTriangle size={20} /><div><b>No se pudo leer este albarán</b><span>{doc.error_message || 'Vuelve a intentarlo.'}</span></div>
           <button className="btn btn-primary btn-sm" onClick={async () => { await reprocessDocument(docId); cargar(); }}><RotateCw size={15} /> Volver a leer</button></div>
       )}
+      {doc.status !== 'processing' && doc.status !== 'uploaded' && <DriveEstado doc={doc} />}
       {doc.status === 'completed' && !doc.supplier_name && (
         <div className="rc-aviso"><AlertTriangle size={20} /><div><b>No se ve de qué proveedor es</b><span>Ponlo tú: así la próxima vez se comparan los precios con sus compras anteriores.</span></div>
           <button className="btn btn-primary btn-sm" onClick={() => setHoja('datos')}>Poner proveedor</button></div>
@@ -503,11 +505,15 @@ export function RecibirPage() {
 function Historial({ l }: { l: LineaRecepcion }) {
   return (
     <table className="rc-hist">
-      <thead><tr><th>Fecha</th><th>Coste</th><th>Se vendía a</th><th>Cant.</th></tr></thead>
+      <thead><tr><th>Fecha</th><th className="rc-hist-col">Proveedor</th><th>Coste</th><th>Se vendía a</th><th>Cant.</th></tr></thead>
       <tbody>
-        {l.historial.map((h, i) => (
-          <tr key={i}><td>{fechaES(h.fecha)}</td><td>{euros(h.coste)}</td><td>{euros(h.pvp)}</td><td>{cant(h.cantidad)}</td></tr>
-        ))}
+        {l.historial.map((h, i) => {
+          const quien = <span className={h.otro_proveedor ? 'rc-hist-otro' : undefined}>{h.proveedor || 'Proveedor sin poner'}{h.otro_proveedor && ' · otro proveedor'}</span>;
+          return [
+            <tr key={i}><td>{fechaES(h.fecha)}</td><td className="rc-hist-col">{quien}</td><td>{euros(h.coste)}</td><td>{euros(h.pvp)}</td><td>{cant(h.cantidad)}</td></tr>,
+            <tr key={`${i}-p`} className="rc-hist-fila"><td colSpan={4}>{quien}</td></tr>,
+          ];
+        })}
       </tbody>
     </table>
   );

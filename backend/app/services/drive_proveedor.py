@@ -8,6 +8,8 @@ La carpeta se elige así:
 1. La que se eligió a mano para ese proveedor (se recuerda).
 2. La que coincide claramente con el nombre del proveedor.
 3. Si no está clara: «_Pendientes de clasificar», y en la app se elige una vez.
+Los que la app no consigue leer también se guardan (en «_Pendientes de clasificar»): al subir un montón de
+albaranes, ninguno se queda sin copia. Al volver a leerlos pasan a su carpeta con su nombre.
 Solo se guardan los albaranes subidos desde que existe esta función.
 """
 import io
@@ -143,9 +145,27 @@ def nombre_archivo(doc) -> str:
         fecha = doc.created_at.date().isoformat()
     else:
         fecha = datetime.now(TZ).date().isoformat()
-    prov = _limpio(doc.supplier_name) or "Proveedor"
+    prov = _limpio(doc.supplier_name)
+    if not prov and doc.status == "error":
+        # No se pudo leer: se guarda con el nombre con el que salió del escáner, para encontrarlo en Drive
+        original = _limpio(Path(doc.original_filename or "").stem) or "albarán"
+        return f"{fecha}_Sin leer_{original} ({doc.id}).pdf"
     num = _limpio(doc.doc_number) or f"doc {doc.id}"
-    return f"{fecha}_{prov}_Albarán {num}.pdf"
+    return f"{fecha}_{prov or 'Proveedor'}_Albarán {num}.pdf"
+
+
+def nombre_sin_pisar(db, doc) -> str:
+    """Drive sustituye el archivo si ya hay uno con ese nombre. Dos albaranes distintos con el mismo proveedor,
+    número y fecha (la hoja 2 escaneada aparte, o el mismo albarán escaneado dos veces) se pisaban: el primero
+    que se subió conserva el nombre y los siguientes llevan «(2)», «(3)»…"""
+    from app.models.document import Document
+    nombre = nombre_archivo(doc)
+    if not doc.doc_number or not doc.supplier_name:
+        return nombre  # sin número el nombre ya lleva el id del albarán
+    antes = [o for o in db.query(Document).filter(Document.id < doc.id, Document.supplier_name == doc.supplier_name,
+                                                  Document.doc_number == doc.doc_number).all()
+             if nombre_archivo(o) == nombre]
+    return nombre if not antes else f"{nombre[:-4]} ({len(antes) + 1}).pdf"
 
 
 def _desde(db) -> int:
@@ -197,7 +217,7 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
                     destino = next((c for c in lista if c["name"] == PENDIENTES), None)
                     if not destino:
                         raise RuntimeError(f"No encuentro la carpeta «{PENDIENTES}» en ALBARANES")
-            nombre = nombre_archivo(doc)
+            nombre = nombre_sin_pisar(db, doc)
             res = mail_service.drive_guardar(destino["id"], nombre, _pdf(doc, paginas or [doc.file_path]))
             anterior = doc.drive_file_id
             doc.drive_file_id, doc.drive_url = res.get("id"), res.get("url")
@@ -238,7 +258,7 @@ def repasar(max_n: int = 5) -> None:
         desde = _desde(db)
         hace = datetime.utcnow() - timedelta(minutes=10)  # los recién leídos se están subiendo ahora
         pendientes = [(d.id, d.file_paths) for d in db.query(Document)
-                      .filter(Document.id > desde, Document.status == "completed",
+                      .filter(Document.id > desde, Document.status.in_(("completed", "error")),
                               Document.drive_file_id.is_(None), Document.created_at < hace)
                       .order_by(Document.id.desc()).limit(max_n).all()]
     finally:

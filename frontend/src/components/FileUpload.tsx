@@ -10,7 +10,7 @@ interface Props {
   onUploadedMany?: (docs: Document[], fallidos: string[]) => void;
 }
 
-const errorSubida = (e: unknown, porDefecto: string) => {
+export const errorSubida = (e: unknown, porDefecto: string) => {
   const status = (e as { response?: { status?: number } })?.response?.status;
   const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
   const det = typeof detail === 'string' ? detail : null;
@@ -29,7 +29,7 @@ const ACCEPTED = {
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/jpg']);
 
 /** Compress an image file using canvas. Skips if already small or is a PDF. */
-async function compressImage(file: File, maxSizeMB = 3): Promise<File> {
+export async function compressImage(file: File, maxSizeMB = 3): Promise<File> {
   if (!IMAGE_TYPES.has(file.type) || file.size <= maxSizeMB * 1024 * 1024) return file;
   return new Promise((resolve) => {
     const img = new Image();

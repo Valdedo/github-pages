@@ -82,7 +82,11 @@ export const getDocument = (id: number) => api.get<Document>(`/api/documents/${i
 export const updateDocument = (id: number, data: Partial<Document>) =>
   api.put<Document>(`/api/documents/${id}`, data);
 
-export const deleteDocument = (id: number) => api.delete(`/api/documents/${id}`);
+/** `conDrive`: quita también su copia de Drive (un albarán que estaba repetido) */
+export const deleteDocument = (id: number, conDrive = false) => api.delete(`/api/documents/${id}`, { params: conDrive ? { drive: true } : undefined });
+/** Dos albaranes que son hojas del mismo: quedan en uno y se vuelve a leer entero */
+export const juntarAlbaranes = (id: number, con: number) => api.post<Document>(`/api/documents/${id}/juntar`, { con });
+export const albaranesDistintos = (id: number, con: number) => api.put<Document>(`/api/documents/${id}/distintos`, { con });
 export const marcarTerminado = (id: number, terminado: boolean) => api.put<Document>(`/api/documents/${id}/terminado`, { terminado });
 
 export const reprocessDocument = (id: number, supplierId?: number) =>

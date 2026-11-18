@@ -594,6 +594,36 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   (≥1000 px, `useAncho`): lista en columnas**, una línea por artículo (`filaPc`, tabla `rc-tabla`: precio · artículo · cant. · coste ·
   precio de venta · código de barras · etiqueta), con los botones arriba a la derecha del título en vez de la barra de abajo
   («con fichas solo cabían 4 o 5»); a 1366×768 entran 9. Por debajo de 1000 px, fichas y barra como en el móvil.
+- **Cuarta vuelta (18/11/2026): subir un montón a la vez y que cada uno quede guardado en su carpeta.** Andrés escaneaba los
+  albaranes y los metía a mano en la carpeta del proveedor (los que no se etiquetan no pasaban por la app); ahora quiere pasarlos
+  todos por aquí «con la certeza de que ya está» y colocarlos otro día.
+  - *Para todos (servidor)*: las lecturas van **de tres en tres** (`_cola()` en `api/documents.py`; el resto espera en `uploaded` =
+    «En cola»; todas a la vez chocaban con el límite de la IA). **Lo que no se consigue leer también se guarda en Drive**, en
+    «_Pendientes de clasificar» como `AAAA-MM-DD_Sin leer_<archivo del escáner> (<id>).pdf`, y `repasar` reintenta también esos.
+    **Los nombres ya no se pisan** (`drive_proveedor.nombre_sin_pisar`: Drive sustituye el archivo si hay otro con el mismo nombre, y
+    la hoja 2 escaneada aparte borraba la hoja 1; el segundo lleva «(2)»). Si se corrige a mano proveedor, número o fecha
+    (`PUT /api/documents/{id}`), la copia de Drive se vuelve a guardar en su sitio. `reprocess` da 409 también si está en cola.
+  - `GET /api/documents` trae `drive_estado` (`ok | sin_carpeta | sin_leer | guardando | falta`; null = albarán de antes de la copia
+    o Drive sin configurar), `drive_carpeta` y `gemelo_id` (`_gemelos`: mismo proveedor, mismo número sin puntos ni ceros delante y
+    misma fecha: el escáner saca **un PDF por hoja**, así que la hoja 2 llega como otro albarán, o es el mismo subido dos veces).
+    `POST /api/documents/{id}/juntar {con}`: un solo PDF con todas las hojas (en el orden del nombre del escáner), se borra el otro
+    y su copia suelta de Drive, y se vuelve a leer entero. `PUT /{id}/distintos {con}` (`documents.distinto_ok`) deja de preguntar.
+    `DELETE /{id}?drive=true` quita también la copia de Drive (repetido).
+  - *Solo Andrés (`comprasNueva()`)*: `/albaranes` es `pages/AlbaranesNueva.tsx` (+ `albaranes.css`, clases `dn-*` y `sv-*`;
+    `HomePage` elige). Pestañas «Por colocar | Todos»; cada fila dice cómo va en Drive («En Drive · CARPETA», «falta elegir la
+    carpeta», «sin leer», «guardándose», «sin guardar») y arriba un resumen («Los 9 están guardados en Drive · 1 sin carpeta…»).
+    En el ordenador (≥900 px), una línea por albarán en columnas. **«Solo archivar»**: se marcan los que no hay que colocar ni
+    etiquetar (gasóleo, portes…) y pasan a terminados de golpe, con Deshacer. Aviso ámbar «Hay otro albarán… ¿Es otra hoja?» (solo
+    en el segundo) → hoja con «Son hojas del mismo: juntarlos», «Es el mismo, subido dos veces: quitar uno» y «Son distintos».
+    Subir: `components/SubirVarios.tsx`, hasta 40 archivos de una vez, cada PDF un albarán, lista con el avance de cada uno
+    («Subido», «Ya estaba subido», el error y «Reintentar los que fallaron»); con varias fotos pregunta «N albaranes distintos» o
+    «Un solo albarán de N hojas». Uno solo se abre; varios se quedan en la lista leyéndose.
+  - En el historial de compras de cada artículo sale el **proveedor** de cada compra (columna en el ordenador, renglón debajo en
+    el móvil) y «· otro proveedor» en ámbar si no es el de este albarán (`otro_proveedor`, por el EAN). `DriveEstado` (dónde está
+    guardado, elegir carpeta, reintentar) faltaba en la vista nueva y ya sale en `RecibirPage`.
+  - Probado en local con IA y Drive de mentira (8 PDF a la vez: tres lecturas a la vez, cada uno a su carpeta, juntar dos hojas).
+    Sin probar con el Drive ni el escáner de verdad. Idea siguiente: crear desde la app la carpeta de un proveedor nuevo (hoy hay
+    que crearla en Drive y elegirla una vez; haría falta una acción nueva en el Apps Script).
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.
