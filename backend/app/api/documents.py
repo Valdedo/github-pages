@@ -3,6 +3,7 @@ Document upload and management endpoints.
 """
 import asyncio
 import hashlib
+import time
 import json
 import logging
 import re
@@ -137,6 +138,39 @@ def _cola() -> asyncio.Semaphore:
     return _turno
 
 
+def _apuntar_paso(doc_id: int):
+    """Devuelve la función que apunta en el albarán por qué paso va su lectura (lo enseña la pantalla de espera)."""
+    def apuntar(paso: str) -> None:
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            db.query(Document).filter(Document.id == doc_id).update({"lectura_paso": paso})
+            db.commit()
+        finally:
+            db.close()
+    return apuntar
+
+
+def _lectura_media(db: Session) -> Optional[float]:
+    """Lo que han tardado de media las últimas lecturas, para estimar cuánto falta en la que está en marcha."""
+    ult = [s for (s,) in db.query(Document.leido_segundos).filter(Document.leido_segundos.isnot(None))
+           .order_by(Document.id.desc()).limit(12).all() if s]
+    return round(sum(ult) / len(ult), 1) if len(ult) >= 3 else None
+
+
+TOPE_LECTURA_S = 480   # una lectura normal va de 20 s a 2-3 min; con este tope ninguna se queda «leyendo» sin fin
+
+
+async def _con_tope(lectura):
+    """La lectura, con un tope de tiempo: una llamada colgada a la IA dejaba el albarán «leyendo» (y un sitio de la
+    cola ocupado) hasta 50 minutos."""
+    try:
+        return await asyncio.wait_for(lectura, TOPE_LECTURA_S)
+    except asyncio.TimeoutError:
+        raise extraction_service.LecturaError(
+            "La IA ha tardado demasiado con este albarán y se ha parado. Vuelve a leerlo («Más» → «Volver a leer»).")
+
+
 def _rutas(doc: Document) -> List[str]:
     """Todas las rutas del albarán (varias si se subió en varias fotos; los antiguos solo tienen una)."""
     try:
@@ -161,7 +195,7 @@ def marcar_interrumpidos() -> List[int]:
                 d.status = "error"
                 d.error_message = "Se cortó dos veces mientras se leía. Vuelve a leerlo desde «Más» → «Volver a leer»."
             else:
-                d.reanudado, d.status = True, "uploaded"
+                d.reanudado, d.status, d.lectura_desde = True, "uploaded", datetime.utcnow()
                 retomar.append(d.id)
         db.commit()
         if retomar:
@@ -227,6 +261,7 @@ async def upload_document(
         file_path=str(file_path),
         doc_type=doc_type,
         status="uploaded",
+        lectura_desde=datetime.utcnow(),
         supplier_id=supplier_id,
         huella=huella,
     )
@@ -292,6 +327,7 @@ async def upload_multi_images(
         file_paths=json.dumps(saved_paths),
         doc_type="image",
         status="uploaded",
+        lectura_desde=datetime.utcnow(),
         supplier_id=supplier_id,
         huella=huella,
     )
@@ -446,7 +482,7 @@ async def juntar(doc_id: int, data: Juntar, background_tasks: BackgroundTasks, d
     a.filename, a.file_path, a.file_paths, a.doc_type = stored, str(destino), None, "pdf"
     a.original_filename = nombres[:250] or a.original_filename
     a.huella = hashlib.sha256(destino.read_bytes()).hexdigest()
-    a.status, a.error_message, a.terminado_at = "uploaded", None, None
+    a.status, a.error_message, a.terminado_at, a.lectura_desde = "uploaded", None, None, datetime.utcnow()
     db.query(Article).filter(Article.document_id == a.id).delete()
     db.delete(b)
     db.commit()
@@ -513,6 +549,10 @@ def get_document(doc_id: int, db: Session = Depends(get_db)):
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "Document not found")
+    if doc.status in ("uploaded", "processing"):
+        doc.lectura_media_s = _lectura_media(db)   # solo para la pantalla de espera; no se guarda
+        if doc.lectura_desde:
+            doc.lectura_lleva_s = max(0.0, round((datetime.utcnow() - doc.lectura_desde).total_seconds(), 1))
     return doc
 
 
@@ -590,6 +630,7 @@ async def reprocess_document(
     doc.status = "uploaded"
     doc.error_message = None
     doc.reanudado = None
+    doc.lectura_desde = datetime.utcnow()
     if request.supplier_id:
         doc.supplier_id = request.supplier_id
     db.commit()
@@ -717,6 +758,7 @@ async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] 
             return
         supplier_name_fallback = doc.supplier_name
         doc.status = "processing"
+        doc.lectura_paso = "preparando"
         db.commit()
 
         extraction_service.poner_conocidos(compras_service.conocidos(db))
@@ -750,12 +792,14 @@ async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] 
         db.close()
 
     # Phase 2: extraction — no DB held
+    empezo = time.monotonic()
+    extraction_service.al_cambiar_de_paso(_apuntar_paso(doc_id))
     try:
-        result = await extract_multi_images(
+        result = await _con_tope(extract_multi_images(
             file_paths=file_paths,
             supplier_id=supplier_id,
             suppliers=suppliers_data,
-        )
+        ))
     except Exception as e:
         logger.error(f"Multi extraction failed for document {doc_id}: {e}", exc_info=True)
         db2 = SessionLocal()
@@ -763,6 +807,7 @@ async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] 
             doc2 = db2.query(Document).filter(Document.id == doc_id).first()
             if doc2:
                 doc2.status = "error"
+                doc2.lectura_paso = None
                 doc2.error_message = mensaje_para_persona(e)
                 db2.commit()
         finally:
@@ -819,6 +864,8 @@ async def _leer_multi(doc_id: int, file_paths: list, supplier_id: Optional[int] 
         _heredar(db, doc)
         doc.leido_con = extraction_service.modelo_usado()
         doc.leido_nota, doc.reanudado = extraction_service.motivo_fallo(), None
+        doc.leido_segundos = round(time.monotonic() - empezo, 1)
+        doc.lectura_paso = None
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, file_paths)
@@ -868,6 +915,7 @@ async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
         supplier_name_fallback = doc.supplier_name
 
         doc.status = "processing"
+        doc.lectura_paso = "preparando"
         db.commit()
 
         extraction_service.poner_conocidos(compras_service.conocidos(db))
@@ -902,13 +950,15 @@ async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
         db.close()  # release DB lock before long extraction
 
     # ── Phase 2: extraction (OCR + Claude) — no DB held ─────────────────
+    empezo = time.monotonic()
+    extraction_service.al_cambiar_de_paso(_apuntar_paso(doc_id))
     try:
-        result = await extract_document(
+        result = await _con_tope(extract_document(
             file_path=file_path,
             doc_type=doc_type,
             supplier_id=supplier_id,
             suppliers=suppliers_data,
-        )
+        ))
     except Exception as e:
         logger.error(f"Extraction failed for document {doc_id}: {e}", exc_info=True)
         db2 = SessionLocal()
@@ -916,6 +966,7 @@ async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
             doc2 = db2.query(Document).filter(Document.id == doc_id).first()
             if doc2:
                 doc2.status = "error"
+                doc2.lectura_paso = None
                 doc2.error_message = mensaje_para_persona(e)
                 db2.commit()
         finally:
@@ -978,6 +1029,8 @@ async def _leer_uno(doc_id: int, supplier_id: Optional[int] = None):
         _heredar(db, doc)
         doc.leido_con = extraction_service.modelo_usado()
         doc.leido_nota, doc.reanudado = extraction_service.motivo_fallo(), None
+        doc.leido_segundos = round(time.monotonic() - empezo, 1)
+        doc.lectura_paso = None
         doc.status = "completed"
         db.commit()
         _guardar_en_drive(doc_id, None)

@@ -254,6 +254,24 @@ def motivo_fallo() -> Optional[str]:
     return _motivo_fallo.get()
 
 
+_al_paso: contextvars.ContextVar = contextvars.ContextVar("al_paso", default=None)
+
+
+def al_cambiar_de_paso(funcion) -> None:
+    """Quien lanza la lectura dice a quién avisar de por dónde va («preparando», «leyendo», «comprobando»),
+    para enseñárselo a quien espera delante de la pantalla."""
+    _al_paso.set(funcion)
+
+
+def _paso(nombre: str) -> None:
+    f = _al_paso.get()
+    if f:
+        try:
+            f(nombre)
+        except Exception as e:   # contar por dónde va nunca debe estropear la lectura
+            logger.debug("No se pudo apuntar el paso %s: %s", nombre, e)
+
+
 class _SinRespuesta(Exception):
     """La IA contestó, pero sin datos que valgan (se cortó, no quiso o no vino texto)."""
     def __init__(self, motivo: str):
@@ -575,6 +593,7 @@ async def _leer_imagenes(imagenes: list, plantilla: Optional[dict], texto: str =
     la lectura que mejor cuadre."""
     _motivo_fallo.set(None)
     _modelo_usado.set(None)
+    _paso("leyendo")
     res = await extract_with_claude_vision(imagenes, plantilla, texto)
     arts = normalize_extracted_articles(res.get("articulos", []))
     c = cuadre(arts, res.get("totales_documento") or {})
@@ -584,6 +603,7 @@ async def _leer_imagenes(imagenes: list, plantilla: Optional[dict], texto: str =
                  f"{c['base']:.2f} € (diferencia {c['dif']:+.2f} €). Vuelve a leerlo despacio, línea a línea: mira si falta "
                  "o sobra alguna línea, si alguna cantidad o precio está mal copiado, si un precio va por 100 o por 1000 "
                  "unidades y si algún descuento no se aplicó. Cada línea tiene que dar su importe impreso.")
+        _paso("comprobando")   # no cuadra: se vuelve a leer mirando las cuentas
         try:
             res2 = await extract_with_claude_vision(imagenes, plantilla, texto, aviso)
             arts2 = normalize_extracted_articles(res2.get("articulos", []))
@@ -689,6 +709,7 @@ async def extract_document(
     if len(texto.strip()) < 100:
         raise LecturaError("No se pudo abrir el PDF para leerlo. Prueba a subir una foto del albarán.")
     logger.warning("PDF sin imágenes (%s): se lee solo por el texto", file_path)
+    _paso("leyendo")
     claude_result = await extract_with_claude(raw_data, plantilla)
     arts = normalize_extracted_articles(claude_result.get("articulos", []))
     validacion = dict(claude_result.get("validacion") or {})

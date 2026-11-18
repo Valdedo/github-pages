@@ -31,6 +31,14 @@ export interface Document {
   leido_con?: string | null;
   /** Por qué no lo leyó el modelo nuevo (si lo leyó el de siempre) */
   leido_nota?: string | null;
+  /** Lo que tardó la última lectura, en segundos */
+  leido_segundos?: number | null;
+  /** Mientras se lee: por qué paso va */
+  lectura_paso?: 'preparando' | 'leyendo' | 'comprobando' | null;
+  /** Lo que suelen tardar las lecturas, en segundos (para estimar lo que falta) */
+  lectura_media_s?: number | null;
+  /** Lo que lleva leyéndose, contado en el servidor (vale aunque se entre a mitad) */
+  lectura_lleva_s?: number | null;
   created_at: string;
   updated_at: string;
   articles?: Article[];

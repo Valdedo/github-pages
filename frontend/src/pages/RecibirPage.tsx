@@ -14,6 +14,7 @@ import { useCfToast } from '../components/CfToast';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { DocumentPreview } from '../components/DocumentPreview';
 import { DriveEstado } from '../components/DriveEstado';
+import { LeyendoAlbaran } from '../components/LeyendoAlbaran';
 import { EscanerCodigo } from '../components/EscanerCodigo';
 import { esEncargado } from '../auth';
 import { euros, fechaES, numES, plural } from '../lib/texto';
@@ -99,15 +100,21 @@ export function RecibirPage() {
   useEffect(() => {
     etiquetasPuestas.current = false;
     setDoc(null); setRec(null); setNoExiste(false);
+    cargar();
+  }, [cargar]);
+
+  // Mientras el albarán se esté leyendo (o en cola), la pantalla lo vuelve a mirar cada 3 s. Va por el estado que se
+  // ve, no solo al entrar: tras «Volver a leer» se quedaba en «Leyendo el albarán…» para siempre aunque el servidor
+  // ya hubiera terminado, y había que salir y volver a entrar (Andrés, 18/11/2026).
+  const enLectura = doc?.status === 'uploaded' || doc?.status === 'processing';
+  useEffect(() => {
+    if (!enLectura) return;
     let vivo = true;
     let reloj: ReturnType<typeof setTimeout>;
-    const ciclo = async () => {
-      const estado = await cargar();
-      if (vivo && (estado === 'processing' || estado === 'uploaded')) reloj = setTimeout(ciclo, 3000);
-    };
-    ciclo();
+    const ciclo = async () => { await cargar(); if (vivo) reloj = setTimeout(ciclo, 2000); };
+    reloj = setTimeout(ciclo, 2000);
     return () => { vivo = false; clearTimeout(reloj); };
-  }, [cargar]);
+  }, [enLectura, cargar]);
 
   /** Guarda un cambio de un artículo y vuelve a mirar qué cambia respecto a la compra anterior. */
   const guardar = async (art: Article, cambio: Partial<Article>, hecho?: string, deshacer?: Partial<Article>) => {
@@ -302,7 +309,7 @@ export function RecibirPage() {
       </header>
 
       {leyendo && (
-        <div className="rc-aviso info"><span className="spinner" /> <div><b>Leyendo el albarán…</b><span>Suele tardar menos de un minuto. Puedes dejar esta pantalla; se queda en la lista.</span></div></div>
+        <LeyendoAlbaran key={doc.id} estado={doc.status} paso={doc.lectura_paso} media={doc.lectura_media_s} lleva={doc.lectura_lleva_s} />
       )}
       {doc.status === 'error' && (
         <div className="rc-aviso mal"><AlertTriangle size={20} /><div><b>No se pudo leer este albarán</b><span>{doc.error_message || 'Vuelve a intentarlo.'}</span></div>
@@ -486,7 +493,7 @@ export function RecibirPage() {
               <button onClick={() => { setHoja(null); downloadPriceList(docId); }}>Listín de precios</button>
               <button className="peligro" onClick={() => { setHoja(null); setBorrar(true); }}><Trash2 size={17} /> Borrar este albarán</button>
             </div>
-            {doc.leido_con && <p className="rc-hoja-nota">Leído con {nombreIA(doc.leido_con)}.{doc.leido_nota && ` La IA nueva no pudo (${doc.leido_nota}) y lo leyó la de antes.`}</p>}
+            {doc.leido_con && <p className="rc-hoja-nota">Leído con {nombreIA(doc.leido_con)}{doc.leido_segundos ? ` en ${Math.round(doc.leido_segundos)} s` : ''}.{doc.leido_nota && ` La IA nueva no pudo (${doc.leido_nota}) y lo leyó la de antes.`}</p>}
           </div>
         </div>
       )}

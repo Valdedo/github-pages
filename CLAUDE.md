@@ -652,6 +652,16 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   - **Publicar ya no corta las lecturas**: al arrancar, lo que estaba leyéndose o en cola **se retoma solo una vez**
     (`marcar_interrumpidos` → `reanudar`, `documents.reanudado`; a la segunda queda en error). Arreglo puntual `relectura_ia_v1`:
     los que fallaron desde las 17:45 del 18/11 se releen solos al publicar.
+- **«Se queda leyendo y no acaba» (18/11/2026, 22:00)**: era la pantalla, no la lectura. `RecibirPage` solo miraba el estado al
+  entrar; tras **«Volver a leer»** se quedaba en «Leyendo el albarán…» para siempre aunque el servidor hubiera terminado (en Drive
+  se veía la copia guardada). Ahora mira cada 2 s **siempre que el albarán esté leyéndose o en cola** (`enLectura`).
+  **Círculo de progreso** (`components/LeyendoAlbaran.tsx`, clases `ley-*` en `recibir.css`; lo pidió Andrés): el **paso es el de
+  verdad** (`documents.lectura_paso`: `preparando` → `leyendo` → `comprobando` si no cuadra y se relee; lo apunta
+  `extraction_service._paso` a través de `al_cambiar_de_paso`), el **tiempo lo cuenta el servidor** (`lectura_desde` →
+  `lectura_lleva_s`, así no empieza de cero al salir y volver) y el **tanto por ciento es una estimación** con lo que tardan de
+  media las últimas lecturas (`leido_segundos` → `lectura_media_s`): rápido al principio, cada vez más despacio, nunca 100 hasta
+  que acaba. A los 4 min (o 4 veces lo normal) se pone ámbar y dice que no hace falta esperar. `_con_tope`: una lectura no pasa de
+  8 min (`TOPE_LECTURA_S`). «⋯ Más opciones» dice «Leído con … en N s».
 - **Repaso del ordenador de la lista nueva (18/11/2026, Andrés: «no vaya a ser que el ordenador quede sin modificar»)**: mirado a
   1280×800, 1366×768, 1366×650, 1920×1080 y 860 px (lista, subir, fotos, avance, «otra hoja», archivar, sin carpeta, sin leer,
   historial, Inicio). Añadido: **se pueden soltar los PDF encima de la lista** sin abrir «Subir albaranes» (`useDropzone` en la

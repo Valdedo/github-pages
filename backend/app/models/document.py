@@ -56,6 +56,9 @@ class Document(Base):
     leido_con: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)  # modelo de IA de la última lectura
     leido_nota: Mapped[Optional[str]] = mapped_column(Text, nullable=True)        # por qué no lo leyó el modelo nuevo
     reanudado: Mapped[Optional[bool]] = mapped_column(nullable=True)              # su lectura se cortó y ya se retomó una vez
+    leido_segundos: Mapped[Optional[float]] = mapped_column(nullable=True)        # lo que tardó la última lectura
+    lectura_paso: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # preparando | leyendo | comprobando
+    lectura_desde: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # cuándo se mandó leer
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

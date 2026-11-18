@@ -14,6 +14,36 @@
 .rc-aviso { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 14px; border-radius: var(--r); background: #FFF6E0; border: 1px solid #F1D9A0; color: #5C3D00; }
 .rc-aviso > div { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
 .rc-aviso b { font-size: 15px; }
+
+/* Mientras se lee: círculo que se llena, paso por el que va y tiempo que lleva */
+.ley { display: flex; align-items: center; gap: 22px; padding: 20px 22px; margin-bottom: 14px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); }
+.ley-circulo { position: relative; flex: 0 0 auto; width: 124px; height: 124px; }
+.ley-circulo svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ley-circulo circle { fill: none; stroke-width: 10; }
+.ley-fondo { stroke: var(--brand-pale); }
+.ley-arco { stroke: var(--brand); stroke-linecap: round; transition: stroke-dashoffset .3s linear; }
+.ley-circulo b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-size: 34px; font-weight: 500; color: var(--cf-bosque); font-variant-numeric: tabular-nums; }
+.ley-circulo b small { font-size: 16px; margin-left: 1px; }
+.ley-circulo b { grid-auto-flow: column; justify-content: center; align-items: baseline; align-content: center; }
+.ley-txt { flex: 1 1 auto; min-width: 0; }
+.ley-txt h3 { margin: 0 0 8px; font-size: 22px; }
+.ley-txt ol { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.ley-txt li { display: flex; align-items: center; gap: 9px; font-size: 15px; color: var(--text-3); }
+.ley-txt li i { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border-strong); display: grid; place-items: center; color: #fff; }
+.ley-txt li.hecho { color: var(--text-2); }
+.ley-txt li.hecho i { background: var(--brand); border-color: var(--brand); }
+.ley-txt li.ahora { color: var(--text-1); font-weight: 600; }
+.ley-txt li.ahora i { border-color: var(--brand); border-top-color: transparent; animation: ley-gira .9s linear infinite; }
+.ley-txt p { margin: 0; font-size: 13.5px; color: var(--text-2); line-height: 1.45; }
+.ley-lleva { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-1); }
+.ley.tarda { background: #FFF6E0; border-color: #F1D9A0; }
+.ley.tarda .ley-arco { stroke: #D98E04; }
+@keyframes ley-gira { to { transform: rotate(360deg); } }
+@media (max-width: 560px) {
+  .ley { flex-direction: column; text-align: center; gap: 12px; padding: 18px 16px; }
+  .ley-txt ol { align-items: flex-start; width: fit-content; margin-left: auto; margin-right: auto; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { .ley-arco { transition: none; } .ley-txt li.ahora i { animation: none; border-top-color: var(--brand); } }
 .rc-aviso.mal { background: #FDECEC; border-color: #F3C2C2; color: #8A1C1C; }
 .rc-aviso.info { background: var(--brand-pale); border-color: var(--brand-light); color: var(--brand-dark); }
 

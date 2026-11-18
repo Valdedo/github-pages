@@ -45,6 +45,10 @@ class DocumentResponse(DocumentBase):
     drive_at: Optional[datetime.datetime] = None
     leido_con: Optional[str] = None
     leido_nota: Optional[str] = None
+    leido_segundos: Optional[float] = None
+    lectura_paso: Optional[str] = None        # mientras se lee: preparando | leyendo | comprobando
+    lectura_media_s: Optional[float] = None   # lo que suelen tardar las lecturas (para estimar)
+    lectura_lleva_s: Optional[float] = None   # lo que lleva esta, contado en el servidor
     created_at: datetime.datetime
     updated_at: datetime.datetime
     # Al subir: ese mismo archivo ya estaba subido y se devuelve el que había (no se vuelve a leer)
