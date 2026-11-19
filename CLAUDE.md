@@ -678,10 +678,11 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   `sugerido`). En `DriveEstado`: botón **«Actualizar la lista»** y, si el script lo permite, el nombre propuesto
   (`nombre_sugerido`: mayúsculas, sin S.L./S.A.) con **«Crear esta carpeta»** (`POST /api/drive/documento/{id}/carpeta-nueva`
   → acción `crear_carpeta` del Apps Script; si ya existe una con ese nombre, usa esa) y debajo «O elige una que ya existe».
-  El albarán sin proveedor no ofrece crear: primero «Cambiar». **Hace falta actualizar una vez el script desplegado** en
-  casafonsomc (acciones `puede` y `crear_carpeta` de `tools/correo-casafonso.gs`; «Nueva versión» de la misma implementación,
-  sin tocar su `CLAVE`): mientras no, `drive_puede_crear()` da falso, no sale «Crear» y la pantalla explica que se cree en Drive
-  y se pulse «Actualizar la lista». Probado en local con Drive de mentira (las dos situaciones); sin probar con el Drive de verdad.
+  El albarán sin proveedor no ofrece crear: primero «Cambiar». El script desplegado en casafonsomc **se actualizó el 19/11/2026 (versión 5**; acciones `puede` y `crear_carpeta` de
+  `tools/correo-casafonso.gs`, misma implementación y misma `CLAVE`; proyecto «Proyecto sin título» de script.google.com). Si el
+  script no las tuviera, `drive_puede_crear()` da falso, no sale «Crear» y la pantalla explica que se cree en Drive y se pulse
+  «Actualizar la lista». Publicado el 19/11: al arrancar pasaron solos a sus carpetas nuevas los 3 de Bernardo y el de Juan Roces
+  (visto en Drive). «Crear esta carpeta» solo probado con Drive de mentira: falta verlo con uno de verdad.
 - **Borrar varios desde la lista (19/11/2026, Andrés: «si los subo, están mal y los quiero volver a subir»)**: en `AlbaranesNueva` el
   botón «Solo archivar» pasa a ser **«Seleccionar»** (en las dos pestañas). Se marcan los que sean (también los que se están leyendo o
   en cola: la lectura ya aguanta que el albarán desaparezca) y abajo: «Borrar N» y, en «Por colocar», «Archivar N» (solo cuenta los
