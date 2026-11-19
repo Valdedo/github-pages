@@ -697,6 +697,33 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil. Ya para todos (19/11): falta
   quitar el aviso de subidas viejo y borrar las pantallas de antes (`HomePageDeSiempre`, `DocumentPage`) cuando lleve un tiempo.
 
+## PDA del almacén (19/11/2026, sin estrenar: falta probarla en el aparato)
+Andrés tiene un lector de mano (PDA con Android viejo, teclado de números y gatillo láser; la marca y la versión de Android no se
+saben: la pantalla de entrada lo dice abajo, «Android X · Chrome Y · ancho×alto»). Pidió una versión solo para ella, con su propio
+código, para consultar precios y lo de compras.
+- **Una página aparte, sin React**: `frontend/public/pda/index.html` (27 KB con todo dentro; sin fuentes, fotos ni animaciones).
+  Dirección `/pda/` (`/pda` lleva allí: guion en `frontend/index.html`). **JavaScript del de antes a propósito** (`var`,
+  `function`, `XMLHttpRequest`; comprobado con `npx acorn --ecma5`): no pasarlo a moderno. El service worker no la toca
+  (`sw.js`: las navegaciones a `/pda` no se guardan como si fueran la app).
+- **El lector escribe como un teclado** en el cuadro de arriba, que siempre tiene el foco y va con `inputmode="none"` para que no
+  salga el teclado de la pantalla (botón «abc» para escribir un nombre o un código a mano). Vale con Intro al final o sin él (si
+  llega todo de golpe, se da por leído a los 0,3 s). Atrás del aparato funciona (`#precio`, `#albaranes`, `#a/<id>`).
+- **Precio**: lee un código → nombre, precio con IVA muy grande, sin IVA, código, última compra (fecha, proveedor, nº de compras) o
+  «Tarifa de …»; el coste, tapado tras «Ver el coste». Si hay varios, lista para tocar. Por nombre o código con «abc».
+- **Albaranes**: los que están por colocar con «faltan N»; se abre uno y va artículo por artículo sin código: se lee y pasa solo al
+  siguiente. Código que no es EAN → aviso rojo; código que ya tiene otra línea → «Es el mismo producto: ponérselo» / «No, me
+  equivoqué»; «Anterior», «Saltar», «Ver todos los artículos», «Quitarle el código».
+- **Servidor**: `api/pda.py` + `services/pda_service.py` → `GET /api/pda/precio?q=` (EAN, con y sin el cero de delante → código
+  exacto → palabras del nombre; mira los albaranes leídos y **todas las tarifas** con su copia guardada, sin ir a Drive; índice en
+  memoria que se rehace cuando una tarifa se vuelve a leer), `GET /api/pda/albaranes`, `GET /api/pda/albaranes/{id}`,
+  `PUT /api/pda/articulos/{id}/ean {ean, forzar}`. Respuestas pequeñas (sin campos vacíos).
+- **Su propio código**: persona `pda` (rol `pda`, «PDA del almacén») en `access_service.PERSONAS`; se lo pone Andrés desde
+  «Códigos». Con ese código el servidor solo deja `/api/pda/*` (`main.py`) y la app normal manda a `/pda/`. La página también
+  entra con el código del encargado o de la tienda; con el de reparto o el de Manolo, no.
+- Probado en local a 320×533 escribiendo como un lector (`backend/tests/test_pda.py`, 8 pruebas). **Sin probar en la PDA de verdad**:
+  si el Android es anterior al 7.1 puede que ni abra la página (certificado de la web); si el lector no escribe en el cuadro, mirar
+  en los ajustes del lector el modo «teclado» / «salida al foco».
+
 ## Pendiente (octubre 2026)
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).
 - Análisis: ordenar por importe gastado (falta `SUM` en `top-products`).

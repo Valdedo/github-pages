@@ -452,9 +452,11 @@ function AvisosGlobales() {
 function AppShell() {
   const location = useLocation();
   useEffect(() => {
-    if (getRol() === 'consulta') return; // Manolo solo mira: no hay nada que mandar
+    if (getRol() === 'consulta' || getRol() === 'pda') return; // Manolo solo mira y la PDA va aparte: no hay nada que mandar
     arrancarCola(); arrancarColaCargas(); // órdenes de carga: toda la tienda y el reparto
   }, []);
+  // El código de la PDA solo vale para su pantalla (una página aparte, muy ligera)
+  if (getRol() === 'pda') { window.location.replace('/pda/'); return null; }
   if (getRol() === 'consulta') return <><ConsultaShell /><AvisosGlobales /><NuevaVersion /></>;
   // Mostrador (tableta junto al ordenador de ventas): a pantalla completa, sin el menú. Encargado y tienda (19/10/2026).
   if (location.pathname === '/mostrador' && (getRol() === 'admin' || getRol() === 'tienda')) {

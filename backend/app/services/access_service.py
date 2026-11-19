@@ -5,6 +5,7 @@
 - melchor  → reparto (firmas del camión y ver turnos)
 - tienda   → ordenador y teléfono compartidos de la tienda (como Patricia y Oscar)
 - manolo   → consulta (solo ver tarifas y vencimientos; no cambia nada)
+- pda      → el lector de mano del almacén: solo /api/pda (consultar precios y poner códigos de barras)
 
 Las sesiones van firmadas con HMAC e incluyen la huella del código de esa persona:
 si se le cambia el código, sus sesiones antiguas dejan de valer. «Cerrar todas»
@@ -31,6 +32,7 @@ PERSONAS = {
     "melchor": ("reparto", "Melchor"),
     "tienda": ("tienda", "Ordenador y teléfono de la tienda"),
     "manolo": ("consulta", "Manolo"),
+    "pda": ("pda", "PDA del almacén (lector de mano)"),
 }
 
 _cache: dict = {"cfg": None, "at": 0.0}

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.database import create_tables
-from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive, cargas, vencimientos, tarifas, compras
+from app.api import documents, articles, export, settings, product_info, analytics, repairs, supplier_orders, dashboard, catalog, firmas, acceso, correo, turnos, push, drive, cargas, vencimientos, tarifas, compras, pda
 
 logging.basicConfig(
     level=logging.INFO,
@@ -168,6 +168,8 @@ async def control_de_acceso(request: Request, call_next):
     request.state.persona = ses["persona"]
     if rol == "reparto" and not _reparto_puede(request.method, path):
         return JSONResponse({"detail": "El código de reparto no da acceso a esto"}, status_code=403)
+    if rol == "pda" and not (path == "/api/pda" or path.startswith("/api/pda/")):
+        return JSONResponse({"detail": "El código de la PDA solo sirve para la PDA"}, status_code=403)
     if rol == "consulta" and not _consulta_puede(request.method, path):
         return JSONResponse({"detail": "Con este código solo se pueden ver las tarifas y los vencimientos"}, status_code=403)
     return await call_next(request)
@@ -194,6 +196,7 @@ app.include_router(cargas.router)
 app.include_router(vencimientos.router)
 app.include_router(tarifas.router)
 app.include_router(compras.router)
+app.include_router(pda.router)
 
 
 @app.get("/health")

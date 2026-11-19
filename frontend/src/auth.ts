@@ -2,7 +2,7 @@
 const KEY = 'cfToken';
 const ROL = 'cfRol';
 
-export type Rol = 'tienda' | 'reparto' | 'admin' | 'consulta';
+export type Rol = 'tienda' | 'reparto' | 'admin' | 'consulta' | 'pda';
 
 export const getToken = (): string => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } };
 export const getRol = (): Rol | null => { try { return (localStorage.getItem(ROL) as Rol) || null; } catch { return null; } };

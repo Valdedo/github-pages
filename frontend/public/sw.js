@@ -149,7 +149,8 @@ self.addEventListener('fetch', e => {
 
   // Abrir la app: red primero; sin red, la app guardada. (Los PDF y descargas no se tocan.)
   if (req.mode === 'navigate') {
-    if (url.pathname.startsWith('/api/')) return;
+    // La PDA (/pda/) es otra página: no se guarda como si fuera la app
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/pda')) return;
     e.respondWith((async () => {
       try {
         const res = await fetch(req);

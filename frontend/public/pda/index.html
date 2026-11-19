@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1F5A3A">
+<meta name="robots" content="noindex">
+<title>PDA · Casa Fonso</title>
+<!--
+  PDA del almacén (nov. 2026). Una sola página, sin React, sin fuentes ni imágenes: el lector de mano tiene poca
+  máquina y un Android viejo. JavaScript del de antes a propósito (var, function, XMLHttpRequest): no cambiarlo a
+  moderno. El lector escribe el código como un teclado en el cuadro de arriba, que siempre tiene el foco.
+  Rutas del servidor: /api/pda/* (backend/app/api/pda.py).
+-->
+<style>
+html, body { margin: 0; padding: 0; }
+body { font-family: Roboto, Arial, sans-serif; font-size: 17px; line-height: 1.3; color: #1A1A1A; background: #F2F4F0; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+* { -webkit-box-sizing: border-box; box-sizing: border-box; }
+button, input { font-family: inherit; font-size: inherit; }
+.oculto { display: none !important; }
+
+#cab { background: #1F5A3A; color: #fff; padding: 0 6px; height: 46px; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+#cab .pest { -webkit-flex: 1; flex: 1; height: 38px; margin: 0 3px; border: 0; border-radius: 8px; background: transparent; color: #CFE5D8; font-weight: bold; font-size: 17px; }
+#cab .pest.on { background: #fff; color: #123A26; }
+
+#lector { padding: 8px; background: #fff; border-bottom: 1px solid #D5DAD2; display: -webkit-flex; display: flex; }
+#campo { -webkit-flex: 1; flex: 1; min-width: 0; height: 48px; padding: 0 10px; border: 2px solid #1F5A3A; border-radius: 8px; font-size: 20px; background: #fff; color: #1A1A1A; }
+#campo:focus { outline: none; border-color: #2FAE66; background: #F4FBF7; }
+#lector button { height: 48px; margin-left: 6px; padding: 0 12px; border: 2px solid #1F5A3A; border-radius: 8px; background: #fff; color: #123A26; font-weight: bold; }
+#btnTeclado.on { background: #1F5A3A; color: #fff; }
+
+#aviso { margin: 8px; padding: 10px 12px; border-radius: 8px; font-weight: bold; }
+#aviso.bien { background: #DDF3E6; color: #123A26; }
+#aviso.mal { background: #FBE0E0; color: #8E1B1B; }
+#aviso.info { background: #FFF1D6; color: #6B4A00; }
+
+#cuerpo { padding: 0 8px 20px; }
+.caja { background: #fff; border: 1px solid #D5DAD2; border-radius: 10px; padding: 12px; margin-top: 8px; }
+.nombre { font-size: 21px; font-weight: bold; line-height: 1.2; word-wrap: break-word; }
+.precio { font-size: 54px; font-weight: bold; color: #123A26; line-height: 1.05; margin-top: 8px; white-space: nowrap; }
+.precio small { font-size: 22px; font-weight: normal; color: #444; }
+.sub { color: #444; margin-top: 4px; }
+.dato { margin-top: 6px; padding-top: 6px; border-top: 1px solid #E6E9E3; color: #333; }
+.dato b { color: #1A1A1A; }
+.gris { color: #666; }
+.pista { margin-top: 26px; text-align: center; color: #555; font-size: 19px; }
+.pista b { display: block; font-size: 23px; color: #123A26; margin-bottom: 4px; }
+
+.fila { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid #D5DAD2; border-radius: 10px; padding: 11px 12px; margin-top: 8px; color: #1A1A1A; min-height: 58px; }
+.fila .t { font-weight: bold; font-size: 18px; display: block; word-wrap: break-word; }
+.fila .s { color: #555; display: block; margin-top: 2px; }
+.fila .d { float: right; margin-left: 8px; font-weight: bold; font-size: 20px; color: #123A26; white-space: nowrap; }
+.fila .d.falta { font-size: 15px; background: #FFF1D6; color: #6B4A00; padding: 3px 8px; border-radius: 12px; }
+.fila .d.hecho { font-size: 15px; background: #DDF3E6; color: #123A26; padding: 3px 8px; border-radius: 12px; }
+.fila.actual { border: 2px solid #1F5A3A; }
+
+.btn { display: block; width: 100%; height: 52px; margin-top: 8px; border: 2px solid #1F5A3A; border-radius: 10px; background: #fff; color: #123A26; font-weight: bold; font-size: 18px; }
+.btn.fuerte { background: #1F5A3A; color: #fff; }
+.btn.rojo { border-color: #B32424; color: #B32424; }
+.dos { display: -webkit-flex; display: flex; }
+.dos .btn { -webkit-flex: 1; flex: 1; }
+.dos .btn + .btn { margin-left: 8px; }
+.enlace { display: block; width: 100%; margin-top: 14px; padding: 10px; border: 0; background: transparent; color: #1F5A3A; text-decoration: underline; font-size: 16px; }
+
+.avance { margin-top: 8px; font-weight: bold; color: #123A26; }
+.barra { height: 8px; background: #D5DAD2; border-radius: 4px; margin-top: 4px; overflow: hidden; }
+.barra i { display: block; height: 8px; background: #2FAE66; }
+.lee { margin-top: 10px; padding: 10px; border: 2px dashed #1F5A3A; border-radius: 10px; text-align: center; font-weight: bold; color: #123A26; background: #F4FBF7; }
+.tiene { margin-top: 10px; padding: 10px; border-radius: 10px; background: #DDF3E6; color: #123A26; font-weight: bold; text-align: center; }
+
+#entrar { padding: 24px 14px; }
+#entrar h1 { font-size: 26px; margin: 0 0 4px; color: #123A26; }
+#entrar p { margin: 0 0 16px; color: #444; }
+#codigo { width: 100%; height: 54px; padding: 0 12px; border: 2px solid #1F5A3A; border-radius: 10px; font-size: 24px; letter-spacing: 2px; }
+#aparato { margin-top: 22px; color: #777; font-size: 14px; text-align: center; }
+#cargando { text-align: center; color: #555; padding: 30px 0; font-size: 19px; }
+</style>
+</head>
+<body>
+
+<div id="entrar" class="oculto">
+  <h1>Casa Fonso · PDA</h1>
+  <p>Escribe el código de la PDA y pulsa ENT.</p>
+  <input id="codigo" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+  <button id="btnEntrar" class="btn fuerte" type="button">Entrar</button>
+  <div id="avisoEntrar" class="oculto" style="margin-top:10px;padding:10px;border-radius:8px;background:#FBE0E0;color:#8E1B1B;font-weight:bold"></div>
+  <div id="aparato"></div>
+</div>
+
+<div id="app" class="oculto">
+  <div id="cab">
+    <button class="pest" id="pestPrecio" type="button">Precio</button>
+    <button class="pest" id="pestAlb" type="button">Albaranes</button>
+  </div>
+  <div id="lector">
+    <input id="campo" type="text" inputmode="none" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Lee un código">
+    <button id="btnTeclado" type="button">abc</button>
+    <button id="btnBuscar" type="button">OK</button>
+  </div>
+  <div id="aviso" class="oculto"></div>
+  <div id="cuerpo"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Utilidades (todo sin nada moderno: hay que funcionar en un Android viejo) ──
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function guardar(k, v) { try { if (v === null) { localStorage.removeItem(k); } else { localStorage.setItem(k, v); } } catch (e) { /* nada */ } }
+  function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function euros(n, dec) {
+    if (n === null || n === undefined || isNaN(n)) { return '—'; }
+    var d = dec || 2, t = Number(n).toFixed(d);
+    if (d > 2) { t = t.replace(/0+$/, ''); if (t.split('.')[1].length < 2) { t = Number(n).toFixed(2); } }
+    var p = t.split('.');
+    return p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1] + ' €';
+  }
+  function fecha(iso) {
+    if (!iso) { return ''; }
+    var m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(String(iso));
+    if (!m) { return String(iso); }
+    return m[3] ? m[3] + '/' + m[2] + '/' + m[1] : m[2] + '/' + m[1];
+  }
+  function cantidad(n) { return String(Math.round(Number(n) * 1000) / 1000).replace('.', ','); }
+  function vibrar(patron) { try { if (navigator.vibrate) { navigator.vibrate(patron); } } catch (e) { /* nada */ } }
+
+  // ── Servidor ──
+  var token = leer('cfToken');
+  function pedir(metodo, ruta, cuerpo, bien, mal) {
+    var x = new XMLHttpRequest();
+    x.open(metodo, ruta, true);
+    x.timeout = 15000;
+    x.setRequestHeader('Accept', 'application/json');
+    if (token) { x.setRequestHeader('Authorization', 'Bearer ' + token); }
+    if (cuerpo) { x.setRequestHeader('Content-Type', 'application/json'); }
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) { return; }
+      var datos = null;
+      try { datos = JSON.parse(x.responseText); } catch (e) { datos = null; }
+      if (x.status >= 200 && x.status < 300) { bien(datos); return; }
+      if (x.status === 401 && ruta.indexOf('/api/acceso') !== 0) { salir(); return; }
+      var texto = datos && datos.detail && typeof datos.detail === 'string' ? datos.detail
+        : x.status === 0 ? 'Sin conexión. Mira el wifi y vuelve a probar.'
+        : x.status === 403 ? 'Ese código no da acceso a esto.'
+        : 'No se pudo. Vuelve a probar.';
+      mal(texto, x.status);
+    };
+    x.send(cuerpo ? JSON.stringify(cuerpo) : null);
+  }
+
+  // ── Aviso de arriba ──
+  var relojAviso = null;
+  function aviso(texto, tipo, segundos) {
+    var a = $('aviso');
+    if (relojAviso) { clearTimeout(relojAviso); relojAviso = null; }
+    if (!texto) { a.className = 'oculto'; return; }
+    a.className = tipo || 'info';
+    a.innerHTML = esc(texto);
+    if (segundos) { relojAviso = setTimeout(function () { a.className = 'oculto'; }, segundos * 1000); }
+  }
+
+  // ── Entrar ──
+  function aparato() {
+    var ua = navigator.userAgent || '';
+    var a = /Android ([\d.]+)/.exec(ua), c = /Chrome\/(\d+)/.exec(ua);
+    return (a ? 'Android ' + a[1] : 'Aparato') + (c ? ' · Chrome ' + c[1] : '') + ' · ' + window.innerWidth + '×' + window.innerHeight;
+  }
+  function verEntrar(texto) {
+    $('app').className = 'oculto';
+    $('entrar').className = '';
+    $('aparato').innerHTML = esc(aparato());
+    var av = $('avisoEntrar');
+    if (texto) { av.className = ''; av.innerHTML = esc(texto); } else { av.className = 'oculto'; }
+    $('codigo').value = '';
+    setTimeout(function () { try { $('codigo').focus(); } catch (e) { /* nada */ } }, 50);
+  }
+  function salir() {
+    token = null; guardar('cfToken', null); guardar('cfRol', null); guardar('cfPersona', null);
+    verEntrar('');
+  }
+  var entrando = false;
+  function entrar() {
+    var c = $('codigo').value.replace(/\s/g, '');
+    if (!c || entrando) { return; }
+    entrando = true;
+    $('btnEntrar').innerHTML = 'Entrando…';
+    pedir('POST', '/api/acceso/entrar', { codigo: c }, function (d) {
+      entrando = false; $('btnEntrar').innerHTML = 'Entrar';
+      if (d.rol !== 'pda' && d.rol !== 'admin' && d.rol !== 'tienda') { verEntrar('Ese código no vale para la PDA.'); return; }
+      token = d.token; guardar('cfToken', d.token); guardar('cfRol', d.rol); guardar('cfPersona', d.persona || '');
+      arrancar();
+    }, function (texto) {
+      entrando = false; $('btnEntrar').innerHTML = 'Entrar';
+      verEntrar(texto);
+    });
+  }
+  $('btnEntrar').onclick = entrar;
+  $('codigo').onkeydown = function (e) { if ((e.keyCode || e.which) === 13) { entrar(); } };
+
+  // ── El cuadro del lector: siempre con el foco; el lector escribe ahí como un teclado ──
+  var campo = $('campo'), teclado = false, relojLector = null, primera = 0;
+  function foco() {
+    if ($('app').className === 'oculto') { return; }
+    try { campo.focus(); } catch (e) { /* nada */ }
+  }
+  function ponerTeclado(si) {
+    teclado = si;
+    campo.setAttribute('inputmode', si ? 'text' : 'none');
+    $('btnTeclado').className = si ? 'on' : '';
+    campo.blur();
+    setTimeout(foco, 60);
+  }
+  $('btnTeclado').onclick = function () { ponerTeclado(!teclado); };
+  function mandar() {
+    if (relojLector) { clearTimeout(relojLector); relojLector = null; }
+    var v = campo.value.replace(/^\s+|\s+$/g, '');
+    campo.value = ''; primera = 0;
+    if (!v) { return; }
+    if (teclado) { ponerTeclado(false); }
+    leido(v);
+  }
+  campo.onkeydown = function (e) {
+    var k = e.keyCode || e.which;
+    if (k === 13) { if (e.preventDefault) { e.preventDefault(); } mandar(); }
+  };
+  // El lector escribe todo de golpe (mucho más rápido que un dedo): si no manda «Intro» al final, se da por leído solo
+  campo.oninput = function () {
+    var ahora = new Date().getTime(), n = campo.value.length;
+    if (relojLector) { clearTimeout(relojLector); relojLector = null; }
+    if (!n) { primera = 0; return; }
+    if (!primera || n === 1) { primera = ahora; }
+    if (n >= 6 && (ahora - primera) / n < 45) { relojLector = setTimeout(mandar, 280); }
+  };
+  $('btnBuscar').onclick = function () { mandar(); foco(); };
+  // Si el cuadro pierde el foco y el lector manda teclas sueltas, se recogen igual
+  document.onkeypress = function (e) {
+    var a = document.activeElement, k = e.charCode || e.keyCode || e.which;
+    if ($('app').className === 'oculto' || (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'))) { return; }
+    if (k === 13) { mandar(); return; }
+    if (k >= 32) { campo.value += String.fromCharCode(k); campo.oninput(); }
+  };
+  document.addEventListener('click', function () {
+    setTimeout(function () {
+      var a = document.activeElement;
+      if (!a || (a.tagName !== 'INPUT' && a.tagName !== 'TEXTAREA')) { foco(); }
+    }, 80);
+  }, false);
+
+  // ── Pantallas ──
+  var pantalla = 'precio';      // precio | albaranes | albaran
+  var ultimo = null;            // lo último consultado: { q, items, elegido }
+  var doc = null;               // albarán abierto: { id, proveedor, numero, articulos }
+  var pos = 0;                  // artículo en el que se está
+  var verLista = false;         // albarán: todos los artículos en lista
+  var repetido = null;          // código leído que ya tiene otra línea: se pregunta
+  var ocupado = false;
+
+  function pestanas() {
+    $('pestPrecio').className = 'pest' + (pantalla === 'precio' ? ' on' : '');
+    $('pestAlb').className = 'pest' + (pantalla !== 'precio' ? ' on' : '');
+    campo.setAttribute('placeholder', pantalla === 'albaran' ? 'Lee su código' : 'Lee un código');
+  }
+  function ir(a) { if (location.hash !== '#' + a) { location.hash = a; } else { ruta(); } }
+  function ruta() {
+    var h = (location.hash || '').replace(/^#/, '');
+    var m = /^a\/(\d+)$/.exec(h);
+    aviso('');
+    repetido = null;
+    if (m) { abrirAlbaran(Number(m[1])); }
+    else if (h === 'albaranes') { pantalla = 'albaranes'; pestanas(); cargarAlbaranes(); }
+    else { pantalla = 'precio'; pestanas(); if (!ocupado) { pintarPrecio(); } }
+    foco();
+  }
+  window.onhashchange = ruta;
+  $('pestPrecio').onclick = function () { ir('precio'); };
+  $('pestAlb').onclick = function () { ir('albaranes'); };
+
+  function leido(v) {
+    if (ocupado) { return; }
+    if (pantalla === 'albaran' && doc && !verLista) { ponerCodigo(v, false); }
+    else { if (pantalla !== 'precio') { pantalla = 'precio'; if (location.hash !== '#precio') { location.hash = 'precio'; } pestanas(); } buscar(v); }
+  }
+
+  // ── Precio ──
+  function buscar(q) {
+    ocupado = true;
+    aviso('');
+    $('cuerpo').innerHTML = '<div id="cargando">Buscando ' + esc(q) + '…</div>';
+    pedir('GET', '/api/pda/precio?q=' + encodeURIComponent(q), null, function (d) {
+      ocupado = false;
+      ultimo = { q: d.q, items: d.items || [], elegido: (d.items || []).length === 1 ? 0 : -1, coste: false };
+      if (!ultimo.items.length) { vibrar([80, 60, 80]); }
+      pintarPrecio();
+    }, function (texto) {
+      ocupado = false;
+      aviso(texto, 'mal');
+      $('cuerpo').innerHTML = '';
+    });
+  }
+  function origen(it) {
+    if (it.origen === 'tarifa') { return 'Tarifa de ' + it.proveedor + (it.fecha ? ' · ' + fecha(it.fecha) : ''); }
+    return 'Última compra: ' + fecha(it.fecha) + (it.proveedor ? ' · ' + it.proveedor : '') + (it.compras > 1 ? ' · ' + it.compras + ' compras' : '');
+  }
+  function pintarPrecio() {
+    var c = $('cuerpo'), h = '', i, it;
+    if (!ultimo) {
+      c.innerHTML = '<div class="pista"><b>Lee un código de barras</b>con el gatillo de la PDA.<br>Sale el precio al momento.</div>' +
+        '<div class="pista" style="font-size:16px;margin-top:18px">Para buscar por nombre o por código, toca <b style="display:inline;font-size:16px">abc</b>, escribe y pulsa ENT.</div>' +
+        '<button class="enlace" id="btnSalir" type="button">Salir de la PDA</button>';
+      $('btnSalir').onclick = salir;
+      return;
+    }
+    if (!ultimo.items.length) {
+      c.innerHTML = '<div class="caja"><div class="nombre">No lo encuentro</div><div class="sub">«' + esc(ultimo.q) + '» no está en los albaranes de compra ni en las tarifas.</div></div>' +
+        '<div class="pista" style="font-size:16px">Si es un producto nuevo, ponle su código desde <b style="display:inline;font-size:16px">Albaranes</b> cuando llegue su albarán.</div>';
+      return;
+    }
+    if (ultimo.elegido < 0) {
+      h = '<div class="sub" style="margin-top:8px">' + ultimo.items.length + ' resultados de «' + esc(ultimo.q) + '». Toca uno:</div>';
+      for (i = 0; i < ultimo.items.length; i++) {
+        it = ultimo.items[i];
+        h += '<button class="fila" type="button" data-i="' + i + '"><span class="d">' + euros(it.pvp_iva) + '</span><span class="t">' + esc(it.nombre) + '</span>' +
+          '<span class="s">' + (it.codigo ? esc(it.codigo) + ' · ' : '') + esc(it.origen === 'tarifa' ? 'Tarifa ' + it.proveedor : (it.proveedor || 'Albarán')) + '</span></button>';
+      }
+      c.innerHTML = h;
+      var fs = c.getElementsByTagName('button');
+      for (i = 0; i < fs.length; i++) {
+        fs[i].onclick = function () { ultimo.elegido = Number(this.getAttribute('data-i')); ultimo.coste = false; pintarPrecio(); foco(); };
+      }
+      return;
+    }
+    it = ultimo.items[ultimo.elegido];
+    h = '<div class="caja"><div class="nombre">' + esc(it.nombre) + '</div>';
+    if (it.formato) { h += '<div class="sub">' + esc(it.formato) + '</div>'; }
+    h += '<div class="precio">' + euros(it.pvp_iva) + (it.unidad && it.unidad !== 'ud' && it.unidad !== 'UD' ? ' <small>/ ' + esc(String(it.unidad).toLowerCase()) + '</small>' : '') + '</div>';
+    h += '<div class="sub">con IVA' + (it.pvp ? ' · sin IVA <b>' + euros(it.pvp, 4) + '</b>' : '') + '</div>';
+    if (it.codigo) { h += '<div class="dato">Código: <b>' + esc(it.codigo) + '</b></div>'; }
+    if (it.ean) { h += '<div class="dato gris">Barras: ' + esc(it.ean) + '</div>'; }
+    h += '<div class="dato">' + esc(origen(it)) + (it.doc ? ' · alb. ' + esc(it.doc) : '') + '</div>';
+    if (ultimo.coste && it.coste) { h += '<div class="dato">Coste: <b>' + euros(it.coste, 4) + '</b> sin IVA</div>'; }
+    h += '</div>';
+    if (it.coste && !ultimo.coste) { h += '<button class="btn" id="btnCoste" type="button">Ver el coste</button>'; }
+    if (ultimo.items.length > 1) { h += '<button class="btn" id="btnOtros" type="button">Ver los otros ' + (ultimo.items.length - 1) + '</button>'; }
+    c.innerHTML = h;
+    if ($('btnCoste')) { $('btnCoste').onclick = function () { ultimo.coste = true; pintarPrecio(); foco(); }; }
+    if ($('btnOtros')) { $('btnOtros').onclick = function () { ultimo.elegido = -1; pintarPrecio(); foco(); }; }
+  }
+
+  // ── Albaranes ──
+  function cargarAlbaranes() {
+    $('cuerpo').innerHTML = '<div id="cargando">Cargando…</div>';
+    pedir('GET', '/api/pda/albaranes', null, function (lista) {
+      if (pantalla !== 'albaranes') { return; }
+      var h = '', i, a;
+      if (!lista.length) {
+        $('cuerpo').innerHTML = '<div class="pista"><b>No hay albaranes por colocar</b>Cuando se suba uno en la app, sale aquí.</div>';
+        return;
+      }
+      h = '<div class="sub" style="margin-top:8px">Albaranes por colocar. Toca uno para ponerle los códigos de barras:</div>';
+      for (i = 0; i < lista.length; i++) {
+        a = lista[i];
+        h += '<button class="fila" type="button" data-id="' + a.id + '">' +
+          (a.sin ? '<span class="d falta">faltan ' + a.sin + '</span>' : '<span class="d hecho">todos</span>') +
+          '<span class="t">' + esc(a.proveedor) + '</span><span class="s">' + (a.numero ? 'Nº ' + esc(a.numero) + ' · ' : '') + fecha(a.fecha) + ' · ' + a.n + (a.n === 1 ? ' artículo' : ' artículos') + '</span></button>';
+      }
+      $('cuerpo').innerHTML = h;
+      var fs = $('cuerpo').getElementsByTagName('button');
+      for (i = 0; i < fs.length; i++) { fs[i].onclick = function () { ir('a/' + this.getAttribute('data-id')); }; }
+    }, function (texto) {
+      aviso(texto, 'mal');
+      $('cuerpo').innerHTML = '<button class="btn" id="btnOtra" type="button">Volver a probar</button>';
+      $('btnOtra').onclick = function () { aviso(''); cargarAlbaranes(); };
+    });
+  }
+  function sinCodigo(desde) {
+    var i, n = doc.articulos.length;
+    for (i = 0; i < n; i++) { if (!doc.articulos[(desde + i) % n].ean) { return (desde + i) % n; } }
+    return -1;
+  }
+  function faltan() { var i, f = 0; for (i = 0; i < doc.articulos.length; i++) { if (!doc.articulos[i].ean) { f++; } } return f; }
+  function abrirAlbaran(id) {
+    pantalla = 'albaran'; verLista = false; pestanas();
+    if (doc && doc.id === id) { pintarAlbaran(); return; }
+    doc = null;
+    $('cuerpo').innerHTML = '<div id="cargando">Abriendo el albarán…</div>';
+    pedir('GET', '/api/pda/albaranes/' + id, null, function (d) {
+      doc = d;
+      var s = sinCodigo(0);
+      pos = s < 0 ? 0 : s;
+      if (pantalla === 'albaran') { pintarAlbaran(); }
+    }, function (texto) {
+      aviso(texto, 'mal');
+      $('cuerpo').innerHTML = '<button class="btn" id="btnVolver" type="button">Volver a los albaranes</button>';
+      $('btnVolver').onclick = function () { ir('albaranes'); };
+    });
+  }
+  function pintarAlbaran() {
+    var c = $('cuerpo'), n = doc.articulos.length, f = faltan(), h, i, a;
+    h = '<div class="avance">' + esc(doc.proveedor) + (doc.numero ? ' · Nº ' + esc(doc.numero) : '') + '</div>' +
+      '<div class="sub">' + (f ? 'Faltan ' + f + ' de ' + n + ' por leer' : 'Los ' + n + ' tienen código') + '</div>' +
+      '<div class="barra"><i style="width:' + Math.round((n - f) * 100 / (n || 1)) + '%"></i></div>';
+    if (verLista) {
+      for (i = 0; i < n; i++) {
+        a = doc.articulos[i];
+        h += '<button class="fila' + (i === pos ? ' actual' : '') + '" type="button" data-i="' + i + '">' +
+          (a.ean ? '<span class="d hecho">con código</span>' : '<span class="d falta">falta</span>') +
+          '<span class="t">' + esc(a.nombre) + '</span><span class="s">' + (a.codigo ? esc(a.codigo) + ' · ' : '') + cantidad(a.cantidad) + ' ud</span></button>';
+      }
+      h += '<button class="btn" id="btnCerrarLista" type="button">Volver al artículo</button>';
+      c.innerHTML = h;
+      var fs = c.getElementsByTagName('button');
+      for (i = 0; i < fs.length; i++) {
+        if (fs[i].getAttribute('data-i') !== null) { fs[i].onclick = function () { pos = Number(this.getAttribute('data-i')); verLista = false; repetido = null; aviso(''); pintarAlbaran(); foco(); }; }
+      }
+      $('btnCerrarLista').onclick = function () { verLista = false; pintarAlbaran(); foco(); };
+      return;
+    }
+    a = doc.articulos[pos];
+    h += '<div class="caja"><div class="gris">Artículo ' + (pos + 1) + ' de ' + n + '</div><div class="nombre">' + esc(a.nombre) + '</div>' +
+      '<div class="sub">' + (a.codigo ? 'Código <b>' + esc(a.codigo) + '</b> · ' : '') + cantidad(a.cantidad) + ' ud' + (a.pvp_iva ? ' · ' + euros(a.pvp_iva) : '') + '</div>';
+    if (repetido) {
+      h += '<div class="tiene" style="background:#FFF1D6;color:#6B4A00">Ese código ya lo tiene:<br>' + esc(repetido.otro) + '</div></div>' +
+        '<button class="btn fuerte" id="btnMismo" type="button">Es el mismo producto: ponérselo</button>' +
+        '<button class="btn" id="btnNoMismo" type="button">No, me equivoqué</button>';
+    } else if (a.ean) {
+      h += '<div class="tiene">Código de barras: ' + esc(a.ean) + '</div></div>';
+    } else {
+      h += '<div class="lee">Lee su código de barras</div></div>';
+    }
+    if (!repetido) {
+      h += '<div class="dos"><button class="btn" id="btnAnt" type="button">Anterior</button><button class="btn' + (a.ean ? ' fuerte' : '') + '" id="btnSig" type="button">' + (a.ean ? 'Siguiente' : 'Saltar') + '</button></div>';
+      h += '<button class="btn" id="btnLista" type="button">Ver todos los artículos</button>';
+      if (a.ean) { h += '<button class="btn rojo" id="btnQuitar" type="button">Quitarle el código</button>'; }
+      if (!f) { h += '<button class="btn fuerte" id="btnFin" type="button">Hecho: volver a los albaranes</button>'; }
+    }
+    c.innerHTML = h;
+    if ($('btnMismo')) { $('btnMismo').onclick = function () { var v = repetido.ean; repetido = null; ponerCodigo(v, true); }; }
+    if ($('btnNoMismo')) { $('btnNoMismo').onclick = function () { repetido = null; aviso(''); pintarAlbaran(); foco(); }; }
+    if ($('btnAnt')) { $('btnAnt').onclick = function () { pos = (pos - 1 + n) % n; aviso(''); pintarAlbaran(); foco(); }; }
+    if ($('btnSig')) {
+      $('btnSig').onclick = function () {
+        var s = sinCodigo((pos + 1) % n);
+        pos = (s >= 0 && s !== pos) ? s : (pos + 1) % n;
+        aviso(''); pintarAlbaran(); foco();
+      };
+    }
+    if ($('btnLista')) { $('btnLista').onclick = function () { verLista = true; pintarAlbaran(); }; }
+    if ($('btnQuitar')) { $('btnQuitar').onclick = function () { ponerCodigo('', true); }; }
+    if ($('btnFin')) { $('btnFin').onclick = function () { doc = null; ir('albaranes'); }; }
+  }
+  function ponerCodigo(v, forzar) {
+    var a = doc.articulos[pos];
+    if (repetido) { repetido = null; }
+    ocupado = true;
+    pedir('PUT', '/api/pda/articulos/' + a.id + '/ean', { ean: v, forzar: !!forzar }, function (r) {
+      ocupado = false;
+      if (!r.ok) {
+        vibrar([80, 60, 80]);
+        if (r.motivo === 'repetido') { repetido = { ean: v, otro: r.otro }; aviso(''); }
+        else { aviso(r.texto, 'mal', 6); }
+        pintarAlbaran(); foco();
+        return;
+      }
+      doc.articulos[pos] = r.articulo;
+      if (!v) { aviso('Código quitado', 'info', 3); pintarAlbaran(); foco(); return; }
+      vibrar(60);
+      var s = sinCodigo((pos + 1) % doc.articulos.length);
+      if (s >= 0) { aviso('Guardado: ' + r.articulo.nombre, 'bien', 4); pos = s; }
+      else { aviso('Guardado. Ya tienen código todos.', 'bien', 6); }
+      pintarAlbaran(); foco();
+    }, function (texto) {
+      ocupado = false;
+      vibrar([80, 60, 80]);
+      aviso(texto + ' No se guardó: vuelve a leerlo.', 'mal');
+      foco();
+    });
+  }
+
+  // ── Arranque ──
+  function arrancar() {
+    $('entrar').className = 'oculto';
+    $('app').className = '';
+    ruta();
+  }
+  var rol = leer('cfRol');
+  if (token && (rol === 'pda' || rol === 'admin' || rol === 'tienda')) { arrancar(); } else { verEntrar(''); }
+}());
+</script>
+</body>
+</html>
