@@ -199,6 +199,7 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
         return
     with _lock:
         db = SessionLocal()
+        subido = None
         try:
             doc = db.get(Document, doc_id)
             if not doc or (doc.id <= _desde(db) and not doc.drive_file_id):
@@ -223,6 +224,7 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
                         raise RuntimeError(f"No encuentro la carpeta «{PENDIENTES}» en ALBARANES")
             nombre = nombre_sin_pisar(db, doc)
             res = mail_service.drive_guardar(destino["id"], nombre, _pdf(doc, paginas or [doc.file_path]))
+            subido = res.get("id")
             anterior = doc.drive_file_id
             ya_avisado = bool(anterior and doc.drive_pendiente)
             doc.drive_file_id, doc.drive_url = res.get("id"), res.get("url")
@@ -241,6 +243,12 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
             logger.warning("No se pudo guardar el albarán %s en Drive: %s", doc_id, e)
             db.rollback()
             doc = db.get(Document, doc_id)
+            if not doc and subido:
+                # Lo borraron de la app mientras se guardaba: que no quede suelto en Drive
+                try:
+                    mail_service.drive_borrar(subido)
+                except Exception:
+                    pass
             if doc:
                 msg = str(e)
                 if "Falta el PDF" in msg:

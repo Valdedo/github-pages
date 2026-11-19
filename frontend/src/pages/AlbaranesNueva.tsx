@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Archive, Check, ChevronRight, Copy, FileText, FolderCheck, FolderInput, RefreshCw, Search, Upload, X } from 'lucide-react';
+import { AlertTriangle, Archive, Check, ChevronRight, Copy, FileText, FolderCheck, FolderInput, ListChecks, RefreshCw, Search, Trash2, Upload, X } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { ACCEPTED, MAX, SubirVarios } from '../components/SubirVarios';
 import { albaranesDistintos, deleteDocument, describeApiError, juntarAlbaranes, listDocuments, marcarTerminado } from '../api/client';
@@ -28,12 +28,13 @@ export function AlbaranesNueva() {
   const [eligiendo, setEligiendo] = useState(false);
   const [marcados, setMarcados] = useState<Set<number>>(new Set());
   const [gemelo, setGemelo] = useState<DocumentListItem | null>(null);
+  const [borrando, setBorrando] = useState(false);
   const { toast, show } = useCfToast();
 
   // Ordenador: se pueden soltar los PDF encima de la lista, sin abrir antes «Subir albaranes»
   const [soltados, setSoltados] = useState<File[] | null>(null);
   const zona = useDropzone({
-    noClick: true, noKeyboard: true, accept: ACCEPTED, maxFiles: MAX, maxSize: 20 * 1024 * 1024, disabled: showUpload || !!gemelo,
+    noClick: true, noKeyboard: true, accept: ACCEPTED, maxFiles: MAX, maxSize: 20 * 1024 * 1024, disabled: showUpload || !!gemelo || borrando,
     onDrop: files => { if (files.length) { setSoltados(files); setShowUpload(true); } },
     onDropRejected: r => {
       const c = r.flatMap(x => x.errors.map(e => e.code));
@@ -45,11 +46,11 @@ export function AlbaranesNueva() {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || ocupado) return;
-      if (gemelo) setGemelo(null); else if (showUpload) cerrarSubir(); else if (eligiendo) { setEligiendo(false); setMarcados(new Set()); }
+      if (borrando) setBorrando(false); else if (gemelo) setGemelo(null); else if (showUpload) cerrarSubir(); else if (eligiendo) { setEligiendo(false); setMarcados(new Set()); }
     };
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
-  }, [ocupado, gemelo, showUpload, eligiendo]);
+  }, [ocupado, gemelo, showUpload, eligiendo, borrando]);
 
   const cargar = async () => {
     try {
@@ -118,11 +119,14 @@ export function AlbaranesNueva() {
     show(partes.join(' · '));
   };
 
+  // Se pueden marcar todos (para borrar); archivar, solo los ya leídos y sin terminar
   const archivables = filtrados.filter(d => !leyendose(d) && !d.terminado_at);
+  const paraArchivar = vista === 'pendientes' ? archivables.filter(d => marcados.has(d.id)) : [];
+  const paraBorrar = documents.filter(d => marcados.has(d.id));
   const alternar = (id: number) => setMarcados(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const dejarDeElegir = () => { setEligiendo(false); setMarcados(new Set()); };
   const archivar = async () => {
-    const ids = [...marcados];
+    const ids = paraArchivar.map(d => d.id);
     dejarDeElegir();
     try {
       await Promise.all(ids.map(id => marcarTerminado(id, true)));
@@ -131,6 +135,19 @@ export function AlbaranesNueva() {
         undo: async () => { await Promise.all(ids.map(id => marcarTerminado(id, false))); await cargar(); },
       });
     } catch (e) { show(describeApiError(e), { error: true }); cargar(); }
+  };
+
+  const borrar = async (conDrive: boolean) => {
+    const ids = paraBorrar.map(d => d.id);
+    setOcupado(true);
+    const res = await Promise.allSettled(ids.map(id => deleteDocument(id, conDrive)));
+    setOcupado(false);
+    setBorrando(false);
+    dejarDeElegir();
+    await cargar();
+    const mal = res.filter(r => r.status === 'rejected').length, bien = ids.length - mal;
+    if (mal) show(`${bien ? `${plural(bien, 'borrado', 'borrados')} · ` : ''}${mal === 1 ? '1 no se pudo borrar' : `${mal} no se pudieron borrar`}: prueba otra vez`, { error: true });
+    else show(`${plural(bien, 'albarán borrado', 'albaranes borrados')}${conDrive ? ', también de Drive' : ''}`);
   };
 
   const otro = gemelo ? documents.find(d => d.id === gemelo.gemelo_id) ?? null : null;
@@ -182,12 +199,21 @@ export function AlbaranesNueva() {
               <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor o nº…" autoComplete="off" />
               {search && <button className="search-bar-clear" onClick={() => setSearch('')} aria-label="Borrar búsqueda"><X size={16} /></button>}
             </div>
-            {vista === 'pendientes' && archivables.length > 0 && !eligiendo && (
-              <button className="btn btn-ghost dn-archivar" onClick={() => setEligiendo(true)}><Archive size={16} /> Solo archivar</button>
+            {filtrados.length > 0 && !eligiendo && (
+              <button className="btn btn-ghost dn-archivar" onClick={() => setEligiendo(true)}><ListChecks size={17} /> Seleccionar</button>
             )}
           </div>
 
-          {eligiendo && <p className="dn-ayuda">Marca los que <b>no hay que colocar ni etiquetar</b> (gasóleo, portes, servicios…). Se quedan guardados en Drive y salen de esta lista.</p>}
+          {eligiendo && (
+            <div className="dn-ayuda">
+              <p>
+                Marca los que quieras y elige abajo.{vista === 'pendientes' && <> <b>Archivar</b>: no hay que colocarlos ni etiquetarlos (gasóleo, portes…); se quedan en Drive.</>} <b>Borrar</b>: están mal o repetidos y los vas a subir otra vez.
+              </p>
+              <button className="btn btn-ghost btn-sm" onClick={() => setMarcados(new Set(marcados.size === filtrados.length ? [] : filtrados.map(d => d.id)))}>
+                {marcados.size === filtrados.length ? 'Quitar todos' : 'Marcar todos'}
+              </button>
+            </div>
+          )}
 
           {filtrados.length === 0 ? (
             <div className="empty-state" style={{ padding: '32px 0' }}>
@@ -204,7 +230,7 @@ export function AlbaranesNueva() {
             <div className="dn-lista cf-enter">
               {filtrados.map(doc => (
                 <Fila key={doc.id} doc={doc}
-                  eligiendo={eligiendo} marcado={marcados.has(doc.id)} sePuede={!leyendose(doc) && !doc.terminado_at}
+                  eligiendo={eligiendo} marcado={marcados.has(doc.id)}
                   onAbrir={() => (eligiendo ? alternar(doc.id) : navigate(`/documento/${doc.id}`))}
                   onGemelo={() => setGemelo(doc)} />
               ))}
@@ -216,12 +242,15 @@ export function AlbaranesNueva() {
       {eligiendo && (
         <div className="dn-pie">
           <button className="btn btn-ghost" onClick={dejarDeElegir}>Cancelar</button>
-          <button className="btn btn-ghost dn-todos" onClick={() => setMarcados(new Set(marcados.size === archivables.length ? [] : archivables.map(d => d.id)))}>
-            {marcados.size === archivables.length ? 'Quitar todos' : 'Marcar todos'}
+          <span className="dn-cuantos">{marcados.size ? plural(marcados.size, 'marcado', 'marcados') : 'Ninguno marcado'}</span>
+          <button className="btn btn-ghost dn-borrar" disabled={paraBorrar.length === 0} onClick={() => setBorrando(true)}>
+            <Trash2 size={17} /> {paraBorrar.length ? `Borrar ${paraBorrar.length}` : 'Borrar'}
           </button>
-          <button className="btn btn-primary" disabled={marcados.size === 0} onClick={archivar}>
-            <Archive size={17} /> {marcados.size ? `Archivar ${marcados.size}` : 'Archivar'}
-          </button>
+          {vista === 'pendientes' && (
+            <button className="btn btn-primary" disabled={paraArchivar.length === 0} onClick={archivar}>
+              <Archive size={17} /> {paraArchivar.length ? `Archivar ${paraArchivar.length}` : 'Archivar'}
+            </button>
+          )}
         </div>
       )}
 
@@ -236,6 +265,10 @@ export function AlbaranesNueva() {
             <SubirVarios onUno={subidoUno} onVarios={subidosVarios} onOcupado={setOcupado} iniciales={soltados} />
           </div>
         </div>
+      )}
+
+      {borrando && paraBorrar.length > 0 && (
+        <HojaBorrar docs={paraBorrar} ocupado={ocupado} onCerrar={() => setBorrando(false)} onBorrar={borrar} />
       )}
 
       {gemelo && otro && (
@@ -255,8 +288,8 @@ const ETIQUETA: Record<string, { texto: string; cls: string }> = {
   error: { texto: 'No se leyó', cls: 'badge badge-danger' },
 };
 
-function Fila({ doc, eligiendo, marcado, sePuede, onAbrir, onGemelo }: {
-  doc: DocumentListItem; eligiendo: boolean; marcado: boolean; sePuede: boolean; onAbrir: () => void; onGemelo: () => void;
+function Fila({ doc, eligiendo, marcado, onAbrir, onGemelo }: {
+  doc: DocumentListItem; eligiendo: boolean; marcado: boolean; onAbrir: () => void; onGemelo: () => void;
 }) {
   const et = doc.terminado_at && doc.status !== 'error' ? { texto: 'Terminado', cls: 'badge badge-grey' } : ETIQUETA[doc.status] || ETIQUETA.uploaded;
   const enCurso = leyendose(doc);
@@ -269,8 +302,8 @@ function Fila({ doc, eligiendo, marcado, sePuede, onAbrir, onGemelo }: {
     : doc.drive_estado === 'falta' ? { cls: 'mal', ico: <AlertTriangle size={15} />, texto: <><b>Sin guardar en Drive</b> todavía</> }
     : null;
   return (
-    <div className={`card dn-fila${marcado ? ' on' : ''}${eligiendo && !sePuede ? ' no' : ''}`}>
-      <button className="dn-abrir" onClick={onAbrir} disabled={eligiendo && !sePuede} aria-pressed={eligiendo ? marcado : undefined}>
+    <div className={`card dn-fila${marcado ? ' on' : ''}`}>
+      <button className="dn-abrir" onClick={onAbrir} aria-pressed={eligiendo ? marcado : undefined}>
         {eligiendo && <span className={`dn-casilla${marcado ? ' on' : ''}`} aria-hidden="true">{marcado && <Check size={15} strokeWidth={3.4} />}</span>}
         <span className="dn-tit">{titulo}</span>
         <span className="dn-sub">{sub}</span>
@@ -283,6 +316,44 @@ function Fila({ doc, eligiendo, marcado, sePuede, onAbrir, onGemelo }: {
           <Copy size={15} /> <span>Hay otro albarán de este proveedor con el mismo número. <b>¿Es otra hoja?</b></span>
         </button>
       )}
+    </div>
+  );
+}
+
+/** Confirmar el borrado de los marcados: no tiene vuelta atrás, así que se enseña cuáles son. */
+function HojaBorrar({ docs, ocupado, onCerrar, onBorrar }: {
+  docs: DocumentListItem[]; ocupado: boolean; onCerrar: () => void; onBorrar: (conDrive: boolean) => void;
+}) {
+  const enDrive = docs.filter(d => d.drive_estado && d.drive_estado !== 'falta').length;
+  const [conDrive, setConDrive] = useState(true);
+  const n = docs.length;
+  const nombre = (d: DocumentListItem) => [d.supplier_name || d.original_filename, d.doc_number && `Nº ${d.doc_number}`].filter(Boolean).join(' · ');
+  return (
+    <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget && !ocupado) onCerrar(); }}>
+      <div className="upload-sheet dn-hoja">
+        <div className="upload-sheet-handle" />
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+          <h3 style={{ fontSize: 22, margin: 0 }}>{n === 1 ? '¿Borrar este albarán?' : `¿Borrar estos ${n} albaranes?`}</h3>
+          <button className="modal-close" style={{ marginLeft: 'auto' }} onClick={onCerrar} disabled={ocupado} aria-label="Cerrar"><X size={20} /></button>
+        </div>
+        <ul className="dn-borrar-lista">
+          {docs.slice(0, 6).map(d => <li key={d.id}><FileText size={15} /> <span>{nombre(d)}</span></li>)}
+          {n > 6 && <li className="mas">y {n - 6} más</li>}
+        </ul>
+        <p className="dn-hoja-txt">Se quitan de la app con sus artículos y precios. <b>No se puede deshacer</b>, pero puedes volver a subirlos.</p>
+        {enDrive > 0 && (
+          <label className="dn-borrar-drive">
+            <input type="checkbox" checked={conDrive} onChange={e => setConDrive(e.target.checked)} disabled={ocupado} />
+            <span><b>Quitar también {enDrive === 1 ? 'su copia' : 'sus copias'} de Drive</b><small>Van a la papelera de Drive. Déjalo marcado si los vas a subir otra vez: si no, quedarían dos veces.</small></span>
+          </label>
+        )}
+        <div className="dn-borrar-pie">
+          <button className="btn btn-ghost" onClick={onCerrar} disabled={ocupado}>No, dejarlos</button>
+          <button className="btn btn-danger" disabled={ocupado} onClick={() => onBorrar(conDrive && enDrive > 0)}>
+            <Trash2 size={17} /> {ocupado ? 'Borrando…' : n === 1 ? 'Sí, borrarlo' : `Sí, borrar los ${n}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

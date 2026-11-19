@@ -682,6 +682,13 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   casafonsomc (acciones `puede` y `crear_carpeta` de `tools/correo-casafonso.gs`; «Nueva versión» de la misma implementación,
   sin tocar su `CLAVE`): mientras no, `drive_puede_crear()` da falso, no sale «Crear» y la pantalla explica que se cree en Drive
   y se pulse «Actualizar la lista». Probado en local con Drive de mentira (las dos situaciones); sin probar con el Drive de verdad.
+- **Borrar varios desde la lista (19/11/2026, Andrés: «si los subo, están mal y los quiero volver a subir»)**: en `AlbaranesNueva` el
+  botón «Solo archivar» pasa a ser **«Seleccionar»** (en las dos pestañas). Se marcan los que sean (también los que se están leyendo o
+  en cola: la lectura ya aguanta que el albarán desaparezca) y abajo: «Borrar N» y, en «Por colocar», «Archivar N» (solo cuenta los
+  leídos sin terminar). «Marcar todos» va en el renglón de ayuda. Borrar pide confirmación (`HojaBorrar`: lista de los marcados, «No
+  se puede deshacer», casilla **«Quitar también sus copias de Drive»** marcada por defecto: van a la papelera de Drive; si no, al
+  volver a subirlos quedarían dos veces). Usa `DELETE /api/documents/{id}?drive=true` uno a uno. Si se borra mientras su copia se
+  estaba guardando, `drive_proveedor.guardar` quita el archivo recién subido para que no quede suelto.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.
