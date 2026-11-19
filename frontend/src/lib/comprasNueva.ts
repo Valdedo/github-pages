@@ -1,11 +1,11 @@
 import { esEncargado } from '../auth';
 
 /**
- * Albaranes de compra, versión «Recibir mercancía» (17/11/2026): primero solo para Andrés («En pruebas»).
- * Cuando la apruebe, poner esto a `true` y la ve toda la tienda. La tabla de siempre sigue en
- * `/documento/:id/tabla` («Tabla completa»).
+ * Albaranes de compra, versión «Recibir mercancía» (17/11/2026). Estuvo «En pruebas» solo para Andrés;
+ * **para toda la tienda desde el 19/11/2026** (decisión de Andrés). La tabla de siempre sigue en
+ * `/documento/:id/tabla`, sin enlace.
  */
-export const COMPRAS_NUEVA_PARA_TODOS = false;
+export const COMPRAS_NUEVA_PARA_TODOS = true;
 export const comprasNueva = () => COMPRAS_NUEVA_PARA_TODOS || esEncargado();
 
 /** «4,30», «4.30», «4,30 €» → 4.3 (null si no es un número). */

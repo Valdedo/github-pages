@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, HandHelping, Play, Users } from 'lucide-react';
+import { ListChecks, Play, ScanBarcode, Upload } from 'lucide-react';
 import { Ilustracion } from './Pegatinas';
 import { abrirTutorial } from './Tutorial';
 
@@ -8,17 +8,17 @@ import { abrirTutorial } from './Tutorial';
  * Aviso de novedades: sale una sola vez en cada dispositivo al abrir la app.
  * Para avisar de otras novedades, cambiar VERSION y la lista.
  */
-const VERSION = '2026-11-04';
+const VERSION = '2026-11-19';
 const CLAVE = 'cfNovedadesVistas';
 
 const COSAS = [
-  { icono: Camera, titulo: 'Entregar sin firma',
-    texto: 'Si al llevar un pedido no está el cliente, en «Firma del cliente» pulsa «No está el cliente»: elige dónde lo dejaste y haz una foto. El albarán queda como «Entregado sin firma» con la foto. Si luego pasa por la tienda, puede firmarlo desde su albarán.' },
-  { icono: Users, titulo: 'Albaranes de venta por cliente',
-    texto: 'En Ventas, la pestaña «Por cliente» enseña cada cliente en una línea con lo que le falta: sin firmar, sin copia y por facturar. Toca el cliente para ver sus albaranes.',
-    ir: '/firmas?vista=todos', boton: 'Ver los clientes' },
-  { icono: HandHelping, titulo: 'La copia se apunta sola',
-    texto: 'Al sacar en PDF varios albaranes firmados (por ejemplo, «Dar copia» de un cliente), quedan marcados como «Copia entregada». Si no se la diste, pulsa «Deshacer».' },
+  { icono: Upload, titulo: 'Albaranes de compra: súbelos todos',
+    texto: 'De uno en uno o un montón a la vez (hasta 40). Cada uno se lee y se guarda solo en la carpeta de su proveedor en Drive, y la lista dice si ya está guardado. Si el proveedor es nuevo, la carpeta se crea desde el propio albarán.',
+    ir: '/albaranes', boton: 'Ver los albaranes de compra' },
+  { icono: ScanBarcode, titulo: 'Recibir mercancía',
+    texto: 'Al abrir un albarán ves qué artículos son nuevos y cuáles suben o bajan. Toca el precio de venta para cambiarlo o mantener el que ya hay, lee el código de barras con la cámara del móvil y saca las etiquetas de la balda.' },
+  { icono: ListChecks, titulo: 'Archivar o borrar varios',
+    texto: 'En la lista, «Seleccionar» deja marcar los que quieras: «Archivar» los que no hay que colocar ni etiquetar (gasóleo, portes…) o «Borrar» los que se subieron mal.' },
 ];
 
 export const hayNovedades = () => { try { return localStorage.getItem(CLAVE) !== VERSION; } catch { return false; } };

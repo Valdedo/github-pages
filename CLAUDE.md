@@ -97,7 +97,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 
 ## Novedades y tutorial
 - `components/Novedades.tsx`: aviso que sale una vez por dispositivo al abrir la app (clave `cfNovedadesVistas` = `VERSION`);
-  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-10-23` (tarifa de Inyectometal para todos;
+  para avisar de cosas nuevas, cambiar `VERSION` y la lista `COSAS`. Última: `2026-11-19` (albaranes de compra nuevos para
+  todos: subir varios, recibir mercancía, archivar o borrar varios). Antes: `2026-11-04` (entregar sin firma) y `2026-10-23` (tarifa de Inyectometal para todos;
   «Tarifas en la tableta» solo en el menú de la tableta). La anterior, `2026-10-19`: Pladur, Dinak, ladrillos, gas, morteros y
   piensos; familias en lista; «Para qué sirve»; tarifas en la tableta.
 - `components/Tutorial.tsx`: tutorial guiado con hueco de luz sobre cada botón (`PASOS`: ruta, selectores `data-tour`/clase,
@@ -539,9 +540,11 @@ Informe completo en el proyecto de claude.ai (`claude/repaso-app-2026-10-15.md`)
   las tarifas en cuadrícula ponía el título letra a letra). En títulos dentro de una fila flex, `overflow-wrap: break-word`, nunca
   `anywhere` (con `anywhere` el título se deja estrechar hasta una letra), y que los botones puedan bajar a otra fila.
 
-## Recibir mercancía · albaranes de compra nuevos (17/11/2026, «En pruebas», solo Andrés)
-Andrés: «no lo usamos; quiero usarlo siempre que llegue mercancía». `lib/comprasNueva.ts`: `COMPRAS_NUEVA_PARA_TODOS = false`
-→ `true` cuando lo apruebe. Con la marca, `/documento/:id` es `pages/RecibirPage.tsx` (estilos `pages/recibir.css`, clases `rc-*`
+## Recibir mercancía · albaranes de compra nuevos (17/11/2026; **para toda la tienda desde el 19/11/2026**)
+Andrés: «no lo usamos; quiero usarlo siempre que llegue mercancía». Estuvo «En pruebas» dos días; el 19/11/2026 por la tarde
+Andrés pidió pasarlo a todos: `lib/comprasNueva.ts`: `COMPRAS_NUEVA_PARA_TODOS = true` (Patricia y Oscar ven la lista y la
+pantalla nuevas; «Ajustar la impresora» de las etiquetas sigue solo para Andrés; Novedades `2026-11-19`). Donde más abajo pone
+«solo Andrés» o «es lo que ve el resto», ya no: la tabla de siempre queda sin enlace. Con la marca, `/documento/:id` es `pages/RecibirPage.tsx` (estilos `pages/recibir.css`, clases `rc-*`
 y `esc-*`); la tabla de siempre (`DocumentPage`) queda en `/documento/:id/tabla` («Más opciones → Tabla completa») y es lo que
 sigue viendo el resto. Decisiones de Andrés: etiqueta **para la balda**; fuera el aviso al cliente y «falta/roto»; Excel, listín
 y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **mantener el que ya hay en la tienda**.
@@ -691,8 +694,8 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   volver a subirlos quedarían dos veces). Usa `DELETE /api/documents/{id}?drive=true` uno a uno. Si se borra mientras su copia se
   estaba guardando, `drive_proveedor.guardar` quita el archivo recién subido para que no quede suelto.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
-  barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
-  subidas viejo cuando esto pase a todos.
+  barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil. Ya para todos (19/11): falta
+  quitar el aviso de subidas viejo y borrar las pantallas de antes (`HomePageDeSiempre`, `DocumentPage`) cuando lleve un tiempo.
 
 ## Pendiente (octubre 2026)
 - Ordenar a mano el camión de Melchor (`reparto_orden` existe, falta endpoint y botones).
