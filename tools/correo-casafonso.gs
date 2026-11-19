@@ -61,6 +61,18 @@ function doPost(e) {
       out.ok = true; out.archivos = archivos_(DriveApp.getFolderById(d.folderId), 0);
       return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
     }
+    if (d.action === 'puede') {             // qué sabe hacer esta versión del script (la app pregunta antes de ofrecerlo)
+      out.ok = true; out.crear_carpeta = true;
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (d.action === 'crear_carpeta') {     // carpeta de un proveedor nuevo dentro de ALBARANES (si ya existe, esa misma)
+      var nombre = String(d.nombre || '').trim();
+      if (!nombre) throw new Error('Falta el nombre de la carpeta');
+      var madre = DriveApp.getFolderById(d.folderId), ya = madre.getFoldersByName(nombre);
+      var nueva = ya.hasNext() ? ya.next() : madre.createFolder(nombre);
+      out.ok = true; out.id = nueva.getId(); out.name = nueva.getName();
+      return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+    }
     if (!d.pdf) throw new Error('Falta el PDF');
     var pdf = Utilities.newBlob(Utilities.base64Decode(d.pdf), d.mime || 'application/pdf', d.filename || 'albaran.pdf');
 

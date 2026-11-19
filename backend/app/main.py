@@ -39,6 +39,8 @@ async def lifespan(app: FastAPI):
     try:
         from app.services.drive_proveedor import preparar as _preparar_drive
         _preparar_drive()
+        from app.services.drive_proveedor import recolocar_al_arrancar
+        recolocar_al_arrancar()   # pendientes cuyo proveedor ya tiene carpeta: a su sitio, sin esperar al repaso
     except Exception as e:
         logger.warning(f"No se pudo preparar la copia en Drive: {e}")
     try:

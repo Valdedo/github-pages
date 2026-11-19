@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FolderCheck, FolderInput, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react';
+import { FolderCheck, FolderInput, FolderPlus, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react';
 import { api, getDocument, describeApiError } from '../api/client';
 import type { Document } from '../types/index';
 
@@ -33,10 +33,30 @@ export function DriveEstado({ doc }: { doc: Document }) {
     return () => clearInterval(t);
   }, [doc.id, leido, d.drive_at, d.drive_error, reciente]);
 
-  useEffect(() => {
-    if (!d.drive_pendiente || carpetas) return;
-    api.get<{ id: string; name: string }[]>('/api/drive/carpetas').then(r => setCarpetas(r.data)).catch(e => setError(errorDe(e)));
-  }, [d.drive_pendiente, carpetas]);
+  // Sin carpeta: se pide la lista recién leída de Drive (antes iba guardada 10 min y una carpeta recién creada no salía).
+  // Si mientras tanto el proveedor ya tiene carpeta (se acaba de crear en Drive con su nombre), el servidor lo mueve solo.
+  const [puedeCrear, setPuedeCrear] = useState(false);
+  const [nombre, setNombre] = useState('');
+  const [mirando, setMirando] = useState(false);
+  const mirar = async () => {
+    setMirando(true); setError(null);
+    try {
+      const { data } = await api.get<{ carpetas: { id: string; name: string }[]; puede_crear: boolean; sugerido: string; drive_carpeta: string | null; drive_pendiente: boolean }>(`/api/drive/documento/${doc.id}/pendiente`);
+      setCarpetas(data.carpetas); setPuedeCrear(data.puede_crear);
+      setNombre(n => n || data.sugerido);
+      if (!data.drive_pendiente) setD(x => ({ ...x, drive_pendiente: false, drive_carpeta: data.drive_carpeta }));
+    } catch (e) { setError(errorDe(e)); } finally { setMirando(false); }
+  };
+  const sinCarpeta = !!d.drive_pendiente && doc.status !== 'error';
+  useEffect(() => { if (sinCarpeta) mirar(); }, [sinCarpeta, doc.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const crear = async () => {
+    setOcupado(true); setError(null);
+    try {
+      const { data } = await api.post(`/api/drive/documento/${doc.id}/carpeta-nueva`, { nombre });
+      setD(x => ({ ...x, ...data }));
+    } catch (e) { setError(errorDe(e)); } finally { setOcupado(false); }
+  };
 
   const mover = async () => {
     setOcupado(true); setError(null);
@@ -77,17 +97,31 @@ export function DriveEstado({ doc }: { doc: Document }) {
   }
 
   if (d.drive_pendiente) {
+    const quien = doc.supplier_name;
     return (
       <div className="drive-estado pendiente">
         <FolderInput size={18} />
-        <span><b>Guardado en «_Pendientes de clasificar».</b> ¿En qué carpeta va {doc.supplier_name || 'este proveedor'}? Se recordará para los siguientes.</span>
+        <span>
+          <b>Está guardado en Drive, pero sin carpeta de proveedor.</b>{' '}
+          {quien ? <>¿Dónde van los de {quien}? Se recordará para los siguientes.</> : <>Este albarán no tiene proveedor puesto: ponlo con «Cambiar» y se guarda solo en su carpeta.</>}
+        </span>
+        {quien && puedeCrear && (
+          <div className="drive-elegir drive-nueva">
+            <input className="form-input" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={80} aria-label="Nombre de la carpeta nueva" placeholder="Nombre de la carpeta" />
+            <button className="btn btn-primary btn-sm" disabled={!nombre.trim() || ocupado} onClick={crear}><FolderPlus size={16} /> {ocupado ? 'Creando…' : 'Crear esta carpeta'}</button>
+          </div>
+        )}
         <div className="drive-elegir">
           <select className="form-input" value={elegida} onChange={e => setElegida(e.target.value)} aria-label="Carpeta del proveedor">
-            <option value="">{carpetas ? 'Elige la carpeta…' : 'Cargando carpetas…'}</option>
+            <option value="">{carpetas ? (puedeCrear && quien ? 'O elige una que ya existe…' : 'Elige la carpeta…') : 'Cargando carpetas…'}</option>
             {(carpetas || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <button className="btn btn-primary btn-sm" disabled={!elegida || ocupado} onClick={mover}>{ocupado ? 'Moviendo…' : 'Mover'}</button>
+          <button className={`btn btn-sm ${puedeCrear && quien ? 'btn-ghost' : 'btn-primary'}`} disabled={!elegida || ocupado} onClick={mover}>{ocupado ? 'Moviendo…' : 'Mover'}</button>
+          <button className="btn btn-ghost btn-sm drive-refrescar" onClick={mirar} disabled={mirando} title="Volver a leer las carpetas de Drive">
+            <RefreshCw size={15} className={mirando ? 'girando' : undefined} /> <span>Actualizar la lista</span>
+          </button>
         </div>
+        {!puedeCrear && carpetas && quien && <small className="drive-pista">¿Es un proveedor nuevo? Crea su carpeta en Drive, dentro de ALBARANES, y pulsa «Actualizar la lista».</small>}
         {error && <small className="acceso-error">{error}</small>}
       </div>
     );

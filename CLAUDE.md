@@ -669,6 +669,19 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   solo en móvil y tableta (`sv-movil`: ≤768 px o puntero táctil; en el ordenador abrían el explorador de archivos); **Esc** cierra
   las ventanas y sale de «Solo archivar»; textos de Drive más cortos («En Drive, falta la carpeta», «En Drive, sin leer») porque a
   1280 px se cortaban.
+- **Carpetas de Drive: lista al día y crearlas desde la app (19/11/2026)**. Andrés creó en Drive la carpeta de un proveedor nuevo
+  y no le salía para elegirla: la lista de carpetas se guardaba 10 min en el servidor y la pantalla nunca la volvía a pedir; además,
+  lo que ya estaba en «_Pendientes de clasificar» no se movía solo aunque apareciese su carpeta. Ahora: la lista se guarda 2 min
+  (`drive_proveedor`), `guardar` vuelve a pedirla antes de mandar algo a pendientes, y **`recolocar(db)`** mueve los pendientes
+  leídos cuyo proveedor ya tiene carpeta (recordada o de nombre parecido, `adivinar`): al arrancar (`recolocar_al_arrancar`), cada
+  30 min con `repasar` y al abrir un albarán pendiente (`GET /api/drive/documento/{id}/pendiente` → carpetas frescas, `puede_crear`,
+  `sugerido`). En `DriveEstado`: botón **«Actualizar la lista»** y, si el script lo permite, el nombre propuesto
+  (`nombre_sugerido`: mayúsculas, sin S.L./S.A.) con **«Crear esta carpeta»** (`POST /api/drive/documento/{id}/carpeta-nueva`
+  → acción `crear_carpeta` del Apps Script; si ya existe una con ese nombre, usa esa) y debajo «O elige una que ya existe».
+  El albarán sin proveedor no ofrece crear: primero «Cambiar». **Hace falta actualizar una vez el script desplegado** en
+  casafonsomc (acciones `puede` y `crear_carpeta` de `tools/correo-casafonso.gs`; «Nueva versión» de la misma implementación,
+  sin tocar su `CLAVE`): mientras no, `drive_puede_crear()` da falso, no sale «Crear» y la pantalla explica que se cree en Drive
+  y se pulse «Actualizar la lista». Probado en local con Drive de mentira (las dos situaciones); sin probar con el Drive de verdad.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil; quitar el aviso de
   subidas viejo cuando esto pase a todos.

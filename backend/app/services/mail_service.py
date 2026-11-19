@@ -59,6 +59,30 @@ def drive_guardar(folder_id: str, filename: str, pdf: bytes) -> dict:
                   "pdf": base64.b64encode(pdf).decode()})
 
 
+def drive_crear_carpeta(folder_id: str, nombre: str) -> dict:
+    """Crea la carpeta `nombre` dentro de `folder_id` (si ya existe, devuelve esa). {id, name}.
+    Necesita la versión del Apps Script de nov. 2026 (acción `crear_carpeta`)."""
+    r = _post({"action": "crear_carpeta", "folderId": folder_id, "nombre": nombre})
+    return {"id": r["id"], "name": r.get("name") or nombre}
+
+
+_puede: dict = {"at": 0.0, "crear": False}
+
+
+def drive_puede_crear() -> bool:
+    """¿El Apps Script instalado sabe crear carpetas? (el de antes contesta con error a lo que no conoce).
+    El sí se recuerda; el no se vuelve a preguntar a los 5 minutos, por si se acaba de actualizar."""
+    import time
+    if _puede["crear"] or time.time() - _puede["at"] < 300:
+        return _puede["crear"]
+    _puede["at"] = time.time()
+    try:
+        _puede["crear"] = bool(_post({"action": "puede"}).get("crear_carpeta"))
+    except Exception:
+        _puede["crear"] = False
+    return _puede["crear"]
+
+
 def drive_mover(file_id: str, folder_id: str) -> None:
     _post({"action": "mover", "fileId": file_id, "folderId": folder_id})
 

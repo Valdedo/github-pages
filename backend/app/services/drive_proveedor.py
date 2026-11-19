@@ -46,8 +46,8 @@ def clave(nombre: str) -> str:
 
 
 def carpetas(refrescar: bool = False) -> list:
-    """Subcarpetas de ALBARANES: [{id, name}] (se guarda 10 min)."""
-    if refrescar or _cache["lista"] is None or time.time() - _cache["at"] > 600:
+    """Subcarpetas de ALBARANES: [{id, name}] (se guarda 2 min; eran 10 y una carpeta recién creada en Drive no salía)."""
+    if refrescar or _cache["lista"] is None or time.time() - _cache["at"] > 120:
         _cache["lista"] = sorted(mail_service.drive_carpetas(settings.drive_albaranes_id), key=lambda c: c["name"].upper())
         _cache["at"] = time.time()
     return _cache["lista"]
@@ -212,6 +212,10 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
                 destino, pendiente = {"id": fijada.folder_id, "name": fijada.folder_name}, False
             else:
                 destino = adivinar(prov, lista)
+                if destino is None and time.time() - _cache["at"] > 20:
+                    # Antes de mandarlo a pendientes se vuelve a mirar Drive: puede que la carpeta se acabe de crear
+                    lista = carpetas(refrescar=True)
+                    destino = adivinar(prov, lista)
                 pendiente = destino is None
                 if pendiente:
                     destino = next((c for c in lista if c["name"] == PENDIENTES), None)
@@ -245,6 +249,73 @@ def guardar(doc_id: int, paginas: Optional[list] = None) -> None:
                 db.commit()
         finally:
             db.close()
+
+
+def recolocar(db) -> int:
+    """Los albaranes que estaban en «_Pendientes de clasificar» y cuyo proveedor ya tiene carpeta (porque alguien la
+    acaba de crear en Drive con su nombre, o se eligió para otro albarán suyo) pasan solos a ella. Devuelve cuántos.
+    Antes se quedaban en pendientes aunque la carpeta ya existiera, y había que moverlos a mano uno a uno."""
+    from app.models.document import Document
+    from app.models.drive import DriveCarpeta
+    movidos = 0
+    lista = carpetas()
+    for d in db.query(Document).filter(Document.drive_pendiente.is_(True), Document.drive_file_id.isnot(None),
+                                       Document.status == "completed").order_by(Document.id).all():
+        db.refresh(d)
+        if not d.drive_pendiente or not d.supplier_name:
+            continue   # ya lo movió otro de su mismo proveedor en esta vuelta, o no se sabe de quién es
+        fijada = db.get(DriveCarpeta, clave(d.supplier_name))
+        destino = {"id": fijada.folder_id} if fijada else adivinar(d.supplier_name, lista)
+        if not destino or not any(c["id"] == destino["id"] for c in lista):
+            continue
+        try:
+            antes = db.query(Document).filter(Document.drive_pendiente.is_(True)).count()
+            elegir_carpeta(db, d, destino["id"])
+            movidos += antes - db.query(Document).filter(Document.drive_pendiente.is_(True)).count()
+        except Exception as e:
+            db.rollback()
+            logger.warning("No se pudo recolocar el albarán %s en su carpeta: %s", d.id, e)
+    if movidos:
+        logger.info("%s albarán(es) pasan de pendientes a la carpeta de su proveedor", movidos)
+    return movidos
+
+
+def recolocar_al_arrancar() -> None:
+    """Lo mismo, en segundo plano al arrancar el servidor (no debe retrasar el arranque ni tumbarlo)."""
+    def _vuelta():
+        from app.database import SessionLocal
+        if not mail_service.configured():
+            return
+        db = SessionLocal()
+        try:
+            carpetas(refrescar=True)
+            recolocar(db)
+        except Exception as e:
+            logger.warning("No se pudieron recolocar los albaranes pendientes al arrancar: %s", e)
+        finally:
+            db.close()
+    threading.Thread(target=_vuelta, daemon=True).start()
+
+
+_LEGAL = re.compile(r"[\s,]+(S\.?\s?L\.?\s?U?\.?|S\.?\s?A\.?\s?U?\.?|S\.?\s?C\.?\s?L?\.?|C\.?\s?B\.?)\s*$", re.I)
+
+
+def nombre_sugerido(proveedor: str) -> str:
+    """Nombre para la carpeta de un proveedor nuevo: en mayúsculas y sin «S.L.», «S.A.»… como las que ya hay."""
+    n = _LEGAL.sub("", (proveedor or "").strip())
+    n = re.sub(r"[\\/:*?\"<>|]+", " ", n)
+    return re.sub(r"\s+", " ", n).strip(" .,-").upper()[:80]
+
+
+def crear_carpeta(db, doc, nombre: str) -> dict:
+    """Crea en Drive la carpeta del proveedor (dentro de ALBARANES) y mueve a ella el albarán y los demás suyos."""
+    nombre = re.sub(r"\s+", " ", re.sub(r"[\\/:*?\"<>|]+", " ", nombre or "")).strip(" .")[:80]
+    if not nombre or nombre.startswith("_"):
+        raise ValueError("Pon un nombre para la carpeta.")
+    c = mail_service.drive_crear_carpeta(settings.drive_albaranes_id, nombre)
+    carpetas(refrescar=True)
+    elegir_carpeta(db, doc, c["id"])
+    return c
 
 
 def _avisar_pendiente(db, doc) -> None:
@@ -291,6 +362,14 @@ def repasar(max_n: int = 5) -> None:
         except ValueError:
             paginas = None
         guardar(doc_id, paginas)
+    db = SessionLocal()
+    try:
+        carpetas(refrescar=True)
+        recolocar(db)
+    except Exception as e:
+        logger.warning("No se pudieron recolocar los albaranes pendientes: %s", e)
+    finally:
+        db.close()
 
 
 def guardar_en_segundo_plano(doc_id: int, paginas: Optional[list] = None) -> None:

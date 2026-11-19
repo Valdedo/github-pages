@@ -816,6 +816,11 @@ button.tc:hover .tc-lapiz { opacity: 1; }
 .drive-abrir { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--cf-bosque); }
 .drive-elegir { display: flex; gap: 8px; flex: 1 1 100%; }
 .drive-elegir .form-input { margin: 0; flex: 1; }
+.drive-elegir { flex-wrap: wrap; }
+.drive-elegir .form-input { flex: 1 1 200px; min-width: 0; }
+.drive-elegir .btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.drive-pista { flex: 1 1 100%; font-size: 13px; line-height: 1.4; }
+@media (max-width: 480px) { .drive-elegir .btn-primary, .drive-nueva .btn { flex: 1 1 100%; justify-content: center; } }
 .girando { animation: cf-girar 1s linear infinite; }
 @keyframes cf-girar { to { transform: rotate(360deg); } }
 .codigo-input { position: relative; width: 100%; }

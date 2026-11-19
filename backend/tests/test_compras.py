@@ -378,3 +378,69 @@ class TestLecturaCortada:
         assert (a.status, a.reanudado) == ("uploaded", True)
         assert b.status == "error" and "dos veces" in b.error_message
         assert hecho.status == "completed"
+
+
+class TestCarpetasDeDrive:
+    """Proveedor nuevo: la carpeta recién creada se ve, los pendientes se colocan solos y la app puede crearla."""
+
+    def _drive(self, monkeypatch, carpetas):
+        from app.services import drive_proveedor as dp, mail_service as ms
+        hecho = {"movidos": [], "creadas": [], "lecturas": 0}
+
+        def leer(_):
+            hecho["lecturas"] += 1
+            return [dict(c) for c in carpetas]
+
+        def crear(_, nombre):
+            c = {"id": f"n{len(carpetas)}", "name": nombre}
+            carpetas.append(c); hecho["creadas"].append(nombre)
+            return c
+        monkeypatch.setattr(ms, "drive_carpetas", leer)
+        monkeypatch.setattr(ms, "drive_mover", lambda fid, folder: hecho["movidos"].append((fid, folder)))
+        monkeypatch.setattr(ms, "drive_crear_carpeta", crear)
+        monkeypatch.setattr(dp, "_cache", {"at": 0.0, "lista": None})
+        return dp, hecho
+
+    def _pendiente(self, db, prov, numero):
+        d = _doc(db, prov, dt.date(2026, 11, 18), [{"d": "X", "c": 1}], numero=numero)
+        d.drive_file_id, d.drive_pendiente, d.drive_carpeta = f"f{numero}", True, "_Pendientes de clasificar"
+        db.commit()
+        return d
+
+    def test_al_crear_la_carpeta_en_drive_los_pendientes_pasan_solos(self, db, monkeypatch):
+        carpetas = [{"id": "p", "name": "_Pendientes de clasificar"}, {"id": "c", "name": "CAMINOVAL"}]
+        dp, hecho = self._drive(monkeypatch, carpetas)
+        a = self._pendiente(db, "Bernardo Representaciones y Exclusivas, S.L.", "1712")
+        b = self._pendiente(db, "Bernardo Representaciones y Exclusivas, S.L.", "2777")
+        j = self._pendiente(db, "JUAN ROCES, S.A.", "45682")
+        u = self._pendiente(db, "UNIVERSAL", "9")
+        assert dp.recolocar(db) == 0                      # todavía no hay carpeta de ninguno
+        carpetas += [{"id": "b", "name": "BERNARDO REPRESENTACIONES"}, {"id": "r", "name": "JUAN ROCES PREFABRICADOS"}]
+        dp.carpetas(refrescar=True)                       # lo que hace la pantalla al abrir el aviso o al pulsar «Actualizar»
+        assert dp.recolocar(db) == 3
+        for d in (a, b, j, u):
+            db.refresh(d)
+        assert (a.drive_carpeta, b.drive_carpeta, j.drive_carpeta) == ("BERNARDO REPRESENTACIONES",) * 2 + ("JUAN ROCES PREFABRICADOS",)
+        assert not a.drive_pendiente and not b.drive_pendiente and not j.drive_pendiente
+        assert u.drive_pendiente and sorted(hecho["movidos"]) == [("f1712", "b"), ("f2777", "b"), ("f45682", "r")]
+
+    def test_la_app_crea_la_carpeta_y_coloca_todos_los_de_ese_proveedor(self, db, monkeypatch):
+        carpetas = [{"id": "p", "name": "_Pendientes de clasificar"}]
+        dp, hecho = self._drive(monkeypatch, carpetas)
+        a, b = self._pendiente(db, "UNIVERSAL DE SUMINISTROS, S.L.", "1"), self._pendiente(db, "UNIVERSAL DE SUMINISTROS, S.L.", "2")
+        assert dp.nombre_sugerido(a.supplier_name) == "UNIVERSAL DE SUMINISTROS"
+        dp.crear_carpeta(db, a, "  Universal / suministros ")
+        db.refresh(a); db.refresh(b)
+        assert hecho["creadas"] == ["Universal suministros"]
+        assert a.drive_carpeta == b.drive_carpeta == "Universal suministros" and not a.drive_pendiente and not b.drive_pendiente
+        import pytest
+        with pytest.raises(ValueError):
+            dp.crear_carpeta(db, a, "   ")
+
+    def test_la_lista_no_se_queda_vieja_diez_minutos(self, monkeypatch):
+        dp, hecho = self._drive(monkeypatch, [{"id": "c", "name": "CAMINOVAL"}])
+        dp.carpetas(); dp.carpetas()
+        assert hecho["lecturas"] == 1
+        dp._cache["at"] -= 121                          # a los dos minutos se vuelve a leer
+        dp.carpetas()
+        assert hecho["lecturas"] == 2
