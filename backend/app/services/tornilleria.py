@@ -31,7 +31,7 @@ from typing import Optional
 
 from app.services import hoja_tienda
 
-HOJA = "1I-DdsPNGWIGFrVACuN2O9gPSpVSglim0eAxRiaA2p4o"  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
+HOJA = "1tC2oq4wia7fk98xbQ9laEz_-MI1Bm3-nLIe8ss9CA84"  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
 IVA = 21
 ORIGEN = "Precio de venta de la etiqueta de la balda, con IVA."
 CALCULADO = "Precio calculado (coste + margen + IVA): puede no coincidir con la etiqueta de la balda."
@@ -44,6 +44,10 @@ FOTOS: list = [
     (("inox", "arandela"), "arandela-ancha-inox"), (("inox", "7991"), "allen-avellanada-inox"),
     (("inox", "cuello cuadrado"), "cuello-cuadrado-inox"), (("inox", "barraquero"), "barraquero-inox"),
     (("inox", "rosca chapa"), "rosca-chapa-inox"), (("inox", "hexagonal"), "hexagonal-inox"),
+    # Lo que no tiene foto parecida en el repo (va sin foto antes que con la de otra pieza)
+    (("abrazadera", "plastico"), None), (("abrazadera", "ligera"), None), (("abarcon",), None), (("argolla",), None),
+    (("sujetacables",), None), (("gancho en s",), None), (("alomada", "7504"), None), (("7984",), None),
+    (("tirafondo", "abrazadera"), "tirafondo-abrazadera"), (("abrazadera", "un pie"), "abrazadera-un-pie"),
     # Cubierta
     (("autotaladrante", "sandwich"), "autotaladrante-sandwich"), (("autotaladrante", "vigueta"), "autotaladrante-vigueta"),
     (("autotaladrante", "avellanado"), "autotaladrante-avellanado"), (("autotaladrante", "arandela"), "autotaladrante-arandela"),
@@ -81,7 +85,7 @@ def foto(fam: str, gru: str, art: str, formato: str) -> Optional[str]:
     t = hoja_tienda.n(f"{gru} {art}")
     for palabras, nombre in FOTOS:
         if all(p in t for p in palabras):
-            return f"/catalogo/tor/{nombre}.webp"
+            return f"/catalogo/tor/{nombre}.webp" if nombre else None
     return None
 
 

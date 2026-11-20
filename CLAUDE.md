@@ -357,14 +357,25 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 El pasillo de ferretería, que lleva el precio a mano en la balda, metido en las tarifas (`"tornilleria"` en `TARIFAS`, con
 `en_pruebas`; para pasarla a todos, quitar esa marca; la PDA no la mira mientras esté en pruebas). Informes en el proyecto de
 claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
-- **Hoja** «TARIFA_TORNILLERIA_2026» `1I-Dd…` (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
+- **Hoja** «TARIFA_TORNILLERIA_2026» `1tC2o…` (la del 20/11, `1I-Dd…`, en la papelera) (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
   de la tienda: Familia | Grupo | Artículo | Medida | Formato | PVP con IVA | … | Código | Coste | Fecha coste | Factura |
-  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.745 medidas, una fila por medida (cincado,
+  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.792 medidas (1.745 + 47 del 21/11), una fila por medida (cincado,
   pavonado o media rosca no abren fila; el inox va en su familia), 11 familias y 57 grupos (el tipo de pieza con su DIN).
   Coste: último albarán de Cofan o Caminoval y, si no hay, la web de Cofan del 20/11/2026 (tarifa − 60 %; en lo de Caminoval
   sin albarán es solo de referencia, lo dice la «Nota»). La generan los guiones del proyecto (`claude/tornilleria-generar-*.py`);
   regenerarla sube una hoja nueva con otro id (cambiar `tornilleria.HOJA`).
-- **Precio de venta**: 112 leídos de las etiquetas verdes de la balda (fotos del 20/11/2026) y 1.633 **calculados** en la propia
+- **Facturas de Caminoval (21/11/2026, Andrés: «si se compró a Caminoval, no tener precio de Cofan»)**: leídas las 67 facturas de
+  enero de 2024 a noviembre de 2026 (carpeta ALBARANES/CAMINOVAL de Drive y correo; 1.772 líneas). Cada línea se casa con su fila
+  por el código de Caminoval o por la descripción (tipo + medida). Lo comprado allí lleva **su coste de factura** («Proveedor» =
+  Caminoval, «Factura» = nº, «Origen del coste» = «Albarán exacto»): 176 filas; con albarán de Cofan, 56. Si se compró a los dos,
+  manda la compra más reciente y la otra va en «Nota». «Se compra a» = dónde se compró de verdad. Lo que no sale en ninguna
+  factura sigue con la web de Cofan; el **inox hexagonal sin factura va con el coste de Cofan + 50 %** (lo comprado a Caminoval
+  salió así de más). 47 filas nuevas, todas con factura: abrazaderas de plástico abiertas (Index AB-PR) y cerradas (AB-GU),
+  ligeras, de un pie, sin fin inox, tirafondo de abrazadera, abarcón, anclaje con argolla, sujetacables, gancho en S, remache
+  bronce, Allen DIN 7984 y medidas que faltaban (Power-Cut, taco rastrel, CHT, Fischer, AISC, cubierta). Los códigos comodín de
+  Caminoval (acaban en .000000) no sirven para casar: son de muchas piezas. Los guiones están fuera del repo (proyecto de claude.ai).
+  En `tornilleria.FOTOS`, nombre `None` = ese tipo va **sin foto** antes que con la de otra pieza.
+- **Precio de venta**: 112 leídos de las etiquetas verdes de la balda (fotos del 20/11/2026) y 1.680 **calculados** en la propia
   hoja (coste + 70 % + IVA, al alza a 0,05 €; el margen está en la pestaña Notas). «Origen del PVP» dice cuál es cuál → el lector
   marca `pvp_calculado` (`calc` en las listas) y la app pone **«≈»** delante del precio (`Aprox` en `TarifasPage.tsx`) y un aviso
   en el panel, la ficha y la tableta: puede no coincidir con la etiqueta.
@@ -392,8 +403,9 @@ claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
   barras de la caja (o el código) y el pie de siempre. Lo que va por kilo dice «· el kilo».
 - Probado en local con la hoja de verdad exportada de Drive (390, 320, 860, 1280, 1366 y 1920 px, y la tableta) y con el código
   de la tienda (no ve nada de esto). **Sin probar**: la lectura de la hoja por el Apps Script en Railway y las etiquetas en papel.
-- Pendiente: fotos de Fischer, uralita y grampillones; coste de Caminoval en las 378 medidas que llevan el de Cofan de
-  referencia; hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
+- Pendiente: fotos de Fischer, uralita, grampillones y de lo nuevo sin foto (abrazaderas de plástico y ligeras, abarcón,
+  argolla, sujetacables, gancho en S); los clips negros de vigueta no salen en ninguna factura de Caminoval (falta saber a quién
+  se compran); saber si la etiqueta verde de la balda lleva el IVA (se ha dado por hecho que sí); el resto de abarcones; hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
   arreglan poniendo el de la balda.
 
 ## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)

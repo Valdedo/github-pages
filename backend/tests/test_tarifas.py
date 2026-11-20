@@ -598,7 +598,12 @@ def test_tornilleria_fotos_por_tipo():
     assert f("Taco Fischer", "Taco Fischer SX Plus 8x40") is None  # sin foto todavía
     import os
     carpeta = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "catalogo", "tor")
-    assert all(os.path.exists(os.path.join(carpeta, n + ".webp")) for _, n in tornilleria.FOTOS)
+    assert all(os.path.exists(os.path.join(carpeta, n + ".webp")) for _, n in tornilleria.FOTOS if n)
+    # lo que no tiene foto parecida va sin foto, no con la de otra pieza
+    assert f("Abrazadera de plástico abierta (a presión)", "Abrazadera de plástico abierta") is None
+    assert f("Autotaladrante cabeza alomada DIN 7504-N", "Autotaladrante alomado") is None
+    assert f("Tirafondo para abrazadera", "Tirafondo para abrazadera") == "/catalogo/tor/tirafondo-abrazadera.webp"
+    assert f("Abrazadera metálica de un pie", "Abrazadera de un pie") == "/catalogo/tor/abrazadera-un-pie.webp"
 
 
 def _db_tornilleria():
