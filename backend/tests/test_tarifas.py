@@ -527,3 +527,56 @@ def test_forrajes_en_piensos():
     assert f("Paca grande · 4 cuerdas", "Paca de veza en rama", "") == "/catalogo/pi/fotos/paca-grande-forraje.webp"
     assert f("Paca grande · 6 cuerdas", "Paca grande de forraje / veza", "") == "/catalogo/pi/fotos/paca-grande-6.webp"
     assert f("Paca grande · 6 cuerdas", "Paca de avena", "") == "/catalogo/pi/fotos/paca-avena.webp"
+
+
+# ── Tornillería y fijaciones (20/11/2026): hoja de la tienda con una fila por medida ──────────────────────────────
+from app.services import tornilleria
+
+
+def _hoja_tornilleria():
+    return {"TARIFA": [
+        ["Familia", "Grupo", "Artículo", "Medida", "Formato", "PVP con IVA", "Sugerido con IVA", "Código", "Coste", "Fecha coste",
+         "Factura", "Proveedor", "Nota", "Diámetro", "Largo (mm)", "Acabado / variante", "Se compra a", "EAN", "Origen del PVP"],
+        ["Métrica", "Hexagonal DIN 933/931", "Hexagonal M8", "M8x50", "", "0,25", "0,15", "'00010850", "0,08", "20/11/2026",
+         "Tarifa web de Cofan", "Cofan", "", "8", "50", "DIN 933 cincado 8.8", "Cofan", "8400000000017", "Foto de la balda 20/11/2026"],
+        ["Métrica", "Hexagonal DIN 933/931", "Hexagonal M8", "M8x100", "", "", "0,30", "'00010899", "0,16", "05/10/2026",
+         "123456", "Caminoval", "", "8", "100", "DIN 931 8.8", "Cofan", ""],
+        ["Métrica", "Hexagonal DIN 933/931", "Hexagonal M8", "M8x60", "", "0,30", "0,20", "'00010860", "0,10", "27/05/2026",
+         "Albarán 06/000001", "Cofan", "", "8", "60", "DIN 933 cincado 8.8", "Cofan", "no", "Calculado: coste + margen + IVA"],
+        ["Tuercas y arandelas", "Tuerca hexagonal DIN 934", "Tuerca hexagonal", "M10", "", "0,10", "0,05", "'00320010", "0,03",
+         "27/05/2026", "Albarán 06/000001", "Cofan", "", "10", "", "cincada", "Cofan", ""],
+        ["Tuercas y arandelas", "Tuerca hexagonal DIN 934", "Tuerca hexagonal", "M8", "", "0,10", "0,05", "'00320008", "0,02",
+         "27/05/2026", "Albarán 06/000001", "Cofan", "", "8", "", "cincada", "Cofan", ""],
+        ["Clavos y puntas", "Punta de hierro", "Punta de hierro", "17x70", "Por kilo", "4,00", "4,05", "1202.000062", "2,3",
+         "03/09/2026", "123457", "Caminoval", "", "17", "70", "hierro pulido", "Caminoval", ""],
+    ]}
+
+
+def test_tornilleria_una_fila_por_medida():
+    a = tornilleria.leer(_hoja_tornilleria())["articulos"]
+    m50, m100, m60, t10, t8, punta = a
+    assert m50["codigo"] == "00010850" and m50["tipo"] == "Hexagonal M8" and m50["medida_c"] == "M8x50"
+    assert m50["pvp_iva"] == 0.25 and m50["coste"] == 0.08 and not m50["solo_pvp"] and m50["ean"] == "8400000000017"
+    assert "tarifa web de Cofan del 20/11/2026" in m50["origen"]
+    assert m100["pvp_iva"] is None and m100["pvp"] is None and m100["margen"] is None  # sin etiqueta leída: «Sin precio»
+    assert "la factura 123456 del 05/10/2026" in m100["origen"] and m100["proveedor"] == "Caminoval" and "ean" not in m100
+    assert "ean" not in m60 and "albarán 06/000001" in m60["origen"]
+    # precio leído de la etiqueta frente a precio calculado en la hoja: la ficha lo dice
+    assert "etiqueta de la balda, con IVA" in m50["origen"] and not m50.get("pvp_calculado")
+    assert m60["pvp_calculado"] and m60["origen"].startswith("Precio calculado") and "pvp_calculado" not in m100
+    assert punta["ud_venta"] == "kg" and len({x["ref"] for x in a}) == 6
+
+
+def test_tornilleria_lineas_que_se_abren_en_medidas_en_el_orden_de_la_hoja():
+    d = tornilleria.leer(_hoja_tornilleria())
+    from app.services import tarifas_service as ts
+    assert d["orden_familias"] == ["Métrica", "Tuercas y arandelas", "Clavos y puntas"]
+    gr = ts._grupos_sub([x for x in d["articulos"] if x["categoria"] == "Métrica"], None, False)
+    assert gr[0]["titulo"] == "Hexagonal M8" and [m["valor"] for m in gr[0]["medidas"]] == ["M8×50", "M8×100", "M8×60"]
+    tu = ts._grupos_sub([x for x in d["articulos"] if x["categoria"] == "Tuercas y arandelas"], None, False)
+    assert [m["valor"] for m in tu[0]["medidas"]] == ["M10", "M8"]  # el orden lo pone la hoja
+
+
+def test_tornilleria_en_pruebas():
+    from app.services import tarifas_service as ts
+    assert ts.TARIFAS["tornilleria"]["en_pruebas"] and ts.LECTORES["tornilleria"] is tornilleria.leer

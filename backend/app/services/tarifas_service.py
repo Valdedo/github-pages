@@ -20,7 +20,7 @@ from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from app.models.tarifa import TarifaCopia, TarifaPrecio
-from app.services import construdeco, gas, inyectometal, isoltubex, mail_service, morteros, piensos, sabio
+from app.services import construdeco, gas, inyectometal, isoltubex, mail_service, morteros, piensos, sabio, tornilleria
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +160,17 @@ TARIFAS = {
         # Copias leídas antes de esto son de la primera hoja (sin precio por metro ni medidas): se vuelve a leer
         "desde": datetime(2026, 11, 13, 11, 50),
         # Para todos desde el 13/11/2026 (Andrés)
+    },
+    # Tornillería y fijaciones (20/11/2026): el pasillo de ferretería, que hoy lleva el precio a mano en la balda. Una fila por
+    # medida; en familias → grupo (tipo de pieza) → línea que se abre en sus medidas. Coste de Cofan y Caminoval. Ver tornilleria.py.
+    "tornilleria": {
+        "nombre": "Tornillería y fijaciones",
+        "sub": "Cofan y Caminoval · el pasillo de ferretería",
+        "proveedor": "Cofan y Caminoval",
+        "hoja": tornilleria.HOJA,  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
+        "pestanas": None,
+        "redondeo": "el de la etiqueta de la balda (con IVA)",
+        "en_pruebas": True,  # solo Andrés hasta que la apruebe
     },
 }
 
@@ -750,7 +761,7 @@ def leer_ladrillos(hojas: dict) -> dict:
 LECTORES = {"hierros": leer_hierros, "zabaleta": leer_zabaleta, "isoltubex": leer_isoltubex, "silva": leer_silva,
             "pladur": construdeco.leer_pladur, "dinak": construdeco.leer_dinak, "ladrillos": leer_ladrillos, "gas": gas.leer,
             "morteros": morteros.leer, "piensos": piensos.leer, "inyectometal": inyectometal.leer,
-            "sabio": sabio.leer}
+            "sabio": sabio.leer, "tornilleria": tornilleria.leer}
 
 
 # ── Copia local y lectura desde Drive ─────────────────────────────────────
