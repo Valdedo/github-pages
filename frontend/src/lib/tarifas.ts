@@ -30,6 +30,10 @@ export interface TarifaMedida {
   escalas_suelto?: string | null; escalas_nota?: string | null;
   /** Para qué sirve y lo que suele preguntar el cliente (morteros, piensos) */
   producto?: Producto | null;
+  /** Tornillería: precio calculado en la hoja (no es el de la etiqueta de la balda) o puesto a mano desde la app */
+  calc?: boolean; pvp_app?: boolean;
+  /** Código de barras de la caja (tornillería) */
+  ean?: string | null;
 }
 /** Para qué sirve el producto y los datos que suele preguntar el cliente, de la ficha técnica del fabricante
  *  (backend/app/data/fichas_<tarifa>.json). «datos»: [etiqueta, valor]. */
@@ -64,6 +68,10 @@ export interface Tarifa {
   vista?: string | null;
   /** En el ordenador: «lista» = lista compacta por grupos en vez de la cuadrícula grande (morteros, piensos) */
   vista_ordenador?: string | null;
+  /** El encargado puede cambiar el precio de venta desde la app (tornillería) */
+  pvp_editable?: boolean;
+  /** Arriba de cada familia, sus tipos de pieza con foto; la foto va en el título del tipo y no en cada línea (tornillería) */
+  tipos?: boolean;
 }
 export interface FichaTarifa {
   escalas?: Escala[] | null;
@@ -94,6 +102,9 @@ export interface FichaTarifa {
   escalas_suelto?: string | null; escalas_nota?: string | null;
   /** Para qué sirve y lo que suele preguntar el cliente (morteros, piensos) */
   producto?: Producto | null;
+  /** Tornillería: el precio se puede cambiar desde la app; si es calculado o puesto a mano, y el que trae la hoja */
+  ref?: string; pvp_editable?: boolean; pvp_calculado?: boolean; pvp_app?: boolean;
+  pvp_hoja?: number | null; pvp_hoja_calculado?: boolean; ean?: string | null;
 }
 
 /** «www.grupopuma.com» de la dirección de la ficha técnica, para decir de dónde sale. */
@@ -114,12 +125,14 @@ export const PEGATINA_PROVEEDOR: Record<string, string> = {
   gas: 'prov-gas', morteros: 'prov-morteros', piensos: 'prov-piensos',
   inyectometal: 'iny-i1320',
   sabio: 'sab-triple-torsion',
+  tornilleria: 'tor-hexagonal',
 };
 
 /** Dibujo de una familia; las mallas de Silva Moreira llevan su foto real (la misma para todas las medidas). */
 export const pegatina = (nombre: string) =>
   nombre.startsWith('silva-') ? `/catalogo/silva/${nombre.slice(6)}.webp`
     : nombre.startsWith('sab-') ? `/catalogo/sab/${nombre.slice(4)}.webp`
+    : nombre.startsWith('tor-') ? `/catalogo/tor/${nombre.slice(4)}.webp`
     : nombre.startsWith('iny-') ? `/catalogo/iny/${nombre.slice(4)}.webp` : `/catalogo/st-${nombre}.png`;
 
 // Familia de la tarifa → dibujo (pegatina, para navegar) y foto (en la ficha y las medidas).
@@ -204,6 +217,14 @@ const INYECTOMETAL: [RegExp, string][] = [
   [/^riego y manguera/, 'iny-i2253'], [/^conexiones flexibles/, 'iny-i3642'], [/^griferia y bano/, 'iny-i2538'],
   [/^juntas y pequeno material/, 'iny-i3325'],
 ];
+// Tornillería y fijaciones (20/11/2026): la foto de un tipo de pieza de cada familia (frontend/public/catalogo/tor,
+// tools/tornilleria-fotos.py). Nombres exactos de la hoja, para no pisar familias de otras tarifas.
+const TORNILLERIA: [RegExp, string][] = [
+  [/^metrica$/, 'tor-hexagonal'], [/^tuercas y arandelas$/, 'tor-tuerca'], [/^inox a2$/, 'tor-hexagonal-inox'],
+  [/^madera y chapa$/, 'tor-barraquero'], [/^cubierta$/, 'tor-autotaladrante-arandela'], [/^anclajes$/, 'tor-anclaje-cuna'],
+  [/^tacos$/, 'tor-taco-nylon'], [/^remaches$/, 'tor-remache'], [/^abrazaderas$/, 'tor-abrazadera-sin-fin'],
+  [/^varilla y cancamos$/, 'tor-cancamo-tuerca'], [/^clavos y puntas$/, 'tor-punta-hierro'],
+];
 /** Clave del dibujo de una familia («Tubos cuadrados negros» → «tubo-cuadrado»). */
 export function claveFamilia(nombre: string): string {
   const n = normaliza(nombre);
@@ -218,6 +239,8 @@ export function claveFamilia(nombre: string): string {
   if (/^mallas plasticas/.test(n)) return 'sab-malla-plastica';
   if (/^alambre$/.test(n)) return 'sab-alambre-galvanizado';
   if (/^cable de acero/.test(n)) return 'sab-cable-acero';
+  const tor = TORNILLERIA.find(([rx]) => rx.test(n));
+  if (tor) return tor[1];
   // Mallas ganaderas de Silva Moreira: foto real por familia (frontend/public/catalogo/silva)
   if (/^malla nudo fijo/.test(n)) return 'silva-nudo-fijo';
   if (/^malla anudada/.test(n)) return /fuerte/.test(n) ? 'silva-fuerte' : 'silva-ligera';
@@ -245,6 +268,7 @@ export function fotoArticulo(familia: string, descripcion?: string, foto?: strin
   if (clave.startsWith('lad-')) return descripcion ? '' : LAD_FAMILIA[clave] ?? '';
   if (clave.startsWith('iso-')) return descripcion ? '' : ISO_FAMILIA[clave] ? `/catalogo/iso/${ISO_FAMILIA[clave]}.webp` : '';
   if (clave.startsWith('iny-')) return descripcion ? '' : pegatina(clave);  // sin foto propia: la de la familia
+  if (clave.startsWith('tor-')) return descripcion ? '' : pegatina(clave);  // tipo sin foto todavía (Fischer, grampillones)
   if (foto && FOTOS_ZAB[foto]) return FOTOS_ZAB[foto];  // la foto ya viene elegida en la clasificación
   const d = normaliza(descripcion || '');
   const zab = claveFamilia(familia);

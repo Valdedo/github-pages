@@ -506,6 +506,12 @@ export const actualizarTarifa = (prov: string) =>
   api.post<Tarifa>(`/api/tarifas/${encodeURIComponent(prov)}/actualizar`, null, { timeout: 120000 });
 export const getFichaTarifa = (prov: string, ref: string) =>
   api.get<FichaTarifa>(`/api/tarifas/${encodeURIComponent(prov)}/articulo`, { params: { ref }, timeout: 120000 });
+/** Cambia el precio de venta (con IVA) de un artículo desde la app; null = volver al de la hoja. Solo el encargado. */
+export const putPvpTarifa = (prov: string, ref: string, pvp_iva: number | null) =>
+  api.put<FichaTarifa>(`/api/tarifas/${encodeURIComponent(prov)}/pvp`, { ref, pvp_iva }, { timeout: 120000 });
+/** PDF con las etiquetas de balda de artículos de las tarifas (97 × 42,3 mm). */
+export const etiquetasTarifaUrl = (items: { prov: string; ref: string }[], inicio: number) =>
+  withToken(`${BASE}/api/tarifas/etiquetas?items=${encodeURIComponent(items.map(i => `${i.prov}|${i.ref}`).join('~'))}&inicio=${inicio}`);
 
 // ── Recibir mercancía (albaranes de compra, nov. 2026) ──
 export const getRecepcion = (documentId: number) => api.get<Recepcion>(`/api/compras/${documentId}`);

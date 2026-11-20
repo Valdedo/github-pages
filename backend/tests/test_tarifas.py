@@ -565,6 +565,10 @@ def test_tornilleria_una_fila_por_medida():
     assert "etiqueta de la balda, con IVA" in m50["origen"] and not m50.get("pvp_calculado")
     assert m60["pvp_calculado"] and m60["origen"].startswith("Precio calculado") and "pvp_calculado" not in m100
     assert punta["ud_venta"] == "kg" and len({x["ref"] for x in a}) == 6
+    # la medida del filtro: la métrica sin el largo; en clavos y puntas, sin filtro
+    assert (m50["mp"], m50["op"], t10["mp"], punta["mp"]) == ("M8", 8.0, "M10", "")
+    from app.services import tarifas_service as ts
+    assert ts._item(punta)["mp"] is None and "ms" not in ts._item(punta) and ts._item(m50, "M8x50")["mp"] == "M8"
 
 
 def test_tornilleria_lineas_que_se_abren_en_medidas_en_el_orden_de_la_hoja():
@@ -580,3 +584,84 @@ def test_tornilleria_lineas_que_se_abren_en_medidas_en_el_orden_de_la_hoja():
 def test_tornilleria_en_pruebas():
     from app.services import tarifas_service as ts
     assert ts.TARIFAS["tornilleria"]["en_pruebas"] and ts.LECTORES["tornilleria"] is tornilleria.leer
+
+
+def test_tornilleria_fotos_por_tipo():
+    f = lambda gru, art: tornilleria.foto("", gru, art, "")
+    assert f("Hexagonal DIN 933/931", "Hexagonal M8") == "/catalogo/tor/hexagonal.webp"
+    assert f("Hexagonal DIN 933 inox A2", "Hexagonal inox M8") == "/catalogo/tor/hexagonal-inox.webp"
+    assert f("Tuerca hexagonal DIN 934", "Tuerca hexagonal") == "/catalogo/tor/tuerca.webp"
+    assert f("Cáncamo con tuerca", "Cáncamo con tuerca") == "/catalogo/tor/cancamo-tuerca.webp"
+    assert f("Autotaladrante panel sándwich con arandela", "Autotaladrante panel sándwich") == "/catalogo/tor/autotaladrante-sandwich.webp"
+    assert f("Rosca chapa hexagonal con arandela", "Rosca chapa hexagonal con arandela") == "/catalogo/tor/rosca-chapa-hexagonal.webp"
+    assert f("Abrazadera de tubo isofónica (con goma)", "Abrazadera isofónica") == "/catalogo/tor/abrazadera-isofonica.webp"
+    assert f("Taco Fischer", "Taco Fischer SX Plus 8x40") is None  # sin foto todavía
+    import os
+    carpeta = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "catalogo", "tor")
+    assert all(os.path.exists(os.path.join(carpeta, n + ".webp")) for _, n in tornilleria.FOTOS)
+
+
+def _db_tornilleria():
+    """Base en memoria con la copia de la hoja de prueba ya leída."""
+    import json
+    from datetime import datetime
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from app.database import Base
+    from app.models.tarifa import TarifaCopia
+    eng = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(eng)
+    db = sessionmaker(bind=eng)()
+    db.add(TarifaCopia(proveedor="tornilleria", hojas=json.dumps(_hoja_tornilleria()), leido_at=datetime.utcnow()))
+    db.commit()
+    return db
+
+
+def test_tornilleria_precio_puesto_en_la_app_manda_sobre_la_hoja():
+    from app.services import tarifas_service as ts
+    db = _db_tornilleria()
+    ref = next(a["ref"] for a in tornilleria.leer(_hoja_tornilleria())["articulos"] if a["medida_c"] == "M8x60")
+    antes = ts.ficha(db, "tornilleria", ref)
+    assert antes["pvp_iva"] == 0.30 and antes["pvp_calculado"] and not antes["pvp_app"] and antes["pvp_editable"]
+    ts.poner_pvp(db, "tornilleria", ref, 0.35, "andres")
+    f = ts.ficha(db, "tornilleria", ref)
+    assert f["pvp_iva"] == 0.35 and f["pvp"] == round(0.35 / 1.21, 4) and f["pvp_app"] and not f["pvp_calculado"]
+    assert f["pvp_hoja"] == 0.30 and f["pvp_hoja_calculado"] and f["margen"] == round((f["pvp"] / 0.10 - 1) * 100, 1)
+    assert f["origen"].startswith("Precio de venta puesto en la app el ") and "albarán 06/000001" in f["origen"]
+    t = ts.tarifa(db, "tornilleria")
+    assert t["pvp_editable"] and t["tipos"]
+    m = {x["ref"]: x for fam in t["familias"] for g in fam["grupos"] for x in g["medidas"]}
+    assert m[ref]["pvp_iva"] == 0.35 and m[ref]["pvp_app"] and "calc" not in m[ref]
+    otra = next(x for x in m.values() if x["valor"] == "M8×50")
+    assert "calc" not in otra and "pvp_app" not in otra and otra["ean"] == "8400000000017"
+    ts.poner_pvp(db, "tornilleria", ref, None)  # volver al de la hoja
+    f = ts.ficha(db, "tornilleria", ref)
+    assert f["pvp_iva"] == 0.30 and f["pvp_calculado"] and not f["pvp_app"]
+    for malo in (0, -1):
+        try:
+            ts.poner_pvp(db, "tornilleria", ref, malo)
+            assert False
+        except ValueError:
+            pass
+    try:
+        ts.poner_pvp(db, "tornilleria", "tor-no-existe", 1)
+        assert False
+    except ValueError:
+        pass
+
+
+def test_tornilleria_etiquetas_desde_la_tarifa():
+    from app.services import tarifas_service as ts
+    from app.services.label_service import generate_shelf_labels_pdf
+    db = _db_tornilleria()
+    arts = tornilleria.leer(_hoja_tornilleria())["articulos"]
+    m50, m100, m60 = arts[0]["ref"], arts[1]["ref"], arts[2]["ref"]
+    ts.poner_pvp(db, "tornilleria", m60, 0.35)
+    items = ts.etiquetas(db, [("tornilleria", m60), ("tornilleria", m100), ("tornilleria", m50), ("tornilleria", "tor-no-existe"), ("nada", "x")])
+    assert [i["descripcion"] for i in items] == ["Hexagonal M8x60", "Hexagonal M8x50"]  # sin precio (M8x100) no sale
+    resto = ts.etiquetas(db, [("tornilleria", arts[3]["ref"]), ("tornilleria", arts[5]["ref"])])
+    assert [i["descripcion"] for i in resto] == ["Tuerca hexagonal M10", "Punta de hierro 17x70 · el kilo"]
+    assert items[0]["pvp_con_iva"] == 0.35 and items[0]["codigo"] == "00010860" and items[0]["ean"] is None and items[0]["fecha"] == "05/26"
+    assert items[1]["ean"] == "8400000000017" and items[1]["coste"] == 0.08
+    assert generate_shelf_labels_pdf(items, inicio=3)[:4] == b"%PDF"

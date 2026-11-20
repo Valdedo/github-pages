@@ -275,3 +275,9 @@
 .mo-fila-foto { width: 64px; height: 64px; margin: -6px 0 -6px -6px; }
 .mo-grupo-foto img, .mo-fila-foto img { max-width: 92%; max-height: 92%; object-fit: contain; }
 .mo-familia img[src^="/catalogo/iny/"], .mo-titulo-peg[src^="/catalogo/iny/"] { object-fit: contain; background: #fff; border-radius: 14px; box-shadow: 0 2px 6px rgb(0 0 0 / .15); padding: 4px; box-sizing: border-box; }
+
+/* Tornillería (20/11/2026): fotos de Cofan por tipo de pieza y aviso de precio calculado */
+.mo-titulo-peg[src^="/catalogo/tor/"], .mo-familia img[src^="/catalogo/tor/"], .mo-fila-peg[src^="/catalogo/tor/"] {
+  object-fit: contain; background: #fff; border-radius: 14px; box-shadow: 0 2px 6px rgb(0 0 0 / .15); padding: 4px; box-sizing: border-box; }
+.mo-fila-peg[src^="/catalogo/tor/"] { border-radius: 10px; padding: 2px; }
+.mo-precio-calc { margin: 6px 0 0; font-size: 14px; opacity: .85; }

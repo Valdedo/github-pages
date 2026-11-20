@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.models.article import Article
 from app.models.document import Document
-from app.models.tarifa import TarifaCopia
+from app.models.tarifa import TarifaCopia, TarifaPvp
 from app.services import compras_service as cs
 from app.services import tarifas_service as ts
 
@@ -43,7 +43,9 @@ def _cod(s) -> str:
 def _indice(db: Session) -> dict:
     """Artículos de todas las tarifas por EAN y por código. Se rehace solo cuando alguna tarifa se ha vuelto a leer."""
     copias = {c.proveedor: c for c in db.query(TarifaCopia).all()}
-    clave = tuple(sorted((p, str(c.leido_at)) for p, c in copias.items()))
+    # también cuando cambia un precio puesto desde la app (tarifa_pvp)
+    ult = db.query(func.count(TarifaPvp.ref), func.max(TarifaPvp.puesto_at)).one()
+    clave = (tuple(sorted((p, str(c.leido_at)) for p, c in copias.items())), ult[0], str(ult[1]))
     if _idx["clave"] == clave:
         return _idx
     ean: dict = {}
@@ -54,7 +56,7 @@ def _indice(db: Session) -> dict:
         if not c or not c.hojas or cfg.get("en_pruebas"):
             continue
         try:
-            datos = ts.LECTORES[prov](json.loads(c.hojas))
+            datos = ts.datos_de(db, prov, c)
         except Exception as e:  # una tarifa rota no deja a la PDA sin las demás
             logger.warning("PDA: no se pudo leer la tarifa %s: %s", prov, e)
             continue

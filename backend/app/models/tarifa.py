@@ -35,3 +35,15 @@ class TarifaPrecio(Base):
     unidad: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     fecha: Mapped[str] = mapped_column(String(20))                   # «sep-26», como en la tarifa
     visto_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class TarifaPvp(Base):
+    """Precio de venta puesto desde la app para un artículo de una tarifa (tornillería, nov. 2026): manda sobre el de la
+    hoja de Drive. Andrés lo va poniendo con el de la etiqueta de la balda; «volver al de la hoja» borra la fila."""
+    __tablename__ = "tarifa_pvp"
+
+    proveedor: Mapped[str] = mapped_column(String(40), primary_key=True)
+    ref: Mapped[str] = mapped_column(String(300), primary_key=True)
+    pvp_iva: Mapped[float] = mapped_column(Float)                    # con IVA, como la etiqueta
+    puesto_por: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    puesto_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)  # UTC

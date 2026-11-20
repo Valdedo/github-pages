@@ -353,6 +353,49 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 - Horas: `created_at` y similares en UTC; campos de firmas y turnos en hora de Madrid (ver informe
   en el historial de git, commit «Revisión completa»).
 
+## Tornillería y fijaciones (20/11/2026, «En pruebas»: solo Andrés)
+El pasillo de ferretería, que lleva el precio a mano en la balda, metido en las tarifas (`"tornilleria"` en `TARIFAS`, con
+`en_pruebas`; para pasarla a todos, quitar esa marca; la PDA no la mira mientras esté en pruebas). Informes en el proyecto de
+claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
+- **Hoja** «TARIFA_TORNILLERIA_2026» `1I-Dd…` (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
+  de la tienda: Familia | Grupo | Artículo | Medida | Formato | PVP con IVA | … | Código | Coste | Fecha coste | Factura |
+  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.745 medidas, una fila por medida (cincado,
+  pavonado o media rosca no abren fila; el inox va en su familia), 11 familias y 57 grupos (el tipo de pieza con su DIN).
+  Coste: último albarán de Cofan o Caminoval y, si no hay, la web de Cofan del 20/11/2026 (tarifa − 60 %; en lo de Caminoval
+  sin albarán es solo de referencia, lo dice la «Nota»). La generan los guiones del proyecto (`claude/tornilleria-generar-*.py`);
+  regenerarla sube una hoja nueva con otro id (cambiar `tornilleria.HOJA`).
+- **Precio de venta**: 112 leídos de las etiquetas verdes de la balda (fotos del 20/11/2026) y 1.633 **calculados** en la propia
+  hoja (coste + 70 % + IVA, al alza a 0,05 €; el margen está en la pestaña Notas). «Origen del PVP» dice cuál es cuál → el lector
+  marca `pvp_calculado` (`calc` en las listas) y la app pone **«≈»** delante del precio (`Aprox` en `TarifasPage.tsx`) y un aviso
+  en el panel, la ficha y la tableta: puede no coincidir con la etiqueta.
+- **Cambiar el precio desde la app** (Andrés: «luego ya los cambio yo en la aplicación»): `"pvp_editable"` en `TARIFAS` → tabla
+  `tarifa_pvp` (modelo `TarifaPvp`: proveedor, ref, pvp_iva con IVA, quién y cuándo), que **manda sobre la hoja**
+  (`ts.datos_de(db, prov, c)`: lector + precios de la app; lo usan `tarifa()`, `ficha()`, las etiquetas y la PDA).
+  `PUT /api/tarifas/{prov}/pvp {ref, pvp_iva}` (solo admin; `null` = volver al de la hoja; en otra tarifa da 422). En la app:
+  «Cambiar precio» en el panel del ordenador, «Precio» en la barra del móvil y en la ficha (`HojaPrecio` en
+  `components/TarifaExtras.tsx`); al guardar se retoca lo ya leído sin volver a pedirlo (`aplicarPrecio`). Como va por `ref`
+  (grupo + artículo + medida), sobrevive a regenerar la hoja.
+- **Lector** `services/tornilleria.py` sobre `hoja_tienda.leer` (prefijo `tor`): pasa el EAN, marca los calculados y pone la
+  medida del filtro (`mp`: «M8x50», «M8 (Ø ext. 24)» → «M8»; `mp = ""` = sin filtro en abrazaderas, puntas y varilla; `_item`
+  respeta el `mp` del lector). En la app: familia → **índice de tipos con foto** (`"tipos"` en `TARIFAS`; `tfx-tipos`, lleva al
+  apartado) → línea («Hexagonal M8») → medidas. Con `tipos` la foto va en el título del tipo, no en cada línea.
+- **Fotos**: una real por tipo en `frontend/public/catalogo/tor/` (480 px, de la ficha de cada producto de cofan.es;
+  `tools/tornilleria-fotos.py` las baja y recorta; `tornilleria.FOTOS` elige por palabras del grupo, lo concreto delante).
+  Power-Cut, CHT y taco rastrel (son de Index) llevan la pieza parecida de Cofan y la ficha lo dice. **Sin foto**: tacos Fischer,
+  tornillo de uralita y grampillones (no están en Cofan). Familias y proveedor: `tor-*` en `lib/tarifas.ts` (`TORNILLERIA`,
+  nombres exactos de la hoja); estilos `img[src^="/catalogo/tor/"]` en `tarifas.css` y `mostrador.css`.
+- **Etiquetas de balda desde las tarifas** (solo Andrés: `ETIQUETAS_TARIFA_PARA_TODOS = false` en `lib/etiquetasTarifa.ts`; vale
+  para cualquier tarifa de familias): botón «Etiquetas» en la familia → se tocan las medidas (o «Marcar las N medidas» de una
+  línea) y «Imprimir»; también «Etiqueta» en la ficha. La lista se queda en el aparato (`cfEtiquetasTarifa`, hasta 240) para ir
+  de una familia a otra. `GET /api/tarifas/etiquetas?items=tarifa|ref~…&inicio=` (admin y tienda) → `ts.etiquetas` →
+  `label_service.generate_shelf_labels_pdf`: los mismos folios de 97 × 42,3 mm, con «Hexagonal M8x50», el precio, el código de
+  barras de la caja (o el código) y el pie de siempre. Lo que va por kilo dice «· el kilo».
+- Probado en local con la hoja de verdad exportada de Drive (390, 320, 860, 1280, 1366 y 1920 px, y la tableta) y con el código
+  de la tienda (no ve nada de esto). **Sin probar**: la lectura de la hoja por el Apps Script en Railway y las etiquetas en papel.
+- Pendiente: fotos de Fischer, uralita y grampillones; coste de Caminoval en las 378 medidas que llevan el de Cofan de
+  referencia; hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
+  arreglan poniendo el de la balda.
+
 ## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)
 - Tableta junto al ordenador de ventas: buscar con el dedo y ver el precio en grande para pasarlo a TreyFACT.
   `/mostrador` (`pages/MostradorPage.tsx` + `mostrador.css`), a pantalla completa y sin el menú (`AppShell` en `App.tsx`;

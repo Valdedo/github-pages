@@ -18,9 +18,15 @@ se compra a Caminoval y no tiene albarán, ese coste de Cofan es solo de referen
 calculado está en la pestaña Notas de la hoja (70 %: es con el que mejor salen las 112 etiquetas leídas; con el 45 % de
 ferretería, 65 de 112 quedaban por debajo de su etiqueta).
 
-Fotos: una foto real por tipo de pieza (no por medida) en frontend/public/catalogo/tor/<nombre>.webp. Mientras un tipo no
-tenga su foto en FOTOS, sale sin ella.
+Fotos: una foto real por tipo de pieza (no por medida) en frontend/public/catalogo/tor/<nombre>.webp, de la ficha de
+cada producto en cofan.es (tools/tornilleria-fotos.py). Lo que es de Index y no de Cofan (tirafondo Power-Cut, tornillo
+de anclaje CHT, taco rastrel) lleva la de la pieza de Cofan del mismo tipo. Sin foto todavía: tacos Fischer, tornillo
+de uralita y grampillones.
+
+El precio de venta se puede cambiar desde la app (`"pvp_editable"` en TARIFAS → tabla `tarifa_pvp`, que manda sobre la
+hoja): así Andrés va poniendo el de la etiqueta de la balda sin abrir la hoja.
 """
+import re
 from typing import Optional
 
 from app.services import hoja_tienda
@@ -30,9 +36,45 @@ IVA = 21
 ORIGEN = "Precio de venta de la etiqueta de la balda, con IVA."
 CALCULADO = "Precio calculado (coste + margen + IVA): puede no coincidir con la etiqueta de la balda."
 
-# (palabras del grupo, sin tildes; archivo de frontend/public/catalogo/tor sin la extensión); gana la primera que encaja.
-# Solo los tipos cuya foto ya está en el repo.
-FOTOS: list = []
+# (palabras del grupo y del artículo, sin tildes; archivo de frontend/public/catalogo/tor sin la extensión); gana la
+# primera que encaja, así que lo más concreto va delante. Solo los tipos cuya foto ya está en el repo.
+FOTOS: list = [
+    # Inox A2 (antes que sus parejas de acero)
+    (("inox", "tuerca", "autoblocante"), "tuerca-autoblocante-inox"), (("inox", "tuerca"), "tuerca-inox"),
+    (("inox", "arandela"), "arandela-ancha-inox"), (("inox", "7991"), "allen-avellanada-inox"),
+    (("inox", "cuello cuadrado"), "cuello-cuadrado-inox"), (("inox", "barraquero"), "barraquero-inox"),
+    (("inox", "rosca chapa"), "rosca-chapa-inox"), (("inox", "hexagonal"), "hexagonal-inox"),
+    # Cubierta
+    (("autotaladrante", "sandwich"), "autotaladrante-sandwich"), (("autotaladrante", "vigueta"), "autotaladrante-vigueta"),
+    (("autotaladrante", "avellanado"), "autotaladrante-avellanado"), (("autotaladrante", "arandela"), "autotaladrante-arandela"),
+    (("autotaladrante",), "autotaladrante-hexagonal"), (("rosca chapa", "hexagonal"), "rosca-chapa-hexagonal"),
+    # Madera y chapa
+    (("barraquero",), "barraquero"), (("rosca chapa", "avellanada"), "rosca-chapa-avellanada"),
+    (("rosca chapa",), "rosca-chapa-alomada"), (("tirafondo",), "tirafondo-torx"),
+    # Anclajes y tacos
+    (("anclaje", "cuna"), "anclaje-cuna"), (("anclaje", "camisa"), "anclaje-camisa"), (("anclaje", "hormigon"), "tornillo-hormigon"),
+    (("taco", "clavable"), "taco-clavable"), (("rastrel",), "taco-rastrel"), (("aislamiento",), "fijacion-aislamiento"),
+    (("taco", "nylon"), "taco-nylon"),
+    # Remaches y abrazaderas
+    (("remache", "ancha"), "remache-ala-ancha"), (("remache",), "remache"),
+    (("abrazadera", "isofonica"), "abrazadera-isofonica"), (("abrazadera", "sin fin"), "abrazadera-sin-fin"),
+    (("abrazadera", "reforzada"), "abrazadera-reforzada"), (("abrazadera", "tubo"), "abrazadera-tubo"),
+    # Varilla, cáncamos, clavos y puntas
+    (("varilla",), "varilla"), (("cancamo", "tuerca"), "cancamo-tuerca"), (("hembrilla",), "hembrilla"),
+    (("cinta perforada",), "cinta-perforada"),
+    (("punta", "acero", "conica"), "punta-acero-conica"), (("punta", "acero"), "punta-acero"), (("punta", "hierro"), "punta-hierro"),
+    # Métrica
+    (("hexagonal", "933"), "hexagonal"), (("cuello cuadrado",), "cuello-cuadrado"), (("allen", "7991"), "allen-avellanada"),
+    (("allen", "7380"), "allen-boton"), (("allen",), "allen"), (("avellanada", "965"), "avellanada"),
+    # Tuercas y arandelas
+    (("tuerca", "autoblocante"), "tuerca-autoblocante"), (("mariposa",), "tuerca-mariposa"), (("tuerca", "union"), "tuerca-union"),
+    (("tuerca", "hexagonal"), "tuerca"), (("arandela", "grower"), "arandela-grower"), (("arandela", "ancha"), "arandela-ancha"),
+    (("arandela", "plana"), "arandela-plana"),
+]
+
+
+# Familias donde filtrar por medida no ayuda: cada medida es de un solo tipo (rangos de abrazadera, largos de punta…)
+SIN_FILTRO = ("abrazaderas", "clavos y puntas", "varilla y cancamos")
 
 
 def foto(fam: str, gru: str, art: str, formato: str) -> Optional[str]:
@@ -74,6 +116,13 @@ def leer(hojas: dict) -> dict:
     out = hoja_tienda.leer(hojas, "tor", foto, iva=IVA, origen=ORIGEN)
     eans, calculados = _extras(hojas)
     for a in out["articulos"]:
+        # Medida por la que se filtra la familia («todo lo de M8»): la métrica, sin el largo ni lo que va entre paréntesis
+        # («M8x50», «M8 (Ø ext. 24)», «M8x60 (taladro 10)» → «M8»). Donde la medida no junta nada, sin filtro.
+        m = re.match(r"M(\d+(?:[.,]\d+)?)", a.get("medida_c") or "")
+        if m:
+            a["mp"], a["op"] = "M" + m.group(1), float(m.group(1).replace(",", "."))
+        elif hoja_tienda.n(a["categoria"]) in SIN_FILTRO:
+            a["mp"] = ""
         if eans.get(a["ref"]):
             a["ean"] = eans[a["ref"]]
         if a["ref"] in calculados and a.get("pvp_iva"):

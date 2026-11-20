@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode, type KeyboardEvent, Fragment } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Search, X, FileText, TrendingUp, TrendingDown, List, LayoutGrid } from 'lucide-react';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Pencil, RefreshCw, Search, Tag, X, FileText, TrendingUp, TrendingDown, List, LayoutGrid } from 'lucide-react';
 import { getTarifas, getTarifa, actualizarTarifa, getFichaTarifa, describeApiError } from '../api/client';
 import { fechaES, normaliza } from '../lib/texto';
 import { useIsMobile } from '../hooks';
@@ -13,6 +13,9 @@ import {
 } from '../lib/tarifas';
 import { CuadriculaTarifa, ListaTarifa } from '../components/CuadriculaTarifa';
 import { ParaQueSirve } from '../components/ParaQueSirve';
+import { BarraEtiquetas, HojaEtiquetasTarifa, HojaPrecio } from '../components/TarifaExtras';
+import { anadirEtiquetas, cambiarEtiqueta, estaEnEtiquetas, etiquetasTarifa, useEtiquetasTarifa } from '../lib/etiquetasTarifa';
+import { esEncargado } from '../auth';
 import './tarifas.css';
 
 // Lo leído se guarda mientras la app está abierta, para ir y volver entre pantallas sin esperar
@@ -21,6 +24,32 @@ const fichas: Record<string, FichaTarifa> = {};
 const leyendo: Record<string, Promise<Tarifa>> = {};
 export const leerTarifa = (prov: string) =>
   leyendo[prov] ??= getTarifa(prov).then(r => (cache[prov] = r.data)).finally(() => { delete leyendo[prov]; });
+
+/** Tornillería: tras cambiar un precio desde la app, lo deja puesto en lo ya leído (lista y ficha) sin volver a pedirlo. */
+export function aplicarPrecio(prov: string, ref: string, f: FichaTarifa): Tarifa | null {
+  fichas[`${prov}|${ref}`] = f;
+  const t = cache[prov];
+  if (!t) return null;
+  for (const fam of t.familias) for (const g of fam.grupos) for (const m of g.medidas) {
+    if (m.ref !== ref) continue;
+    m.pvp = f.pvp; m.pvp_iva = f.pvp_iva;
+    m.calc = f.pvp_calculado || undefined; m.pvp_app = f.pvp_app || undefined;
+  }
+  return (cache[prov] = { ...t });
+}
+/** «≈» delante de un precio calculado (tornillería): puede no ser el de la etiqueta de la balda. */
+export const Aprox = ({ m }: { m: { calc?: boolean; pvp_calculado?: boolean } }) =>
+  m.calc || m.pvp_calculado ? <span className="tfx-aprox" title="Precio calculado: puede no coincidir con la etiqueta de la balda" aria-label="Precio calculado">≈</span> : null;
+/** Tornillería: en la búsqueda, la foto del tipo de pieza en vez de la de la familia (dice qué tornillo es). */
+const fotoTipo = (m: TarifaMedida) => (m.foto?.startsWith('/catalogo/tor/') ? m.foto : '');
+/** Nombre para la lista de etiquetas: «Hexagonal M8 · M8x50» → «Hexagonal M8x50» (la medida ya dice el diámetro). */
+const nombreEtiqueta = (m: { descripcion: string }) => {
+  const [tipo, medida, ...resto] = m.descripcion.split(' · ');
+  if (!medida) return tipo;
+  const palabras = tipo.split(' ');
+  const corto = palabras.length > 1 && medida.toLowerCase().startsWith(palabras[palabras.length - 1].toLowerCase()) ? palabras.slice(0, -1).join(' ') : tipo;
+  return [`${corto} ${medida}`, ...resto].join(' · ');
+};
 
 function useTarifa(prov: string) {
   const [t, setT] = useState<Tarifa | null>(cache[prov] ?? null);
@@ -192,9 +221,9 @@ function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: str
         <div className="tf-lista">
           {vistos.map(({ t, f, m }) => (
             <Link key={t.id + m.ref} to={enlaceFicha(t.id, f.id, m.ref)} className="tf-fila">
-              <img src={pegatina(claveFamilia(f.nombre))} alt="" className="tf-fila-peg" />
+              <img src={fotoTipo(m) || pegatina(claveFamilia(f.nombre))} alt="" className="tf-fila-peg" />
               <span className="tf-fila-txt"><strong>{conPor(m.descripcion)}</strong><small>{nueva && m.codigo ? <><span className="tfn-cod">{codigoVisible(m)}</span> · </> : null}{f.nombre}</small></span>
-              <span className="tf-fila-precio">{eur(iva ? conIva(m) : m.pvp)}<small>/{m.ud_venta} {iva ? 'con' : 'sin'} IVA</small></span>
+              <span className="tf-fila-precio"><span className="tfx-junto"><Aprox m={m} />{eur(iva ? conIva(m) : m.pvp)}</span><small>/{m.ud_venta} {iva ? 'con' : 'sin'} IVA</small></span>
               <ChevronRight size={18} className="tf-fila-flecha" />
             </Link>
           ))}
@@ -219,12 +248,12 @@ function Resultados({ res, q, donde }: { res: Resultado[]; q: string; donde: str
               <tr key={t.id + m.ref} onClick={() => navigate(enlaceFicha(t.id, f.id, m.ref))}>
                 <td>
                   <Link to={enlaceFicha(t.id, f.id, m.ref)} className="tf-tabla-art" onClick={e => e.stopPropagation()}>
-                    <img src={pegatina(claveFamilia(f.nombre))} alt="" />{conPor(m.descripcion)}
+                    <img src={fotoTipo(m) || pegatina(claveFamilia(f.nombre))} alt="" />{conPor(m.descripcion)}
                   </Link>
                 </td>
                 {nueva && <td className="tfn-cod tfn-cod-td">{codigoVisible(m)}</td>}
                 <td className="tf-tabla-fam">{f.nombre}</td>
-                <td className="num tf-fuerte">{eur(conIva(m))}<small>/{m.ud_venta}</small></td>
+                <td className="num tf-fuerte"><Aprox m={m} />{eur(conIva(m))}<small>/{m.ud_venta}</small></td>
                 <td className="num">{eur(m.pvp)}<small>/{m.ud_venta}</small></td>
                 <td className="num tf-gris">{eur(m.coste)}<small>/{m.ud_venta}</small></td>
                 <td className="num tf-gris">{mesLargo(m.fecha)}{m.evol ? <span className={`tf-mini-evol ${m.evol > 0 ? 'sube' : 'baja'}`}>{pct(m.evol)}</span> : null}</td>
@@ -436,8 +465,10 @@ function Leyenda() {
 }
 
 /** Panel de la derecha (ordenador): la medida elegida con todos sus precios y su factura, sin salir de la lista. */
-function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
+function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva', onPrecio }: {
   prov: string; fam: string; f: TarifaFamilia; sel: TarifaMedida | null; total: number; nueva?: boolean; modo?: ModoPrecio;
+  /** Tornillería: el encargado cambia el precio de venta desde aquí */
+  onPrecio?: () => void;
 }) {
   const { d, error } = useFicha(prov, sel?.ref ?? null);
   const iva = modo !== 'venta'; // el precio grande: con IVA, salvo que se haya elegido «Sin IVA»
@@ -462,8 +493,11 @@ function PanelMedida({ prov, fam, f, sel, total, nueva, modo = 'iva' }: {
             {d?.tambien?.length ? <> · también <span className="tfn-cod">{d.tambien.map(x => x.codigo).join(', ')}</span></> : null}</p>}
           <div className="tf-panel-precio">
             <small>{iva ? 'Venta con IVA' : 'Venta sin IVA'}</small>
-            <strong>{eur(iva ? conIva(sel) : sel.pvp)}<span>/{sel.ud_venta}</span></strong>
+            <strong><Aprox m={sel} />{eur(iva ? conIva(sel) : sel.pvp)}<span>/{sel.ud_venta}</span></strong>
           </div>
+          {sel.calc && <p className="tf-nota tfx-calc">Precio calculado (coste + margen): puede no coincidir con la etiqueta de la balda.</p>}
+          {sel.pvp_app && <p className="tf-nota tfx-puesto"><Check size={14} /> Precio puesto en la app.</p>}
+          {onPrecio && <button type="button" className="btn btn-ghost tfx-cambiar" onClick={onPrecio}><Pencil size={16} /> Cambiar precio</button>}
           <dl className="tf-panel-lista">
             <dt>{iva ? 'Sin IVA' : 'Con IVA'}</dt><dd>{eurUd(iva ? sel.pvp : conIva(sel), sel.ud_venta)}</dd>
             {!sel.solo_pvp && <><dt>Coste</dt><dd>{eurUd(sel.coste, sel.ud_venta)}</dd></>}
@@ -554,7 +588,7 @@ export function medidasDe(secciones: Seccion[]): { mp: string; op: number | null
 
 /** Foto del catálogo del fabricante que trae la pieza (de momento, Inyectometal). */
 // Inyectometal y mallas de El Sabio: la foto del catálogo a la izquierda de cada línea de la familia
-export const fotoCatalogo = (m: TarifaMedida) => (m.foto?.startsWith('/catalogo/iny/') || m.foto?.startsWith('/catalogo/sab/') ? m.foto : '');
+export const fotoCatalogo = (m: TarifaMedida) => (m.foto?.startsWith('/catalogo/iny/') || m.foto?.startsWith('/catalogo/sab/') || m.foto?.startsWith('/catalogo/tor/') ? m.foto : '');
 /** La foto que más se repite entre las medidas de un tipo de pieza. */
 export function fotoComun(items: TarifaMedida[]): string {
   const c = new Map<string, number>();
@@ -573,25 +607,28 @@ export function piezasDe(sc: Seccion, porNombre: boolean): Pieza[] {
 }
 
 /** Una pieza en una fila: nombre (o formato), código, precio y, si es rollo o barra, lo que sale el metro. */
-function FilaPieza({ m, etiqueta, modo, sel, onSel, onOpen, foto }: {
+function FilaPieza({ m, etiqueta, modo, sel, onSel, onOpen, foto, marcada }: {
   m: TarifaMedida; etiqueta: string; modo: ModoPrecio; sel: boolean; onSel: () => void; onOpen: () => void;
   /** Foto del catálogo a la izquierda (Inyectometal); '' deja el hueco vacío para que las filas sigan alineadas */
   foto?: string;
+  /** Eligiendo para etiquetas: si esta ya está marcada (sin definir = no se está eligiendo) */
+  marcada?: boolean;
 }) {
   const p = precioModo(m, modo);
   const pm = porMetro(m, modo);
   return (
-    <button type="button" className={`tfn-fila${p == null ? ' tfn-sin' : ''}${foto != null ? ' tfn-con-foto' : ''}`} aria-pressed={sel} onClick={onSel} onDoubleClick={onOpen}
+    <button type="button" className={`tfn-fila${p == null ? ' tfn-sin' : ''}${foto != null ? ' tfn-con-foto' : ''}${marcada != null ? ' tfx-eligiendo' : ''}`}
+      aria-pressed={marcada ?? sel} onClick={onSel} onDoubleClick={marcada == null ? onOpen : undefined}
       title={etiqueta !== m.descripcion ? conPor(m.descripcion) : undefined}>
       {foto != null && <span className="tfn-foto">{foto && <img src={foto} alt="" loading="lazy" />}</span>}
       <span className="tfn-fila-txt">
-        <span className="tfn-fila-nom">{conPor(etiqueta)}</span>
+        <span className="tfn-fila-nom">{marcada != null && <i className={`tfx-casilla${marcada ? ' si' : ''}`} aria-hidden="true">{marcada && <Check size={14} strokeWidth={3} />}</i>}{conPor(etiqueta)}</span>
         {m.codigo && <span className="tfn-cod">{codigoVisible(m)}</span>}
       </span>
       <span className="tfn-fila-precio">
         {p != null
           ? <strong>{esReciente(m.fecha) && m.evol ? <i className={`tf-punto ${m.evol > 0 ? 'sube' : 'baja'}`} aria-label={`Cambió hace poco: ${pct(m.evol)}`} /> : null}
-            {eur(p)}<small>/{m.ud_venta}</small></strong>
+            {modo !== 'coste' && <Aprox m={m} />}{eur(p)}<small>/{m.ud_venta}</small></strong>
           : <em>Sin precio</em>}
         {pm != null && <small>{eur(pm)}/m</small>}
         {m.escalas?.some(e => e.total != null) && <small>{m.escalas.filter(e => e.total != null).map(e => escalaCorta(e, modo !== 'venta')).join(' · ')}</small>}
@@ -604,10 +641,25 @@ function FamiliaNueva() {
   const { prov = '', fam = '' } = useParams();
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
-  const { t, error, cargando, cargar } = useTarifa(prov);
+  const { t, setT, error, cargando, cargar } = useTarifa(prov);
   const ancho = !useIsMobile(1099); // con panel a la derecha
   const [modoElegido, setModo] = useModoPrecio();
   const [sel, setSel] = useState<TarifaMedida | null>(null);
+  // Tornillería (20/11/2026): cambiar el precio desde la app (el encargado) y elegir medidas para imprimir su etiqueta
+  const puedePrecio = !!t?.pvp_editable && esEncargado();
+  const [precioDe, setPrecioDe] = useState<TarifaMedida | null>(null);
+  const puedeEtq = etiquetasTarifa();
+  const [eligiendo, setEligiendo] = useState(false);
+  const [hojaEtq, setHojaEtq] = useState(false);
+  const etqs = useEtiquetasTarifa();
+  const { show, toast } = useCfToast();
+  const precioGuardado = (m: TarifaMedida, fi: FichaTarifa) => {
+    const nueva = aplicarPrecio(prov, m.ref, fi);
+    if (nueva) setT(nueva);
+    setSel(s => (s?.ref === m.ref ? { ...s, pvp: fi.pvp, pvp_iva: fi.pvp_iva, calc: fi.pvp_calculado || undefined, pvp_app: fi.pvp_app || undefined } : s));
+    setPrecioDe(null);
+    show(fi.pvp_app ? `Precio guardado: ${eur(fi.pvp_iva)}` : 'Vuelve a llevar el precio de la hoja');
+  };
   useEffect(() => {
     const h = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setSel(null); };
     window.addEventListener('keydown', h);
@@ -628,7 +680,10 @@ function FamiliaNueva() {
     setSp(n, { replace: true });
     setSel(null);
   };
-  const elegir = (m: TarifaMedida) => setSel(s => s?.ref === m.ref && !ancho ? null : m);
+  const elegir = (m: TarifaMedida) => {
+    if (eligiendo) { cambiarEtiqueta({ prov, ref: m.ref, nombre: nombreEtiqueta(m) }); return; }
+    setSel(s => s?.ref === m.ref && !ancho ? null : m);
+  };
   const abrir = (m: TarifaMedida) => navigate(enlaceFicha(prov, fam, m.ref));
   const modoActual = MODOS.find(m => m.v === modo)!;
   // Lo que tiene medidas va en una línea que se abre. En el móvil empiezan cerradas; en el ordenador, abiertas si la
@@ -658,11 +713,17 @@ function FamiliaNueva() {
     return fin && /^\d+([.,]\d+)?$/.test(e) ? `${fin[1]}×${e}` : e;
   };
   // Inyectometal (5/11/2026, Andrés: «muy visual, como en el catálogo»): cada línea con la foto de la pieza del catálogo
-  const conFotos = useMemo(() => !!f?.grupos.some(g => g.medidas.some(m => fotoCatalogo(m))), [f]);
+  // Tornillería: la foto es del tipo de pieza (la sección), así que va en su título y arriba, en el índice de tipos
+  const conTipos = !!t?.tipos;
+  const conFotos = useMemo(() => !conTipos && !!f?.grupos.some(g => g.medidas.some(m => fotoCatalogo(m))), [f, conTipos]);
   const fila = (m: TarifaMedida, etiqueta: string, foto?: string) => (
     <FilaPieza key={m.ref} m={m} etiqueta={etiqueta} modo={modo} sel={sel?.ref === m.ref} onSel={() => elegir(m)} onOpen={() => abrir(m)}
-      foto={foto ?? (conFotos ? fotoCatalogo(m) : undefined)} />
+      foto={foto ?? (conFotos ? fotoCatalogo(m) : undefined)} marcada={eligiendo ? estaEnEtiquetas(etqs, prov, m.ref) : undefined} />
   );
+  const deSeccion = (sc: Seccion) => sc.bloques.flatMap(b => ('sueltos' in b ? b.sueltos : b.items));
+  const tipos = useMemo(() => conTipos ? secciones.map((sc, i) => ({ i, t: sc.t, n: deSeccion(sc).length, foto: fotoComun(deSeccion(sc)) })) : [], [conTipos, secciones]);
+  const irATipo = (i: number) => document.getElementById(`tf-tipo-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const hayCalc = useMemo(() => !!f?.grupos.some(g => g.medidas.some(m => m.calc)), [f, t]);
 
   const desde = (items: TarifaMedida[]) => {
     const ps = items.map(m => precioModo(m, modo)).filter((x): x is number => x != null);
@@ -702,6 +763,12 @@ function FamiliaNueva() {
           <ChevronDown size={18} className="tfl-flecha" aria-hidden="true" />
         </button>
         {abierto && <div className={`tfl-medidas${fotoG != null ? ' tfl-medidas-foto' : ''}`}>
+          {eligiendo && (items.every(m => estaEnEtiquetas(etqs, prov, m.ref))
+            ? <button type="button" className="tfx-marcar" onClick={() => items.forEach(m => cambiarEtiqueta({ prov, ref: m.ref, nombre: nombreEtiqueta(m) }))}>Quitar las {items.length}</button>
+            : <button type="button" className="tfx-marcar" onClick={() => {
+              const fuera = anadirEtiquetas(items.filter(m => precioModo(m, 'iva') != null).map(m => ({ prov, ref: m.ref, nombre: nombreEtiqueta(m) })));
+              if (fuera) show(`No caben más: ${fuera} se han quedado fuera. Imprime estas primero.`);
+            }}>Marcar las {items.length} medidas</button>)}
           {items.map(m => fila(m, nombre(m), fotoG != null ? (fotoCatalogo(m) && fotoCatalogo(m) !== fotoG ? fotoCatalogo(m) : '') : undefined))}
         </div>}
       </div>
@@ -725,13 +792,33 @@ function FamiliaNueva() {
           ))}
         </div>
       )}
-      {!medida && nGrupos >= 2 && (
+      {!medida && tipos.length >= 2 && (
+        <nav className="tfx-tipos" aria-label="Tipos de pieza">
+          {tipos.map(x => (
+            <button key={x.i} type="button" className="tfx-tipo" onClick={() => irATipo(x.i)}>
+              <span className="tfx-tipo-foto">{x.foto && <img src={x.foto} alt="" loading="lazy" />}</span>
+              <span className="tfx-tipo-nom">{x.t}</span>
+              <small>{x.n} {x.n === 1 ? 'medida' : 'medidas'}</small>
+            </button>
+          ))}
+        </nav>
+      )}
+      {((!medida && nGrupos >= 2) || puedeEtq) && (
         <div className="tfl-todas">
-          <button type="button" className="tfn-quitar" onClick={cambiaTodas} aria-expanded={base}>
-            <ChevronDown size={15} className={base ? 'tfl-girada' : undefined} /> {base ? 'Cerrar todas las medidas' : 'Abrir todas las medidas'}
-          </button>
+          {puedeEtq && (
+            <button type="button" className={`tfn-quitar tfx-btn-etq${eligiendo ? ' activo' : ''}`} aria-pressed={eligiendo}
+              onClick={() => { setEligiendo(v => !v); setSel(null); }}>
+              <Tag size={15} /> {eligiendo ? 'Dejar de elegir' : etqs.length ? `Etiquetas (${etqs.length})` : 'Etiquetas'}
+            </button>
+          )}
+          {!medida && nGrupos >= 2 && (
+            <button type="button" className="tfn-quitar" onClick={cambiaTodas} aria-expanded={base}>
+              <ChevronDown size={15} className={base ? 'tfl-girada' : undefined} /> {base ? 'Cerrar todas las medidas' : 'Abrir todas las medidas'}
+            </button>
+          )}
         </div>
       )}
+      {hayCalc && modo !== 'coste' && <p className="tf-nota tfx-leyenda"><span className="tfx-aprox">≈</span> Precio calculado (coste + margen): puede no coincidir con la etiqueta de la balda.{puedePrecio && ' Elige la medida y pulsa «Cambiar precio» para poner el de la etiqueta.'}</p>}
       {medida ? (
         <div className="tf-grupos tf-con-subs">
           <p className="tfn-filtro"><span>Todo lo de <strong>{conPor(medida)}</strong> en {f.nombre.toLowerCase()} · {nFiltradas} {nFiltradas === 1 ? 'artículo' : 'artículos'}</span>
@@ -746,8 +833,9 @@ function FamiliaNueva() {
       ) : (
         <div className="tf-grupos tf-con-subs">
           {secciones.map((sc, i) => (
-            <section key={sc.t ?? i} className="tf-sub">
-              {sc.t && <h2 className="tf-sub-tit">{sc.t} <small>{sc.bloques.reduce((n, b) => n + ('sueltos' in b ? b.sueltos.length : b.items.length), 0)}</small></h2>}
+            <section key={sc.t ?? i} className="tf-sub" id={`tf-tipo-${i}`}>
+              {sc.t && <h2 className={`tf-sub-tit${tipos[i]?.foto ? ' tfx-sub-foto' : ''}`}>{tipos[i]?.foto && <img src={tipos[i].foto} alt="" loading="lazy" />}
+                <span>{sc.t} <small>{sc.bloques.reduce((n, b) => n + ('sueltos' in b ? b.sueltos.length : b.items.length), 0)}</small></span></h2>}
               <div className="tfn-filas tfl">{piezasDe(sc, !!f.mezclar).map(pieza)}</div>
             </section>
           ))}
@@ -757,7 +845,7 @@ function FamiliaNueva() {
   );
 
   return (
-    <div className={`page-wide tf tf-con-barra tfn${sel && !ancho ? ' tf-hay-sel' : ''}`}>
+    <div className={`page-wide tf tf-con-barra tfn${sel && !ancho ? ' tf-hay-sel' : ''}${eligiendo ? ' tfx-con-barra' : ''}`}>
       <Cabecera migas={[{ to: '/tarifas', t: 'Tarifas' }, { to: `/tarifas/${prov}`, t: t?.nombre ?? 'Tarifa' }]}
         titulo={f?.nombre ?? 'Familia'} sub={f ? `${total} ${total === 1 ? 'artículo' : 'artículos'} · precios por unidad de venta` : undefined}
         pegatinaSrc={f ? pegatina(claveFamilia(f.nombre)) : undefined}
@@ -775,7 +863,7 @@ function FamiliaNueva() {
             <p className="tf-nota tf-fam-ayuda">Precios de <strong>{modoActual.frase}</strong>. Haz clic en un artículo para ver sus datos a la derecha.</p>
             {lista}
           </div>
-          <PanelMedida prov={prov} fam={fam} f={f} sel={sel} total={total} nueva modo={modo} />
+          <PanelMedida prov={prov} fam={fam} f={f} sel={sel} total={total} nueva modo={modo} onPrecio={puedePrecio && sel ? () => setPrecioDe(sel) : undefined} />
         </div>
       )}
       {f && !ancho && (
@@ -796,18 +884,26 @@ function FamiliaNueva() {
                 <strong>{conPor(sel.descripcion)}</strong>
               </div>
               <div className="tf-barra-precio">
-                <strong>{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
+                <strong><Aprox m={sel} />{eur(iva ? conIva(sel) : sel.pvp)}<small>/{sel.ud_venta}</small></strong>
                 <small>{eur(iva ? sel.pvp : conIva(sel))} {iva ? 'sin' : 'con'} IVA{!sel.solo_pvp && <> · coste {eur(sel.coste)}</>}</small>
                 {porMetro(sel, iva ? 'iva' : 'venta') != null && <small className="tfn-barra-m">sale a {eur(porMetro(sel, iva ? 'iva' : 'venta'))}/m</small>}
                 {sel.escalas?.length ? <small className="tf-barra-escalas">{sel.escalas.map(e => escalaCorta(e, iva)).join(' · ')}</small> : null}
               </div>
-              <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
-                Ver ficha <ChevronRight size={18} />
-              </button>
+              <div className="tfx-barra-btns">
+                {puedePrecio && <button className="btn tf-barra-btn tfx-barra-precio" onClick={() => setPrecioDe(sel)} aria-label="Cambiar precio"><Pencil size={17} /> Precio</button>}
+                <button className="btn tf-barra-btn" onClick={() => abrir(sel)}>
+                  Ver ficha <ChevronRight size={18} />
+                </button>
+              </div>
             </div>
           )}
         </>
       )}
+      {eligiendo && <BarraEtiquetas onImprimir={() => setHojaEtq(true)} onSalir={() => setEligiendo(false)} />}
+      {hojaEtq && <HojaEtiquetasTarifa onCerrar={() => setHojaEtq(false)} />}
+      {precioDe && <HojaPrecio prov={prov} articulo={precioDe.ref} nombre={conPor(precioDe.descripcion)} pvpIva={conIva(precioDe)} ud={precioDe.ud_venta}
+        calculado={precioDe.calc} puesto={precioDe.pvp_app} onCerrar={() => setPrecioDe(null)} onGuardado={fi => precioGuardado(precioDe, fi)} />}
+      {toast}
     </div>
   );
 }
@@ -900,6 +996,13 @@ export function TarifaFichaPage() {
   const { d, error, cargar } = useFicha(prov, ref);
   const { t } = useTarifa(prov);
   const ancho = !useIsMobile(999);
+  // Tornillería: cambiar el precio desde la app (el encargado) y mandar el artículo a la lista de etiquetas
+  const puedePrecio = !!d?.pvp_editable && esEncargado();
+  const [cambiando, setCambiando] = useState(false);
+  const [hojaEtq, setHojaEtq] = useState(false);
+  const etqs = useEtiquetasTarifa();
+  const enEtq = estaEnEtiquetas(etqs, prov, d?.ref ?? ref);
+  const { show, toast } = useCfToast();
   const nueva = true; // código a la vista, códigos antiguos y precio por metro (para todos desde el 19/10/2026)
   const iva = modoGuardado() !== 'venta'; // con IVA en grande, salvo que se haya elegido «Sin IVA» en la lista
   const grande = d ? (iva ? conIva(d) : d.pvp) : null;
@@ -915,6 +1018,8 @@ export function TarifaFichaPage() {
       {fotoArticulo(d.familia.nombre, d.descripcion, d.foto) && <span className="tf-foto-nota">
         {fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iso') ? 'Foto del catálogo de Isoltubex'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/iny') ? 'Foto del catálogo de Inyectometal'
+          : /^\/catalogo\/tor\/(tirafondo-torx|tornillo-hormigon|taco-rastrel)\./.test(fotoArticulo(d.familia.nombre, d.descripcion, d.foto)) ? 'Foto de referencia: pieza parecida de Cofan'
+          : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/tor') ? 'Foto del catálogo de Cofan'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pladur') ? 'Foto del fabricante' 
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/lad') ? 'Foto de Cerámica Campo'
           : fotoArticulo(d.familia.nombre, d.descripcion, d.foto).startsWith('/catalogo/pi/fotos/') ? 'Foto del saco'
@@ -925,8 +1030,20 @@ export function TarifaFichaPage() {
     <div className="tf-precios">
       <div className="tf-precio-venta">
         <small>{iva ? 'Venta con IVA' : 'Venta sin IVA'}</small>
-        {grande != null ? <strong>{eur(grande)}<span>/{d.ud_venta}</span></strong> : <strong>Sin precio</strong>}
+        {grande != null ? <strong><Aprox m={d} />{eur(grande)}<span>/{d.ud_venta}</span></strong> : <strong>Sin precio</strong>}
         {otro != null && <em>{eurUd(otro, d.ud_venta)} {iva ? 'sin' : 'con'} IVA</em>}
+        {d.pvp_calculado && <span className="tfx-ficha-calc">Precio calculado (coste + margen): puede no coincidir con la etiqueta de la balda.</span>}
+        {d.pvp_app && <span className="tfx-ficha-calc"><Check size={14} /> Precio puesto en la app{d.pvp_hoja != null ? ` (en la hoja: ${eur(d.pvp_hoja)}${d.pvp_hoja_calculado ? ', calculado' : ''})` : ''}.</span>}
+        {(puedePrecio || (etiquetasTarifa() && grande != null)) && (
+          <span className="tfx-ficha-btns">
+            {puedePrecio && <button type="button" className="btn" onClick={() => setCambiando(true)}><Pencil size={16} /> Cambiar precio</button>}
+            {etiquetasTarifa() && grande != null && (
+              <button type="button" className="btn" aria-pressed={enEtq} onClick={() => cambiarEtiqueta({ prov, ref: d.ref ?? ref, nombre: nombreEtiqueta(d) })}>
+                {enEtq ? <><Check size={16} /> En etiquetas</> : <><Tag size={16} /> Etiqueta</>}</button>
+            )}
+            {etiquetasTarifa() && etqs.length > 0 && <button type="button" className="btn" onClick={() => setHojaEtq(true)}>Imprimir ({etqs.length})</button>}
+          </span>
+        )}
         {nueva && grande != null && (d.metros ?? 0) > 1 && <em>sale a {eur(grande / d.metros!)}/m ({d.metros} m)</em>}
         {d.nota && <span className={`tf-etiqueta${/revisar|neto|confirmar/i.test(d.nota) ? ' aviso' : ''}`}
           title={/neto/i.test(d.nota) ? 'Sale en la tarifa de Isoltubex pero no tenemos su precio neto: hay que pedirlo'
@@ -1070,6 +1187,11 @@ export function TarifaFichaPage() {
           <div className="tf-col">{foto}{precios}{escalas}{sirve}{otras}{evolucion}{compra}{carac}</div>
         </div>
       ))}
+      {hojaEtq && <HojaEtiquetasTarifa onCerrar={() => setHojaEtq(false)} />}
+      {cambiando && d && <HojaPrecio prov={prov} articulo={d.ref ?? ref} nombre={conPor(d.descripcion)} pvpIva={conIva(d)} ud={d.ud_venta}
+        calculado={d.pvp_calculado} puesto={d.pvp_app} pvpHoja={d.pvp_hoja} onCerrar={() => setCambiando(false)}
+        onGuardado={fi => { aplicarPrecio(prov, d.ref ?? ref, fi); cargar(); setCambiando(false); show(fi.pvp_app ? `Precio guardado: ${eur(fi.pvp_iva)}` : 'Vuelve a llevar el precio de la hoja'); }} />}
+      {toast}
     </div>
   );
 }

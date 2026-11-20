@@ -15,7 +15,7 @@ import {
 } from '../lib/tarifas';
 import {
   cache, leerTarifa, Foto, buscar, conPor, codigoVisible, etiquetaMedida, porMetro, seccionesDe, medidasDe,
-  enlaceFicha, fotoCatalogo, fotoComun, type Bloque,
+  Aprox, enlaceFicha, fotoCatalogo, fotoComun, type Bloque,
 } from './TarifasPage';
 import { CuadriculaTarifa } from '../components/CuadriculaTarifa';
 import { ParaQueSirve } from '../components/ParaQueSirve';
@@ -451,7 +451,7 @@ function FilaArticulo({ e, nombre, sel, onElegir, conFamilia, foto }: {
         </small>
       </span>
       <span className="mo-fila-precio">
-        {conIva(m) != null ? <>{esReciente(m.fecha) && m.evol ? <i className={`mo-punto ${m.evol > 0 ? 'sube' : 'baja'}`} /> : null}{eur(conIva(m))}<small>/{m.ud_venta}</small></> : <em>Sin precio</em>}
+        {conIva(m) != null ? <>{esReciente(m.fecha) && m.evol ? <i className={`mo-punto ${m.evol > 0 ? 'sube' : 'baja'}`} /> : null}<Aprox m={m} />{eur(conIva(m))}<small>/{m.ud_venta}</small></> : <em>Sin precio</em>}
       </span>
     </button>
   );
@@ -533,6 +533,7 @@ function PanelPrecio({ e, verCoste, horizontal, onApuntar, cuenta, cuentaPale, o
       <div className="mo-precio">
         <small>Precio con IVA</small>
         {iva != null ? <strong>{eur(iva).replace(' €', '')}<span> €/{m.ud_venta}</span></strong> : <strong className="mo-precio-no">Sin precio</strong>}
+        {m.calc && <p className="mo-precio-calc">≈ Precio calculado: puede no coincidir con la etiqueta de la balda.</p>}
         <div className="mo-precio-otros">
           {m.pvp != null && <span>Sin IVA <b>{eur(m.pvp)}/{m.ud_venta}</b></span>}
           {pm != null && <span>Sale el metro a <b>{eur(pm)}</b> ({m.metros} m)</span>}

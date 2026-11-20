@@ -19,7 +19,7 @@ from urllib.parse import quote
 
 from sqlalchemy.orm import Session
 
-from app.models.tarifa import TarifaCopia, TarifaPrecio
+from app.models.tarifa import TarifaCopia, TarifaPrecio, TarifaPvp
 from app.services import construdeco, gas, inyectometal, isoltubex, mail_service, morteros, piensos, sabio, tornilleria
 
 logger = logging.getLogger(__name__)
@@ -170,6 +170,9 @@ TARIFAS = {
         "hoja": tornilleria.HOJA,  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
         "pestanas": None,
         "redondeo": "el de la etiqueta de la balda (con IVA)",
+        "origen_corto": "tarifa de la web de Cofan",  # lo que dice el panel cuando el coste no sale de un albarán
+        "pvp_editable": True,  # el encargado cambia el precio de venta desde la app (tabla tarifa_pvp)
+        "tipos": True,         # arriba de cada familia, sus tipos de pieza con foto para ir al que se busca
         "en_pruebas": True,  # solo Andrés hasta que la apruebe
     },
 }
@@ -848,6 +851,91 @@ def copia(db: Session, prov: str, forzar: bool = False) -> tuple[Optional[Tarifa
     return c, None
 
 
+# ── Precio de venta puesto desde la app (tornillería) ──────────────────────
+PVP_APP = "Precio de venta puesto en la app"
+
+
+def datos_de(db: Session, prov: str, c: TarifaCopia) -> dict:
+    """La tarifa leída de su copia y, donde se puede cambiar el precio desde la app, con esos precios puestos."""
+    datos = LECTORES[prov](json.loads(c.hojas))
+    if not TARIFAS[prov].get("pvp_editable"):
+        return datos
+    puestos = {p.ref: p for p in db.query(TarifaPvp).filter(TarifaPvp.proveedor == prov).all()}
+    for a in datos["articulos"] if puestos else []:
+        p = puestos.get(a["ref"])
+        if not p:
+            continue
+        iva = a.get("iva") if a.get("iva") is not None else 21
+        a["pvp_hoja"], a["pvp_hoja_calculado"] = a.get("pvp_iva"), bool(a.get("pvp_calculado"))
+        a["pvp_iva"], a["pvp"] = round(p.pvp_iva, 2), round(p.pvp_iva / (1 + iva / 100), 4)
+        a["margen"] = round((a["pvp"] / a["coste"] - 1) * 100, 1) if a.get("coste") else None
+        a["pvp_app"] = True
+        a.pop("pvp_calculado", None)
+        coste = (a.get("origen") or "").split("Coste de", 1)
+        a["origen"] = (f"{PVP_APP} el {p.puesto_at:%d/%m/%Y}, con IVA." + (f" Coste de{coste[1]}" if len(coste) > 1 else ""))
+    return datos
+
+
+def poner_pvp(db: Session, prov: str, ref: str, pvp_iva: Optional[float], persona: Optional[str] = None) -> None:
+    """Guarda el precio de venta (con IVA) de un artículo, o lo quita (None) para volver al de la hoja.
+    ValueError con un mensaje para la persona si no se puede."""
+    if not TARIFAS[prov].get("pvp_editable"):
+        raise ValueError("En esta tarifa el precio se cambia en su hoja de Drive.")
+    c = db.get(TarifaCopia, prov)
+    datos = LECTORES[prov](json.loads(c.hojas)) if c and c.leido_at else None
+    a = next((x for x in datos["articulos"] if x["ref"] == ref), None) if datos else None
+    if not a:
+        raise ValueError("Ese artículo ya no está en la tarifa.")
+    fila = db.get(TarifaPvp, (prov, ref))
+    if pvp_iva is None:
+        if fila:
+            db.delete(fila)
+            db.commit()
+        return
+    if not (0 < pvp_iva < 100000):
+        raise ValueError("Escribe el precio con IVA, por ejemplo 0,35.")
+    fila = fila or TarifaPvp(proveedor=prov, ref=ref)
+    fila.pvp_iva, fila.puesto_por, fila.puesto_at = round(pvp_iva, 2), persona, datetime.utcnow()
+    db.merge(fila)
+    db.commit()
+
+
+def etiquetas(db: Session, pares: list) -> list:
+    """Artículos de las tarifas para imprimir sus etiquetas de balda (label_service.generate_shelf_labels_pdf):
+    `pares` = [(tarifa, ref)] en el orden en que salen. Lo que no tiene precio o ya no está, se salta."""
+    por_prov: dict = {}
+    out = []
+    for prov, ref in pares:
+        if prov not in TARIFAS:
+            continue
+        if prov not in por_prov:
+            c = db.get(TarifaCopia, prov)
+            por_prov[prov] = {x["ref"]: x for x in datos_de(db, prov, c)["articulos"]} if c and c.leido_at else {}
+        a = por_prov[prov].get(ref)
+        if not a:
+            continue
+        iva = a.get("iva") if a.get("iva") is not None else 21
+        pvp_iva = a.get("pvp_iva") if a.get("pvp_iva") is not None else (round(a["pvp"] * (1 + iva / 100), 2) if a.get("pvp") else None)
+        if not pvp_iva:
+            continue
+        nombre = (a.get("nombre") or a["descripcion"]).replace(" · ", " ")
+        tipo, med = a.get("tipo"), a.get("medida_c")
+        if tipo and med:  # «Hexagonal M8» + «M8x50» → «Hexagonal M8x50» (la medida ya dice el diámetro)
+            partes = tipo.split(" ")
+            corto = " ".join(partes[:-1]) if len(partes) > 1 and normaliza(med).startswith(normaliza(partes[-1])) else tipo
+            de = {"por kilo": "el kilo", "por metro": "el metro"}.get(normaliza(a.get("formato") or ""), a.get("formato"))
+            nombre = f"{corto} {med}" + (f" · {de}" if de else "")
+        f = a.get("fecha") or ""
+        m = re.match(r"(\d{4})-(\d{2})", f)
+        out.append({
+            "descripcion": nombre, "pvp_con_iva": pvp_iva, "ean": a.get("ean"),
+            "codigo": a.get("codigo") or "", "ref": a.get("codigo"),
+            "coste": None if a.get("solo_pvp") else a.get("coste"),
+            "fecha": f"{m.group(2)}/{m.group(1)[2:]}" if m else None,
+        })
+    return out
+
+
 # ── Lo que ve la app ──────────────────────────────────────────────────────
 def _actualizada(c: TarifaCopia) -> Optional[str]:
     """Fecha de la última actualización: la del nombre del archivo (la pone la tarea programada)."""
@@ -954,8 +1042,10 @@ def medidas_de(m: Optional[str]) -> list[str]:
 
 
 def _item(a: dict, valor: str = "", ud: str = "") -> dict:
-    mp, op = (a["mp"], a.get("op")) if a.get("mp") else medida_principal(a.get("medida_c"))
-    ms = [mp] if a.get("mp") else medidas_de(a.get("medida_c"))
+    # «mp» puesto por el lector manda; «""» = sin medida para filtrar (tornillería: abrazaderas, puntas…)
+    puesta = a.get("mp") is not None
+    mp, op = (a["mp"] or None, a.get("op")) if puesta else medida_principal(a.get("medida_c"))
+    ms = ([mp] if mp else []) if puesta else medidas_de(a.get("medida_c"))
     return {"ref": a["ref"], "codigo": a.get("codigo"), "descripcion": a.get("nombre") or a["descripcion"],
             "original": a["descripcion"] if a.get("nombre") else None, "foto": a.get("foto"), "valor": bonita_medida(valor) if valor else "",
             "ud_medida": ud, "unidad": a["unidad"], "ud_venta": a["ud_venta"], "coste": a["coste"], "pvp": a["pvp"],
@@ -967,6 +1057,9 @@ def _item(a: dict, valor: str = "", ud: str = "") -> dict:
             # Ladrillos: piezas por m², peso, piezas por palé y para qué se usa
             **{k: a[k] for k in ("ud_m2", "kg_ud", "ud_pale", "uso") if a.get(k)},
             **({"solo_pvp": True} if a.get("solo_pvp") else {}),
+            # Tornillería: precio calculado en la hoja (no leído de la etiqueta) o puesto a mano desde la app
+            **({"calc": True} if a.get("pvp_calculado") else {}), **({"pvp_app": True} if a.get("pvp_app") else {}),
+            **({"ean": a["ean"]} if a.get("ean") else {}),
             # Hojas de la tienda (morteros, piensos): «Saco 25 kg» y el IVA si no es el 21 %
             **({"formato": a["formato"]} if a.get("formato") else {}),
             **({"iva": a["iva"]} if a.get("iva") not in (None, 21) else {}),
@@ -1112,7 +1205,7 @@ def resumen(db: Session, en_pruebas: bool = True, rol: str | None = None) -> lis
 def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
     c, aviso = copia(db, prov, forzar)
     cfg = TARIFAS[prov]
-    datos = LECTORES[prov](json.loads(c.hojas))
+    datos = datos_de(db, prov, c)
     familias: dict[str, list] = {}
     for f in datos.get("orden_familias") or []:
         familias[f] = []
@@ -1127,6 +1220,7 @@ def tarifa(db: Session, prov: str, forzar: bool = False) -> dict:
     return {
         "id": prov, "nombre": cfg["nombre"], "sub": cfg["sub"], "margen": datos["margen"], "vista": cfg.get("vista"),
         "vista_ordenador": cfg.get("vista_ordenador"),
+        **({"pvp_editable": True} if cfg.get("pvp_editable") else {}), **({"tipos": True} if cfg.get("tipos") else {}),
         "actualizada": _actualizada(c), "leida": c.leido_at.isoformat() + "Z" if c.leido_at else None,
         "aviso": aviso, "ultima_factura": ultima,
         "familias": [{"id": slug(cat), "nombre": bonito(cat), "clave": cat, "n": len(arts),
@@ -1199,7 +1293,7 @@ def _factura(a: dict, log: list, archivos: Optional[list] = None) -> tuple[Optio
 
 def ficha(db: Session, prov: str, ref: str) -> Optional[dict]:
     c, aviso = copia(db, prov)
-    datos = LECTORES[prov](json.loads(c.hojas))
+    datos = datos_de(db, prov, c)
     a = next((x for x in datos["articulos"] if x["ref"] == ref), None)
     if not a:
         a = next((x for x in datos["articulos"] if normaliza(x["ref"]) == normaliza(ref)
@@ -1300,4 +1394,9 @@ def _ficha_lineas(c: TarifaCopia, prov: str, a: dict, datos: dict, aviso: Option
         **({"proveedor_nombre": a["proveedor"]} if a.get("proveedor") else {}),
         # Para qué sirve, datos del fabricante, un consejo y de dónde sale (services/fichas_producto.py)
         "producto": a.get("producto"),
+        # Tornillería: precio calculado en la hoja o puesto desde la app (y el de la hoja, para poder volver a él)
+        **({"ref": a["ref"], "pvp_editable": True, "pvp_calculado": bool(a.get("pvp_calculado")), "pvp_app": bool(a.get("pvp_app")),
+            "pvp_hoja": a.get("pvp_hoja"), "pvp_hoja_calculado": bool(a.get("pvp_hoja_calculado"))}
+           if TARIFAS[prov].get("pvp_editable") else {}),
+        **({"ean": a["ean"]} if a.get("ean") else {}),
     }
