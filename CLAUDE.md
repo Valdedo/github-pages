@@ -357,14 +357,14 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 El pasillo de ferretería, que lleva el precio a mano en la balda, metido en las tarifas (`"tornilleria"` en `TARIFAS`, con
 `en_pruebas`; para pasarla a todos, quitar esa marca; la PDA no la mira mientras esté en pruebas). Informes en el proyecto de
 claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
-- **Hoja** «TARIFA_TORNILLERIA_2026» `1tC2o…` (la del 20/11, `1I-Dd…`, en la papelera) (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
+- **Hoja** «TARIFA_TORNILLERIA_2026» `13xO5…` (las anteriores, `1I-Dd…` y `1tC2o…`, en la papelera) (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
   de la tienda: Familia | Grupo | Artículo | Medida | Formato | PVP con IVA | … | Código | Coste | Fecha coste | Factura |
-  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.792 medidas (1.745 + 47 del 21/11), una fila por medida (cincado,
+  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.792 medidas (1.745 + 47 de la tarde del 20/11), una fila por medida (cincado,
   pavonado o media rosca no abren fila; el inox va en su familia), 11 familias y 57 grupos (el tipo de pieza con su DIN).
   Coste: último albarán de Cofan o Caminoval y, si no hay, la web de Cofan del 20/11/2026 (tarifa − 60 %; en lo de Caminoval
   sin albarán es solo de referencia, lo dice la «Nota»). La generan los guiones del proyecto (`claude/tornilleria-generar-*.py`);
   regenerarla sube una hoja nueva con otro id (cambiar `tornilleria.HOJA`).
-- **Facturas de Caminoval (21/11/2026, Andrés: «si se compró a Caminoval, no tener precio de Cofan»)**: leídas las 67 facturas de
+- **Facturas de Caminoval (20/11/2026, tarde; Andrés: «si se compró a Caminoval, no tener precio de Cofan»)**: leídas las 67 facturas de
   enero de 2024 a noviembre de 2026 (carpeta ALBARANES/CAMINOVAL de Drive y correo; 1.772 líneas). Cada línea se casa con su fila
   por el código de Caminoval o por la descripción (tipo + medida). Lo comprado allí lleva **su coste de factura** («Proveedor» =
   Caminoval, «Factura» = nº, «Origen del coste» = «Albarán exacto»): 176 filas; con albarán de Cofan, 56. Si se compró a los dos,

@@ -28,7 +28,7 @@ FOTOS = {
     "allen": (1460, "tornillo-allen-cabeza-cilindrica-negro.jpg"),
     "allen-avellanada": (1531, "tornillo-de-cabeza-avellanada-con-hueco-hexagonal-negro.jpg"),
     "allen-boton": (3276, "73800410z.jpg"),
-    # Abrazaderas (21/11/2026)
+    # Abrazaderas (20/11/2026, tarde)
     "tirafondo-abrazadera": (2724, "web1_18006401_03.jpg"),
     "abrazadera-un-pie": (2725, "grapa-un-pie-forma-f.jpg"),
     "avellanada": (1672, "tornillo-cabeza-avellanada-pozidrive-zincado.jpg"),
