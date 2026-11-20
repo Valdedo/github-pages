@@ -414,7 +414,13 @@ claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
   SUCL10, de 10-15). Comprados a Caminoval en 2022 y 2023 (facturas 079310 y 083352, anteriores a las 67 leídas; salieron
   buscando en el correo «clip de suspension»): grupo «Clip de vigueta (clip de suspensión)» en Abrazaderas, coste de 2023.
   Lo que no salga en las facturas desde 2024, buscarlo en el correo por el nombre que le da Index.
-- Pendiente: saber si la etiqueta verde de la balda lleva el IVA (se ha dado por hecho que sí); el resto de abarcones; hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
+- **La etiqueta verde de la balda lleva el IVA** (Andrés, 20/11/2026): los 112 precios de etiqueta están bien como están.
+  Dejan de media un 82 % sobre el coste; cinco quedan por debajo del 20 % (hexagonal M8x45, arandela ancha M18 y M20, cuello
+  cuadrado M8x90, inox M8x50): dicho a Andrés.
+- **Abarcones**: el «de 8» de la factura es **métrica 8**. Andrés tiene tres medidas (cree que 1¼″, 1½″ y 2″; lo confirma cuando
+  ordene esa estantería). Los 10,50 € de la factura 097650 (3 unidades) parecen de caja o bolsa, no de una pieza: el precio
+  calculado de esa fila no vale hasta saber cuántos trae. Cuando diga las medidas, rehacer el grupo entero.
+- Pendiente: hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
   arreglan poniendo el de la balda.
 
 ## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)
