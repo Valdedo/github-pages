@@ -31,7 +31,7 @@ from typing import Optional
 
 from app.services import hoja_tienda
 
-HOJA = "16k-MZNNTTfJgs7hFqMBCu_1DghRjoXOj1ATcrrLu0Js"  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
+HOJA = "1GTc6R3vtox7SX6OddRxD-7oT1H0OS9buleiqFr3yHCQ"  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
 IVA = 21
 ORIGEN = "Precio de venta de la etiqueta de la balda, con IVA."
 CALCULADO = "Precio calculado (coste + margen + IVA): puede no coincidir con la etiqueta de la balda."
@@ -46,7 +46,7 @@ FOTOS: list = [
     (("inox", "rosca chapa"), "rosca-chapa-inox"), (("inox", "hexagonal"), "hexagonal-inox"),
     # Lo que no es de Cofan: foto del fabricante (Index, Fischer); el grampillón va dibujado. Delante de lo general.
     (("abrazadera", "plastico", "abierta"), "abrazadera-plastico-abierta"), (("abrazadera", "plastico"), "abrazadera-plastico-cerrada"),
-    (("abrazadera", "ligera"), "abrazadera-ligera"), (("abrazadera", "un pie"), "abrazadera-un-pie"),
+    (("clip", "vigueta"), "clip-vigueta"), (("abrazadera", "ligera"), "abrazadera-ligera"), (("abrazadera", "un pie"), "abrazadera-un-pie"),
     (("tirafondo", "abrazadera"), "tirafondo-abrazadera"), (("abarcon",), "abarcon"), (("argolla",), "anclaje-argolla"),
     (("sujetacables",), "sujetacables"), (("gancho en s",), "gancho-s"), (("uralita",), "tornillo-uralita"),
     (("alomada", "7504"), "autotaladrante-alomado"), (("7984",), "allen"), (("tirafondo", "pozidriv"), "tirafondo-pozidriv"),

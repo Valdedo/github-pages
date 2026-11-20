@@ -97,6 +97,7 @@ _FI = "https://media.fischer.group/v7/_pim-media-prod_/Product%20Pictures/Produc
 OTRAS = {
     "abrazadera-plastico-abierta": _IX + "CT1314BI9436_3_05_12_AB_PR_AB_PR_SZ8-768x768.jpg",
     "abrazadera-plastico-cerrada": _IX + "CT1312BI9411_3_05_10_AB_GU_AB_GU_SZ8-768x768.jpg",
+    "clip-vigueta": _IX + "CT1060BI10162_1_02_02_SU_SU_SZ8-768x768.jpg",
     "abrazadera-ligera": _IX + "CT1279BI9437_3_02_10_AB_PU_AB_PU_SZ8-768x768.jpg",
     "gancho-s": _IX + "CT1116BI12110_1_08_12_GS_GS_SZ8-768x768.jpg",
     "sujetacables": _IX + "CT1105BI10139_1_08_01_SJ_SJ_SZ8-768x768.jpg",

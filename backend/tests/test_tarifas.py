@@ -605,6 +605,7 @@ def test_tornilleria_fotos_por_tipo():
     assert f("Abrazadera de plástico abierta (a presión)", "Abrazadera de plástico abierta") == "/catalogo/tor/abrazadera-plastico-abierta.webp"
     assert f("Abrazadera de plástico cerrada (tipo guía)", "Abrazadera de plástico cerrada") == "/catalogo/tor/abrazadera-plastico-cerrada.webp"
     assert f("Autotaladrante cabeza alomada DIN 7504-N", "Autotaladrante alomado") == "/catalogo/tor/autotaladrante-alomado.webp"
+    assert f("Clip de vigueta (clip de suspensión)", "Clip de vigueta") == "/catalogo/tor/clip-vigueta.webp"
     assert f("Un tipo que no existe", "Nada") is None
     assert f("Tirafondo para abrazadera", "Tirafondo para abrazadera") == "/catalogo/tor/tirafondo-abrazadera.webp"
     assert f("Abrazadera metálica de un pie", "Abrazadera de un pie") == "/catalogo/tor/abrazadera-un-pie.webp"

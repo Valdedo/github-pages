@@ -357,9 +357,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
 El pasillo de ferretería, que lleva el precio a mano en la balda, metido en las tarifas (`"tornilleria"` en `TARIFAS`, con
 `en_pruebas`; para pasarla a todos, quitar esa marca; la PDA no la mira mientras esté en pruebas). Informes en el proyecto de
 claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
-- **Hoja** «TARIFA_TORNILLERIA_2026» `16k-M…` (las anteriores, `1I-Dd…`, `1tC2o…` y `13xO5…`, en la papelera) (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
+- **Hoja** «TARIFA_TORNILLERIA_2026» `1GTc6…` (las cuatro anteriores del 20/11, `1I-Dd…`, `1tC2o…`, `13xO5…` y `16k-M…`, en la papelera) (Mi unidad de Andrés, lector casafonsomc), pestaña TARIFA en el formato de las hojas
   de la tienda: Familia | Grupo | Artículo | Medida | Formato | PVP con IVA | … | Código | Coste | Fecha coste | Factura |
-  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.789 medidas (1.745 + 44 de la tarde del 20/11), una fila por medida (cincado,
+  Proveedor | Nota, y detrás columnas solo para la tienda (EAN, «Origen del PVP»…). 1.791 medidas (1.745 + 46 de la tarde del 20/11), una fila por medida (cincado,
   pavonado o media rosca no abren fila; el inox va en su familia), 11 familias y 57 grupos (el tipo de pieza con su DIN).
   Coste: último albarán de Cofan o Caminoval y, si no hay, la web de Cofan del 20/11/2026 (tarifa − 60 %; en lo de Caminoval
   sin albarán es solo de referencia, lo dice la «Nota»). La generan los guiones del proyecto (`claude/tornilleria-generar-*.py`);
@@ -410,8 +410,11 @@ claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
   barras de la caja (o el código) y el pie de siempre. Lo que va por kilo dice «· el kilo».
 - Probado en local con la hoja de verdad exportada de Drive (390, 320, 860, 1280, 1366 y 1920 px, y la tableta) y con el código
   de la tienda (no ve nada de esto). **Sin probar**: la lectura de la hoja por el Apps Script en Railway y las etiquetas en papel.
-- Pendiente: los clips negros de vigueta (¿el «SU» de Index?, enseñado a Andrés) no salen en ninguna factura de Caminoval:
-  falta saber a quién se compran; saber si la etiqueta verde de la balda lleva el IVA (se ha dado por hecho que sí); el resto de abarcones; hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
+- **Clips negros de vigueta** (Andrés confirmó la foto): son el «clip de suspensión» SU-CL de Index (SUCL04, ala de 4-10 mm, y
+  SUCL10, de 10-15). Comprados a Caminoval en 2022 y 2023 (facturas 079310 y 083352, anteriores a las 67 leídas; salieron
+  buscando en el correo «clip de suspension»): grupo «Clip de vigueta (clip de suspensión)» en Abrazaderas, coste de 2023.
+  Lo que no salga en las facturas desde 2024, buscarlo en el correo por el nombre que le da Index.
+- Pendiente: saber si la etiqueta verde de la balda lleva el IVA (se ha dado por hecho que sí); el resto de abarcones; hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
   arreglan poniendo el de la balda.
 
 ## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)
