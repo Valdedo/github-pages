@@ -31,7 +31,7 @@ from typing import Optional
 
 from app.services import hoja_tienda
 
-HOJA = "13xO5KZdF6q-ESgKKsFRf1S3M2USHiWChJhHBkZBUU28"  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
+HOJA = "16k-MZNNTTfJgs7hFqMBCu_1DghRjoXOj1ATcrrLu0Js"  # TARIFA_TORNILLERIA_2026 (Mi unidad de Andrés)
 IVA = 21
 ORIGEN = "Precio de venta de la etiqueta de la balda, con IVA."
 CALCULADO = "Precio calculado (coste + margen + IVA): puede no coincidir con la etiqueta de la balda."
@@ -44,10 +44,14 @@ FOTOS: list = [
     (("inox", "arandela"), "arandela-ancha-inox"), (("inox", "7991"), "allen-avellanada-inox"),
     (("inox", "cuello cuadrado"), "cuello-cuadrado-inox"), (("inox", "barraquero"), "barraquero-inox"),
     (("inox", "rosca chapa"), "rosca-chapa-inox"), (("inox", "hexagonal"), "hexagonal-inox"),
-    # Lo que no tiene foto parecida en el repo (va sin foto antes que con la de otra pieza)
-    (("abrazadera", "plastico"), None), (("abrazadera", "ligera"), None), (("abarcon",), None), (("argolla",), None),
-    (("sujetacables",), None), (("gancho en s",), None), (("alomada", "7504"), None), (("7984",), None),
-    (("tirafondo", "abrazadera"), "tirafondo-abrazadera"), (("abrazadera", "un pie"), "abrazadera-un-pie"),
+    # Lo que no es de Cofan: foto del fabricante (Index, Fischer); el grampillón va dibujado. Delante de lo general.
+    (("abrazadera", "plastico", "abierta"), "abrazadera-plastico-abierta"), (("abrazadera", "plastico"), "abrazadera-plastico-cerrada"),
+    (("abrazadera", "ligera"), "abrazadera-ligera"), (("abrazadera", "un pie"), "abrazadera-un-pie"),
+    (("tirafondo", "abrazadera"), "tirafondo-abrazadera"), (("abarcon",), "abarcon"), (("argolla",), "anclaje-argolla"),
+    (("sujetacables",), "sujetacables"), (("gancho en s",), "gancho-s"), (("uralita",), "tornillo-uralita"),
+    (("alomada", "7504"), "autotaladrante-alomado"), (("7984",), "allen"), (("tirafondo", "pozidriv"), "tirafondo-pozidriv"),
+    (("fischer", "duoblade"), "fischer-duoblade"), (("fischer", "duopower"), "fischer-duopower"), (("fischer",), "fischer-sx"),
+    (("grampillon", "dentado"), "grampillon-dentado"), (("grampillon",), "grampillon"),
     # Cubierta
     (("autotaladrante", "sandwich"), "autotaladrante-sandwich"), (("autotaladrante", "vigueta"), "autotaladrante-vigueta"),
     (("autotaladrante", "avellanado"), "autotaladrante-avellanado"), (("autotaladrante", "arandela"), "autotaladrante-arandela"),

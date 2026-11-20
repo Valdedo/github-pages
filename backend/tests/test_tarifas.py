@@ -595,13 +595,17 @@ def test_tornilleria_fotos_por_tipo():
     assert f("Autotaladrante panel sándwich con arandela", "Autotaladrante panel sándwich") == "/catalogo/tor/autotaladrante-sandwich.webp"
     assert f("Rosca chapa hexagonal con arandela", "Rosca chapa hexagonal con arandela") == "/catalogo/tor/rosca-chapa-hexagonal.webp"
     assert f("Abrazadera de tubo isofónica (con goma)", "Abrazadera isofónica") == "/catalogo/tor/abrazadera-isofonica.webp"
-    assert f("Taco Fischer", "Taco Fischer SX Plus 8x40") is None  # sin foto todavía
+    assert f("Taco Fischer", "Taco Fischer SX Plus 8x40") == "/catalogo/tor/fischer-sx.webp"
+    assert f("Taco Fischer", "Taco Fischer DuoBlade 8") == "/catalogo/tor/fischer-duoblade.webp"
+    assert f("Grampillón dentado galvanizado", "Grampillón dentado") == "/catalogo/tor/grampillon-dentado.webp"
     import os
     carpeta = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "catalogo", "tor")
     assert all(os.path.exists(os.path.join(carpeta, n + ".webp")) for _, n in tornilleria.FOTOS if n)
-    # lo que no tiene foto parecida va sin foto, no con la de otra pieza
-    assert f("Abrazadera de plástico abierta (a presión)", "Abrazadera de plástico abierta") is None
-    assert f("Autotaladrante cabeza alomada DIN 7504-N", "Autotaladrante alomado") is None
+    # cada tipo, su foto (no la de otra pieza)
+    assert f("Abrazadera de plástico abierta (a presión)", "Abrazadera de plástico abierta") == "/catalogo/tor/abrazadera-plastico-abierta.webp"
+    assert f("Abrazadera de plástico cerrada (tipo guía)", "Abrazadera de plástico cerrada") == "/catalogo/tor/abrazadera-plastico-cerrada.webp"
+    assert f("Autotaladrante cabeza alomada DIN 7504-N", "Autotaladrante alomado") == "/catalogo/tor/autotaladrante-alomado.webp"
+    assert f("Un tipo que no existe", "Nada") is None
     assert f("Tirafondo para abrazadera", "Tirafondo para abrazadera") == "/catalogo/tor/tirafondo-abrazadera.webp"
     assert f("Abrazadera metálica de un pie", "Abrazadera de un pie") == "/catalogo/tor/abrazadera-un-pie.webp"
 

@@ -716,11 +716,20 @@ function FamiliaNueva() {
   // Tornillería: la foto es del tipo de pieza (la sección), así que va en su título y arriba, en el índice de tipos
   const conTipos = !!t?.tipos;
   const conFotos = useMemo(() => !conTipos && !!f?.grupos.some(g => g.medidas.some(m => fotoCatalogo(m))), [f, conTipos]);
+  const deSeccion = (sc: Seccion) => sc.bloques.flatMap(b => ('sueltos' in b ? b.sueltos : b.items));
+  // Un tipo con piezas de aspecto distinto (tacos Fischer: DuoBlade, SX Plus, DuoPower): ahí cada línea lleva su foto
+  const fotoPropia = useMemo(() => {
+    const refs = new Set<string>();
+    if (conTipos) for (const sc of secciones) {
+      const items = deSeccion(sc);
+      if (new Set(items.map(m => fotoCatalogo(m)).filter(Boolean)).size > 1) items.forEach(m => refs.add(m.ref));
+    }
+    return refs;
+  }, [conTipos, secciones]);
   const fila = (m: TarifaMedida, etiqueta: string, foto?: string) => (
     <FilaPieza key={m.ref} m={m} etiqueta={etiqueta} modo={modo} sel={sel?.ref === m.ref} onSel={() => elegir(m)} onOpen={() => abrir(m)}
-      foto={foto ?? (conFotos ? fotoCatalogo(m) : undefined)} marcada={eligiendo ? estaEnEtiquetas(etqs, prov, m.ref) : undefined} />
+      foto={foto ?? (conFotos || fotoPropia.has(m.ref) ? fotoCatalogo(m) : undefined)} marcada={eligiendo ? estaEnEtiquetas(etqs, prov, m.ref) : undefined} />
   );
-  const deSeccion = (sc: Seccion) => sc.bloques.flatMap(b => ('sueltos' in b ? b.sueltos : b.items));
   const tipos = useMemo(() => conTipos ? secciones.map((sc, i) => ({ i, t: sc.t, n: deSeccion(sc).length, foto: fotoComun(deSeccion(sc)) })) : [], [conTipos, secciones]);
   const irATipo = (i: number) => document.getElementById(`tf-tipo-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const hayCalc = useMemo(() => !!f?.grupos.some(g => g.medidas.some(m => m.calc)), [f, t]);
@@ -745,7 +754,7 @@ function FamiliaNueva() {
     const uds = [...new Set(items.map(m => m.ud_venta))];
     const ud1 = uds.length === 1 ? uds[0] : null;
     const meds = items.map(m => etiquetaMedida(m)).filter(Boolean);
-    const fotoG = conFotos ? fotoComun(items) : undefined;
+    const fotoG = conFotos || items.some(m => fotoPropia.has(m.ref)) ? fotoComun(items) : undefined;
     const resumen = abierto || meds.length !== items.length ? `${items.length} ${p.filas ? 'formatos' : 'medidas'}`
       : items.length <= 4 ? meds.join(' · ') : `${items.length} medidas · de ${meds[0]} a ${meds[meds.length - 1]}`;
     return (

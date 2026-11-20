@@ -68,7 +68,6 @@ FOTOS = {
     # Tacos
     "taco-nylon": (2986, "tacos-nylon-alado.jpg"),
     "taco-clavable": (417, "web1_07700530_1.jpg"),
-    "taco-rastrel": (447, "taco-largo-con-tornillo-torx.jpg"),  # de referencia: taco largo con tornillo
     "fijacion-aislamiento": (451, "web1_07761011_01.jpg"),
     # Remaches
     "remache": (497, "web1_07013208_01.jpg"),
@@ -88,6 +87,80 @@ FOTOS = {
     "punta-acero": (3582, "web_01232530.jpg"),
     "punta-acero-conica": (3581, "web_01221520.jpg"),
 }
+
+
+# Lo que no es de Cofan (20/11/2026): la foto del fabricante. Index (indexfix.com, las abrazaderas de plástico y ligeras, el
+# gancho en S…; su web a veces contesta «One moment, please»: se reintenta), Fischer (media.fischer.group) y dos de Cofan
+# que van por otra sección de su web. El grampillón no tiene foto en ninguna: va dibujado (`grampillon`).
+_IX = "https://www.indexfix.com/wp-content/uploads/CMP6735/"
+_FI = "https://media.fischer.group/v7/_pim-media-prod_/Product%20Pictures/Product%20Pictures%20Big%20fischer/"
+OTRAS = {
+    "abrazadera-plastico-abierta": _IX + "CT1314BI9436_3_05_12_AB_PR_AB_PR_SZ8-768x768.jpg",
+    "abrazadera-plastico-cerrada": _IX + "CT1312BI9411_3_05_10_AB_GU_AB_GU_SZ8-768x768.jpg",
+    "abrazadera-ligera": _IX + "CT1279BI9437_3_02_10_AB_PU_AB_PU_SZ8-768x768.jpg",
+    "gancho-s": _IX + "CT1116BI12110_1_08_12_GS_GS_SZ8-768x768.jpg",
+    "sujetacables": _IX + "CT1105BI10139_1_08_01_SJ_SJ_SZ8-768x768.jpg",
+    "tornillo-uralita": _IX + "CT1182BI9736_2_01_08_FIBR_FIBR_SZ8-768x768.jpg",
+    "autotaladrante-alomado": _IX + "CT1189BI9650_2_02_01_DIN_7504_N_DIN_7504_N_SZ8-768x768.jpg",
+    "tirafondo-pozidriv": _IX + "CT1205BI10305_2_03_02_TP_TP_SZ8-768x768.jpg",
+    "taco-rastrel": _IX + "CT1048BI10309_1_01_25_TRA_TRA_SZ8-768x768.jpg",
+    "fischer-duopower": _FI + "W1_P_G_DUOPOWER001_F_SALL_AQQ_V4.jpg?w=1000",
+    "fischer-sx": _FI + "W1_P_G_SX-PLUS-CGI_V1.jpg?w=1000",
+    "fischer-duoblade": _FI + "W1_P_G_DUOBLADE-CGI_F_SALL_AQQ_V1.jpg?w=1000",
+    "abarcon": "https://www.cofan.es/images/content/1024x682/abarcon-cincado.jpg",
+    "anclaje-argolla": "https://www.cofan.es/images/content/1024x682/web1_07650845_01.jpg",
+}
+_NAV = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+
+def _es_imagen(ruta: str) -> bool:
+    try:
+        Image.open(ruta).verify()
+        return True
+    except Exception:
+        return False
+
+
+def bajar(url: str, ruta: str) -> bool:
+    import time
+    for _ in range(6):
+        if os.path.exists(ruta) and _es_imagen(ruta):
+            return True
+        subprocess.run(["curl", "-sS", "-L", "-m", "40", "-A", _NAV, "-e", url.split("/wp-content")[0] + "/", "-o", ruta, url], check=False)
+        if _es_imagen(ruta):
+            return True
+        time.sleep(8)
+    return False
+
+
+def grampillon(destino: str, dentado: bool = False) -> None:
+    """Dibujo de un grampillón (grapa en U de dos puntas, galvanizada); el dentado lleva las muescas en las patas."""
+    from PIL import ImageDraw, ImageFilter
+    S = 4
+    L = LADO * S
+    im = Image.new("RGB", (L, L), (255, 255, 255))
+    d = ImageDraw.Draw(im)
+    g = 46 * S                                   # grueso del alambre
+    x0, x1, arriba, abajo = 150 * S, 330 * S, 70 * S, 330 * S
+    r = (x1 - x0) // 2
+    def u(color, dx=0, ancho=g):
+        d.arc((x0 + dx, arriba, x1 + dx, arriba + 2 * r), 180, 360, fill=color, width=ancho)
+        for x in (x0 + dx, x1 + dx - ancho):
+            d.rectangle((x, arriba + r - 2, x + ancho, abajo), fill=color)
+    u((122, 128, 134))
+    u((176, 182, 188), dx=0, ancho=int(g * 0.72))
+    u((226, 230, 233), dx=int(g * 0.10), ancho=int(g * 0.26))
+    for x in (x0, x1 - g):                        # puntas cortadas en bisel
+        d.polygon([(x, abajo), (x + g, abajo), (x + g // 2, abajo + 80 * S)], fill=(150, 156, 162))
+        d.polygon([(x + int(g * 0.1), abajo), (x + int(g * 0.36), abajo), (x + g // 2, abajo + 80 * S)], fill=(214, 218, 222))
+    if dentado:
+        for x, lado in ((x0, -1), (x1 - g, 1)):
+            for k in range(4):
+                y = arriba + r + 30 * S + k * 42 * S
+                xe = x if lado < 0 else x + g
+                d.polygon([(xe, y), (xe + lado * 16 * S, y + 26 * S), (xe, y + 30 * S)], fill=(122, 128, 134))
+    im = im.filter(ImageFilter.GaussianBlur(S * 0.6)).resize((LADO, LADO), Image.LANCZOS)
+    im.save(destino, "WEBP", quality=88, method=6)
 
 
 def _marca(im: Image.Image):
@@ -135,6 +208,15 @@ def main() -> None:
             subprocess.run(["curl", "-sS", "-L", "-m", "60", "-A", "Mozilla/5.0", "-o", jpg, url], check=False)
         cuadrada(jpg, os.path.join(DESTINO, nombre + ".webp"))
         print(nombre, "ok")
+    for nombre, url in OTRAS.items():
+        jpg = os.path.join(orig, nombre + ".jpg")
+        if not bajar(url, jpg):
+            print(f"{nombre}: no se pudo bajar {url}")
+            continue
+        cuadrada(jpg, os.path.join(DESTINO, nombre + ".webp"))
+        print(nombre, "ok")
+    grampillon(os.path.join(DESTINO, "grampillon.webp"))
+    grampillon(os.path.join(DESTINO, "grampillon-dentado.webp"), dentado=True)
 
 
 if __name__ == "__main__":
