@@ -253,7 +253,9 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   camping) y `gas.foto()` elige la de cada fila; las rojas de camping y sus envases (2,8 y 0,5 kg) van dibujadas porque no se sabe la marca.
   Si la tienda saca fotos suyas, sustituir esos .webp con el mismo nombre.
   (23/11/2026: Andrés dio los precios nuevos de butano, propano y ligera de Repsol; cambiados en la columna D de la hoja desde
-  el navegador con su cuenta, `…/spreadsheets/u/1/d/…`: con la de casafonsomc la hoja es solo de lectura. Cepsa, sin tocar.)
+  el navegador con su cuenta, `…/spreadsheets/u/1/d/…`: con la de casafonsomc la hoja es solo de lectura. Cepsa, sin tocar.
+  Para que salieran ya a toda la tienda, `"desde"` en `TARIFAS["gas"]` (obliga a releer la copia) y publicar: los aparatos
+  abiertos recargan con «Hay una versión nueva». Es la forma de forzar una lectura sin entrar en la app.)
 - **Morteros y cementos · Piensos (17/10/2026; para todos desde el 19/10/2026)**: igual que las bombonas, de las hojas plastificadas
   de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1EJWG…` (la primera, `1BvDP…`, está en la papelera) y «TARIFA_PIENSOS» `1NOFS…` (la anterior, `1aY4m…`, en la papelera) en Mi
   unidad de Andrés (compartidas con casafonsomc), pestaña TARIFA. Costes sacados de Drive el 17/10/2026: morteros de Grupo Puma

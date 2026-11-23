@@ -111,6 +111,9 @@ TARIFAS = {
         "pestanas": None,
         # Pocos artículos: todos de golpe en una cuadrícula con foto y precio, sin pasar por familias (Andrés, 16/10/2026)
         "vista": "cuadricula",
+        # Precios nuevos de Repsol en la hoja (23/11/2026, Andrés: «publícalo para todo el mundo»): las copias leídas
+        # antes de esta hora (UTC) se vuelven a leer en la primera visita, sin esperar a las 3 horas
+        "desde": datetime(2026, 11, 23, 10, 55),
     },
     # Morteros y piensos (17/10/2026): como las bombonas, de las hojas plastificadas de la tienda y en cuadrícula
     # (lector común en services/hoja_tienda.py). Precio de venta con IVA; el coste, si se apunta en la hoja.
