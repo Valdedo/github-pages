@@ -246,6 +246,8 @@ export function MostradorPage() {
   );
 
   const titulo = q.trim() ? `Buscando «${q.trim()}»` : f ? f.nombre : t ? t.nombre : 'Tarifas';
+  // Tarifa «En pruebas» (solo la manda el servidor al encargado): que se vea también aquí, no solo en /tarifas
+  const enPruebas = !q.trim() && !!t && !!lista?.find(x => x.id === t.id)?.en_pruebas;
   const pendientes = apuntes.filter(a => !a.hecho).length;
   const abiertos = apuntes.filter(a => !a.hecho);
   const totalAbierto = abiertos.reduce((s, a) => s + (conIva(a) ?? 0) * a.cant, 0);
@@ -299,6 +301,7 @@ export function MostradorPage() {
                 <span key={i}><button type="button" onClick={m.on}>{m.t}</button>{i < migas.length - 1 && <ChevronRight size={16} />}</span>
               ))}</nav>}
               <h1>{titulo}</h1>
+              {enPruebas && <em className="mo-pruebas">En pruebas · solo Andrés</em>}
             </div>
           </div>
           {/* Aviso de las que no se pudieron leer: en la portada y al buscar (dentro de otra tarifa, no molesta) */}
@@ -340,6 +343,7 @@ function Portada({ lista, tarifas, recientes, sel, onProveedor, onElegir }: {
           <button key={p.id} type="button" className="mo-prov" onClick={() => onProveedor(p.id)}>
             <img src={pegatina(PEGATINA_PROVEEDOR[p.id] ?? 'prov-hierros')} alt="" />
             <strong>{p.nombre}</strong>
+            {p.en_pruebas && <em className="mo-pruebas">En pruebas · solo Andrés</em>}
             <small>{p.articulos != null ? `${p.articulos} artículos` : p.sub}</small>
           </button>
         ))}

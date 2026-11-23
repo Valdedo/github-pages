@@ -43,7 +43,6 @@
 .mo-migas span { display: inline-flex; align-items: center; }
 .mo-migas button { border: 0; background: transparent; color: var(--cf-bosque); font-size: 16px; font-weight: 600; min-height: 40px; padding: 0 10px; border-radius: 999px; }
 .mo-migas button:active { background: var(--brand-light); }
-.mo-pruebas { align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; background: #FFE9C7; color: #7A3E00; padding: 5px 10px; border-radius: 999px; flex-shrink: 0; }
 
 .mo-sec { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font: 700 14px var(--font) !important; color: var(--text-3); text-transform: uppercase; letter-spacing: .6px; }
 .mo-nota { margin: 0; font-size: 15px; color: var(--text-3); display: flex; align-items: center; gap: 8px; }
@@ -56,6 +55,9 @@
 .mo-prov img { width: 128px; height: 128px; }
 .mo-prov strong { font: 600 24px var(--font-display); text-transform: uppercase; }
 .mo-prov small { font-size: 14px; color: var(--text-3); }
+/* Tarifa «En pruebas»: solo sale con el código del encargado; que la tableta lo diga igual que /tarifas */
+.mo-pruebas { align-self: center; text-transform: none; letter-spacing: 0; white-space: nowrap; padding: 3px 12px; border-radius: 99px; font-size: 14px; font-style: normal; font-weight: 700; background: #FDECD8; color: #8A4B10; }
+.mo-titulo-txt .mo-pruebas { align-self: flex-start; margin-top: 4px; }
 .mo-prov:active, .mo-familia:active { transform: scale(.97); background: var(--brand-pale); }
 .mo-prov.skeleton { min-height: 210px; }
 

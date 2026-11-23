@@ -252,6 +252,8 @@ Usuarios (poco técnicos — todo debe entenderse sin explicación):
   `frontend/public/catalogo/gas/` (`tools/gas-fotos.py`: Repsol de su tienda online, Cepsa de su cartel, Campingaz de tiendas de
   camping) y `gas.foto()` elige la de cada fila; las rojas de camping y sus envases (2,8 y 0,5 kg) van dibujadas porque no se sabe la marca.
   Si la tienda saca fotos suyas, sustituir esos .webp con el mismo nombre.
+  (23/11/2026: Andrés dio los precios nuevos de butano, propano y ligera de Repsol; cambiados en la columna D de la hoja desde
+  el navegador con su cuenta, `…/spreadsheets/u/1/d/…`: con la de casafonsomc la hoja es solo de lectura. Cepsa, sin tocar.)
 - **Morteros y cementos · Piensos (17/10/2026; para todos desde el 19/10/2026)**: igual que las bombonas, de las hojas plastificadas
   de la tienda (fotos de Andrés) y en cuadrícula. Hojas «TARIFA_MORTEROS_CEMENTOS» `1EJWG…` (la primera, `1BvDP…`, está en la papelera) y «TARIFA_PIENSOS» `1NOFS…` (la anterior, `1aY4m…`, en la papelera) en Mi
   unidad de Andrés (compartidas con casafonsomc), pestaña TARIFA. Costes sacados de Drive el 17/10/2026: morteros de Grupo Puma
@@ -422,6 +424,11 @@ claude.ai (`claude/tornilleria-app-2026-11-20.md` y los anteriores).
   calculado de esa fila no vale hasta saber cuántos trae. Cuando diga las medidas, rehacer el grupo entero.
 - Pendiente: hay ~100 precios calculados que quedan por debajo de la medida anterior (mezcla de etiqueta y calculado): se
   arreglan poniendo el de la balda.
+- **En la tableta también dice «En pruebas · solo Andrés» (23/11/2026)**: Andrés la vio en la tableta «como publicada». El servidor
+  solo la manda con su código (`resumen` / `_prov`; comprobado en local: con el de la tienda ni sale ni se abre), así que esa tableta
+  tiene puesto el código de Andrés; lo que faltaba era la marca, que solo salía en `/tarifas`. Ahora `MostradorPage` la pone en la
+  tarjeta de la portada y bajo el título (`mo-pruebas`, de `en_pruebas` de la lista). Si no la quiere en la tableta: entrar allí con
+  el código de la tienda.
 
 ## Mostrador: tarifas en la tableta (14/10/2026; encargado y tienda desde el 19/10/2026)
 - Tableta junto al ordenador de ventas: buscar con el dedo y ver el precio en grande para pasarlo a TreyFACT.
