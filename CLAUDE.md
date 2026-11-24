@@ -661,6 +661,22 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   prueba `GET /api/compras/etiquetas/prueba` y ajuste en mm (`app_settings.etq_dx/etq_dy`, `PUT /api/compras/ajuste-etiquetas`,
   solo Andrés). Por defecto salen marcados para etiqueta los nuevos y los que cambian de PVP. La pantalla «Etiquetas» antigua
   (100 × 50) no se ha tocado.
+- **Diseño nuevo de la etiqueta de balda: «diagonal verde» (24/11/2026, para todos; Andrés lo eligió tras muchas vueltas en el
+  lienzo «Etiquetas de balda» de claude.ai y pidió ponerlo ya)**. `label_service._etiqueta_balda`: bloque verde oscuro `#114E2C`
+  cortado en diagonal con el precio en blanco (euros grandes, céntimos y € pequeños; con tres cifras o más encoge todo a la vez),
+  pastilla verde clara con **cómo se vende** («POR UNIDAD», «POR KILO»…) e «IVA incluido»; a la derecha la descripción grande
+  (hasta 3 renglones, la letra más grande que quepa; las medidas «20 x 100» no se parten) y el tejado del logotipo, pequeño y en
+  verdes apagados, en la esquina (va en vector, `_TEJADO`; ya no usa `assets/logo-tejado.png` ni el parámetro `marca`); abajo, código
+  de barras (EAN dibujado a mano con sus números debajo; si no hay EAN, Code128 del código), «CÓDIGO» y, debajo, el coste en clave
+  con el mes (sin la palabra «coste»: lo ve el cliente). Medidas en «px» de un lienzo de 734 × 320 (`k = ancho / 734`). Letra
+  **Barlow** (Condensed ExtraBold, Semi Condensed Bold, Bold, SemiBold, Medium) en `backend/app/assets/fonts/` (licencia OFL,
+  recortadas a latín con `pyftsubset`); si faltan, sale con Helvetica. Lo que la letra no tiene se cambia (`_apto`, `_CAMBIOS`).
+  **Cómo se vende**: `it["venta"]` (ud, kg, m, saco…; `_venta`). Las etiquetas desde las tarifas la mandan (`ud_venta`), y por eso
+  el nombre ya no lleva « · el kilo». **Las de los albaranes de compra no la llevan** (el artículo no guarda en qué unidad se
+  vende): salen sin pastilla; no se inventa «por unidad». Pendiente si Andrés lo quiere: poder decirlo en «Recibir mercancía».
+  Descartado por Andrés por el camino: amarillo, el tejado grande, el tejado repetido de fondo o en cadena, el logotipo entero.
+  Probado mirando el PDF (ReportLab 4.2.5); **sin probar en papel**: el verde gasta tinta y, si la impresora se desvía más de
+  ~2 mm, se recorta algo del bloque (nunca letras).
 - **Corregir una línea mal leída sin salir de la vista sencilla** (17/11/2026; Andrés: cambiar un precio mal leído en el móvil era
   lioso y desde la tabla no sabía volver): el coste es tocable (lápiz) → `HojaLinea` con lo que dice el papel (artículo, cantidad,
   precio, descuentos «30+10»), el importe de la línea y el coste en vivo, y «quitar esta línea». El aviso «las cuentas no cuadran»

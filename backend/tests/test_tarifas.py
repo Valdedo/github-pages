@@ -671,7 +671,8 @@ def test_tornilleria_etiquetas_desde_la_tarifa():
     items = ts.etiquetas(db, [("tornilleria", m60), ("tornilleria", m100), ("tornilleria", m50), ("tornilleria", "tor-no-existe"), ("nada", "x")])
     assert [i["descripcion"] for i in items] == ["Hexagonal M8x60", "Hexagonal M8x50"]  # sin precio (M8x100) no sale
     resto = ts.etiquetas(db, [("tornilleria", arts[3]["ref"]), ("tornilleria", arts[5]["ref"])])
-    assert [i["descripcion"] for i in resto] == ["Tuerca hexagonal M10", "Punta de hierro 17x70 · el kilo"]
+    assert [i["descripcion"] for i in resto] == ["Tuerca hexagonal M10", "Punta de hierro 17x70"]
+    assert [i["venta"] for i in resto] == ["ud", "kg"]   # la etiqueta lo dice en la pastilla: «POR UNIDAD», «POR KILO»
     assert items[0]["pvp_con_iva"] == 0.35 and items[0]["codigo"] == "00010860" and items[0]["ean"] is None and items[0]["fecha"] == "05/26"
     assert items[1]["ean"] == "8400000000017" and items[1]["coste"] == 0.08
     assert generate_shelf_labels_pdf(items, inicio=3)[:4] == b"%PDF"

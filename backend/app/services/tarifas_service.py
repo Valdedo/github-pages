@@ -926,7 +926,8 @@ def etiquetas(db: Session, pares: list) -> list:
         if tipo and med:  # «Hexagonal M8» + «M8x50» → «Hexagonal M8x50» (la medida ya dice el diámetro)
             partes = tipo.split(" ")
             corto = " ".join(partes[:-1]) if len(partes) > 1 and normaliza(med).startswith(normaliza(partes[-1])) else tipo
-            de = {"por kilo": "el kilo", "por metro": "el metro"}.get(normaliza(a.get("formato") or ""), a.get("formato"))
+            # «Por kilo» / «Por metro» ya lo dice la pastilla de la etiqueta («POR KILO»); otro formato («Rollo 5 kg») va en el nombre
+            de = None if normaliza(a.get("formato") or "") in ("por kilo", "por metro") else a.get("formato")
             nombre = f"{corto} {med}" + (f" · {de}" if de else "")
         f = a.get("fecha") or ""
         m = re.match(r"(\d{4})-(\d{2})", f)
@@ -935,6 +936,7 @@ def etiquetas(db: Session, pares: list) -> list:
             "codigo": a.get("codigo") or "", "ref": a.get("codigo"),
             "coste": None if a.get("solo_pvp") else a.get("coste"),
             "fecha": f"{m.group(2)}/{m.group(1)[2:]}" if m else None,
+            "venta": a.get("ud_venta") or a.get("unidad"),   # ud, kg, m, saco… → «POR UNIDAD», «POR KILO»… en la etiqueta
         })
     return out
 

@@ -408,23 +408,98 @@ def _draw_label(c, article, x: float, y: float, w: float, h: float, base_url: st
 # 8 mm a cada lado; 6 × 42,3 = 253,8 mm → 21,6 mm arriba y abajo.
 BALDA = {"ancho": 97.0, "alto": 42.3, "cols": 2, "filas": 6, "izq": 8.0, "arriba": 21.6}
 BALDA_POR_HOJA = BALDA["cols"] * BALDA["filas"]
-# El tejado verde del logotipo, pequeño, en cada etiqueta (Andrés, 17/11/2026: «solo el triángulo, integrado»)
-_LOGO_BALDA = __import__("pathlib").Path(__file__).resolve().parent.parent / "assets" / "logo-tejado.png"
-_logo_balda_cache: dict = {}
+# Diseño «diagonal verde» (Andrés, 24/11/2026; elegido entre varias propuestas, lienzo «Etiquetas de balda» de
+# claude.ai): bloque verde oscuro cortado en diagonal con el precio en blanco y cómo se vende; a la derecha la
+# descripción grande y el tejado del logotipo, pequeño y apagado, en la esquina; abajo el código de barras, el código
+# del artículo y el coste en clave con el mes. Letra Barlow (assets/fonts, licencia OFL).
+_FUENTES_BALDA = {   # papel → (nombre en el PDF, archivo, la de reserva si el archivo falta)
+    "precio": ("CFBalda-Precio", "BarlowCondensed-ExtraBold.ttf", "Helvetica-Bold"),
+    "nombre": ("CFBalda-Nombre", "BarlowSemiCondensed-Bold.ttf", "Helvetica-Bold"),
+    "negra": ("CFBalda-Negra", "Barlow-Bold.ttf", "Helvetica-Bold"),
+    "media": ("CFBalda-Media", "Barlow-SemiBold.ttf", "Helvetica-Bold"),
+    "fina": ("CFBalda-Fina", "Barlow-Medium.ttf", "Helvetica"),
+}
+_fuentes_balda_cache: dict = {}
+# El tejado del logotipo, en vector (medido sobre el logotipo: caja de 208 × 160): vertiente larga y vertiente corta
+_TEJADO = (((103, 0), (132, 28), (0, 160), (0, 103)), ((136, 33), (208, 104), (208, 159), (109, 60)))
+# Lo que no tiene una letra se cambia por algo que sí (en las tarifas hay medidas como «⅜″»)
+_CAMBIOS = {"″": '"', "′": "'", "⅛": "1/8", "⅜": "3/8", "⅝": "5/8", "⅞": "7/8", "⅓": "1/3", "⅔": "2/3",
+            "≈": "~", "–": "-", "—": "-", "…": "...", "\u00a0": " "}
+_VENTAS = {"ud": "UNIDAD", "u": "UNIDAD", "uds": "UNIDAD", "und": "UNIDAD", "unidad": "UNIDAD", "pieza": "UNIDAD",
+           "m": "METRO", "ml": "METRO", "mt": "METRO", "metro": "METRO", "m2": "M²", "m²": "M²", "m3": "M³", "m³": "M³",
+           "kg": "KILO", "kilo": "KILO", "l": "LITRO", "lt": "LITRO", "litro": "LITRO"}
 
 
-def _logo_balda():
-    """(imagen, ancho/alto) del logotipo, o None si falta el archivo."""
-    if "img" not in _logo_balda_cache:
-        try:
-            from reportlab.lib.utils import ImageReader
-            img = ImageReader(str(_LOGO_BALDA))
-            w, h = img.getSize()
-            _logo_balda_cache["img"] = (img, w / h)
-        except Exception as e:
-            logger.warning("Etiquetas de balda sin logotipo: %s", e)
-            _logo_balda_cache["img"] = None
-    return _logo_balda_cache["img"]
+def _fuentes_balda() -> dict:
+    """La letra de cada papel de la etiqueta. Si falta un archivo, Helvetica: sale igual, con otra letra."""
+    if not _fuentes_balda_cache:
+        import pathlib
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        carpeta = pathlib.Path(__file__).resolve().parent.parent / "assets" / "fonts"
+        for papel, (nombre, archivo, reserva) in _FUENTES_BALDA.items():
+            try:
+                pdfmetrics.registerFont(TTFont(nombre, str(carpeta / archivo)))
+                _fuentes_balda_cache[papel] = nombre
+            except Exception as e:
+                logger.warning("Etiquetas de balda sin la letra %s: %s", archivo, e)
+                _fuentes_balda_cache[papel] = reserva
+    return _fuentes_balda_cache
+
+
+def _apto(txt: str, fuente: str) -> str:
+    """El texto sin lo que esa letra no sabe dibujar (saldría un cuadrado)."""
+    from reportlab.pdfbase import pdfmetrics
+    glifos = getattr(getattr(pdfmetrics.getFont(fuente), "face", None), "charToGlyph", None)
+    out = []
+    for ch in txt:
+        if glifos is not None:
+            vale = ord(ch) in glifos
+        else:
+            try:
+                ch.encode("cp1252")
+                vale = True
+            except UnicodeEncodeError:
+                vale = False
+        out.append(ch if vale else _CAMBIOS.get(ch, ""))
+    return "".join(out)
+
+
+def _venta(v) -> Optional[str]:
+    """«POR UNIDAD», «POR KILO»… según la unidad en que se vende. None si no se sabe: no se inventa."""
+    s = " ".join(str(v or "").lower().replace(".", " ").split())
+    if not s:
+        return None
+    if s in _VENTAS:
+        return "POR " + _VENTAS[s]
+    return "POR " + s.upper() if len(s) <= 10 and s.isalpha() else None
+
+
+def _renglones(txt: str, fuente: str, tam: float, ancho_de) -> list:
+    """Parte el texto en renglones; `ancho_de(n)` dice cuánto cabe en el renglón n (el tejado quita sitio a los de
+    arriba). Una medida («20 × 100») no se parte, y una palabra que no cabe entera se corta."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    import re
+    txt = re.sub(r"(?<=[\d″\"½¼¾⅛⅜⅝⅞])\s+([×xX])\s+(?=[\dØ½¼¾⅛⅜⅝⅞])", "\u00a0\\1\u00a0", txt)
+    lineas, actual = [], ""
+    for palabra in txt.split(" "):
+        while palabra:
+            tope = ancho_de(len(lineas))
+            prueba = f"{actual} {palabra}" if actual else palabra
+            if stringWidth(prueba, fuente, tam) <= tope:
+                actual, palabra = prueba, ""
+            elif actual:
+                lineas.append(actual)
+                actual = ""
+            else:   # una sola palabra más ancha que el renglón
+                n = len(palabra)
+                while n > 1 and stringWidth(palabra[:n], fuente, tam) > tope:
+                    n -= 1
+                lineas.append(palabra[:n])
+                palabra = palabra[n:]
+    if actual:
+        lineas.append(actual)
+    return lineas
 
 
 def _eur(v: float) -> str:
@@ -469,79 +544,162 @@ def _barras(codigo: str, ancho_max: float, alto: float):
         return None
 
 
+_EAN_L = ("0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011")
+_EAN_G = ("0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111")
+_EAN_R = ("1110010", "1100110", "1101100", "1000010", "1011100", "1001110", "1010000", "1000100", "1001000", "1110100")
+_EAN_P = ("LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG", "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL")
+
+
+def _ean_modulos(s: str) -> str:
+    """Las barras de un EAN-13 o EAN-8 ya comprobado, módulo a módulo («1» = barra)."""
+    if len(s) == 13:
+        izq = "".join((_EAN_L if _EAN_P[int(s[0])][i] == "L" else _EAN_G)[int(s[i + 1])] for i in range(6))
+        der = "".join(_EAN_R[int(ch)] for ch in s[7:])
+    else:
+        izq = "".join(_EAN_L[int(ch)] for ch in s[:4])
+        der = "".join(_EAN_R[int(ch)] for ch in s[4:])
+    return "101" + izq + "01010" + der + "101"
+
+
 def _etiqueta_balda(c, it: dict, x: float, y: float, w: float, h: float, marca: str = "esquina") -> None:
-    """Una etiqueta de balda: logotipo arriba, nombre, precio grande a la derecha y código de
-    barras a la izquierda. Todo queda a 4,5 mm del borde: si la impresora se va un poco, nada se sale."""
+    """Una etiqueta de balda con el diseño «diagonal verde». Las medidas del dibujo van en «px» de un lienzo de
+    734 × 320 (el doble de la pegatina), contadas desde arriba a la izquierda. El texto queda a 5 mm del borde de
+    la izquierda y a 3 del de la derecha: si la impresora se va un poco, lo que se recorta es verde, no letras.
+    `it["venta"]` (ud, kg, m, saco…) pone «POR UNIDAD», «POR KILO»…; sin ella no sale la pastilla. `marca` ya no se usa."""
     from reportlab.lib import colors
     from reportlab.graphics import renderPDF
 
-    pad = mm_to_points(4.5)
-    gris = colors.HexColor("#555B54")
+    F = _fuentes_balda()
+    k = w / 734.0
+    verde, claro = colors.HexColor("#114E2C"), colors.HexColor("#2BAD70")
+    tinta, gris = colors.HexColor("#16201B"), colors.HexColor("#555B54")
 
-    # Marca: el tejado del logotipo. «esquina» = arriba a la derecha; «titulo» = delante del nombre
-    arriba = y + h - pad
-    logo = _logo_balda()
-    ancho_txt, x_txt = w - 2 * pad, x + pad
-    if logo:
-        alto_logo = mm_to_points(6.2 if marca == "esquina" else 4.2)
-        ancho_logo = alto_logo * logo[1]
-        if marca == "esquina":
-            c.drawImage(logo[0], x + w - pad - ancho_logo, arriba - alto_logo, ancho_logo, alto_logo, mask="auto")
-        else:
-            c.drawImage(logo[0], x + pad, arriba - alto_logo + 0.5, ancho_logo, alto_logo, mask="auto")
-            x_txt += ancho_logo + 5
-        ancho_txt -= ancho_logo + 6
-    # Nombre: hasta dos renglones, la letra más grande que quepa
-    desc = " ".join(str(it.get("descripcion") or "").split())
-    lineas, tam = [desc], 8.0
-    for tam in (13, 12, 11, 10, 9, 8):
-        lineas = _wrap_words(desc, "Helvetica-Bold", tam, ancho_txt)
-        if len(lineas) <= 2:
+    def X(px: float) -> float:
+        return x + px * k
+
+    def Y(px: float) -> float:
+        return y + h - px * k
+
+    def ancho(txt: str, fuente: str, tam: float, esp: float = 0.0) -> float:   # en px del dibujo
+        return c.stringWidth(txt, fuente, tam * k) / k + esp * max(0, len(txt) - 1)
+
+    def texto(px: float, base: float, txt: str, fuente: str, tam: float, color, esp: float = 0.0, derecha: bool = False):
+        c.setFillColor(color)
+        c.setFont(fuente, tam * k)
+        if derecha:
+            px -= ancho(txt, fuente, tam, esp)
+        c.drawString(X(px), Y(base), txt, charSpace=esp * k)
+
+    def poligono(puntos, color):
+        p = c.beginPath()
+        p.moveTo(*puntos[0])
+        for q in puntos[1:]:
+            p.lineTo(*q)
+        p.close()
+        c.setFillColor(color)
+        c.drawPath(p, stroke=0, fill=1)
+
+    # ── Bloque verde del precio, cortado en diagonal ──
+    poligono([(X(14), Y(14)), (X(318), Y(14)), (X(257.2), Y(306)), (X(14), Y(306))], verde)
+    pvp = float(it.get("pvp_con_iva") or 0)
+    entero, dec = f"{pvp:,.2f}".split(".")
+    entero, cents = entero.replace(",", "."), "," + dec
+    venta = _venta(it.get("venta"))
+    baja = 0 if venta else 14          # sin pastilla, el precio baja un poco para quedar centrado en el bloque
+
+    def ancho_precio(e: float) -> float:
+        return ancho(entero, F["precio"], 152 * e) + 6 * e + max(ancho(cents, F["precio"], 62 * e), ancho("€", F["precio"], 42 * e))
+
+    e = 1.0
+    while e > 0.4 and ancho_precio(e) > 226:      # precios de tres cifras o más: todo el precio encoge a la vez
+        e -= 0.02
+    base = 124.6 + 53.2 * e + baja                 # los euros, centrados donde van con el tamaño entero
+    arriba_e = base - 106.4 * e
+    x_cents = 38 + ancho(entero, F["precio"], 152 * e) + 6 * e
+    blanco = colors.white
+    texto(38, base, entero, F["precio"], 152 * e, blanco)
+    texto(x_cents, arriba_e + 41.4 * e, cents, F["precio"], 62 * e, blanco)
+    texto(x_cents, arriba_e + 83.4 * e, "€", F["precio"], 42 * e, blanco)
+    if venta:
+        venta = _apto(venta, F["negra"])
+        tam_v = 18.0
+        while tam_v > 12 and ancho(venta, F["negra"], tam_v, 1.5) > 190:
+            tam_v -= 0.5
+        c.setFillColor(claro)
+        c.roundRect(X(38), Y(232), (ancho(venta, F["negra"], tam_v, 1.5) + 32) * k, 34 * k, 17 * k, stroke=0, fill=1)
+        texto(54, 215.2 + tam_v * 0.39, venta, F["negra"], tam_v, colors.HexColor("#0B2B19"), 1.5)
+    texto(38, 254 if venta else 240, "IVA incluido", F["media"], 15, colors.HexColor("#CFE3D6"))
+
+    # ── Tejado de Casa Fonso, pequeño y apagado, arriba a la derecha ──
+    s = 44 * k / 208.0
+    for puntos, color in zip(_TEJADO, ("#9FD8BA", "#6E9A82")):
+        poligono([(X(668) + px * s, Y(36) - py * s) for px, py in puntos], colors.HexColor(color))
+
+    # ── Descripción: hasta tres renglones, con la letra más grande que quepa (el primero deja sitio al tejado) ──
+    izq, der = 342.0, 712.0
+    desc = _apto(" ".join(str(it.get("descripcion") or "").split()), F["nombre"])
+    lineas, tam = [desc], 24.0
+
+    def cabe(n: int) -> float:      # px que caben en el renglón n: los que empiezan a la altura del tejado, menos
+        return der - izq - (56 if 32 + n * tam * 46 / 42 < 72 else 0)
+
+    for tam in (42.0, 38.0, 34.0, 30.0, 27.0, 24.0):
+        lineas = _renglones(desc, F["nombre"], tam * k, lambda n: cabe(n) * k)
+        if len(lineas) <= 3:
             break
-    if len(lineas) > 2:
-        lineas = lineas[:2]
-        while lineas[1] and c.stringWidth(lineas[1] + "…", "Helvetica-Bold", tam) > ancho_txt:
-            lineas[1] = lineas[1][:-1]
-        lineas[1] = lineas[1].rstrip() + "…"
-    c.setFillColor(colors.black)
-    c.setFont("Helvetica-Bold", tam)
-    ty = arriba - tam * 0.78
-    for ln in lineas:
-        c.drawString(x_txt, ty, ln)
-        ty -= tam * 1.16
+    if len(lineas) > 3:
+        lineas = lineas[:3]
+        while lineas[2] and ancho(lineas[2] + "…", F["nombre"], tam) > cabe(2):
+            lineas[2] = lineas[2][:-1]
+        lineas[2] = lineas[2].rstrip() + "…"
+    for n, ln in enumerate(lineas):
+        texto(izq, 32 + tam * 0.9476 + n * tam * 46 / 42, ln, F["nombre"], tam, tinta)
 
-    # Precio: a la derecha, lo que más se ve
-    precio = _eur(float(it.get("pvp_con_iva") or 0))
-    zona = w * 0.50
-    ptam = 34.0
-    while ptam > 16 and c.stringWidth(precio, "Helvetica-Bold", ptam) > zona:
-        ptam -= 1
-    base = y + pad + 13
-    c.setFont("Helvetica-Bold", ptam)
-    c.drawRightString(x + w - pad, base, precio)
-    c.setFont("Helvetica", 6.5)
-    c.setFillColor(gris)
-    c.drawRightString(x + w - pad, y + pad + 4.5, "IVA incluido")
+    # ── Abajo a la derecha: código del artículo y, debajo, el coste en clave con el mes ──
+    ean = "".join(str(it.get("ean") or "").split())
+    ean = ean if _ean_ok(ean) else ""
+    codigo = str(it.get("codigo") or "").strip()
+    visto = _apto((str(it.get("ref") or "").strip() or ("" if ean else codigo))[:24], F["negra"])
+    tam_c = 22.0
+    while visto and tam_c > 15 and ancho(visto, F["negra"], tam_c) > 176:
+        tam_c -= 0.5
+    while visto and ancho(visto, F["negra"], tam_c) > 176:
+        visto = visto[:-1]
+    clave = encode_calzetynus(float(it["coste"])) if it.get("coste") else ""
+    mes = _apto(str(it.get("fecha") or ""), F["fina"])
+    col = 0.0
+    if visto:
+        texto(der, 246.6, "CÓDIGO", F["media"], 14, gris, 1.5, derecha=True)
+        texto(der, 273.8, visto, F["negra"], tam_c, tinta, derecha=True)
+        col = max(ancho("CÓDIGO", F["media"], 14, 1.5), ancho(visto, F["negra"], tam_c))
+    if mes:
+        texto(der, 296.8, mes, F["fina"], 15, gris, derecha=True)
+    if clave:
+        texto(der - (ancho(mes, F["fina"], 15) + 8 if mes else 0), 296.8, clave, F["negra"], 17, gris, 2, derecha=True)
+    col = max(col, ancho(clave, F["negra"], 17, 2) + (ancho(mes, F["fina"], 15) + 8 if mes and clave else ancho(mes, F["fina"], 15)))
 
-    # Código de barras (el del producto; si no tiene, su código, para poder pasarlo por «Consultar precio»)
-    codigo = str(it.get("ean") or it.get("codigo") or "").strip()
-    d = _barras(codigo, w - zona - pad - mm_to_points(3), mm_to_points(8.5))
-    pie_y = y + pad - 1.5
-    if d is not None:
-        renderPDF.draw(d, c, x + pad - 2, pie_y + 8)
-    # Pie: referencia del proveedor, coste en clave y mes de la etiqueta
-    partes = []
-    if it.get("ref"):
-        partes.append(f"Ref. {str(it['ref'])[:18]}")
-    elif codigo and not it.get("ean"):
-        partes.append(codigo[:18])
-    if it.get("coste"):
-        partes.append(encode_calzetynus(float(it["coste"])))
-    if it.get("fecha"):
-        partes.append(str(it["fecha"]))
-    c.setFont("Helvetica", 5.5)
-    c.setFillColor(gris)
-    c.drawString(x + pad, pie_y, "  ·  ".join(partes))
+    # ── Abajo a la izquierda: código de barras (el del producto; si no tiene, su código, para «Consultar precio») ──
+    hueco = der - izq - (col + 16 if col else 0)
+    if ean:
+        mods = _ean_modulos(ean)
+        m = min(209.0 / 95, hueco / len(mods))
+        if m * k >= 0.62:          # más fino no lo lee el lector
+            c.setFillColor(colors.black)
+            i = 0
+            while i < len(mods):
+                if mods[i] == "1":
+                    j = i
+                    while j < len(mods) and mods[j] == "1":
+                        j += 1
+                    c.rect(X(izq + i * m), Y(279), (j - i) * m * k, 44 * k, stroke=0, fill=1)
+                    i = j
+                else:
+                    i += 1
+            texto(izq, 297, ean, F["fina"], 15, tinta, 3)
+    elif codigo:
+        d = _barras(codigo, hueco * k, 44 * k)
+        if d is not None:
+            renderPDF.draw(d, c, X(izq), Y(300))
     c.setFillColor(colors.black)
 
 

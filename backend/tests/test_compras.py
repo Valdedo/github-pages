@@ -444,3 +444,49 @@ class TestCarpetasDeDrive:
         dp._cache["at"] -= 121                          # a los dos minutos se vuelve a leer
         dp.carpetas()
         assert hecho["lecturas"] == 2
+
+
+class TestEtiquetaDiagonalVerde:
+    """El diseño de la etiqueta de balda del 24/11/2026: bloque verde en diagonal, precio en blanco y cómo se vende."""
+
+    def test_como_se_vende(self):
+        from app.services.label_service import _venta
+        assert [_venta(v) for v in ("ud", "KG", "m", "saco", "m2", "palé")] == [
+            "POR UNIDAD", "POR KILO", "POR METRO", "POR SACO", "POR M²", "POR PALÉ"]
+        assert _venta(None) is None and _venta("") is None and _venta("caja de 100") is None   # si no se sabe, no se inventa
+
+    def test_barras_del_ean(self):
+        from app.services.label_service import _ean_modulos
+        m13, m8 = _ean_modulos("8400000000017"), _ean_modulos("96385074")
+        assert len(m13) == 95 and len(m8) == 67
+        assert m13.startswith("101") and m13.endswith("101") and m13[45:50] == "01010"
+
+    def test_renglones_y_medidas_sin_partir(self):
+        from app.services.label_service import _renglones, _fuentes_balda
+        f = _fuentes_balda()["nombre"]
+        r = _renglones("Punta de hierro 20 x 100", f, 16, lambda n: 120)
+        assert r == ["Punta de hierro", "20 x 100"]
+        largo = _renglones("A" * 80, f, 16, lambda n: 120)          # una palabra que no cabe se corta, no se pierde
+        assert len(largo) > 1 and "".join(largo) == "A" * 80
+
+    def test_pdf_con_todo_tipo_de_articulos(self):
+        from app.services.label_service import generate_shelf_labels_pdf
+        items = [
+            {"descripcion": "Hexagonal M10x60", "pvp_con_iva": 0.30, "ean": "8400000000017", "codigo": "00010860",
+             "ref": "00010860", "coste": 0.11, "fecha": "11/26", "venta": "ud"},
+            {"descripcion": "Punta de hierro 17x70", "pvp_con_iva": 3.10, "ean": None, "codigo": "9000.000001",
+             "ref": "9000.000001", "coste": 1.85, "fecha": "11/26", "venta": "kg"},
+            {"descripcion": "Artículo de albarán sin forma de venta ni código", "pvp_con_iva": 1250.0, "ean": None,
+             "codigo": "", "ref": None, "coste": None, "fecha": None},
+            {"descripcion": "Codo latón H-H ⅜″ × ½″ " + "muy largo " * 30, "pvp_con_iva": 2.45, "ean": "96385074",
+             "codigo": "UN-CODIGO-LARGUISIMO-QUE-NO-CABE-1234567890", "ref": "UN-CODIGO-LARGUISIMO-QUE-NO-CABE-1234567890",
+             "coste": 0.012, "fecha": "11/26", "venta": "caja"},
+        ]
+        pdf = generate_shelf_labels_pdf(items * 4, inicio=11, marco=True)    # 16 etiquetas desde la 11.ª: tres folios
+        assert pdf[:4] == b"%PDF"
+        from pypdf import PdfReader
+        import io
+        paginas = PdfReader(io.BytesIO(pdf)).pages
+        assert len(paginas) == 3
+        texto = paginas[0].extract_text()
+        assert "POR UNIDAD" in texto and "IVA incluido" in texto and "Hexagonal M10x60" in texto
