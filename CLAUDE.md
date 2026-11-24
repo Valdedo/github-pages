@@ -772,6 +772,12 @@ y TreyFACT escondidos en «Más opciones»; cambiar el PVP rápido y poder **man
   se puede deshacer», casilla **«Quitar también sus copias de Drive»** marcada por defecto: van a la papelera de Drive; si no, al
   volver a subirlos quedarían dos veces). Usa `DELETE /api/documents/{id}?drive=true` uno a uno. Si se borra mientras su copia se
   estaba guardando, `drive_proveedor.guardar` quita el archivo recién subido para que no quede suelto.
+- **Cambiar o quitar un código de barras ya puesto (24/11/2026, Andrés: «si lo metemos mal, ahora no se puede cambiar»)**: en
+  `RecibirPage` el código puesto era solo texto. Ahora se toca (lápiz, `rc-codigo-btn`) y sale una hoja (`rc-hoja-codigo`): «Está
+  mal: poner otro» abre el lector para ese artículo en modo cambio (`escCambiar`: cámara, lector de mano o tecleado; cambia, cierra
+  y no pasa al siguiente; «Deshacer» devuelve el de antes; si se lee el mismo, lo dice) y «Quitarlo (dejarlo sin código)», también
+  con Deshacer. En el móvil los artículos «igual» van plegados: hay que abrir el artículo para ver su código. En la PDA ya se
+  podía (leer otro encima lo cambia, o «Quitarle el código»); ahora lo dice debajo del código.
 - Pendiente de esta tanda: rehacer **«Consultar precio»** (Andrés: «más dinámica, para el día a día»), mirando lo mismo (código de
   barras, última compra, etiqueta de balda); probar la lectura con albaranes reales y la cámara en un móvil. Ya para todos (19/11): falta
   quitar el aviso de subidas viejo y borrar las pantallas de antes (`HomePageDeSiempre`, `DocumentPage`) cuando lleve un tiempo.

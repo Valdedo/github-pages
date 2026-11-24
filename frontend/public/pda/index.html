@@ -427,7 +427,7 @@ button, input { font-family: inherit; font-size: inherit; }
         '<button class="btn fuerte" id="btnMismo" type="button">Es el mismo producto: ponérselo</button>' +
         '<button class="btn" id="btnNoMismo" type="button">No, me equivoqué</button>';
     } else if (a.ean) {
-      h += '<div class="tiene">Código de barras: ' + esc(a.ean) + '</div></div>';
+      h += '<div class="tiene">Código de barras: ' + esc(a.ean) + '</div><div class="sub" style="text-align:center">Si está mal, lee el bueno encima.</div></div>';
     } else {
       h += '<div class="lee">Lee su código de barras</div></div>';
     }

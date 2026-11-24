@@ -65,6 +65,9 @@ export function RecibirPage() {
   const [pvp, setPvp] = useState<{ id: number; valor: string } | null>(null);
   const [guardando, setGuardando] = useState<number | null>(null);
   const [escId, setEscId] = useState<number | null>(null);
+  // Código de barras ya puesto que se quiere cambiar o quitar (se metió mal)
+  const [codigoDe, setCodigoDe] = useState<number | null>(null);
+  const [escCambiar, setEscCambiar] = useState(false);
   const [avisoEsc, setAvisoEsc] = useState<{ texto: string; mal?: boolean; accion?: { texto: string; alPulsar: () => void } } | null>(null);
   const recienGuardado = useRef<{ codigo: string; en: string } | null>(null);
   const [verOriginal, setVerOriginal] = useState(false);
@@ -161,6 +164,11 @@ export function RecibirPage() {
   const corto = (t: string) => (t.length > 38 ? `${t.slice(0, 36).trimEnd()}…` : t);
   /** Pone el código al artículo que toca y pasa al siguiente sin código. */
   const ponerCodigo = async (art: Article, limpio: string) => {
+    if (escCambiar) {
+      // Se está arreglando uno que se metió mal: se cambia y se cierra, sin pasar al siguiente
+      if (await guardar(art, { ean: limpio }, 'Código de barras cambiado', { ean: art.ean || null } as Partial<Article>)) { setEscId(null); setEscCambiar(false); setAvisoEsc(null); }
+      return;
+    }
     if (!(await guardar(art, { ean: limpio }))) return;
     recienGuardado.current = { codigo: limpio, en: art.descripcion };
     const sig = siguienteSinCodigo(art.id);
@@ -174,6 +182,10 @@ export function RecibirPage() {
     const limpio = codigo.replace(/\s/g, '');
     if (!eanValido(limpio)) {
       setAvisoEsc({ texto: `«${limpio.slice(0, 22)}» no es el código de barras del producto. Prueba con el otro código del envase.`, mal: true });
+      return;
+    }
+    if (escCambiar && (art.ean || '').replace(/\D/g, '') === limpio) {
+      setAvisoEsc({ texto: 'Ese es el código que ya tiene puesto. Lee el bueno.' });
       return;
     }
     const otro = articulos.find(a => a.id !== art.id && (a.ean || '').replace(/\D/g, '') === limpio);
@@ -215,6 +227,7 @@ export function RecibirPage() {
   const descuadre = base != null && base > 0 ? Math.round((sumaLeida - base) * 100) / 100 : null;
   const noCuadra = doc.validacion_ok === false && descuadre != null && Math.abs(descuadre) > Math.max(0.5, (base as number) * 0.005);
   const escArt = articulos.find(a => a.id === escId);
+  const codigoArt = articulos.find(a => a.id === codigoDe && eanValido(a.ean));
 
   const chip = (f: Filtro, n: number, txt: string) => (
     <button key={f} className={`rc-chip ${f}${filtro === f ? ' on' : ''}`} aria-pressed={filtro === f} disabled={n === 0 && f !== 'todos'} onClick={() => setFiltro(filtro === f ? 'todos' : f)}>
@@ -280,7 +293,7 @@ export function RecibirPage() {
         </td>
         <td className="rc-td-cod">
           {tieneCodigo
-            ? <span className="rc-codigo">{a.ean}</span>
+            ? <button className="rc-codigo rc-codigo-btn" onClick={() => setCodigoDe(a.id)} title="Cambiar o quitar el código de barras">{a.ean} <Pencil size={12} /></button>
             : <button className="btn btn-ghost btn-sm" onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(a.id); }}><ScanBarcode size={15} /> Leer</button>}
         </td>
         <td className="rc-td-etq">{marcaEtiqueta(a)}</td>
@@ -411,7 +424,7 @@ export function RecibirPage() {
 
                   <div className="rc-pie">
                     {tieneCodigo
-                      ? <span className="rc-codigo"><ScanBarcode size={16} /> {a.ean}</span>
+                      ? <button className="rc-codigo rc-codigo-btn" onClick={() => setCodigoDe(a.id)} aria-label={`Código de barras ${a.ean}: cambiarlo o quitarlo`}><ScanBarcode size={16} /> {a.ean} <Pencil size={13} /></button>
                       : <button className="btn btn-ghost btn-sm" onClick={() => { recienGuardado.current = null; setAvisoEsc(null); setEscId(a.id); }}><ScanBarcode size={16} /> Leer código de barras</button>}
                     {(a.codigo_proveedor || a.codigo_fabricante) && <span className="rc-ref">Ref. {a.codigo_proveedor || a.codigo_fabricante}</span>}
                     {l.compras > 0 && (
@@ -451,12 +464,30 @@ export function RecibirPage() {
       {escArt && (
         <EscanerCodigo
           titulo={escArt.descripcion}
-          sub={`${sinCodigo.length} sin código · ${euros(escArt.pvp_con_iva)}`}
+          sub={escCambiar ? `Ahora tiene ${escArt.ean}. Lee o escribe el bueno.` : `${sinCodigo.length} sin código · ${euros(escArt.pvp_con_iva)}`}
           aviso={avisoEsc}
           onCodigo={codigoLeido}
-          onSaltar={sinCodigo.length > 1 ? () => { const s = siguienteSinCodigo(escArt.id); if (s != null) { setAvisoEsc(null); setEscId(s); } } : undefined}
-          onCerrar={() => { setEscId(null); setAvisoEsc(null); }}
+          onSaltar={!escCambiar && sinCodigo.length > 1 ? () => { const s = siguienteSinCodigo(escArt.id); if (s != null) { setAvisoEsc(null); setEscId(s); } } : undefined}
+          onCerrar={() => { setEscId(null); setEscCambiar(false); setAvisoEsc(null); }}
         />
+      )}
+      {codigoArt && (
+        <div className="upload-overlay" onClick={e => { if (e.target === e.currentTarget) setCodigoDe(null); }}>
+          <div className="upload-sheet rc-hoja rc-hoja-codigo" role="dialog" aria-modal="true" aria-label="Código de barras">
+            <div className="upload-sheet-handle" />
+            <h3>Código de barras</h3>
+            <p className="rc-hoja-codigo-art">{codigoArt.descripcion}</p>
+            <p className="rc-hoja-codigo-num"><ScanBarcode size={20} /> {codigoArt.ean}</p>
+            <button className="btn btn-primary" onClick={() => { setCodigoDe(null); recienGuardado.current = null; setAvisoEsc(null); setEscCambiar(true); setEscId(codigoArt.id); }}>
+              <ScanBarcode size={18} /> Está mal: poner otro
+            </button>
+            <button className="btn btn-ghost rc-hoja-codigo-quitar" disabled={guardando === codigoArt.id}
+              onClick={async () => { const antes = codigoArt.ean; if (await guardar(codigoArt, { ean: null } as unknown as Partial<Article>, 'Código de barras quitado', { ean: antes } as Partial<Article>)) setCodigoDe(null); }}>
+              <Trash2 size={17} /> Quitarlo (dejarlo sin código)
+            </button>
+            <button className="btn btn-ghost" onClick={() => setCodigoDe(null)}>Está bien: dejarlo</button>
+          </div>
+        </div>
       )}
       {corregir != null && (corregir === 'nueva' || articulos.some(a => a.id === corregir)) && (
         <HojaLinea

@@ -285,3 +285,16 @@
 .rc-tabla .rc-pvp-form input { width: 78px; padding: 4px 8px; font-size: 16px; }
 .rc-tr-hist td { background: var(--surface-2); padding-top: 0; }
 .rc-tr-hist .rc-hist { max-width: 760px; margin: 4px 0 8px; }
+
+/* Código de barras ya puesto: se toca para cambiarlo o quitarlo (24/11/2026) */
+.rc-codigo-btn { padding: 4px 0; background: none; border: 0; border-bottom: 1.5px dashed transparent; color: inherit; font-family: inherit; font-size: inherit; cursor: pointer; }
+.rc-codigo-btn svg { flex-shrink: 0; }
+.rc-codigo-btn svg:last-child { color: var(--border-strong); }
+.rc-codigo-btn:hover { border-bottom-color: var(--brand); }
+.rc-codigo-btn:hover svg:last-child { color: var(--brand); }
+.rc-pie .rc-codigo-btn { min-height: 40px; }
+.rc-hoja-codigo h3 { font-size: 22px; margin: 0 0 4px; }
+.rc-hoja-codigo-art { margin: 0 0 10px; color: var(--text-2); font-size: 15px; line-height: 1.35; }
+.rc-hoja-codigo-num { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); font: 600 22px var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+.rc-hoja-codigo .btn { width: 100%; min-height: 50px; margin-top: 8px; justify-content: center; }
+.rc-hoja-codigo-quitar:not(:disabled) { color: var(--danger); }
